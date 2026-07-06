@@ -1,5 +1,6 @@
 package com.ytlite.player.ui.main
 
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -27,8 +28,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import com.ytlite.player.R
+import com.ytlite.player.playback.GlobalPlaybackUiState
 import com.ytlite.player.ui.home.HomeScreen
 import com.ytlite.player.ui.library.LibraryScreen
+import com.ytlite.player.ui.playback.MiniPlayerBar
 import com.ytlite.player.ui.shorts.ShortsScreen
 import com.ytlite.player.ui.subscriptions.SubscriptionsScreen
 import kotlinx.coroutines.launch
@@ -63,6 +66,9 @@ private enum class MainTab(
 @Composable
 fun MainScreen(
     onVideoClick: (String) -> Unit,
+    globalPlaybackState: GlobalPlaybackUiState,
+    onMiniPlayerOpen: () -> Unit,
+    onMiniPlayerTogglePlayPause: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var selectedTab by rememberSaveable { mutableIntStateOf(MainTab.Home.ordinal) }
@@ -80,23 +86,32 @@ fun MainScreen(
         modifier = modifier.fillMaxSize(),
         snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
-            NavigationBar {
-                MainTab.entries.forEachIndexed { index, tab ->
-                    NavigationBarItem(
-                        selected = selectedTab == index,
-                        onClick = { selectedTab = index },
-                        icon = {
-                            Icon(
-                                imageVector = if (selectedTab == index) {
-                                    tab.selectedIcon
-                                } else {
-                                    tab.unselectedIcon
-                                },
-                                contentDescription = stringResource(tab.labelRes),
-                            )
-                        },
-                        label = { Text(text = stringResource(tab.labelRes)) },
+            Column {
+                if (globalPlaybackState.showMiniPlayer) {
+                    MiniPlayerBar(
+                        state = globalPlaybackState,
+                        onOpenPlayer = onMiniPlayerOpen,
+                        onTogglePlayPause = onMiniPlayerTogglePlayPause,
                     )
+                }
+                NavigationBar {
+                    MainTab.entries.forEachIndexed { index, tab ->
+                        NavigationBarItem(
+                            selected = selectedTab == index,
+                            onClick = { selectedTab = index },
+                            icon = {
+                                Icon(
+                                    imageVector = if (selectedTab == index) {
+                                        tab.selectedIcon
+                                    } else {
+                                        tab.unselectedIcon
+                                    },
+                                    contentDescription = stringResource(tab.labelRes),
+                                )
+                            },
+                            label = { Text(text = stringResource(tab.labelRes)) },
+                        )
+                    }
                 }
             }
         },

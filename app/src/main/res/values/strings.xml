@@ -53,4 +53,6 @@
     <string name="player_format_no">否</string>
     <string name="player_format_audio_only">音频</string>
     <string name="player_select_format_hint">请选择播放格式</string>
+    <string name="playback_notification_channel">播放控制</string>
+    <string name="playback_notification_channel_description">后台播放与锁屏控制</string>
 </resources>

@@ -1,8 +1,11 @@
 package com.ytlite.player.ui.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -12,6 +15,7 @@ import androidx.navigation.navArgument
 import com.ytlite.player.ui.main.MainScreen
 import com.ytlite.player.ui.player.PlayerScreen
 import com.ytlite.player.ui.player.PlayerViewModel
+import com.ytlite.player.playback.GlobalPlaybackViewModel
 
 object Routes {
     const val MAIN = "main"
@@ -23,6 +27,8 @@ object Routes {
 @Composable
 fun YTLiteNavHost(modifier: Modifier = Modifier) {
     val navController = rememberNavController()
+    val globalPlaybackViewModel: GlobalPlaybackViewModel = viewModel()
+    val globalPlaybackState by globalPlaybackViewModel.uiState.collectAsStateWithLifecycle()
 
     NavHost(
         navController = navController,
@@ -34,6 +40,12 @@ fun YTLiteNavHost(modifier: Modifier = Modifier) {
                 onVideoClick = { videoId ->
                     navController.navigate(Routes.player(videoId))
                 },
+                globalPlaybackState = globalPlaybackState,
+                onMiniPlayerOpen = {
+                    val videoId = globalPlaybackState.nowPlaying?.videoId ?: return@MainScreen
+                    navController.navigate(Routes.player(videoId))
+                },
+                onMiniPlayerTogglePlayPause = globalPlaybackViewModel::togglePlayPause,
             )
         }
         composable(
@@ -52,8 +64,14 @@ fun YTLiteNavHost(modifier: Modifier = Modifier) {
                 viewModelStoreOwner = backStackEntry,
                 factory = PlayerViewModel.factory(videoId, application),
             )
+            LaunchedEffect(Unit) {
+                globalPlaybackViewModel.onEnterPlayerScreen()
+            }
             PlayerScreen(
-                onBack = { navController.popBackStack() },
+                onBack = {
+                    globalPlaybackViewModel.onLeavePlayerScreen()
+                    navController.popBackStack()
+                },
                 viewModel = playerViewModel,
             )
         }

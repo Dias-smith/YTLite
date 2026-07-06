@@ -10,6 +10,8 @@ import com.ytlite.player.data.js.JsExtractorEngine
 import com.ytlite.player.data.model.ExtractionResult
 import com.ytlite.player.data.model.StreamFormat
 import com.ytlite.player.data.repository.ExtractionRepository
+import com.ytlite.player.playback.NowPlaying
+import com.ytlite.player.playback.PlaybackManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -27,7 +29,43 @@ class PlayerViewModel(
 
     init {
         jsEngine.preloadAsync()
-        loadPlayback()
+        val active = PlaybackManager.nowPlaying.value
+        if (active?.videoId == videoId) {
+            _uiState.update {
+                it.copy(
+                    isLoading = false,
+                    selectedStreamUrl = active.streamUrl,
+                    showFormatPicker = false,
+                )
+            }
+            loadPlaybackMetadataOnly()
+        } else {
+            loadPlayback()
+        }
+    }
+
+    private fun loadPlaybackMetadataOnly() {
+        viewModelScope.launch {
+            when (val result = repository.fetchVideoPlayback(videoId)) {
+                is ExtractionResult.Success -> {
+                    _uiState.update {
+                        it.copy(
+                            playback = result.data,
+                            isLoading = false,
+                            errorMessage = null,
+                        )
+                    }
+                }
+                is ExtractionResult.Error -> {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            errorMessage = result.message,
+                        )
+                    }
+                }
+            }
+        }
     }
 
     fun loadPlayback() {
@@ -66,6 +104,15 @@ class PlayerViewModel(
     }
 
     fun selectFormat(format: StreamFormat) {
+        val playback = _uiState.value.playback ?: return
+        val nowPlaying = NowPlaying(
+            videoId = playback.videoId,
+            title = playback.title,
+            channelName = playback.channelName,
+            streamUrl = format.url,
+            thumbnailUrl = NowPlaying.thumbnailUrlFor(playback.videoId),
+        )
+        PlaybackManager.play(nowPlaying)
         _uiState.update {
             it.copy(
                 selectedStreamUrl = format.url,

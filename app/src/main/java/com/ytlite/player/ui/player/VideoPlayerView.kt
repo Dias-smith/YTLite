@@ -1,49 +1,65 @@
 package com.ytlite.player.ui.player
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
-import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 
 @Composable
 fun VideoPlayerView(
-    streamUrl: String,
+    player: Player?,
     modifier: Modifier = Modifier,
-    playWhenReady: Boolean = true,
 ) {
-    val context = LocalContext.current
-    val exoPlayer = remember {
-        ExoPlayer.Builder(context.applicationContext).build()
-    }
+    PlayerSurface(
+        player = player,
+        modifier = modifier,
+        useController = true,
+    )
+}
 
-    DisposableEffect(streamUrl) {
-        exoPlayer.setMediaItem(MediaItem.fromUri(streamUrl))
-        exoPlayer.repeatMode = Player.REPEAT_MODE_OFF
-        exoPlayer.playWhenReady = playWhenReady
-        exoPlayer.prepare()
-        onDispose {
-            exoPlayer.stop()
-            exoPlayer.clearMediaItems()
-        }
-    }
+@Composable
+fun MiniPlayerSurface(
+    player: Player?,
+    modifier: Modifier = Modifier,
+) {
+    PlayerSurface(
+        player = player,
+        modifier = modifier,
+        useController = false,
+        resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM,
+    )
+}
 
-    DisposableEffect(Unit) {
-        onDispose { exoPlayer.release() }
-    }
+@Composable
+private fun PlayerSurface(
+    player: Player?,
+    modifier: Modifier = Modifier,
+    useController: Boolean = true,
+    resizeMode: Int = AspectRatioFrameLayout.RESIZE_MODE_FIT,
+) {
+    if (player == null) return
 
     AndroidView(
-        factory = { ctx ->
-            PlayerView(ctx).apply {
-                player = exoPlayer
-                useController = true
+        factory = { context ->
+            PlayerView(context).apply {
+                this.player = player
+                this.useController = useController
                 controllerShowTimeoutMs = 3000
+                this.resizeMode = resizeMode
+                setShowBuffering(PlayerView.SHOW_BUFFERING_NEVER)
             }
+        },
+        update = { view ->
+            if (view.player !== player) {
+                view.player = player
+            }
+            view.useController = useController
+            view.resizeMode = resizeMode
+        },
+        onRelease = { view ->
+            view.player = null
         },
         modifier = modifier,
     )

@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ytlite.player.R
 import com.ytlite.player.data.model.StreamFormat
+import com.ytlite.player.playback.PlaybackManager
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -55,6 +56,7 @@ fun PlayerScreen(
     modifier: Modifier = Modifier,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val sharedPlayer by PlaybackManager.playerState.collectAsStateWithLifecycle()
 
     if (uiState.showFormatPicker && uiState.playback != null) {
         FormatPickerDialog(
@@ -130,7 +132,7 @@ fun PlayerScreen(
                     item(key = "player_surface") {
                         if (uiState.selectedStreamUrl != null) {
                             VideoPlayerView(
-                                streamUrl = uiState.selectedStreamUrl!!,
+                                player = sharedPlayer,
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .aspectRatio(16f / 9f),
