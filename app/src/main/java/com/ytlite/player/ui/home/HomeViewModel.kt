@@ -22,55 +22,22 @@ class HomeViewModel(
     }
 
     fun loadFeed() {
-        viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
-            when (val result = repository.fetchHomeFeed()) {
-                is ExtractionResult.Success -> {
-                    _uiState.update {
-                        it.copy(
-                            videos = result.data.videos,
-                            continuation = result.data.continuation,
-                            isLoading = false,
-                            errorMessage = null,
-                        )
-                    }
-                }
-                is ExtractionResult.Error -> {
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            errorMessage = result.message,
-                        )
-                    }
-                }
-            }
-        }
+        val category = HomeCategories.find(_uiState.value.selectedCategoryId)
+            ?: HomeCategories.items.first()
+        loadFeedForCategory(category)
     }
 
     fun refresh() {
-        viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
-            when (val result = repository.fetchHomeFeed()) {
-                is ExtractionResult.Success -> {
-                    _uiState.update {
-                        it.copy(
-                            videos = result.data.videos,
-                            continuation = result.data.continuation,
-                            isLoading = false,
-                            errorMessage = null,
-                        )
-                    }
-                }
-                is ExtractionResult.Error -> {
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            errorMessage = result.message,
-                        )
-                    }
-                }
-            }
-        }
+        val category = HomeCategories.find(_uiState.value.selectedCategoryId)
+            ?: HomeCategories.items.first()
+        loadFeedForCategory(category)
+    }
+
+    fun selectCategory(categoryId: String) {
+        if (categoryId == _uiState.value.selectedCategoryId) return
+        val category = HomeCategories.find(categoryId) ?: return
+        _uiState.update { it.copy(selectedCategoryId = categoryId) }
+        loadFeedForCategory(category)
     }
 
     fun loadMore() {
@@ -80,7 +47,12 @@ class HomeViewModel(
 
         viewModelScope.launch {
             _uiState.update { it.copy(isLoadingMore = true) }
-            when (val result = repository.fetchHomeFeedContinuation(token)) {
+            when (
+                val result = repository.fetchHomeFeedContinuation(
+                    continuation = token,
+                    searchQuery = state.feedSearchQuery,
+                )
+            ) {
                 is ExtractionResult.Success -> {
                     _uiState.update { current ->
                         val merged = (current.videos + result.data.videos)
@@ -94,6 +66,40 @@ class HomeViewModel(
                 }
                 is ExtractionResult.Error -> {
                     _uiState.update { it.copy(isLoadingMore = false) }
+                }
+            }
+        }
+    }
+
+    private fun loadFeedForCategory(category: FeedCategory) {
+        viewModelScope.launch {
+            _uiState.update {
+                it.copy(
+                    isLoading = true,
+                    errorMessage = null,
+                    videos = emptyList(),
+                    continuation = null,
+                )
+            }
+            when (val result = repository.fetchHomeFeed(searchQuery = category.searchQuery)) {
+                is ExtractionResult.Success -> {
+                    _uiState.update {
+                        it.copy(
+                            videos = result.data.videos,
+                            continuation = result.data.continuation,
+                            feedSearchQuery = category.searchQuery,
+                            isLoading = false,
+                            errorMessage = null,
+                        )
+                    }
+                }
+                is ExtractionResult.Error -> {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            errorMessage = result.message,
+                        )
+                    }
                 }
             }
         }

@@ -6,6 +6,9 @@ import com.ytlite.player.data.model.VideoItem
 @Immutable
 data class HomeUiState(
     val videos: List<VideoItem> = emptyList(),
+    val categories: List<FeedCategory> = HomeCategories.items,
+    val selectedCategoryId: String = HomeCategories.ALL_ID,
+    val feedSearchQuery: String? = null,
     val isLoading: Boolean = false,
     val isLoadingMore: Boolean = false,
     val errorMessage: String? = null,

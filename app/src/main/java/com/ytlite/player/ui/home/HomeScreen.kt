@@ -2,6 +2,7 @@ package com.ytlite.player.ui.home
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -54,52 +55,62 @@ fun HomeScreen(
         }
     }
 
-    PullToRefreshBox(
-        isRefreshing = uiState.isLoading && uiState.videos.isNotEmpty(),
-        onRefresh = { viewModel.refresh() },
-        modifier = modifier.fillMaxSize(),
-    ) {
-        when {
-            uiState.isLoading && uiState.videos.isEmpty() -> {
-                LoadingContent(modifier = Modifier.fillMaxSize())
-            }
-            uiState.errorMessage != null && uiState.videos.isEmpty() -> {
-                ErrorContent(
-                    message = uiState.errorMessage.orEmpty(),
-                    onRetry = { viewModel.loadFeed() },
-                    modifier = Modifier.fillMaxSize(),
-                )
-            }
-            uiState.videos.isEmpty() -> {
-                EmptyContent(modifier = Modifier.fillMaxSize())
-            }
-            else -> {
-                LazyColumn(
-                    state = listState,
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.fillMaxSize(),
-                ) {
-                    items(
-                        items = uiState.videos,
-                        key = { it.videoId },
-                    ) { video ->
-                        VideoFeedItem(
-                            video = video,
-                            imageLoader = imageLoader,
-                            onClick = { onVideoClick(video.videoId) },
-                        )
-                    }
+    Column(modifier = modifier.fillMaxSize()) {
+        CategoryFilterBar(
+            categories = uiState.categories,
+            selectedCategoryId = uiState.selectedCategoryId,
+            onCategorySelected = viewModel::selectCategory,
+        )
 
-                    if (uiState.isLoadingMore) {
-                        item(key = "loading_more") {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 16.dp),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                CircularProgressIndicator()
+        PullToRefreshBox(
+            isRefreshing = uiState.isLoading && uiState.videos.isNotEmpty(),
+            onRefresh = { viewModel.refresh() },
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f),
+        ) {
+            when {
+                uiState.isLoading && uiState.videos.isEmpty() -> {
+                    LoadingContent(modifier = Modifier.fillMaxSize())
+                }
+                uiState.errorMessage != null && uiState.videos.isEmpty() -> {
+                    ErrorContent(
+                        message = uiState.errorMessage.orEmpty(),
+                        onRetry = { viewModel.loadFeed() },
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
+                uiState.videos.isEmpty() -> {
+                    EmptyContent(modifier = Modifier.fillMaxSize())
+                }
+                else -> {
+                    LazyColumn(
+                        state = listState,
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier.fillMaxSize(),
+                    ) {
+                        items(
+                            items = uiState.videos,
+                            key = { it.videoId },
+                        ) { video ->
+                            VideoFeedItem(
+                                video = video,
+                                imageLoader = imageLoader,
+                                onClick = { onVideoClick(video.videoId) },
+                            )
+                        }
+
+                        if (uiState.isLoadingMore) {
+                            item(key = "loading_more") {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 16.dp),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    CircularProgressIndicator()
+                                }
                             }
                         }
                     }
@@ -123,7 +134,7 @@ private fun ErrorContent(
     modifier: Modifier = Modifier,
 ) {
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
-        androidx.compose.foundation.layout.Column(
+        Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.padding(24.dp),

@@ -24,19 +24,25 @@ class ExtractionRepository(
 ) {
 
     suspend fun fetchHomeFeed(
-        keyword: String = NetworkConfig.HOME_SEARCH_QUERY,
+        searchQuery: String? = null,
     ): ExtractionResult<FeedPage> = withContext(Dispatchers.IO) {
         runFeedRequest {
-            val browsePage = runCatching {
-                FeedParser.parse(innerTubeApi.browseHome())
-            }.getOrNull()
+            if (searchQuery == null) {
+                val browsePage = runCatching {
+                    FeedParser.parse(innerTubeApi.browseHome())
+                }.getOrNull()
 
-            if (browsePage != null && browsePage.videos.isNotEmpty()) {
-                Log.d(TAG, "fetchHomeFeed: using browse (${browsePage.videos.size} videos)")
-                browsePage
+                if (browsePage != null && browsePage.videos.isNotEmpty()) {
+                    Log.d(TAG, "fetchHomeFeed: using browse (${browsePage.videos.size} videos)")
+                    browsePage
+                } else {
+                    Log.d(TAG, "fetchHomeFeed: browse empty, falling back to search")
+                    val searchPage = FeedParser.parse(innerTubeApi.searchVideos(NetworkConfig.HOME_SEARCH_QUERY))
+                    searchPage ?: throw YouTubeNetworkException("No videos in search response")
+                }
             } else {
-                Log.d(TAG, "fetchHomeFeed: browse empty, falling back to search")
-                val searchPage = FeedParser.parse(innerTubeApi.searchVideos(keyword))
+                Log.d(TAG, "fetchHomeFeed: search query=$searchQuery")
+                val searchPage = FeedParser.parse(innerTubeApi.searchVideos(searchQuery))
                 searchPage ?: throw YouTubeNetworkException("No videos in search response")
             }
         }
@@ -44,13 +50,17 @@ class ExtractionRepository(
 
     suspend fun fetchHomeFeedContinuation(
         continuation: String,
-        keyword: String = NetworkConfig.HOME_SEARCH_QUERY,
+        searchQuery: String? = NetworkConfig.HOME_SEARCH_QUERY,
     ): ExtractionResult<FeedPage> = withContext(Dispatchers.IO) {
         if (continuation.isBlank()) {
             return@withContext ExtractionResult.Error("Continuation token is empty")
         }
         runFeedRequest {
-            val page = FeedParser.parse(innerTubeApi.searchVideos(keyword, continuation))
+            val page = if (searchQuery != null) {
+                FeedParser.parse(innerTubeApi.searchVideos(searchQuery, continuation))
+            } else {
+                FeedParser.parse(innerTubeApi.searchVideos(NetworkConfig.HOME_SEARCH_QUERY, continuation))
+            }
             page ?: throw YouTubeNetworkException("No videos in continuation response")
         }
     }
