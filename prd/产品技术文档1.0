@@ -1,0 +1,114 @@
+YTLite: Android Native Architecture & Product Specification
+1. Project Overview & Target
+App Name: YTLite
+
+Target Platform: Android (Min SDK 24 / Android 7.0+)
+
+Development Language: 100% Kotlin
+
+UI Framework: Jetpack Compose (Declarative UI)
+
+Core Philosophy: Local-First & Performance-Driven for Low-End Devices. Zero ads, background playback, fully native UI rendering, completely decoupled from official YouTube/Google Play Services.
+
+2. Technical Stack & Architecture
+Plaintext
++-------------------------------------------------------------+
+|               UI Layer (Jetpack Compose)                    |
+|   (Home Feed / Search / Player View / Library View / Shorts)|
++-------------------------------------------------------------+
+                              |
+                              v
++-------------------------------------------------------------+
+|                 ViewModel & State Management                |
++-------------------------------------------------------------+
+                              |
+                              v
++-------------------------------------------------------------+
+|                        Core Engines                         |
+|  [Media3 Player]      [DLNA Cast Engine]     [Auth Manager] |
++-------------------------------------------------------------+
+                              |
+                              v
++-------------------------------------------------------------+
+|                     Data & Network Layer                    |
+|  [Room DB (Cache)]   [InnerTube/NewPipe Extractor HTTP Client]|
++-------------------------------------------------------------+
+2.1 Core Dependencies (To be added in build.gradle.kts)
+UI: androidx.compose.ui, androidx.lifecycle:lifecycle-viewmodel-compose
+
+Playback: androidx.media3:media3-exoplayer, androidx.media3:media3-session
+
+Network/Extraction: org.schabi:newpipeextractor (or custom lightweight InnerTube OkHttp/Ktor Client)
+
+Database: androidx.room:room-runtime, androidx.room:room-ktx
+
+Casting: org.fourthline.cling:cling-core (or alternative lightweight DLNA library)
+
+Async: kotlinx-coroutines-android
+
+3. Detailed Feature Specifications & Implementation Paths
+3.1 Data Extraction & Ad-Blocking (Browsing & Playback)
+Mechanism: Reverse-engineer the YouTube InnerTube API client. Send HTTP requests masquerading as Android/Web clients to fetch JSON responses.
+
+Ad-Blocking Strategy: The extracted raw video/audio stream URLs (googlevideo.com domains) are clean and do not contain embedded video ads. For homepage and search feeds, the data extractor will strictly filter out any JSON nodes where type == "ad" or render == "promoted".
+
+Cursor Implementation Guide:
+
+Create an ExtractionRepository to handle all video info, search results, and feed pagination.
+
+Ensure all data fetching is wrapped in Dispatchers.IO using Kotlin Coroutines to avoid freezing low-end CPUs.
+
+3.2 UI/UX Layer (YouTube Mirroring via Compose)
+Layout Structure:
+
+Main Screen: Bottom Navigation Bar containing Home (Recommended Feed), Shorts (Can be hidden/blocked via settings), Subscriptions, and Library (History, Liked Videos, Local Playlists).
+
+Player Screen: Top half video presentation canvas; bottom half containing title, expandable description, action buttons (Like, Dislike, Subscribe, Share, Cast), and comment section (LazyColumn with lazy loading).
+
+Low-End Optimization for UI:
+
+Use LazyColumn and LazyRow exclusively for feed streams.
+
+Enforce image thumbnail loading constraint via Coil: limit memory bitmap allocation, use Bitmap.Config.RGB_565 to save 50% RAM compared to ARGB_8888.
+
+Minimize recomposition by utilizing @Stable markers and remember keys for state bindings.
+
+3.3 Audio/Video Playback Engine (Background & PiP)
+Engine: Jetpack Media3 (ExoPlayer) paired with MediaSession.
+
+Background Playback: Run the player inside a foreground MediaSessionService. When the user switches to the home screen or locks the device, the service continues processing the audio track without interruption, presenting standard system media controls on the lock screen and notification panel.
+
+Shorts Blocking: Provide a toggle switch in the application settings (SharedPreferences/DataStore). When enabled, the App will explicitly drop all Shorts-related categories from the feed arrays and remove the "Shorts" tab from the navigation layout.
+
+3.4 Authenticated Ecosystem (Native Google Account Actions)
+Login Flow:
+
+When the user initiates login, launch a temporary localized WebView instance.
+
+The user authenticates directly via the official Google Account layout inside the WebView.
+
+Intercept the successful authentication callbacks via WebViewClient.onPageFinished(). Extract essential cookies: SAPISID, HSID, SSID, APISID, LOGIN_INFO, and __Secure-3PAPISID.
+
+Persist these tokens securely in EncryptedSharedPreferences and immediately call webView.destroy() to free memory.
+
+Authenticated Actions:
+
+For actions like Subscribing, Liking, or Commenting, format native HTTP POST requests to the InnerTube API endpoints (e.g., /youtubei/v1/like/like), attaching the extracted authorization cookies and calculating the X-Goog-AuthUser and Authorization headers natively.
+
+3.5 Universal TV Casting (DLNA/UPnP)
+Mechanism: Integrate a lightweight UPnP/DLNA service component.
+
+Workflow:
+
+Scan the local Wi-Fi network for active DLNA DMR (Digital Media Renderer) devices (Smart TVs, TV Boxes).
+
+When a device is selected, obtain the unencrypted direct stream URL (.mp4 / .m3u8 formats parsed by our extraction layer).
+
+Send a standardized UPnP AVTransport command containing the stream link to the TV renderer. The TV will pull and play the ad-free video stream directly from the network, requiring zero processing overhead from the low-end mobile device during casting.
+
+4. Strict Constraints for Cursor Implementation (Read Wisely)
+NO Memory Leaks: Background MediaSessionService must explicitly clean up resources inside onDestroy(). All Context references inside asynchronous blocks must utilize Application Context or lifecycle-aware bounds.
+
+No Main Thread Disk/Network I/O: Room Database interactions and HTTP requests must absolutely run under non-blocking Coroutine scopes (Dispatchers.IO).
+
+Strict Error Handling: YouTube layout configurations change over time. Every JSON extraction block must be safely encapsulated within try-catch segments with robust fallbacks, preventing App crashes and gracefully prompting users to update when APIs change.
