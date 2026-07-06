@@ -36,6 +36,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -201,28 +202,38 @@ fun PlayerScreen(
                                 )
                             }
 
-                            if (playback.description.isNotBlank()) {
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .animateContentSize(),
-                                ) {
+                            val displayDescription = remember(playback.description, uiState.isDescriptionExpanded) {
+                                if (playback.description.isBlank()) return@remember ""
+                                val maxChars = if (uiState.isDescriptionExpanded) 8_000 else 400
+                                playback.description.take(maxChars)
+                            }
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .animateContentSize(),
+                            ) {
+                                if (displayDescription.isNotBlank()) {
                                     Text(
-                                        text = playback.description,
+                                        text = displayDescription,
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         maxLines = if (uiState.isDescriptionExpanded) Int.MAX_VALUE else 3,
                                         overflow = TextOverflow.Ellipsis,
                                     )
-                                    TextButton(onClick = { viewModel.toggleDescription() }) {
-                                        Text(
-                                            text = if (uiState.isDescriptionExpanded) {
-                                                stringResource(R.string.player_show_less)
-                                            } else {
-                                                stringResource(R.string.player_show_more)
-                                            },
-                                        )
+                                }
+                                TextButton(onClick = {
+                                    if (!uiState.isDescriptionExpanded) {
+                                        viewModel.loadFullMetadataIfNeeded()
                                     }
+                                    viewModel.toggleDescription()
+                                }) {
+                                    Text(
+                                        text = if (uiState.isDescriptionExpanded) {
+                                            stringResource(R.string.player_show_less)
+                                        } else {
+                                            stringResource(R.string.player_show_more)
+                                        },
+                                    )
                                 }
                             }
                         }

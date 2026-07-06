@@ -18,17 +18,21 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ytlite.player.R
+import com.ytlite.player.data.auth.UserSession
 import com.ytlite.player.playback.GlobalPlaybackUiState
+import com.ytlite.player.ui.auth.AuthViewModel
+import com.ytlite.player.ui.auth.SignInBottomSheet
 import com.ytlite.player.ui.home.HomeScreen
 import com.ytlite.player.ui.library.LibraryScreen
 import com.ytlite.player.ui.playback.MiniPlayerBar
@@ -69,18 +73,39 @@ fun MainScreen(
     globalPlaybackState: GlobalPlaybackUiState,
     onMiniPlayerOpen: () -> Unit,
     onMiniPlayerTogglePlayPause: () -> Unit,
+    authViewModel: AuthViewModel,
     modifier: Modifier = Modifier,
 ) {
     var selectedTab by rememberSaveable { mutableIntStateOf(MainTab.Home.ordinal) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val signInComingSoon = stringResource(R.string.sign_in_coming_soon)
+    val comingSoon = stringResource(R.string.placeholder_coming_soon)
+
+    val authSession by authViewModel.session.collectAsStateWithLifecycle()
+    val showSignInSheet by authViewModel.showSignInSheet.collectAsStateWithLifecycle()
 
     val onSignInClick: () -> Unit = {
-        scope.launch {
-            snackbarHostState.showSnackbar(signInComingSoon)
+        authViewModel.openSignInSheet()
+    }
+
+    val onSwitchAccountClick: () -> Unit = {
+        when (authSession) {
+            is UserSession.Authenticated -> authViewModel.signOut()
+            else -> authViewModel.openSignInSheet()
         }
     }
+
+    SignInBottomSheet(
+        visible = showSignInSheet,
+        supabaseConfigured = authViewModel.supabaseConfigured,
+        onDismiss = authViewModel::dismissSignInSheet,
+        onSignInSuccess = authViewModel::onGoogleSignInSuccess,
+        onError = { message ->
+            authViewModel.setAuthError(message)
+            scope.launch { snackbarHostState.showSnackbar(message) }
+        },
+    )
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -135,7 +160,14 @@ fun MainScreen(
                     .padding(innerPadding),
             )
             MainTab.Library -> LibraryScreen(
-                onSignInClick = onSignInClick,
+                onVideoClick = onVideoClick,
+                onSwitchAccountClick = onSwitchAccountClick,
+                onMenuItemClick = {
+                    scope.launch { snackbarHostState.showSnackbar(comingSoon) }
+                },
+                onViewAllClick = {
+                    scope.launch { snackbarHostState.showSnackbar(comingSoon) }
+                },
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding),

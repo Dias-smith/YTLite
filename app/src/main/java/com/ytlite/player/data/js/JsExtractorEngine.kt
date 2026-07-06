@@ -2,6 +2,8 @@ package com.ytlite.player.data.js
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import kotlinx.coroutines.CompletableDeferred
@@ -25,6 +27,7 @@ class JsExtractorEngine private constructor(
     private var bridge: VsPlayerBridge? = null
     private val readyDeferred = CompletableDeferred<Unit>()
     private val isInitializing = AtomicBoolean(false)
+    private val mainHandler = Handler(Looper.getMainLooper())
 
     suspend fun ensureReady() {
         withContext(Dispatchers.Main) {
@@ -37,27 +40,26 @@ class JsExtractorEngine private constructor(
 
     suspend fun invoke(event: Int, source: Int, data: JSONObject): JSONObject {
         ensureReady()
-        return withContext(Dispatchers.Main) {
-            withTimeout(INVOKE_TIMEOUT_MS) {
-                suspendCancellableCoroutine { continuation ->
-                    val uid = UUID.randomUUID().toString()
-                    val bridgeRef = bridge ?: run {
-                        continuation.cancel(IllegalStateException("JS bridge not ready"))
-                        return@suspendCancellableCoroutine
-                    }
-                    val message = JSONObject().apply {
-                        put("uid", uid)
-                        put("event", event)
-                        put("source", source)
-                        put("data", data)
-                    }
-                    bridgeRef.registerPending(uid, continuation)
-                    continuation.invokeOnCancellation { bridgeRef.cancelPending(uid) }
-                    val quotedPayload = JSONObject.quote(message.toString())
-                    webView?.evaluateJavascript(
-                        "(function(){try{return window.extractor.postMessageToJSBridge($quotedPayload);}catch(e){AndroidBridge.onExtractorError(String(e));}})()",
-                        null,
-                    )
+        return withTimeout(INVOKE_TIMEOUT_MS) {
+            suspendCancellableCoroutine { continuation ->
+                val uid = UUID.randomUUID().toString()
+                val bridgeRef = bridge ?: run {
+                    continuation.cancel(IllegalStateException("JS bridge not ready"))
+                    return@suspendCancellableCoroutine
+                }
+                val message = JSONObject().apply {
+                    put("uid", uid)
+                    put("event", event)
+                    put("source", source)
+                    put("data", data)
+                }
+                bridgeRef.registerPending(uid, continuation)
+                continuation.invokeOnCancellation { bridgeRef.cancelPending(uid) }
+                val quotedPayload = JSONObject.quote(message.toString())
+                val script =
+                    "(function(){try{return window.extractor.postMessageToJSBridge($quotedPayload);}catch(e){AndroidBridge.onExtractorError(String(e));}})()"
+                mainHandler.post {
+                    webView?.evaluateJavascript(script, null)
                 }
             }
         }

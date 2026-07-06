@@ -11,8 +11,10 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
+import com.ytlite.player.data.auth.SupabaseClientProvider
 import com.ytlite.player.ui.navigation.YTLiteNavHost
 import com.ytlite.player.ui.theme.YTLiteTheme
+import io.github.jan.supabase.auth.handleDeeplinks
 
 class MainActivity : ComponentActivity() {
 
@@ -22,6 +24,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        SupabaseClientProvider.get(this)?.handleDeeplinks(intent)
         requestNotificationPermissionIfNeeded()
         enableEdgeToEdge()
         setContent {
@@ -29,6 +32,11 @@ class MainActivity : ComponentActivity() {
                 YTLiteNavHost(modifier = Modifier.fillMaxSize())
             }
         }
+    }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        SupabaseClientProvider.get(this)?.handleDeeplinks(intent)
     }
 
     private fun requestNotificationPermissionIfNeeded() {

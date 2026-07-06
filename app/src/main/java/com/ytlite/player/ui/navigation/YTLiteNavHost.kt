@@ -5,6 +5,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import android.app.Application
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
@@ -16,6 +17,7 @@ import com.ytlite.player.ui.main.MainScreen
 import com.ytlite.player.ui.player.PlayerScreen
 import com.ytlite.player.ui.player.PlayerViewModel
 import com.ytlite.player.playback.GlobalPlaybackViewModel
+import com.ytlite.player.ui.auth.AuthViewModel
 
 object Routes {
     const val MAIN = "main"
@@ -27,7 +29,9 @@ object Routes {
 @Composable
 fun YTLiteNavHost(modifier: Modifier = Modifier) {
     val navController = rememberNavController()
+    val application = LocalContext.current.applicationContext as Application
     val globalPlaybackViewModel: GlobalPlaybackViewModel = viewModel()
+    val authViewModel: AuthViewModel = viewModel(factory = AuthViewModel.factory(application))
     val globalPlaybackState by globalPlaybackViewModel.uiState.collectAsStateWithLifecycle()
 
     NavHost(
@@ -46,6 +50,7 @@ fun YTLiteNavHost(modifier: Modifier = Modifier) {
                     navController.navigate(Routes.player(videoId))
                 },
                 onMiniPlayerTogglePlayPause = globalPlaybackViewModel::togglePlayPause,
+                authViewModel = authViewModel,
             )
         }
         composable(

@@ -1,6 +1,7 @@
 package com.ytlite.player.ui.player
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.Player
@@ -41,10 +42,12 @@ private fun PlayerSurface(
 ) {
     if (player == null) return
 
+    val stablePlayer = remember(player) { player }
+
     AndroidView(
         factory = { context ->
             PlayerView(context).apply {
-                this.player = player
+                this.player = stablePlayer
                 this.useController = useController
                 controllerShowTimeoutMs = 3000
                 this.resizeMode = resizeMode
@@ -52,8 +55,8 @@ private fun PlayerSurface(
             }
         },
         update = { view ->
-            if (view.player !== player) {
-                view.player = player
+            if (view.player !== stablePlayer) {
+                view.player = stablePlayer
             }
             view.useController = useController
             view.resizeMode = resizeMode

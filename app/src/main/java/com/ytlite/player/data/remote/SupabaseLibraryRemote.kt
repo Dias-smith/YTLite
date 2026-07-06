@@ -1,0 +1,221 @@
+package com.ytlite.player.data.remote
+
+import com.ytlite.player.data.auth.UserProfile
+import com.ytlite.player.data.local.entity.ArtistEntity
+import com.ytlite.player.data.local.entity.PlaybackHistoryEntity
+import com.ytlite.player.data.local.entity.PlaylistEntity
+import com.ytlite.player.data.local.entity.PlaylistTrackEntity
+import com.ytlite.player.data.local.entity.TrackEntity
+import com.ytlite.player.data.local.entity.UserTrackLastPlayedEntity
+import com.ytlite.player.data.remote.dto.ArtistDto
+import com.ytlite.player.data.remote.dto.PlaybackHistoryDto
+import com.ytlite.player.data.remote.dto.PlaylistDto
+import com.ytlite.player.data.remote.dto.PlaylistTrackDto
+import com.ytlite.player.data.remote.dto.ProfileDto
+import com.ytlite.player.data.remote.dto.TrackDto
+import com.ytlite.player.data.remote.dto.UserTrackLastPlayedDto
+import io.github.jan.supabase.SupabaseClient
+import io.github.jan.supabase.postgrest.postgrest
+import io.github.jan.supabase.postgrest.query.Order
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.time.Instant
+
+class SupabaseLibraryRemote(
+    private val client: SupabaseClient,
+) {
+    suspend fun fetchProfile(userId: String): UserProfile? = withContext(Dispatchers.IO) {
+        runCatching {
+            client.postgrest["profiles"]
+                .select { filter { eq("id", userId) } }
+                .decodeSingleOrNull<ProfileDto>()
+                ?.toUserProfile()
+        }.getOrNull()
+    }
+
+    suspend fun upsertProfile(profile: UserProfile) = withContext(Dispatchers.IO) {
+        runCatching {
+            client.postgrest["profiles"].upsert(
+                ProfileDto(
+                    id = profile.userId,
+                    displayName = profile.displayName,
+                    handle = profile.handle,
+                    avatarUrl = profile.avatarUrl,
+                ),
+            )
+        }
+    }
+
+    suspend fun upsertArtist(entity: ArtistEntity) = withContext(Dispatchers.IO) {
+        runCatching {
+            client.postgrest["artists"].upsert(entity.toDto())
+        }
+    }
+
+    suspend fun upsertTrack(entity: TrackEntity) = withContext(Dispatchers.IO) {
+        runCatching {
+            client.postgrest["tracks"].upsert(entity.toDto())
+        }
+    }
+
+    suspend fun fetchSystemPlaylist(userId: String, systemType: String): PlaylistDto? =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                client.postgrest["playlists"]
+                    .select {
+                        filter {
+                            eq("user_id", userId)
+                            eq("system_type", systemType)
+                        }
+                    }
+                    .decodeSingleOrNull<PlaylistDto>()
+            }.getOrNull()
+        }
+
+    suspend fun upsertPlaylist(dto: PlaylistDto) = withContext(Dispatchers.IO) {
+        runCatching {
+            client.postgrest["playlists"].upsert(dto)
+        }
+    }
+
+    suspend fun upsertPlaylistTrack(dto: PlaylistTrackDto) = withContext(Dispatchers.IO) {
+        runCatching {
+            client.postgrest["playlist_track_cross_ref"].upsert(dto)
+        }
+    }
+
+    suspend fun insertPlaybackHistory(userId: String, entity: PlaybackHistoryEntity) =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                client.postgrest["playback_history"].insert(
+                    PlaybackHistoryDto(
+                        historyId = entity.historyId,
+                        userId = userId,
+                        trackId = entity.trackId,
+                        playedAt = Instant.ofEpochMilli(entity.playedAt).toString(),
+                        progressMs = entity.progressMs,
+                    ),
+                )
+            }
+        }
+
+    suspend fun upsertUserTrackLastPlayed(userId: String, entity: UserTrackLastPlayedEntity) =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                client.postgrest["user_track_last_played"].upsert(
+                    UserTrackLastPlayedDto(
+                        userId = userId,
+                        trackId = entity.trackId,
+                        lastPlayedAt = Instant.ofEpochMilli(entity.lastPlayedAt).toString(),
+                        progressMs = entity.progressMs,
+                    ),
+                )
+            }
+        }
+
+    suspend fun pullUserTrackLastPlayed(userId: String): List<UserTrackLastPlayedEntity> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                client.postgrest["user_track_last_played"]
+                    .select {
+                        filter { eq("user_id", userId) }
+                        order("last_played_at", Order.DESCENDING)
+                    }
+                    .decodeList<UserTrackLastPlayedDto>()
+                    .map { it.toEntity("user:$userId") }
+            }.getOrDefault(emptyList())
+        }
+
+    suspend fun pullTracksByIds(trackIds: List<String>): List<TrackEntity> =
+        withContext(Dispatchers.IO) {
+            if (trackIds.isEmpty()) return@withContext emptyList()
+            runCatching {
+                client.postgrest["tracks"]
+                    .select { filter { isIn("track_id", trackIds) } }
+                    .decodeList<TrackDto>()
+                    .map { it.toEntity() }
+            }.getOrDefault(emptyList())
+        }
+
+    suspend fun pullSystemPlaylistTracks(
+        userId: String,
+        systemType: String,
+    ): List<PlaylistTrackEntity> = withContext(Dispatchers.IO) {
+        val playlist = fetchSystemPlaylist(userId, systemType) ?: return@withContext emptyList()
+        runCatching {
+            client.postgrest["playlist_track_cross_ref"]
+                .select {
+                    filter { eq("playlist_id", playlist.playlistId) }
+                    order("position", Order.ASCENDING)
+                }
+                .decodeList<PlaylistTrackDto>()
+                .map { it.toEntity(playlist.playlistId) }
+        }.getOrDefault(emptyList())
+    }
+
+    private fun ProfileDto.toUserProfile() = UserProfile(
+        userId = id,
+        displayName = displayName.ifBlank { "用户" },
+        handle = handle,
+        avatarUrl = avatarUrl,
+    )
+
+    private fun ArtistEntity.toDto() = ArtistDto(
+        artistId = artistId,
+        name = name,
+        avatarUrl = avatarUrl,
+        bannerUrl = bannerUrl,
+        subscriberCount = subscriberCount,
+        subscriberCountText = subscriberCountText,
+        description = description,
+    )
+
+    private fun TrackEntity.toDto() = TrackDto(
+        trackId = trackId,
+        title = title,
+        durationSeconds = durationSeconds,
+        durationText = durationText,
+        thumbnailLow = thumbnailLow,
+        thumbnailMedium = thumbnailMedium,
+        thumbnailHigh = thumbnailHigh,
+        viewCount = viewCount,
+        viewCountText = viewCountText,
+        publishedText = publishedText,
+        primaryArtistId = primaryArtistId,
+        primaryArtistName = primaryArtistName,
+    )
+
+    private fun TrackDto.toEntity() = TrackEntity(
+        trackId = trackId,
+        title = title,
+        durationSeconds = durationSeconds,
+        durationText = durationText,
+        thumbnailLow = thumbnailLow,
+        thumbnailMedium = thumbnailMedium,
+        thumbnailHigh = thumbnailHigh,
+        viewCount = viewCount,
+        viewCountText = viewCountText,
+        publishedText = publishedText,
+        primaryArtistId = primaryArtistId,
+        primaryArtistName = primaryArtistName,
+    )
+
+    private fun PlaylistTrackDto.toEntity(playlistId: String) = PlaylistTrackEntity(
+        playlistId = playlistId,
+        trackId = trackId,
+        position = position,
+        createdAt = createdAt?.let {
+            runCatching { Instant.parse(it).toEpochMilli() }.getOrDefault(System.currentTimeMillis())
+        } ?: System.currentTimeMillis(),
+        isSynced = true,
+    )
+
+    private fun UserTrackLastPlayedDto.toEntity(ownerKey: String) = UserTrackLastPlayedEntity(
+        ownerKey = ownerKey,
+        trackId = trackId,
+        lastPlayedAt = runCatching { Instant.parse(lastPlayedAt).toEpochMilli() }
+            .getOrDefault(System.currentTimeMillis()),
+        progressMs = progressMs,
+        isSynced = true,
+    )
+}
