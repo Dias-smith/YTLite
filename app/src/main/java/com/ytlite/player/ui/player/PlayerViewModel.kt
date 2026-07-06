@@ -8,6 +8,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.ytlite.player.data.js.JsExtractorEngine
 import com.ytlite.player.data.model.ExtractionResult
+import com.ytlite.player.data.model.StreamFormat
 import com.ytlite.player.data.repository.ExtractionRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -31,7 +32,16 @@ class PlayerViewModel(
 
     fun loadPlayback() {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+            _uiState.update {
+                it.copy(
+                    isLoading = true,
+                    errorMessage = null,
+                    playback = null,
+                    selectedStreamUrl = null,
+                    showFormatPicker = false,
+                    showStreamUrlDialog = false,
+                )
+            }
             when (val result = repository.fetchVideoPlayback(videoId)) {
                 is ExtractionResult.Success -> {
                     _uiState.update {
@@ -39,6 +49,7 @@ class PlayerViewModel(
                             playback = result.data,
                             isLoading = false,
                             errorMessage = null,
+                            showFormatPicker = true,
                         )
                     }
                 }
@@ -52,6 +63,20 @@ class PlayerViewModel(
                 }
             }
         }
+    }
+
+    fun selectFormat(format: StreamFormat) {
+        _uiState.update {
+            it.copy(
+                selectedStreamUrl = format.url,
+                showFormatPicker = false,
+                showStreamUrlDialog = true,
+            )
+        }
+    }
+
+    fun dismissStreamUrlDialog() {
+        _uiState.update { it.copy(showStreamUrlDialog = false) }
     }
 
     fun toggleDescription() {

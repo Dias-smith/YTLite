@@ -20,4 +20,15 @@
     <string name="player_show_more">展开</string>
     <string name="player_show_less">收起</string>
     <string name="player_comments">评论</string>
+    <string name="player_stream_url_title">当前播放地址</string>
+    <string name="player_stream_url_close">关闭</string>
+    <string name="player_format_picker_title">选择播放格式</string>
+    <string name="player_format_itag">itag: %1$d</string>
+    <string name="player_format_resolution">分辨率: %1$s</string>
+    <string name="player_format_has_audio">音频: %1$s</string>
+    <string name="player_format_has_video">视频: %1$s</string>
+    <string name="player_format_yes">是</string>
+    <string name="player_format_no">否</string>
+    <string name="player_format_audio_only">音频</string>
+    <string name="player_select_format_hint">请选择播放格式</string>
 </resources>

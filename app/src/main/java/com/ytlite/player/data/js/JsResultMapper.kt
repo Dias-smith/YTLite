@@ -3,6 +3,7 @@ package com.ytlite.player.data.js
 import android.util.Log
 import com.ytlite.player.data.model.FeedPage
 import com.ytlite.player.data.model.VideoItem
+import com.ytlite.player.data.model.StreamFormat
 import com.ytlite.player.data.model.VideoPlayback
 import org.json.JSONArray
 import org.json.JSONObject
@@ -10,7 +11,6 @@ import org.json.JSONObject
 object JsResultMapper {
 
     private const val TAG = "JsResultMapper"
-    private const val MAX_HEIGHT_LOW_END = 720
 
     private val SKIPPED_TYPES = setOf(
         "reelShelfRenderer",
@@ -73,16 +73,45 @@ object JsResultMapper {
             .ifBlank { payload.optString("url").let(::extractVideoIdFromUrl) }
         if (videoId.isBlank()) return null
 
-        val streamUrl = pickStreamUrl(music.optJSONArray("formats")) ?: return null
+        val formats = mapFormats(music.optJSONArray("formats"))
+        if (formats.isEmpty()) return null
+
         return VideoPlayback(
             videoId = videoId,
             title = music.optString("title"),
             description = music.optString("description"),
             channelName = music.optString("uploader"),
             channelId = music.optString("channelID"),
-            streamUrl = streamUrl,
+            formats = formats,
             durationSeconds = music.optString("duration").toLongOrNull() ?: 0L,
             viewCount = music.optString("viewCount").toLongOrNull() ?: 0L,
+        )
+    }
+
+    fun mapFormats(formats: JSONArray?): List<StreamFormat> {
+        if (formats == null || formats.length() == 0) return emptyList()
+
+        val mapped = (0 until formats.length()).mapNotNull { index ->
+            val format = formats.optJSONObject(index) ?: return@mapNotNull null
+            val url = format.optString("url")
+            if (url.isBlank()) return@mapNotNull null
+
+            val acodec = format.optString("acodec")
+            val vcodec = format.optString("vcodec")
+            StreamFormat(
+                itag = format.optInt("itag"),
+                width = format.optInt("width"),
+                height = format.optInt("height"),
+                hasAudio = acodec.isNotBlank(),
+                hasVideo = vcodec.isNotBlank(),
+                url = url,
+                mimeType = format.optString("type").ifBlank { format.optString("mimeType") },
+            )
+        }
+
+        return mapped.sortedWith(
+            compareByDescending<StreamFormat> { it.hasVideo && it.hasAudio }
+                .thenByDescending { it.height },
         )
     }
 
@@ -156,23 +185,6 @@ object JsResultMapper {
     private fun pickThumbnailUrl(thumbnails: JSONArray?): String? {
         if (thumbnails == null || thumbnails.length() == 0) return null
         return thumbnails.optJSONObject(thumbnails.length() - 1)?.optString("url")?.takeIf { it.isNotBlank() }
-    }
-
-    private fun pickStreamUrl(formats: JSONArray?): String? {
-        if (formats == null || formats.length() == 0) return null
-        val candidates = (0 until formats.length()).mapNotNull { index ->
-            formats.optJSONObject(index)?.takeIf { format ->
-                format.optString("url").isNotBlank()
-            }
-        }
-        if (candidates.isEmpty()) return null
-
-        val withinCap = candidates
-            .filter { it.optInt("height", 0) in 1..MAX_HEIGHT_LOW_END }
-            .maxByOrNull { it.optInt("height", 0) }
-        if (withinCap != null) return withinCap.optString("url")
-
-        return candidates.minByOrNull { it.optInt("height", Int.MAX_VALUE) }?.optString("url")
     }
 
     private fun extractVideoIdFromUrl(url: String): String {

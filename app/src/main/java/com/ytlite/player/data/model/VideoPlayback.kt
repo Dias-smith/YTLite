@@ -9,7 +9,7 @@ data class VideoPlayback(
     val description: String,
     val channelName: String,
     val channelId: String,
-    val streamUrl: String,
+    val formats: List<StreamFormat>,
     val durationSeconds: Long,
     val viewCount: Long,
 )

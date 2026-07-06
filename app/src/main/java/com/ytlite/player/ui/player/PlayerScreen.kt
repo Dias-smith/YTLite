@@ -1,6 +1,7 @@
 package com.ytlite.player.ui.player
 
 import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -8,9 +9,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Cast
@@ -18,6 +22,7 @@ import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.ThumbDown
 import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -38,6 +43,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ytlite.player.R
+import com.ytlite.player.data.model.StreamFormat
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -49,6 +55,34 @@ fun PlayerScreen(
     modifier: Modifier = Modifier,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    if (uiState.showFormatPicker && uiState.playback != null) {
+        FormatPickerDialog(
+            formats = uiState.playback!!.formats,
+            onFormatSelected = viewModel::selectFormat,
+        )
+    }
+
+    if (uiState.showStreamUrlDialog && uiState.selectedStreamUrl != null) {
+        AlertDialog(
+            onDismissRequest = viewModel::dismissStreamUrlDialog,
+            title = {
+                Text(text = stringResource(R.string.player_stream_url_title))
+            },
+            text = {
+                Text(
+                    text = uiState.selectedStreamUrl!!,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = viewModel::dismissStreamUrlDialog) {
+                    Text(text = stringResource(R.string.player_stream_url_close))
+                }
+            },
+        )
+    }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -94,12 +128,27 @@ fun PlayerScreen(
                         .padding(innerPadding),
                 ) {
                     item(key = "player_surface") {
-                        VideoPlayerView(
-                            streamUrl = playback.streamUrl,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .aspectRatio(16f / 9f),
-                        )
+                        if (uiState.selectedStreamUrl != null) {
+                            VideoPlayerView(
+                                streamUrl = uiState.selectedStreamUrl!!,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .aspectRatio(16f / 9f),
+                            )
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .aspectRatio(16f / 9f),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.player_select_format_hint),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
                     }
 
                     item(key = "video_meta") {
@@ -200,6 +249,89 @@ fun PlayerScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun FormatPickerDialog(
+    formats: List<StreamFormat>,
+    onFormatSelected: (StreamFormat) -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = { },
+        title = {
+            Text(text = stringResource(R.string.player_format_picker_title))
+        },
+        text = {
+            LazyColumn(
+                modifier = Modifier.heightIn(max = 400.dp),
+            ) {
+                items(
+                    items = formats,
+                    key = { "${it.itag}-${it.url}" },
+                ) { format ->
+                    FormatPickerRow(
+                        format = format,
+                        onClick = { onFormatSelected(format) },
+                    )
+                }
+            }
+        },
+        confirmButton = { },
+    )
+}
+
+@Composable
+private fun FormatPickerRow(
+    format: StreamFormat,
+    onClick: () -> Unit,
+) {
+    val yes = stringResource(R.string.player_format_yes)
+    val no = stringResource(R.string.player_format_no)
+    val resolution = formatResolutionLabel(format)
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 12.dp, horizontal = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Text(
+            text = stringResource(R.string.player_format_itag, format.itag),
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        Text(
+            text = stringResource(R.string.player_format_resolution, resolution),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            text = stringResource(
+                R.string.player_format_has_audio,
+                if (format.hasAudio) yes else no,
+            ),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            text = stringResource(
+                R.string.player_format_has_video,
+                if (format.hasVideo) yes else no,
+            ),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun formatResolutionLabel(format: StreamFormat): String {
+    return when {
+        format.height > 0 && format.width > 0 -> "${format.height}p (${format.width}×${format.height})"
+        format.height > 0 -> "${format.height}p"
+        format.hasAudio && !format.hasVideo -> stringResource(R.string.player_format_audio_only)
+        else -> "-"
     }
 }
 
