@@ -20,10 +20,6 @@ class GuestSessionStore(
 ) {
     private val dataStore = context.applicationContext.sessionDataStore
 
-    val guestIdFlow: Flow<String> = dataStore.data.map { prefs ->
-        prefs[GUEST_ID_KEY] ?: ""
-    }
-
     val supabaseUserIdFlow: Flow<String?> = dataStore.data.map { prefs ->
         prefs[SUPABASE_USER_ID_KEY]
     }
@@ -35,8 +31,6 @@ class GuestSessionStore(
         dataStore.edit { it[GUEST_ID_KEY] = newId }
         return newId
     }
-
-    suspend fun getGuestId(): String? = dataStore.data.first()[GUEST_ID_KEY]
 
     suspend fun setSupabaseUserId(userId: String?) {
         dataStore.edit { prefs ->

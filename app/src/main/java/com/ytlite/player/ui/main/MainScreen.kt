@@ -95,9 +95,7 @@ fun MainScreen(
     val youtubeLoginUiState by youtubeSessionManager.loginUiState.collectAsStateWithLifecycle()
 
     val googleSignIn = rememberGoogleSignInLauncher(
-        onSignInSuccess = authViewModel::onGoogleSignInSuccess,
         onError = { message ->
-            authViewModel.setAuthError(message)
             scope.launch { snackbarHostState.showSnackbar(message) }
         },
     )

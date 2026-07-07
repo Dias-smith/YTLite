@@ -69,8 +69,6 @@
     <string name="playback_notification_channel">播放控制</string>
     <string name="playback_notification_channel_description">后台播放与锁屏控制</string>
     <string name="playback_service_starting">YTLite 播放器</string>
-    <string name="sign_in_sheet_title">登录 YTLite</string>
-    <string name="sign_in_sheet_description">登录后可在多设备同步观看历史、点赞和播放列表。游客模式下数据仅保存在本机。</string>
     <string name="sign_in_with_google">使用 Google 登录</string>
     <string name="sign_in_supabase_not_configured">请在 local.properties 中配置 SUPABASE_URL 和 SUPABASE_ANON_KEY</string>
     <string name="sign_in_google_not_configured">请在 local.properties 中配置 GOOGLE_WEB_CLIENT_ID</string>

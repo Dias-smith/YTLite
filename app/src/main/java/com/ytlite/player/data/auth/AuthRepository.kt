@@ -9,7 +9,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.update
 
 class AuthRepository(
     private val context: Context,
@@ -21,25 +20,15 @@ class AuthRepository(
     private val _session = MutableStateFlow<UserSession?>(null)
     val session: Flow<UserSession?> = _session.asStateFlow()
 
-    private val _authError = MutableStateFlow<String?>(null)
-    val authError: Flow<String?> = _authError.asStateFlow()
-
-    val supabaseConfigured: Boolean = SupabaseClientProvider.isConfigured
-
     var onMergeGuestData: (suspend (guestOwnerKey: String, userId: String, profile: UserProfile) -> Unit)? = null
 
     var onAuthenticated: (suspend (UserProfile) -> Unit)? = null
 
     var onSignedOut: (suspend () -> Unit)? = null
 
-    /** Invoked after WebView bootstrap persists YouTube auth cookies (__Secure-3PAPISID). */
     var onYoutubeCookiesReady: (suspend () -> Unit)? = null
 
     suspend fun notifyYoutubeCookiesReady() {
-        com.ytlite.player.data.youtube.YoutubeDiagnostics.d(
-            "Auth",
-            "notifyYoutubeCookiesReady invoked hasCallback=${onYoutubeCookiesReady != null}",
-        )
         onYoutubeCookiesReady?.invoke()
     }
 
@@ -55,7 +44,6 @@ class AuthRepository(
                 val profile = buildProfileFromAuth(currentUser.id, currentUser.userMetadata)
                 _session.value = UserSession.Authenticated(profile)
                 onAuthenticated?.invoke(profile)
-                logYoutubeDataApiReadiness("initialize-session")
                 return
             }
         }
@@ -76,27 +64,15 @@ class AuthRepository(
                 nonce = tokens.nonce
             }
             persistGoogleAccessToken(tokens.accessToken)
-            buildProfileFromOAuth(client)
-        }.onSuccess {
-            logYoutubeDataApiReadiness("post-google-native-sign-in")
+            val profile = buildProfileFromOAuth(client)
+            applyAuthenticatedProfile(profile)
+            profile
         }
     }
 
     private suspend fun persistGoogleAccessToken(token: String?) {
         cachedGoogleAccessToken = token?.takeIf { it.isNotBlank() }
         guestSessionStore.setGoogleAccessToken(cachedGoogleAccessToken)
-    }
-
-    suspend fun onOAuthSessionFromDeeplink() {
-        val client = SupabaseClientProvider.get(context) ?: return
-        val user = client.auth.currentUserOrNull() ?: return
-        if (_session.value is UserSession.Authenticated &&
-            (_session.value as UserSession.Authenticated).profile.userId == user.id
-        ) {
-            logYoutubeDataApiReadiness("oauth-deeplink")
-            return
-        }
-        applyAuthenticatedProfile(buildProfileFromOAuth(client))
     }
 
     private fun buildProfileFromOAuth(client: io.github.jan.supabase.SupabaseClient): UserProfile {
@@ -113,7 +89,6 @@ class AuthRepository(
         val guestOwnerKey = guestSession?.ownerKey
         guestSessionStore.setSupabaseUserId(profile.userId)
         _session.value = UserSession.Authenticated(profile)
-        logYoutubeDataApiReadiness("post-google-sign-in")
         if (guestOwnerKey != null) {
             onMergeGuestData?.invoke(guestOwnerKey, profile.userId, profile)
         }
@@ -131,21 +106,8 @@ class AuthRepository(
         _session.value = UserSession.Guest(guestId = newGuestId)
     }
 
-    fun clearError() {
-        _authError.update { null }
-    }
-
-    fun setError(message: String) {
-        _authError.update { message }
-    }
-
     fun currentSession(): UserSession? = _session.value
 
-    /**
-     * Google OAuth access token for YouTube Data API.
-     * Native sign-in stores the AuthorizationClient token locally because Supabase
-     * ID-token login does not persist [providerToken] on the session.
-     */
     fun getGoogleProviderAccessToken(): String? {
         cachedGoogleAccessToken?.let { return it }
         val client = SupabaseClientProvider.get(context) ?: return null
@@ -157,47 +119,6 @@ class AuthRepository(
 
     fun needsYoutubeDataApiReauth(): Boolean =
         isYoutubeDataApiKeyConfigured() && getGoogleProviderAccessToken() == null
-
-    fun logYoutubeDataApiReadiness(label: String) {
-        val storedTokenPresent = !cachedGoogleAccessToken.isNullOrBlank()
-        val sessionTokenPresent = SupabaseClientProvider.get(context)
-            ?.auth
-            ?.currentSessionOrNull()
-            ?.providerToken
-            ?.isNotBlank() == true
-        val effectiveTokenPresent = getGoogleProviderAccessToken() != null
-        com.ytlite.player.data.youtube.YoutubeDiagnostics.d(
-            "Auth",
-            "[$label] googleAccessToken stored=$storedTokenPresent " +
-                "sessionProviderToken=$sessionTokenPresent " +
-                "effective=$effectiveTokenPresent keyConfigured=${isYoutubeDataApiKeyConfigured()}",
-        )
-        if (isYoutubeDataApiKeyConfigured() && !effectiveTokenPresent) {
-            com.ytlite.player.data.youtube.YoutubeDiagnostics.w(
-                "Auth",
-                "[$label] Data API key set but no Google access token — " +
-                    "re-login and grant ${YoutubeOAuthConfig.SCOPE_YOUTUBE_READONLY}",
-            )
-        }
-    }
-
-    suspend fun onGoogleSignInSuccess(
-        userId: String,
-        displayName: String?,
-        avatarUrl: String?,
-        email: String?,
-    ) {
-        val handle = email?.substringBefore("@")?.let { "@$it" }
-        applyAuthenticatedProfile(
-            UserProfile(
-                userId = userId,
-                displayName = displayName?.ifBlank { null } ?: "用户",
-                handle = handle,
-                avatarUrl = avatarUrl,
-                email = email?.ifBlank { null },
-            ),
-        )
-    }
 
     fun updateAuthenticatedProfile(profile: UserProfile) {
         _session.value = UserSession.Authenticated(profile)

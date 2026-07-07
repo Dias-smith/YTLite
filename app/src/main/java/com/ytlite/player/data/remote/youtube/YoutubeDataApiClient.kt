@@ -181,7 +181,11 @@ class YoutubeDataApiClient(
     }
 
     private fun logApiFailure(endpoint: String, result: HttpResult) {
-        YoutubeDataApiDiagnostics.logHttpFailure(endpoint, result)
+        val bodySnippet = result.result?.take(500).orEmpty()
+        YoutubeDiagnostics.w(
+            "DataApi",
+            "$endpoint failed code=${result.errCode} msg=${result.errMsg} body=$bodySnippet",
+        )
     }
 
     companion object {

@@ -1,6 +1,5 @@
 package com.ytlite.player.data.network
 
-import android.util.Log
 import com.ytlite.player.data.youtube.YoutubeDiagnostics
 import org.json.JSONObject
 
@@ -17,45 +16,6 @@ class InnerTubeApi(
             browseId = InnerTubeConfig.BROWSE_ID_LIBRARY,
             label = "browse_library",
             authenticated = true,
-        )
-    }
-
-    fun browseSubscriptions(continuation: String? = null): JSONObject {
-        return browse(
-            browseId = InnerTubeConfig.BROWSE_ID_SUBSCRIPTIONS,
-            label = "browse_subscriptions",
-            continuation = continuation,
-            authenticated = true,
-        )
-    }
-
-    fun browseAuthenticated(
-        browseId: String,
-        params: String?,
-        label: String,
-    ): JSONObject {
-        val response = postBrowseBody(
-            body = buildBrowseBody(browseId, params),
-            label = label,
-            authenticated = true,
-        )
-        return resolveBrowseResponse(response, label, authenticated = true, depth = 0)
-    }
-
-    fun browseSubscriptionChannels(continuation: String? = null): JSONObject {
-        return browse(
-            browseId = InnerTubeConfig.BROWSE_ID_SUBSCRIPTION_CHANNELS,
-            label = "browse_subscription_channels",
-            continuation = continuation,
-            authenticated = true,
-        )
-    }
-
-    fun browseChannelVideos(channelId: String): JSONObject {
-        return browseAuthenticated(
-            browseId = channelId,
-            params = InnerTubeConfig.BROWSE_PARAMS_CHANNEL_VIDEOS,
-            label = "browse_channel_videos",
         )
     }
 
@@ -106,10 +66,6 @@ class InnerTubeApi(
             }
         }
 
-    /**
-     * Authenticated browse responses often return a shell with [onResponseReceivedActions]
-     * containing navigateAction — follow it to reach the real feed payload.
-     */
     private fun resolveBrowseResponse(
         response: JSONObject,
         label: String,
@@ -119,21 +75,6 @@ class InnerTubeApi(
         if (depth >= MAX_NAVIGATE_DEPTH) return response
 
         val actions = response.optJSONArray("onResponseReceivedActions")
-        if (actions != null) {
-            val actionKeys = buildList {
-                for (index in 0 until actions.length()) {
-                    val action = actions.optJSONObject(index) ?: continue
-                    val keys = action.keys()
-                    while (keys.hasNext()) {
-                        add(keys.next())
-                    }
-                }
-            }
-            if (actionKeys.isNotEmpty()) {
-                YoutubeDiagnostics.d(TAG, "$label onResponseReceivedActions keys=$actionKeys")
-            }
-        }
-
         for (index in 0 until (actions?.length() ?: 0)) {
             val navigate = actions?.optJSONObject(index)?.optJSONObject("navigateAction") ?: continue
             val browseEndpoint = navigate
@@ -145,7 +86,6 @@ class InnerTubeApi(
             if (targetBrowseId.isBlank()) continue
 
             val params = browseEndpoint.optString("params").takeIf { it.isNotBlank() }
-            YoutubeDiagnostics.d(TAG, "$label navigateAction -> browseId=$targetBrowseId params=${params != null}")
             val followUp = postBrowseBody(
                 body = buildBrowseBody(targetBrowseId, params),
                 label = "${label}_navigate",
@@ -206,19 +146,7 @@ class InnerTubeApi(
             "X-YouTube-Client-Version" to client.clientVersion,
         )
         if (authenticated && YoutubeCookieJar.hasAuthCookies()) {
-            val authHeaders = YoutubeAuthHeaders.buildAuthenticatedHeaders()
-            YoutubeDiagnostics.d(
-                TAG,
-                "$label authHeaders present=${authHeaders.keys} " +
-                    "hasAuthorization=${authHeaders.containsKey("Authorization")}",
-            )
-            headers.putAll(authHeaders)
-        } else if (authenticated) {
-            YoutubeDiagnostics.w(
-                TAG,
-                "$label authenticated=true but ytSessionCookies=false " +
-                    "jar=${YoutubeCookieJar.debugJarCookieNames()}",
-            )
+            headers.putAll(YoutubeAuthHeaders.buildAuthenticatedHeaders())
         }
         val result = httpClient.request(
             url = url,
@@ -227,7 +155,6 @@ class InnerTubeApi(
             body = body.toString(),
         )
         if (!result.success || result.result.isNullOrBlank()) {
-            Log.w(TAG, "$label failed code=${result.errCode} msg=${result.errMsg}")
             YoutubeDiagnostics.e(TAG, "$label http failed code=${result.errCode} msg=${result.errMsg}")
             throw YouTubeNetworkException(
                 result.errMsg.ifBlank { "InnerTube $label request failed" },

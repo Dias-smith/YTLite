@@ -10,9 +10,4 @@ enum class InnerTubeClientType(
         clientVersion = "2.20260701.01.00",
         clientNameHeader = "1",
     ),
-    ANDROID_VR(
-        clientName = "ANDROID_VR",
-        clientVersion = "1.60.19",
-        clientNameHeader = "28",
-    ),
 }

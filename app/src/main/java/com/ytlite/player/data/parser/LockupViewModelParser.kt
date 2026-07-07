@@ -1,12 +1,11 @@
 package com.ytlite.player.data.parser
 
-import com.ytlite.player.data.model.SubscriptionChannel
 import com.ytlite.player.data.model.VideoItem
 import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * Parses YouTube's lockupViewModel format (2025+ API) used in subscriptions and browse feeds.
+ * Parses YouTube's lockupViewModel format (2025+ API) used in browse feeds.
  */
 object LockupViewModelParser {
 
@@ -14,8 +13,6 @@ object LockupViewModelParser {
         "LOCKUP_CONTENT_TYPE_VIDEO",
         "LOCKUP_CONTENT_TYPE_VIDEO_SHORT",
     )
-
-    private const val CHANNEL_CONTENT_TYPE = "LOCKUP_CONTENT_TYPE_CHANNEL"
 
     fun parseVideo(lockup: JSONObject): VideoItem? {
         val contentType = lockup.optString("contentType")
@@ -43,29 +40,6 @@ object LockupViewModelParser {
             durationText = durationText,
             viewCountText = viewCountText,
             publishedTimeText = publishedTimeText,
-        )
-    }
-
-    fun parseChannel(lockup: JSONObject): SubscriptionChannel? {
-        if (lockup.optString("contentType") != CHANNEL_CONTENT_TYPE) return null
-
-        val channelId = lockup.optString("contentId").takeIf { it.isNotBlank() } ?: return null
-        val metadata = lockup.optJSONObject("metadata")?.optJSONObject("lockupMetadataViewModel")
-        val title = metadata?.optJSONObject("title")?.optString("content")?.takeIf { it.isNotBlank() }
-            ?: return null
-
-        val avatarUrl = pickThumbnailUrl(lockup) ?: return null
-        val metaParts = collectMetadataTexts(metadata)
-        val subscriberCountText = metaParts.firstOrNull { !isChannelNameCandidate(it) }
-        val handle = metaParts.firstOrNull { it.startsWith("@") }
-
-        return SubscriptionChannel(
-            channelId = channelId,
-            title = title,
-            handle = handle,
-            avatarUrl = avatarUrl,
-            subscriberCountText = subscriberCountText,
-            description = null,
         )
     }
 

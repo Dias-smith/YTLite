@@ -118,35 +118,3 @@ fun SubscriptionsIllustration(
         drawPath(playPath, color = Color.White)
     }
 }
-
-@Composable
-fun LibraryIllustration(
-    modifier: Modifier = Modifier,
-) {
-    Canvas(modifier = modifier.size(96.dp)) {
-        val folderWidth = size.width * 0.85f
-        val folderHeight = size.height * 0.7f
-        val left = (size.width - folderWidth) / 2f
-        val top = size.height * 0.2f
-
-        drawRoundRect(
-            color = IllustrationGrey,
-            topLeft = Offset(left, top + folderHeight * 0.08f),
-            size = Size(folderWidth, folderHeight),
-            cornerRadius = CornerRadius(8f, 8f),
-        )
-        drawRoundRect(
-            color = IllustrationGreyDark,
-            topLeft = Offset(left, top),
-            size = Size(folderWidth * 0.42f, folderHeight * 0.22f),
-            cornerRadius = CornerRadius(6f, 6f),
-        )
-        drawRoundRect(
-            color = IllustrationGrey,
-            topLeft = Offset(left, top + folderHeight * 0.12f),
-            size = Size(folderWidth, folderHeight * 0.88f),
-            cornerRadius = CornerRadius(8f, 8f),
-            style = Stroke(width = 2f),
-        )
-    }
-}

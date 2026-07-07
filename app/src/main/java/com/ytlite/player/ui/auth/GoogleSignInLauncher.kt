@@ -19,7 +19,6 @@ data class GoogleSignInLauncher(
 
 @Composable
 fun rememberGoogleSignInLauncher(
-    onSignInSuccess: (userId: String, displayName: String?, avatarUrl: String?, email: String?) -> Unit,
     onError: (String) -> Unit,
 ): GoogleSignInLauncher {
     val context = LocalContext.current
@@ -56,14 +55,6 @@ fun rememberGoogleSignInLauncher(
                     googleSignInHelper.signIn()
                         .mapCatching { tokens ->
                             authRepository.signInWithGoogleNative(tokens).getOrThrow()
-                        }
-                        .onSuccess { profile ->
-                            onSignInSuccess(
-                                profile.userId,
-                                profile.displayName,
-                                profile.avatarUrl,
-                                profile.email,
-                            )
                         }
                         .onFailure { error ->
                             if (error !is GoogleSignInCancelledException) {

@@ -21,10 +21,7 @@ object SupabaseClientProvider {
                 supabaseUrl = BuildConfig.SUPABASE_URL,
                 supabaseKey = BuildConfig.SUPABASE_ANON_KEY,
             ) {
-                install(Auth) {
-                    host = "login-callback"
-                    scheme = "com.ytlite.player"
-                }
+                install(Auth)
                 install(Postgrest)
             }.also { client = it }
         }
