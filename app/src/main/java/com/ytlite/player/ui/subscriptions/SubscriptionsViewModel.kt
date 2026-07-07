@@ -23,14 +23,6 @@ class SubscriptionsViewModel(
     private val _uiState = MutableStateFlow(SubscriptionsUiState())
     val uiState: StateFlow<SubscriptionsUiState> = _uiState.asStateFlow()
 
-    init {
-        viewModelScope.launch {
-            repository.youtubeSessionState.collect { sessionState ->
-                _uiState.update { it.copy(youtubeSessionState = sessionState) }
-            }
-        }
-    }
-
     fun refreshIfNeeded() {
         if (_uiState.value.isLoading) return
         loadFeed()

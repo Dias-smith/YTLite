@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -34,7 +33,6 @@ import android.app.Application
 import com.ytlite.player.R
 import com.ytlite.player.data.auth.UserSession
 import com.ytlite.player.data.model.SubscriptionChannel
-import com.ytlite.player.data.youtube.YoutubeSessionState
 import com.ytlite.player.ui.common.SignInPromptScreen
 import com.ytlite.player.ui.common.SubscriptionsIllustration
 import com.ytlite.player.ui.home.VideoFeedItem
@@ -103,17 +101,6 @@ private fun SubscriptionsAuthenticatedContent(
         }
     }
 
-    LaunchedEffect(uiState.youtubeSessionState) {
-        if (uiState.youtubeSessionState is YoutubeSessionState.Ready &&
-            uiState.videos.isEmpty() &&
-            !uiState.isLoading &&
-            uiState.errorMessage != null &&
-            !uiState.needsYoutubeReauth
-        ) {
-            viewModel.refresh()
-        }
-    }
-
     Column(modifier = modifier.fillMaxSize()) {
         TextButton(
             onClick = onChannelListClick,
@@ -139,15 +126,6 @@ private fun SubscriptionsAuthenticatedContent(
                 .weight(1f),
         ) {
             when {
-                uiState.youtubeSessionState is YoutubeSessionState.AwaitingInteractiveLogin &&
-                    uiState.videos.isEmpty() -> {
-                    SubscriptionsAwaitingLoginContent(modifier = Modifier.fillMaxSize())
-                }
-                uiState.isLoading && uiState.videos.isEmpty() &&
-                    (uiState.youtubeSessionState is YoutubeSessionState.Connecting ||
-                        uiState.youtubeSessionState is YoutubeSessionState.AwaitingInteractiveLogin) -> {
-                    SubscriptionsAwaitingLoginContent(modifier = Modifier.fillMaxSize())
-                }
                 uiState.isLoading && uiState.videos.isEmpty() -> {
                     LoadingContent(modifier = Modifier.fillMaxSize())
                 }
@@ -159,11 +137,7 @@ private fun SubscriptionsAuthenticatedContent(
                     )
                 }
                 uiState.videos.isEmpty() -> {
-                    SubscriptionsEmptyContent(
-                        sessionState = uiState.youtubeSessionState,
-                        onRetry = { viewModel.refresh() },
-                        modifier = Modifier.fillMaxSize(),
-                    )
+                    SubscriptionsEmptyContent(modifier = Modifier.fillMaxSize())
                 }
                 else -> {
                     LazyColumn(
@@ -209,27 +183,7 @@ private fun LoadingContent(modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun SubscriptionsAwaitingLoginContent(modifier: Modifier = Modifier) {
-    Column(
-        modifier = modifier.padding(horizontal = 32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        CircularProgressIndicator()
-        Text(
-            text = stringResource(R.string.subscriptions_awaiting_youtube_login),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.padding(top = 24.dp),
-        )
-    }
-}
-
-@Composable
 private fun SubscriptionsEmptyContent(
-    sessionState: YoutubeSessionState,
-    onRetry: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -237,48 +191,19 @@ private fun SubscriptionsEmptyContent(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        when (sessionState) {
-            is YoutubeSessionState.AwaitingInteractiveLogin,
-            is YoutubeSessionState.Connecting,
-            -> {
-                SubscriptionsAwaitingLoginContent(modifier = Modifier.fillMaxSize())
-            }
-            is YoutubeSessionState.Error -> {
-                Text(
-                    text = stringResource(R.string.subscriptions_error_title),
-                    style = MaterialTheme.typography.titleLarge,
-                    textAlign = TextAlign.Center,
-                )
-                Text(
-                    text = sessionState.message,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(top = 12.dp),
-                )
-                Button(
-                    onClick = onRetry,
-                    modifier = Modifier.padding(top = 16.dp),
-                ) {
-                    Text(text = stringResource(R.string.home_retry))
-                }
-            }
-            else -> {
-                SubscriptionsIllustration()
-                Text(
-                    text = stringResource(R.string.subscriptions_empty_title),
-                    style = MaterialTheme.typography.titleLarge,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(top = 32.dp),
-                )
-                Text(
-                    text = stringResource(R.string.subscriptions_empty_description),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(top = 12.dp),
-                )
-            }
-        }
+        SubscriptionsIllustration()
+        Text(
+            text = stringResource(R.string.subscriptions_empty_title),
+            style = MaterialTheme.typography.titleLarge,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(top = 32.dp),
+        )
+        Text(
+            text = stringResource(R.string.subscriptions_empty_description),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(top = 12.dp),
+        )
     }
 }

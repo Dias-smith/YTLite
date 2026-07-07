@@ -16,7 +16,6 @@ import com.ytlite.player.data.remote.SupabaseLibraryRemote
 import com.ytlite.player.data.remote.dto.PlaylistDto
 import com.ytlite.player.data.remote.dto.PlaylistTrackDto
 import com.ytlite.player.data.remote.youtube.YoutubeRemoteDataSource
-import com.ytlite.player.data.youtube.YoutubeSessionManager
 import com.ytlite.player.playback.NowPlaying
 import com.ytlite.player.playback.PlaybackManager
 import kotlinx.coroutines.CoroutineScope
@@ -35,7 +34,6 @@ import java.util.concurrent.ConcurrentHashMap
 class LibraryRepository(
     context: Context,
     private val authRepository: AuthRepository,
-    private val youtubeSessionManager: YoutubeSessionManager,
     private val youtubeRemote: YoutubeRemoteDataSource,
 ) {
     private val appContext = context.applicationContext
@@ -59,17 +57,12 @@ class LibraryRepository(
             mergeGuestDataIntoUser(guestOwnerKey, userId, profile)
         }
         authRepository.onAuthenticated = { profile ->
-            bootstrapYoutubeForUser(profile)
-        }
-        authRepository.onYoutubeCookiesReady = {
-            val profile = (authRepository.currentSession() as? UserSession.Authenticated)?.profile
-            if (profile != null) {
-                youtubeRemote.setOwnerKey("user:${profile.userId}")
+            youtubeRemote.setOwnerKey("user:${profile.userId}")
+            repositoryScope.launch {
                 youtubeRemote.refreshPlaylists()
             }
         }
         authRepository.onSignedOut = {
-            youtubeSessionManager.disconnect()
             youtubeRemote.setOwnerKey(null)
         }
         PlaybackManager.onProgressTick = { videoId, progressMs ->
@@ -159,12 +152,6 @@ class LibraryRepository(
             ),
             ownerKey = ownerKey,
         )
-    }
-
-    private suspend fun bootstrapYoutubeForUser(profile: UserProfile) = withContext(Dispatchers.IO) {
-        val ownerKey = "user:${profile.userId}"
-        youtubeRemote.setOwnerKey(ownerKey)
-        youtubeSessionManager.bootstrapFromGoogleAccount()
     }
 
     suspend fun mergeGuestDataIntoUser(
@@ -400,7 +387,6 @@ class LibraryRepository(
                 instance ?: LibraryRepository(
                     context = context.applicationContext,
                     authRepository = AuthRepository.getInstance(context.applicationContext),
-                    youtubeSessionManager = YoutubeSessionManager.getInstance(context.applicationContext),
                     youtubeRemote = YoutubeRemoteDataSource.getInstance(),
                 ).also { instance = it }
             }

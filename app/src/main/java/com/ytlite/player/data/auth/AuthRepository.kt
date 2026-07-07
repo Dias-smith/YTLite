@@ -26,12 +26,6 @@ class AuthRepository(
 
     var onSignedOut: (suspend () -> Unit)? = null
 
-    var onYoutubeCookiesReady: (suspend () -> Unit)? = null
-
-    suspend fun notifyYoutubeCookiesReady() {
-        onYoutubeCookiesReady?.invoke()
-    }
-
     suspend fun initialize() {
         val guestId = guestSessionStore.ensureGuestId()
         val client = SupabaseClientProvider.get(context)

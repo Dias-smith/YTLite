@@ -9,20 +9,14 @@ import com.ytlite.player.data.model.FeedPage
 import com.ytlite.player.data.model.SubscriptionChannel
 import com.ytlite.player.data.network.YouTubeNetworkException
 import com.ytlite.player.data.remote.youtube.YoutubeSubscriptionsDataSource
-import com.ytlite.player.data.youtube.YoutubeSessionManager
-import com.ytlite.player.data.youtube.YoutubeSessionState
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.withContext
 
 class SubscriptionsRepository(
     context: Context,
     private val authRepository: AuthRepository,
-    youtubeSessionManager: YoutubeSessionManager,
     private val dataSource: YoutubeSubscriptionsDataSource,
 ) {
-    val youtubeSessionState: StateFlow<YoutubeSessionState> = youtubeSessionManager.state
-
     private fun isAuthenticated(): Boolean =
         authRepository.currentSession() is UserSession.Authenticated
 
@@ -132,7 +126,6 @@ class SubscriptionsRepository(
                 instance ?: SubscriptionsRepository(
                     context = context.applicationContext,
                     authRepository = AuthRepository.getInstance(context.applicationContext),
-                    youtubeSessionManager = YoutubeSessionManager.getInstance(context.applicationContext),
                     dataSource = YoutubeSubscriptionsDataSource.getInstance().also { dataSource ->
                         val auth = AuthRepository.getInstance(context.applicationContext)
                         dataSource.oauthTokenProvider = { auth.getGoogleProviderAccessToken() }

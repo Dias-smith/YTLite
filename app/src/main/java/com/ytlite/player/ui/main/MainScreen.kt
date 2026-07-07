@@ -27,13 +27,11 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ytlite.player.R
 import com.ytlite.player.data.auth.UserSession
 import com.ytlite.player.data.model.SubscriptionChannel
-import com.ytlite.player.data.youtube.YoutubeSessionManager
 import com.ytlite.player.playback.GlobalPlaybackUiState
 import com.ytlite.player.ui.auth.AuthViewModel
 import com.ytlite.player.ui.auth.rememberGoogleSignInLauncher
@@ -44,7 +42,6 @@ import com.ytlite.player.ui.shorts.ShortsScreen
 import com.ytlite.player.ui.subscriptions.ChannelVideosScreen
 import com.ytlite.player.ui.subscriptions.SubscriptionChannelsScreen
 import com.ytlite.player.ui.subscriptions.SubscriptionsScreen
-import com.ytlite.player.ui.youtube.YoutubeLoginSheet
 import kotlinx.coroutines.launch
 
 private enum class MainTab(
@@ -92,10 +89,6 @@ fun MainScreen(
     val comingSoon = stringResource(R.string.placeholder_coming_soon)
 
     val authSession by authViewModel.session.collectAsStateWithLifecycle()
-
-    val application = LocalContext.current.applicationContext as android.app.Application
-    val youtubeSessionManager = remember { YoutubeSessionManager.getInstance(application) }
-    val youtubeLoginUiState by youtubeSessionManager.loginUiState.collectAsStateWithLifecycle()
 
     val googleSignIn = rememberGoogleSignInLauncher(
         onError = { message ->
@@ -210,13 +203,5 @@ fun MainScreen(
                 )
             }
         }
-    }
-
-    if (authSession is UserSession.Authenticated && youtubeLoginUiState != null) {
-        YoutubeLoginSheet(
-            uiState = youtubeLoginUiState!!,
-            sessionManager = youtubeSessionManager,
-            onDismiss = { youtubeSessionManager.cancelInteractiveLogin() },
-        )
     }
 }

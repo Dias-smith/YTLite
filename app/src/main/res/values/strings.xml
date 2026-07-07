@@ -38,12 +38,6 @@
     <string name="channel_videos_empty">该频道暂无视频</string>
     <string name="subscriptions_error_title">无法加载订阅内容</string>
     <string name="subscriptions_reauth_required">需要重新登录以授权 YouTube 数据访问。请退出账号后重新使用 Google 登录，并同意 YouTube 只读权限。</string>
-    <string name="subscriptions_awaiting_youtube_login">正在等待 YouTube 授权，请在弹出的页面中完成 Google 登录</string>
-    <string name="youtube_login_sheet_title">连接 YouTube 账号</string>
-    <string name="youtube_login_sheet_description">请使用与应用登录相同的 Google 账号完成授权，以便加载订阅与播放列表。</string>
-    <string name="youtube_login_waiting">正在连接 YouTube…</string>
-    <string name="youtube_login_cancel">取消</string>
-    <string name="youtube_login_required">请先完成 YouTube 账号连接</string>
     <string name="library_sign_in_title">畅享你喜爱的视频</string>
     <string name="library_sign_in_description">登录后即可访问你点赞或保存的视频</string>
     <string name="player_back">返回</string>
