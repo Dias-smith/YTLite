@@ -23,6 +23,10 @@ class AuthRepository(
 
     var onMergeGuestData: (suspend (guestOwnerKey: String, userId: String, profile: UserProfile) -> Unit)? = null
 
+    var onAuthenticated: (suspend (UserProfile) -> Unit)? = null
+
+    var onSignedOut: (suspend () -> Unit)? = null
+
     suspend fun initialize() {
         val guestId = guestSessionStore.ensureGuestId()
         val client = SupabaseClientProvider.get(context)
@@ -33,6 +37,7 @@ class AuthRepository(
             if (currentUser != null && storedUserId == currentUser.id) {
                 val profile = buildProfileFromAuth(currentUser.id, currentUser.userMetadata)
                 _session.value = UserSession.Authenticated(profile)
+                onAuthenticated?.invoke(profile)
                 return
             }
         }
@@ -61,6 +66,7 @@ class AuthRepository(
         if (guestOwnerKey != null) {
             onMergeGuestData?.invoke(guestOwnerKey, userId, profile)
         }
+        onAuthenticated?.invoke(profile)
     }
 
     suspend fun signInWithGoogleOAuth(): Result<Unit> {
@@ -74,6 +80,7 @@ class AuthRepository(
     suspend fun signOut() {
         val client = SupabaseClientProvider.get(context)
         runCatching { client?.auth?.signOut() }
+        onSignedOut?.invoke()
         guestSessionStore.setSupabaseUserId(null)
         val newGuestId = guestSessionStore.rotateGuestId()
         _session.value = UserSession.Guest(guestId = newGuestId)

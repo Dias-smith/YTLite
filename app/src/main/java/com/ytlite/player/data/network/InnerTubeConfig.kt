@@ -13,6 +13,7 @@ object InnerTubeConfig {
         "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
 
     const val BROWSE_ID_HOME = "FEwhat_to_watch"
+    const val BROWSE_ID_LIBRARY = "FEmy_youtube"
 
     val BROWSE_URL: String
         get() = "$BASE_URL/youtubei/v1/browse?key=$API_KEY"

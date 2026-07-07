@@ -3,10 +3,14 @@ package com.ytlite.player.data.local.entity
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import com.ytlite.player.data.model.DataSource
 
 @Entity(
     tableName = "playlists",
-    indices = [Index(value = ["ownerKey", "systemType"])],
+    indices = [
+        Index(value = ["ownerKey", "systemType"]),
+        Index(value = ["ownerKey", "source", "updatedAt"]),
+    ],
 )
 data class PlaylistEntity(
     @PrimaryKey val playlistId: String,
@@ -16,5 +20,13 @@ data class PlaylistEntity(
     val coverUrlOrPath: String? = null,
     val description: String? = null,
     val systemType: String? = null,
+    val source: String = DataSource.LOCAL.dbValue,
     val isSynced: Boolean = false,
-)
+    val updatedAt: Long = System.currentTimeMillis(),
+) {
+    val dataSource: DataSource get() = DataSource.fromDb(source)
+
+    fun isYoutube(): Boolean = dataSource == DataSource.YOUTUBE
+
+    fun isLocal(): Boolean = dataSource == DataSource.LOCAL
+}

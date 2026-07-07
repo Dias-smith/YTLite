@@ -74,7 +74,7 @@ class GlobalPlaybackViewModel : ViewModel() {
         viewModelScope.launch {
             while (isActive) {
                 if (PlaybackManager.nowPlaying.value != null) {
-                    PlaybackManager.refreshProgress()
+                    PlaybackManager.refreshProgressAndPersist()
                 }
                 delay(1_000)
             }

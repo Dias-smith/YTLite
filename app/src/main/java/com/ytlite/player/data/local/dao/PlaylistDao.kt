@@ -5,6 +5,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import com.ytlite.player.data.local.entity.PlaylistEntity
+import com.ytlite.player.data.model.DataSource
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -15,11 +16,27 @@ interface PlaylistDao {
     @Query(
         """
         SELECT * FROM playlists
-        WHERE ownerKey = :ownerKey AND systemType = :systemType
+        WHERE ownerKey = :ownerKey AND source = :localSource
+        ORDER BY updatedAt DESC
+        """,
+    )
+    fun observeLocalByOwner(
+        ownerKey: String,
+        localSource: String = DataSource.LOCAL.dbValue,
+    ): Flow<List<PlaylistEntity>>
+
+    @Query(
+        """
+        SELECT * FROM playlists
+        WHERE ownerKey = :ownerKey AND systemType = :systemType AND source = :localSource
         LIMIT 1
         """,
     )
-    suspend fun getSystemPlaylist(ownerKey: String, systemType: String): PlaylistEntity?
+    suspend fun getSystemPlaylist(
+        ownerKey: String,
+        systemType: String,
+        localSource: String = DataSource.LOCAL.dbValue,
+    ): PlaylistEntity?
 
     @Query("SELECT * FROM playlists WHERE ownerKey = :ownerKey")
     suspend fun getAllByOwner(ownerKey: String): List<PlaylistEntity>

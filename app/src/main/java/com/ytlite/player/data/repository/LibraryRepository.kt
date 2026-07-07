@@ -6,22 +6,28 @@ import com.ytlite.player.data.auth.SupabaseClientProvider
 import com.ytlite.player.data.auth.UserProfile
 import com.ytlite.player.data.auth.UserSession
 import com.ytlite.player.data.local.YTLiteDatabase
-import com.ytlite.player.data.local.entity.ArtistEntity
-import com.ytlite.player.data.local.entity.PlaybackHistoryEntity
 import com.ytlite.player.data.local.entity.PlaylistEntity
 import com.ytlite.player.data.local.entity.PlaylistSystemType
 import com.ytlite.player.data.local.entity.PlaylistTrackEntity
-import com.ytlite.player.data.local.entity.TrackEntity
-import com.ytlite.player.data.local.entity.UserTrackLastPlayedEntity
 import com.ytlite.player.data.local.model.LibraryVideoRow
+import com.ytlite.player.data.model.DataSource
 import com.ytlite.player.data.model.LibraryVideo
 import com.ytlite.player.data.remote.SupabaseLibraryRemote
 import com.ytlite.player.data.remote.dto.PlaylistDto
 import com.ytlite.player.data.remote.dto.PlaylistTrackDto
+import com.ytlite.player.data.remote.youtube.YoutubeRemoteDataSource
+import com.ytlite.player.data.youtube.YoutubeSessionManager
 import com.ytlite.player.playback.NowPlaying
+import com.ytlite.player.playback.PlaybackManager
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
@@ -29,6 +35,8 @@ import java.util.concurrent.ConcurrentHashMap
 class LibraryRepository(
     context: Context,
     private val authRepository: AuthRepository,
+    private val youtubeSessionManager: YoutubeSessionManager,
+    private val youtubeRemote: YoutubeRemoteDataSource,
 ) {
     private val appContext = context.applicationContext
     private val database = YTLiteDatabase.getInstance(appContext)
@@ -42,11 +50,26 @@ class LibraryRepository(
     private val remote: SupabaseLibraryRemote? =
         SupabaseClientProvider.get(appContext)?.let { SupabaseLibraryRemote(it) }
 
+    private val playbackHistoryRepository = PlaybackHistoryRepository(database, remote)
+    private val repositoryScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val systemPlaylistsEnsured = ConcurrentHashMap.newKeySet<String>()
 
     init {
         authRepository.onMergeGuestData = { guestOwnerKey, userId, profile ->
             mergeGuestDataIntoUser(guestOwnerKey, userId, profile)
+        }
+        authRepository.onAuthenticated = { profile ->
+            bootstrapYoutubeForUser(profile)
+        }
+        authRepository.onSignedOut = {
+            youtubeSessionManager.disconnect()
+            youtubeRemote.setOwnerKey(null)
+        }
+        PlaybackManager.onProgressTick = { videoId, progressMs ->
+            repositoryScope.launch {
+                val ownerKey = authRepository.currentSession()?.ownerKey ?: return@launch
+                playbackHistoryRepository.updateProgress(ownerKey, videoId, progressMs)
+            }
         }
     }
 
@@ -55,44 +78,67 @@ class LibraryRepository(
             rows.map { it.toLibraryVideo() }
         }
 
+    fun getUnifiedPlaylists(ownerKey: String): Flow<List<PlaylistEntity>> =
+        combine(
+            playlistDao.observeLocalByOwner(ownerKey),
+            youtubeRemote.getYoutubePlaylistsFlow(),
+        ) { local, youtube ->
+            (local + youtube).sortedByDescending { it.updatedAt }
+        }.flowOn(Dispatchers.Default)
+
     fun observeLikedCount(ownerKey: String): Flow<Int> =
         playlistTrackDao.observeSystemPlaylistCount(ownerKey, PlaylistSystemType.FAVORITES)
 
     fun observeWatchLaterCount(ownerKey: String): Flow<Int> =
         playlistTrackDao.observeSystemPlaylistCount(ownerKey, PlaylistSystemType.WATCH_LATER)
 
+    suspend fun refreshYoutubePlaylists() {
+        youtubeRemote.refreshPlaylists()
+    }
+
+    suspend fun importYoutubePlaylistToLocal(
+        youtubePlaylistId: String,
+        ownerKey: String,
+    ) = withContext(Dispatchers.IO) {
+        val sourcePlaylist = youtubeRemote.getYoutubePlaylistsFlow()
+            .first()
+            .firstOrNull { it.playlistId == youtubePlaylistId } ?: return@withContext
+        val tracks = youtubeRemote.getPlaylistTracks(youtubePlaylistId)
+        val newPlaylistId = UUID.randomUUID().toString()
+        val now = System.currentTimeMillis()
+        playlistDao.upsert(
+            sourcePlaylist.copy(
+                playlistId = newPlaylistId,
+                ownerKey = ownerKey,
+                source = DataSource.LOCAL.dbValue,
+                isSynced = false,
+                updatedAt = now,
+            ),
+        )
+        tracks.forEachIndexed { index, trackRef ->
+            playlistTrackDao.upsert(
+                trackRef.copy(
+                    playlistId = newPlaylistId,
+                    position = index,
+                    isSynced = false,
+                ),
+            )
+        }
+    }
+
     suspend fun addToHistory(
         video: LibraryVideo,
         ownerKey: String,
         progressMs: Long = 0L,
     ) = withContext(Dispatchers.IO) {
-        val now = System.currentTimeMillis()
-        upsertCatalogFromVideo(video)
         ensureSystemPlaylists(ownerKey)
-
-        val historyId = UUID.randomUUID().toString()
-        playbackHistoryDao.insert(
-            PlaybackHistoryEntity(
-                historyId = historyId,
-                ownerKey = ownerKey,
-                trackId = video.videoId,
-                playedAt = now,
-                progressMs = progressMs,
-            ),
-        )
-        userTrackLastPlayedDao.upsert(
-            UserTrackLastPlayedEntity(
-                ownerKey = ownerKey,
-                trackId = video.videoId,
-                lastPlayedAt = now,
-                progressMs = progressMs,
-            ),
-        )
-
         val userId = (authRepository.currentSession() as? UserSession.Authenticated)?.profile?.userId
-        if (userId != null) {
-            syncHistoryToRemote(userId, ownerKey, video.videoId, historyId, now, progressMs)
-        }
+        playbackHistoryRepository.depositPlayback(
+            video = video,
+            ownerKey = ownerKey,
+            progressMs = progressMs,
+            userId = userId,
+        )
     }
 
     suspend fun addToHistory(nowPlaying: NowPlaying) {
@@ -106,6 +152,13 @@ class LibraryRepository(
             ),
             ownerKey = ownerKey,
         )
+    }
+
+    private suspend fun bootstrapYoutubeForUser(profile: UserProfile) = withContext(Dispatchers.IO) {
+        val ownerKey = "user:${profile.userId}"
+        youtubeRemote.setOwnerKey(ownerKey)
+        youtubeSessionManager.bootstrapFromGoogleAccount()
+        youtubeRemote.refreshPlaylists()
     }
 
     suspend fun mergeGuestDataIntoUser(
@@ -140,6 +193,7 @@ class LibraryRepository(
                 ownerKey = userOwnerKey,
                 userId = userId,
                 isSynced = false,
+                updatedAt = System.currentTimeMillis(),
             )
             playlistDao.upsert(migrated)
             playlistTrackDao.migratePlaylistId(guestPlaylist.playlistId, migrated.playlistId)
@@ -176,29 +230,6 @@ class LibraryRepository(
         remoteClient.fetchProfile(userId)?.let { authRepository.updateAuthenticatedProfile(it) }
     }
 
-    private suspend fun upsertCatalogFromVideo(video: LibraryVideo) {
-        if (!video.channelId.isNullOrBlank()) {
-            artistDao.upsert(
-                ArtistEntity(
-                    artistId = video.channelId,
-                    name = video.channelName,
-                ),
-            )
-        }
-        trackDao.upsert(
-            TrackEntity(
-                trackId = video.videoId,
-                title = video.title,
-                durationText = video.durationText,
-                thumbnailHigh = video.thumbnailUrl,
-                viewCountText = video.viewCountText,
-                publishedText = video.publishedTimeText,
-                primaryArtistId = video.channelId,
-                primaryArtistName = video.channelName,
-            ),
-        )
-    }
-
     private suspend fun ensureSystemPlaylists(ownerKey: String, userId: String? = null) {
         if (systemPlaylistsEnsured.contains(ownerKey)) return
         val favorites = playlistDao.getSystemPlaylist(ownerKey, PlaylistSystemType.FAVORITES)
@@ -221,6 +252,7 @@ class LibraryRepository(
         val existing = playlistDao.getSystemPlaylist(ownerKey, systemType)
         if (existing != null) return
 
+        val now = System.currentTimeMillis()
         val playlistId = if (userId != null) {
             remote?.fetchSystemPlaylist(userId, systemType)?.playlistId
         } else {
@@ -234,7 +266,9 @@ class LibraryRepository(
                 userId = userId,
                 name = name,
                 systemType = systemType,
+                source = DataSource.LOCAL.dbValue,
                 isSynced = userId != null,
+                updatedAt = now,
             ),
         )
     }
@@ -256,34 +290,6 @@ class LibraryRepository(
                 )
             }
         }
-    }
-
-    private suspend fun syncHistoryToRemote(
-        userId: String,
-        ownerKey: String,
-        trackId: String,
-        historyId: String,
-        playedAt: Long,
-        progressMs: Long,
-    ) {
-        val remoteClient = remote ?: return
-        val track = trackDao.getById(trackId) ?: return
-        track.primaryArtistId?.let { artistId ->
-            artistDao.getById(artistId)?.let { remoteClient.upsertArtist(it) }
-        }
-        remoteClient.upsertTrack(track)
-        val historyEntity = PlaybackHistoryEntity(
-            historyId = historyId,
-            ownerKey = ownerKey,
-            trackId = trackId,
-            playedAt = playedAt,
-            progressMs = progressMs,
-        )
-        remoteClient.insertPlaybackHistory(userId, historyEntity)
-        playbackHistoryDao.markSynced(historyId)
-        userTrackLastPlayedDao.getAllByOwner(ownerKey)
-            .firstOrNull { it.trackId == trackId }
-            ?.let { remoteClient.upsertUserTrackLastPlayed(userId, it) }
     }
 
     private suspend fun uploadLocalDataToRemote(userId: String, userOwnerKey: String) {
@@ -350,7 +356,9 @@ class LibraryRepository(
                 coverUrlOrPath = remotePlaylist.coverUrlOrPath,
                 description = remotePlaylist.description,
                 systemType = remotePlaylist.systemType,
+                source = DataSource.LOCAL.dbValue,
                 isSynced = true,
+                updatedAt = System.currentTimeMillis(),
             ),
         )
 
@@ -386,6 +394,8 @@ class LibraryRepository(
                 instance ?: LibraryRepository(
                     context = context.applicationContext,
                     authRepository = AuthRepository.getInstance(context.applicationContext),
+                    youtubeSessionManager = YoutubeSessionManager.getInstance(context.applicationContext),
+                    youtubeRemote = YoutubeRemoteDataSource.getInstance(),
                 ).also { instance = it }
             }
     }

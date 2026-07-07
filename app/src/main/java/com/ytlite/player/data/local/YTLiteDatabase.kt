@@ -26,7 +26,7 @@ import com.ytlite.player.data.local.entity.UserTrackLastPlayedEntity
         PlaybackHistoryEntity::class,
         UserTrackLastPlayedEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = false,
 )
 abstract class YTLiteDatabase : RoomDatabase() {

@@ -182,6 +182,14 @@ object PlaybackManager {
         getPlayer()?.let { syncFromPlayer(it) }
     }
 
+    fun refreshProgressAndPersist() {
+        refreshProgress()
+        val nowPlaying = _nowPlaying.value ?: return
+        onProgressTick?.invoke(nowPlaying.videoId, _positionMs.value)
+    }
+
+    var onProgressTick: ((videoId: String, progressMs: Long) -> Unit)? = null
+
     private fun syncFromPlayer(player: Player) {
         _isPlaying.value = player.isPlaying
         _positionMs.value = player.currentPosition.coerceAtLeast(0L)

@@ -8,14 +8,31 @@ class InnerTubeApi(
 ) {
 
     fun browseHome(): JSONObject {
+        return browse(InnerTubeConfig.BROWSE_ID_HOME, label = "browse_home")
+    }
+
+    fun browseLibraryPlaylists(): JSONObject {
+        return browse(InnerTubeConfig.BROWSE_ID_LIBRARY, label = "browse_library")
+    }
+
+    fun browsePlaylistItems(youtubePlaylistId: String): JSONObject {
+        val browseId = if (youtubePlaylistId.startsWith("VL")) {
+            youtubePlaylistId
+        } else {
+            "VL$youtubePlaylistId"
+        }
+        return browse(browseId, label = "browse_playlist")
+    }
+
+    private fun browse(browseId: String, label: String): JSONObject {
         val body = JSONObject().apply {
             put("context", buildClientContext(InnerTubeConfig.FEED_CLIENT))
-            put("browseId", InnerTubeConfig.BROWSE_ID_HOME)
+            put("browseId", browseId)
         }
         return post(
             url = InnerTubeConfig.BROWSE_URL,
             body = body,
-            label = "browse",
+            label = label,
             client = InnerTubeConfig.FEED_CLIENT,
         )
     }

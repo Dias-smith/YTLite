@@ -11,6 +11,7 @@ import androidx.compose.material.icons.filled.Subscriptions
 import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -34,6 +35,10 @@ fun LibraryScreen(
     val viewModel: LibraryViewModel = viewModel(factory = LibraryViewModel.factory(application))
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val session = uiState.session
+
+    LaunchedEffect(session.ownerKey) {
+        viewModel.refreshIfNeeded()
+    }
 
     LazyColumn(modifier = modifier.fillMaxSize()) {
         item(key = "profile") {
@@ -66,9 +71,15 @@ fun LibraryScreen(
 
         item(key = "playlists_row") {
             LibraryPlaylistsRow(
-                watchLaterCount = uiState.watchLaterCount,
-                likedCount = uiState.likedCount,
-                onPlaylistClick = onMenuItemClick,
+                playlists = uiState.unifiedPlaylists,
+                onPlaylistClick = { playlist ->
+                    if (!playlist.isYoutube()) {
+                        onMenuItemClick()
+                    }
+                },
+                onCloneYoutubePlaylist = { playlist ->
+                    viewModel.cloneYoutubePlaylistToLocal(playlist.playlistId)
+                },
                 modifier = Modifier.padding(bottom = 8.dp),
             )
         }

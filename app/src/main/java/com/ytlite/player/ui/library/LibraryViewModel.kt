@@ -9,16 +9,13 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.ytlite.player.data.auth.AuthRepository
 import com.ytlite.player.data.auth.UserSession
 import com.ytlite.player.data.repository.LibraryRepository
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 
 class LibraryViewModel(
     application: Application,
@@ -33,14 +30,12 @@ class LibraryViewModel(
             val ownerKey = session?.ownerKey ?: return@flatMapLatest flowOf(LibraryUiState(isLoading = false))
             combine(
                 libraryRepository.observeHistory(ownerKey),
-                libraryRepository.observeWatchLaterCount(ownerKey),
-                libraryRepository.observeLikedCount(ownerKey),
-            ) { history, watchLaterCount, likedCount ->
+                libraryRepository.getUnifiedPlaylists(ownerKey),
+            ) { history, playlists ->
                 LibraryUiState(
                     session = session,
                     history = history,
-                    watchLaterCount = watchLaterCount,
-                    likedCount = likedCount,
+                    unifiedPlaylists = playlists,
                     isLoading = false,
                 )
             }
@@ -48,7 +43,19 @@ class LibraryViewModel(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LibraryUiState())
 
     fun refreshIfNeeded() {
-        // Room flows auto-update; placeholder for pull-to-refresh later.
+        viewModelScope.launch {
+            val session = authRepository.currentSession()
+            if (session is UserSession.Authenticated) {
+                libraryRepository.refreshYoutubePlaylists()
+            }
+        }
+    }
+
+    fun cloneYoutubePlaylistToLocal(playlistId: String) {
+        viewModelScope.launch {
+            val ownerKey = authRepository.currentSession()?.ownerKey ?: return@launch
+            libraryRepository.importYoutubePlaylistToLocal(playlistId, ownerKey)
+        }
     }
 
     companion object {

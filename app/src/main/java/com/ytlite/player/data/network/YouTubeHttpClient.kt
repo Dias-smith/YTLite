@@ -14,6 +14,7 @@ import java.util.zip.GZIPInputStream
 class YouTubeHttpClient {
 
     private val httpClient: OkHttpClient = OkHttpClient.Builder()
+        .cookieJar(YoutubeCookieJar)
         .connectTimeout(NetworkConfig.CONNECT_TIMEOUT_SEC, TimeUnit.SECONDS)
         .readTimeout(NetworkConfig.READ_TIMEOUT_SEC, TimeUnit.SECONDS)
         .writeTimeout(NetworkConfig.WRITE_TIMEOUT_SEC, TimeUnit.SECONDS)

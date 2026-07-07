@@ -70,6 +70,11 @@
     <string name="library_watch_later">稍后观看</string>
     <string name="library_liked_videos">赞过的视频</string>
     <string name="library_private_playlist">私密 · 播放列表</string>
+    <string name="library_local_playlist">本地 · 播放列表</string>
+    <string name="library_youtube_playlist">YouTube · 只读</string>
+    <string name="library_youtube_badge">YouTube</string>
+    <string name="library_clone_to_local">克隆到本地</string>
+    <string name="library_playlists_empty">暂无播放列表</string>
     <string name="library_switch_account">切换账号</string>
     <string name="library_sign_in_switch">登录 / 切换账号</string>
     <string name="library_view_channel">查看频道</string>
