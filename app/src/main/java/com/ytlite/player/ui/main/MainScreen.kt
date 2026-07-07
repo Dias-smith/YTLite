@@ -20,16 +20,19 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ytlite.player.R
 import com.ytlite.player.data.auth.UserSession
+import com.ytlite.player.data.youtube.YoutubeSessionManager
 import com.ytlite.player.playback.GlobalPlaybackUiState
 import com.ytlite.player.ui.auth.AuthViewModel
 import com.ytlite.player.ui.auth.rememberGoogleSignInLauncher
@@ -37,7 +40,9 @@ import com.ytlite.player.ui.home.HomeScreen
 import com.ytlite.player.ui.library.LibraryScreen
 import com.ytlite.player.ui.playback.MiniPlayerBar
 import com.ytlite.player.ui.shorts.ShortsScreen
+import com.ytlite.player.ui.subscriptions.SubscriptionChannelsScreen
 import com.ytlite.player.ui.subscriptions.SubscriptionsScreen
+import com.ytlite.player.ui.youtube.YoutubeLoginSheet
 import kotlinx.coroutines.launch
 
 private enum class MainTab(
@@ -77,12 +82,17 @@ fun MainScreen(
     modifier: Modifier = Modifier,
 ) {
     var selectedTab by rememberSaveable { mutableIntStateOf(MainTab.Home.ordinal) }
+    var showSubscriptionChannels by rememberSaveable { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val signInComingSoon = stringResource(R.string.sign_in_coming_soon)
     val comingSoon = stringResource(R.string.placeholder_coming_soon)
 
     val authSession by authViewModel.session.collectAsStateWithLifecycle()
+
+    val application = LocalContext.current.applicationContext as android.app.Application
+    val youtubeSessionManager = remember { YoutubeSessionManager.getInstance(application) }
+    val youtubeLoginUiState by youtubeSessionManager.loginUiState.collectAsStateWithLifecycle()
 
     val googleSignIn = rememberGoogleSignInLauncher(
         onSignInSuccess = authViewModel::onGoogleSignInSuccess,
@@ -142,7 +152,17 @@ fun MainScreen(
             }
         },
     ) { innerPadding ->
-        when (MainTab.entries[selectedTab]) {
+        if (showSubscriptionChannels) {
+            SubscriptionChannelsScreen(
+                onBack = { showSubscriptionChannels = false },
+                onChannelClick = {
+                    scope.launch { snackbarHostState.showSnackbar(comingSoon) }
+                },
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+            )
+        } else when (MainTab.entries[selectedTab]) {
             MainTab.Home -> HomeScreen(
                 onVideoClick = onVideoClick,
                 modifier = Modifier
@@ -157,6 +177,8 @@ fun MainScreen(
             MainTab.Subscriptions -> SubscriptionsScreen(
                 session = authSession,
                 onSignInClick = onSignInClick,
+                onVideoClick = onVideoClick,
+                onChannelListClick = { showSubscriptionChannels = true },
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding),
@@ -175,5 +197,13 @@ fun MainScreen(
                     .padding(innerPadding),
             )
         }
+    }
+
+    if (authSession is UserSession.Authenticated && youtubeLoginUiState != null) {
+        YoutubeLoginSheet(
+            uiState = youtubeLoginUiState!!,
+            sessionManager = youtubeSessionManager,
+            onDismiss = { youtubeSessionManager.cancelInteractiveLogin() },
+        )
     }
 }

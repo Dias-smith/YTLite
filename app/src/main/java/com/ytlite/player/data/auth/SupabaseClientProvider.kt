@@ -5,8 +5,6 @@ import com.ytlite.player.BuildConfig
 import io.github.jan.supabase.auth.Auth
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.postgrest.Postgrest
-import io.github.jan.supabase.compose.auth.ComposeAuth
-import io.github.jan.supabase.compose.auth.googleNativeLogin
 
 object SupabaseClientProvider {
 
@@ -28,11 +26,6 @@ object SupabaseClientProvider {
                     scheme = "com.ytlite.player"
                 }
                 install(Postgrest)
-                if (BuildConfig.GOOGLE_WEB_CLIENT_ID.isNotBlank()) {
-                    install(ComposeAuth) {
-                        googleNativeLogin(serverClientId = BuildConfig.GOOGLE_WEB_CLIENT_ID)
-                    }
-                }
             }.also { client = it }
         }
     }

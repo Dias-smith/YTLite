@@ -8,4 +8,5 @@ data class UserProfile(
     val displayName: String,
     val handle: String?,
     val avatarUrl: String?,
+    val email: String? = null,
 )

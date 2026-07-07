@@ -54,8 +54,22 @@ class GuestSessionStore(
         return newId
     }
 
+    suspend fun setGoogleAccessToken(token: String?) {
+        dataStore.edit { prefs ->
+            if (token.isNullOrBlank()) {
+                prefs.remove(GOOGLE_ACCESS_TOKEN_KEY)
+            } else {
+                prefs[GOOGLE_ACCESS_TOKEN_KEY] = token
+            }
+        }
+    }
+
+    suspend fun getGoogleAccessToken(): String? =
+        dataStore.data.first()[GOOGLE_ACCESS_TOKEN_KEY]?.takeIf { it.isNotBlank() }
+
     companion object {
         private val GUEST_ID_KEY = stringPreferencesKey("guest_id")
         private val SUPABASE_USER_ID_KEY = stringPreferencesKey("supabase_user_id")
+        private val GOOGLE_ACCESS_TOKEN_KEY = stringPreferencesKey("google_access_token")
     }
 }

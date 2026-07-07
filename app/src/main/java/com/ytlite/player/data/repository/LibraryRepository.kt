@@ -61,6 +61,13 @@ class LibraryRepository(
         authRepository.onAuthenticated = { profile ->
             bootstrapYoutubeForUser(profile)
         }
+        authRepository.onYoutubeCookiesReady = {
+            val profile = (authRepository.currentSession() as? UserSession.Authenticated)?.profile
+            if (profile != null) {
+                youtubeRemote.setOwnerKey("user:${profile.userId}")
+                youtubeRemote.refreshPlaylists()
+            }
+        }
         authRepository.onSignedOut = {
             youtubeSessionManager.disconnect()
             youtubeRemote.setOwnerKey(null)
@@ -158,7 +165,6 @@ class LibraryRepository(
         val ownerKey = "user:${profile.userId}"
         youtubeRemote.setOwnerKey(ownerKey)
         youtubeSessionManager.bootstrapFromGoogleAccount()
-        youtubeRemote.refreshPlaylists()
     }
 
     suspend fun mergeGuestDataIntoUser(

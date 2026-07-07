@@ -11,17 +11,17 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.ytlite.player.BuildConfig
 import com.ytlite.player.R
+import com.ytlite.player.data.auth.AuthRepository
 import com.ytlite.player.data.auth.SupabaseClientProvider
-import io.github.jan.supabase.auth.auth
-import io.github.jan.supabase.compose.auth.composeAuth
-import io.github.jan.supabase.compose.auth.composable.NativeSignInResult
-import io.github.jan.supabase.compose.auth.composable.rememberSignInWithGoogle
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -36,7 +36,9 @@ fun SignInBottomSheet(
 
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val context = LocalContext.current
-    val client = SupabaseClientProvider.get(context)
+    val scope = rememberCoroutineScope()
+    val authRepository = remember(context) { AuthRepository.getInstance(context) }
+    val googleSignInHelper = rememberGoogleNativeSignInHelper()
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -64,32 +66,29 @@ fun SignInBottomSheet(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error,
                 )
-            } else if (client != null && BuildConfig.GOOGLE_WEB_CLIENT_ID.isNotBlank()) {
-                val googleAction = client.composeAuth.rememberSignInWithGoogle(
-                    onResult = { result ->
-                        when (result) {
-                            is NativeSignInResult.Success -> {
-                                val user = client.auth.currentUserOrNull()
-                                if (user != null) {
-                                    val metadata = user.userMetadata
+            } else if (BuildConfig.GOOGLE_WEB_CLIENT_ID.isNotBlank() && googleSignInHelper != null) {
+                Button(
+                    onClick = {
+                        scope.launch {
+                            googleSignInHelper.signIn()
+                                .mapCatching { tokens ->
+                                    authRepository.signInWithGoogleNative(tokens).getOrThrow()
+                                }
+                                .onSuccess { profile ->
                                     onSignInSuccess(
-                                        user.id,
-                                        metadata?.get("full_name")?.toString()?.trim('"')
-                                            ?: metadata?.get("name")?.toString()?.trim('"'),
-                                        metadata?.get("avatar_url")?.toString()?.trim('"'),
-                                        metadata?.get("email")?.toString()?.trim('"')
-                                            ?: user.email,
+                                        profile.userId,
+                                        profile.displayName,
+                                        profile.avatarUrl,
+                                        profile.email,
                                     )
                                 }
-                            }
-                            is NativeSignInResult.ClosedByUser -> Unit
-                            is NativeSignInResult.Error -> onError(result.message ?: "登录失败")
-                            is NativeSignInResult.NetworkError -> onError(result.message ?: "网络错误")
+                                .onFailure { error ->
+                                    if (error !is GoogleSignInCancelledException) {
+                                        onError(error.message ?: "登录失败")
+                                    }
+                                }
                         }
                     },
-                )
-                Button(
-                    onClick = { googleAction.startFlow() },
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text(text = stringResource(R.string.sign_in_with_google))

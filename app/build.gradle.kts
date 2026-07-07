@@ -36,6 +36,7 @@ android {
         buildConfigField("String", "SUPABASE_URL", "\"${localProp("SUPABASE_URL")}\"")
         buildConfigField("String", "SUPABASE_ANON_KEY", "\"${localProp("SUPABASE_ANON_KEY")}\"")
         buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"${localProp("GOOGLE_WEB_CLIENT_ID")}\"")
+        buildConfigField("String", "YOUTUBE_DATA_API_KEY", "\"${localProp("YOUTUBE_DATA_API_KEY")}\"")
     }
 
     buildTypes {
@@ -84,7 +85,11 @@ dependencies {
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.supabase.auth.kt)
     implementation(libs.supabase.postgrest.kt)
-    implementation(libs.supabase.compose.auth)
+    implementation("androidx.credentials:credentials:1.5.0")
+    implementation("androidx.credentials:credentials-play-services-auth:1.5.0")
+    implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
+    implementation("com.google.android.gms:play-services-auth:21.3.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.10.2")
     implementation(libs.ktor.client.okhttp)
     implementation(libs.kotlinx.serialization.json)
     testImplementation(libs.junit)

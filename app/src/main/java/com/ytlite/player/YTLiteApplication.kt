@@ -5,6 +5,7 @@ import com.ytlite.player.data.auth.AuthRepository
 import com.ytlite.player.data.js.JsExtractorEngine
 import com.ytlite.player.data.repository.ExtractionRepository
 import com.ytlite.player.data.repository.LibraryRepository
+import com.ytlite.player.data.repository.SubscriptionsRepository
 import com.ytlite.player.playback.PlaybackManager
 
 class YTLiteApplication : Application() {
@@ -14,6 +15,7 @@ class YTLiteApplication : Application() {
         PlaybackManager.init(this)
         AuthRepository.getInstance(this)
         LibraryRepository.getInstance(this)
+        SubscriptionsRepository.getInstance(this)
     }
 
     override fun onLowMemory() {

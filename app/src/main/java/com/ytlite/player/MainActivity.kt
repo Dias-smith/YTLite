@@ -1,6 +1,7 @@
 package com.ytlite.player
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -24,7 +25,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        SupabaseClientProvider.get(this)?.handleDeeplinks(intent)
+        handleAuthDeeplink(intent)
         requestNotificationPermissionIfNeeded()
         enableEdgeToEdge()
         setContent {
@@ -36,6 +37,11 @@ class MainActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: android.content.Intent) {
         super.onNewIntent(intent)
+        setIntent(intent)
+        handleAuthDeeplink(intent)
+    }
+
+    private fun handleAuthDeeplink(intent: Intent) {
         SupabaseClientProvider.get(this)?.handleDeeplinks(intent)
     }
 
