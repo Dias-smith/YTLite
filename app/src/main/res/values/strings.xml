@@ -30,6 +30,8 @@
     <string name="sign_in_coming_soon">登录功能即将推出</string>
     <string name="subscriptions_sign_in_title">别错过新视频</string>
     <string name="subscriptions_sign_in_description">登录后即可查看你喜爱的 YouTube 频道更新</string>
+    <string name="subscriptions_empty_title">暂无订阅更新</string>
+    <string name="subscriptions_empty_description">你订阅的频道新视频将显示在这里</string>
     <string name="library_sign_in_title">畅享你喜爱的视频</string>
     <string name="library_sign_in_description">登录后即可访问你点赞或保存的视频</string>
     <string name="player_back">返回</string>
@@ -55,6 +57,7 @@
     <string name="player_select_format_hint">请选择播放格式</string>
     <string name="playback_notification_channel">播放控制</string>
     <string name="playback_notification_channel_description">后台播放与锁屏控制</string>
+    <string name="playback_service_starting">YTLite 播放器</string>
     <string name="sign_in_sheet_title">登录 YTLite</string>
     <string name="sign_in_sheet_description">登录后可在多设备同步观看历史、点赞和播放列表。游客模式下数据仅保存在本机。</string>
     <string name="sign_in_with_google">使用 Google 登录</string>

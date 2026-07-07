@@ -32,7 +32,7 @@ import com.ytlite.player.R
 import com.ytlite.player.data.auth.UserSession
 import com.ytlite.player.playback.GlobalPlaybackUiState
 import com.ytlite.player.ui.auth.AuthViewModel
-import com.ytlite.player.ui.auth.SignInBottomSheet
+import com.ytlite.player.ui.auth.rememberGoogleSignInLauncher
 import com.ytlite.player.ui.home.HomeScreen
 import com.ytlite.player.ui.library.LibraryScreen
 import com.ytlite.player.ui.playback.MiniPlayerBar
@@ -83,29 +83,30 @@ fun MainScreen(
     val comingSoon = stringResource(R.string.placeholder_coming_soon)
 
     val authSession by authViewModel.session.collectAsStateWithLifecycle()
-    val showSignInSheet by authViewModel.showSignInSheet.collectAsStateWithLifecycle()
 
-    val onSignInClick: () -> Unit = {
-        authViewModel.openSignInSheet()
-    }
-
-    val onSwitchAccountClick: () -> Unit = {
-        when (authSession) {
-            is UserSession.Authenticated -> authViewModel.signOut()
-            else -> authViewModel.openSignInSheet()
-        }
-    }
-
-    SignInBottomSheet(
-        visible = showSignInSheet,
-        supabaseConfigured = authViewModel.supabaseConfigured,
-        onDismiss = authViewModel::dismissSignInSheet,
+    val googleSignIn = rememberGoogleSignInLauncher(
         onSignInSuccess = authViewModel::onGoogleSignInSuccess,
         onError = { message ->
             authViewModel.setAuthError(message)
             scope.launch { snackbarHostState.showSnackbar(message) }
         },
     )
+
+    val onSignInClick: () -> Unit = {
+        if (googleSignIn.canSignIn) {
+            googleSignIn.startSignIn()
+        } else {
+            val message = googleSignIn.notConfiguredMessage ?: signInComingSoon
+            scope.launch { snackbarHostState.showSnackbar(message) }
+        }
+    }
+
+    val onSwitchAccountClick: () -> Unit = {
+        when (authSession) {
+            is UserSession.Authenticated -> authViewModel.signOut()
+            else -> onSignInClick()
+        }
+    }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -154,6 +155,7 @@ fun MainScreen(
                     .padding(innerPadding),
             )
             MainTab.Subscriptions -> SubscriptionsScreen(
+                session = authSession,
                 onSignInClick = onSignInClick,
                 modifier = Modifier
                     .fillMaxSize()

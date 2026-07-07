@@ -62,7 +62,6 @@ class GlobalPlaybackViewModel : ViewModel() {
     )
 
     init {
-        PlaybackManager.ensureConnected()
         viewModelScope.launch {
             PlaybackManager.playbackEnded.collect { ended ->
                 if (ended) {
