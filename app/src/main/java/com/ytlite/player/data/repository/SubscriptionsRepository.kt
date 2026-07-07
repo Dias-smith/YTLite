@@ -6,6 +6,7 @@ import com.ytlite.player.data.auth.UserSession
 import com.ytlite.player.data.model.ChannelPage
 import com.ytlite.player.data.model.ExtractionResult
 import com.ytlite.player.data.model.FeedPage
+import com.ytlite.player.data.model.SubscriptionChannel
 import com.ytlite.player.data.network.YouTubeNetworkException
 import com.ytlite.player.data.remote.youtube.YoutubeSubscriptionsDataSource
 import com.ytlite.player.data.youtube.YoutubeSessionManager
@@ -48,6 +49,34 @@ class SubscriptionsRepository(
             }
             runChannelRequest { dataSource.fetchChannels(continuation) }
         }
+
+    suspend fun fetchChannelVideos(
+        channel: SubscriptionChannel,
+        continuation: String? = null,
+    ): ExtractionResult<FeedPage> = withContext(Dispatchers.IO) {
+        if (authRepository.currentSession() !is UserSession.Authenticated) {
+            return@withContext ExtractionResult.Error("请先登录 Google 账号")
+        }
+        if (authRepository.needsYoutubeDataApiReauth()) {
+            return@withContext ExtractionResult.Error(YOUTUBE_REAUTH_REQUIRED)
+        }
+        return@withContext try {
+            val page = dataSource.fetchChannelVideos(
+                channelId = channel.channelId,
+                channelName = channel.title,
+                continuation = continuation,
+            )
+            if (page == null || page.videos.isEmpty()) {
+                ExtractionResult.Success(FeedPage(videos = emptyList(), continuation = null))
+            } else {
+                ExtractionResult.Success(page)
+            }
+        } catch (e: YouTubeNetworkException) {
+            ExtractionResult.Error("Network error while loading channel videos", e)
+        } catch (e: Exception) {
+            ExtractionResult.Error("Network error while loading channel videos", e)
+        }
+    }
 
     private inline fun runFeedRequest(request: () -> FeedPage?): ExtractionResult<FeedPage> {
         if (!isAuthenticated()) {

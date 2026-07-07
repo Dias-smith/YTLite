@@ -8,7 +8,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.ytlite.player.data.model.ExtractionResult
 import com.ytlite.player.data.repository.SubscriptionsRepository
-import com.ytlite.player.data.youtube.YoutubeDiagnostics
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -26,20 +26,17 @@ class SubscriptionsViewModel(
     init {
         viewModelScope.launch {
             repository.youtubeSessionState.collect { sessionState ->
-                YoutubeDiagnostics.d("ViewModel", "youtubeSessionState=$sessionState")
                 _uiState.update { it.copy(youtubeSessionState = sessionState) }
             }
         }
     }
 
     fun refreshIfNeeded() {
-        YoutubeDiagnostics.d("ViewModel", "refreshIfNeeded isLoading=${_uiState.value.isLoading}")
         if (_uiState.value.isLoading) return
         loadFeed()
     }
 
     fun refresh() {
-        YoutubeDiagnostics.d("ViewModel", "refresh (retry)")
         loadFeed()
     }
 
@@ -69,37 +66,57 @@ class SubscriptionsViewModel(
         }
     }
 
-    fun openChannelList() {
-        _uiState.update { it.copy(showChannelList = true) }
-    }
+    fun loadMoreChannels() {
+        val state = _uiState.value
+        val token = state.channelsContinuation ?: return
+        if (state.isLoadingMoreChannels || state.isLoading) return
 
-    fun closeChannelList() {
-        _uiState.update { it.copy(showChannelList = false) }
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoadingMoreChannels = true) }
+            when (val result = repository.fetchChannelsContinuation(token)) {
+                is ExtractionResult.Success -> {
+                    _uiState.update { current ->
+                        val merged = (current.channels + result.data.channels)
+                            .distinctBy { it.channelId }
+                        current.copy(
+                            channels = merged,
+                            channelsContinuation = result.data.continuation,
+                            isLoadingMoreChannels = false,
+                        )
+                    }
+                }
+                is ExtractionResult.Error -> {
+                    _uiState.update { it.copy(isLoadingMoreChannels = false) }
+                }
+            }
+        }
     }
 
     private fun loadFeed() {
         viewModelScope.launch {
-            YoutubeDiagnostics.d("ViewModel", "loadFeed start")
             _uiState.update {
                 it.copy(
                     isLoading = true,
                     errorMessage = null,
                     needsYoutubeReauth = false,
                     videos = emptyList(),
+                    channels = emptyList(),
                     continuation = null,
+                    channelsContinuation = null,
                 )
             }
-            when (val result = repository.fetchFeed()) {
+
+            val feedDeferred = async { repository.fetchFeed() }
+            val channelsDeferred = async { repository.fetchChannels() }
+            val feedResult = feedDeferred.await()
+            val channelsResult = channelsDeferred.await()
+
+            when (feedResult) {
                 is ExtractionResult.Success -> {
-                    YoutubeDiagnostics.d(
-                        "ViewModel",
-                        "loadFeed success videos=${result.data.videos.size} " +
-                            "continuation=${result.data.continuation != null}",
-                    )
-                    _uiState.update {
-                        it.copy(
-                            videos = result.data.videos,
-                            continuation = result.data.continuation,
+                    _uiState.update { current ->
+                        current.copy(
+                            videos = feedResult.data.videos,
+                            continuation = feedResult.data.continuation,
                             isLoading = false,
                             errorMessage = null,
                             needsYoutubeReauth = false,
@@ -107,15 +124,23 @@ class SubscriptionsViewModel(
                     }
                 }
                 is ExtractionResult.Error -> {
-                    YoutubeDiagnostics.e("ViewModel", "loadFeed error: ${result.message}", result.cause)
-                    val needsReauth = result.message == SubscriptionsRepository.YOUTUBE_REAUTH_REQUIRED
+                    val needsReauth = feedResult.message == SubscriptionsRepository.YOUTUBE_REAUTH_REQUIRED
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            errorMessage = result.message,
+                            errorMessage = feedResult.message,
                             needsYoutubeReauth = needsReauth,
                         )
                     }
+                }
+            }
+
+            if (channelsResult is ExtractionResult.Success) {
+                _uiState.update { current ->
+                    current.copy(
+                        channels = channelsResult.data.channels,
+                        channelsContinuation = channelsResult.data.continuation,
+                    )
                 }
             }
         }

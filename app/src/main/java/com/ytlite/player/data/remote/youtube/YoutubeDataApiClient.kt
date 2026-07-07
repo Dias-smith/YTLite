@@ -62,6 +62,160 @@ class YoutubeDataApiClient(
         }.getOrNull()
     }
 
+    fun listChannelVideos(
+        oauthAccessToken: String,
+        channelId: String,
+        channelName: String,
+        pageToken: String? = null,
+        maxResults: Int = 25,
+    ): FeedPage? {
+        if (!isConfigured) return null
+        listChannelVideosFromUploadsPlaylist(
+            oauthAccessToken = oauthAccessToken,
+            channelId = channelId,
+            channelName = channelName,
+            pageToken = pageToken,
+            maxResults = maxResults,
+        )?.let { page ->
+            if (page.videos.isNotEmpty()) return page
+        }
+        return listChannelVideosFromSearch(
+            oauthAccessToken = oauthAccessToken,
+            channelId = channelId,
+            channelName = channelName,
+            pageToken = pageToken,
+            maxResults = maxResults,
+        )
+    }
+
+    private fun listChannelVideosFromUploadsPlaylist(
+        oauthAccessToken: String,
+        channelId: String,
+        channelName: String,
+        pageToken: String? = null,
+        maxResults: Int = 25,
+    ): FeedPage? {
+        val uploadsPlaylistId = toUploadsPlaylistId(channelId) ?: return null
+        val url = buildString {
+            append(YoutubeDataApiConfig.PLAYLIST_ITEMS_LIST_URL)
+            append("?part=snippet")
+            append("&playlistId=$uploadsPlaylistId")
+            append("&maxResults=$maxResults")
+            append("&key=${BuildConfig.YOUTUBE_DATA_API_KEY}")
+            if (!pageToken.isNullOrBlank()) {
+                append("&pageToken=$pageToken")
+            }
+        }
+        return runCatching {
+            val result = httpClient.request(
+                url = url,
+                method = "GET",
+                headers = mapOf("Authorization" to "Bearer $oauthAccessToken"),
+                body = null,
+            )
+            if (!result.success || result.result.isNullOrBlank()) {
+                logApiFailure("playlistItems.list", result)
+                return null
+            }
+            parsePlaylistItems(
+                json = JSONObject(result.result),
+                channelName = channelName,
+                channelId = channelId,
+            )
+        }.onFailure { error ->
+            YoutubeDiagnostics.e("DataApi", "playlistItems.list error: ${error.message}", error)
+        }.getOrNull()
+    }
+
+    private fun listChannelVideosFromSearch(
+        oauthAccessToken: String,
+        channelId: String,
+        channelName: String,
+        pageToken: String? = null,
+        maxResults: Int = 25,
+    ): FeedPage? {
+        val url = buildString {
+            append(YoutubeDataApiConfig.SEARCH_LIST_URL)
+            append("?part=snippet")
+            append("&channelId=$channelId")
+            append("&type=video")
+            append("&order=date")
+            append("&maxResults=$maxResults")
+            append("&key=${BuildConfig.YOUTUBE_DATA_API_KEY}")
+            if (!pageToken.isNullOrBlank()) {
+                append("&pageToken=$pageToken")
+            }
+        }
+        return runCatching {
+            val result = httpClient.request(
+                url = url,
+                method = "GET",
+                headers = mapOf("Authorization" to "Bearer $oauthAccessToken"),
+                body = null,
+            )
+            if (!result.success || result.result.isNullOrBlank()) {
+                logApiFailure("search.list", result)
+                return null
+            }
+            parseChannelSearchResults(
+                json = JSONObject(result.result),
+                channelName = channelName,
+                channelId = channelId,
+            )
+        }.onFailure { error ->
+            YoutubeDiagnostics.e("DataApi", "search.list error: ${error.message}", error)
+        }.getOrNull()
+    }
+
+    private fun toUploadsPlaylistId(channelId: String): String? {
+        if (!channelId.startsWith("UC") || channelId.length <= 2) return null
+        return "UU" + channelId.substring(2)
+    }
+
+    private fun parsePlaylistItems(
+        json: JSONObject,
+        channelName: String,
+        channelId: String,
+    ): FeedPage? {
+        val items = json.optJSONArray("items") ?: return null
+        val videos = buildList {
+            for (index in 0 until items.length()) {
+                val item = items.optJSONObject(index) ?: continue
+                val snippet = item.optJSONObject("snippet") ?: continue
+                val videoId = snippet.optJSONObject("resourceId")
+                    ?.optString("videoId")
+                    ?.takeIf { it.isNotBlank() }
+                    ?: continue
+                val title = snippet.optString("title").takeIf { it.isNotBlank() } ?: continue
+                if (title == "Private video" || title == "Deleted video") continue
+                val itemChannelId = snippet.optString("channelId")
+                if (itemChannelId.isNotBlank() && itemChannelId != channelId) continue
+                val thumbnails = snippet.optJSONObject("thumbnails")
+                val thumbnailUrl = thumbnails?.optJSONObject("high")?.optString("url")
+                    ?: thumbnails?.optJSONObject("medium")?.optString("url")
+                    ?: thumbnails?.optJSONObject("default")?.optString("url")
+                    ?: "https://i.ytimg.com/img/no_thumbnail.jpg"
+                add(
+                    VideoItem(
+                        videoId = videoId,
+                        title = title,
+                        channelName = snippet.optString("channelTitle").takeIf { it.isNotBlank() }
+                            ?: channelName,
+                        channelId = itemChannelId.takeIf { it.isNotBlank() } ?: channelId,
+                        thumbnailUrl = thumbnailUrl,
+                        durationText = null,
+                        viewCountText = null,
+                        publishedTimeText = snippet.optString("publishedAt").takeIf { it.isNotBlank() },
+                    ),
+                )
+            }
+        }
+        return FeedPage(
+            videos = videos,
+            continuation = json.optString("nextPageToken").takeIf { it.isNotBlank() },
+        )
+    }
+
     fun buildFeedFromActivities(
         oauthAccessToken: String,
         channels: List<SubscriptionChannel>,
@@ -178,6 +332,48 @@ class YoutubeDataApiClient(
             )
         }
         return videos
+    }
+
+    private fun parseChannelSearchResults(
+        json: JSONObject,
+        channelName: String,
+        channelId: String,
+    ): FeedPage? {
+        val items = json.optJSONArray("items") ?: return null
+        val videos = buildList {
+            for (index in 0 until items.length()) {
+                val item = items.optJSONObject(index) ?: continue
+                val videoId = item.optJSONObject("id")?.optString("videoId")?.takeIf { it.isNotBlank() }
+                    ?: continue
+                val snippet = item.optJSONObject("snippet") ?: continue
+                val itemChannelId = snippet.optString("channelId")
+                if (itemChannelId.isNotBlank() && itemChannelId != channelId) continue
+                val title = snippet.optString("title").takeIf { it.isNotBlank() } ?: continue
+                val thumbnails = snippet.optJSONObject("thumbnails")
+                val thumbnailUrl = thumbnails?.optJSONObject("high")?.optString("url")
+                    ?: thumbnails?.optJSONObject("medium")?.optString("url")
+                    ?: thumbnails?.optJSONObject("default")?.optString("url")
+                    ?: "https://i.ytimg.com/img/no_thumbnail.jpg"
+                add(
+                    VideoItem(
+                        videoId = videoId,
+                        title = title,
+                        channelName = snippet.optString("channelTitle").takeIf { it.isNotBlank() }
+                            ?: channelName,
+                        channelId = snippet.optString("channelId").takeIf { it.isNotBlank() }
+                            ?: channelId,
+                        thumbnailUrl = thumbnailUrl,
+                        durationText = null,
+                        viewCountText = null,
+                        publishedTimeText = snippet.optString("publishedAt").takeIf { it.isNotBlank() },
+                    ),
+                )
+            }
+        }
+        return FeedPage(
+            videos = videos,
+            continuation = json.optString("nextPageToken").takeIf { it.isNotBlank() },
+        )
     }
 
     private fun logApiFailure(endpoint: String, result: HttpResult) {

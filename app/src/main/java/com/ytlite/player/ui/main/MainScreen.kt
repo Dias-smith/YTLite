@@ -32,6 +32,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ytlite.player.R
 import com.ytlite.player.data.auth.UserSession
+import com.ytlite.player.data.model.SubscriptionChannel
 import com.ytlite.player.data.youtube.YoutubeSessionManager
 import com.ytlite.player.playback.GlobalPlaybackUiState
 import com.ytlite.player.ui.auth.AuthViewModel
@@ -40,6 +41,7 @@ import com.ytlite.player.ui.home.HomeScreen
 import com.ytlite.player.ui.library.LibraryScreen
 import com.ytlite.player.ui.playback.MiniPlayerBar
 import com.ytlite.player.ui.shorts.ShortsScreen
+import com.ytlite.player.ui.subscriptions.ChannelVideosScreen
 import com.ytlite.player.ui.subscriptions.SubscriptionChannelsScreen
 import com.ytlite.player.ui.subscriptions.SubscriptionsScreen
 import com.ytlite.player.ui.youtube.YoutubeLoginSheet
@@ -83,6 +85,7 @@ fun MainScreen(
 ) {
     var selectedTab by rememberSaveable { mutableIntStateOf(MainTab.Home.ordinal) }
     var showSubscriptionChannels by rememberSaveable { mutableStateOf(false) }
+    var selectedChannel by remember { mutableStateOf<SubscriptionChannel?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val signInComingSoon = stringResource(R.string.sign_in_coming_soon)
@@ -150,50 +153,62 @@ fun MainScreen(
             }
         },
     ) { innerPadding ->
-        if (showSubscriptionChannels) {
-            SubscriptionChannelsScreen(
-                onBack = { showSubscriptionChannels = false },
-                onChannelClick = {
-                    scope.launch { snackbarHostState.showSnackbar(comingSoon) }
-                },
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
-            )
-        } else when (MainTab.entries[selectedTab]) {
-            MainTab.Home -> HomeScreen(
-                onVideoClick = onVideoClick,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
-            )
-            MainTab.Shorts -> ShortsScreen(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
-            )
-            MainTab.Subscriptions -> SubscriptionsScreen(
-                session = authSession,
-                onSignInClick = onSignInClick,
-                onVideoClick = onVideoClick,
-                onChannelListClick = { showSubscriptionChannels = true },
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
-            )
-            MainTab.Library -> LibraryScreen(
-                onVideoClick = onVideoClick,
-                onSwitchAccountClick = onSwitchAccountClick,
-                onMenuItemClick = {
-                    scope.launch { snackbarHostState.showSnackbar(comingSoon) }
-                },
-                onViewAllClick = {
-                    scope.launch { snackbarHostState.showSnackbar(comingSoon) }
-                },
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
-            )
+        when {
+            selectedChannel != null -> {
+                ChannelVideosScreen(
+                    channel = selectedChannel!!,
+                    onBack = { selectedChannel = null },
+                    onVideoClick = onVideoClick,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding),
+                )
+            }
+            showSubscriptionChannels -> {
+                SubscriptionChannelsScreen(
+                    onBack = { showSubscriptionChannels = false },
+                    onChannelClick = { channel -> selectedChannel = channel },
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding),
+                )
+            }
+            else -> when (MainTab.entries[selectedTab]) {
+                MainTab.Home -> HomeScreen(
+                    onVideoClick = onVideoClick,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding),
+                )
+                MainTab.Shorts -> ShortsScreen(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding),
+                )
+                MainTab.Subscriptions -> SubscriptionsScreen(
+                    session = authSession,
+                    onSignInClick = onSignInClick,
+                    onVideoClick = onVideoClick,
+                    onChannelListClick = { showSubscriptionChannels = true },
+                    onChannelClick = { channel -> selectedChannel = channel },
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding),
+                )
+                MainTab.Library -> LibraryScreen(
+                    onVideoClick = onVideoClick,
+                    onSwitchAccountClick = onSwitchAccountClick,
+                    onMenuItemClick = {
+                        scope.launch { snackbarHostState.showSnackbar(comingSoon) }
+                    },
+                    onViewAllClick = {
+                        scope.launch { snackbarHostState.showSnackbar(comingSoon) }
+                    },
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding),
+                )
+            }
         }
     }
 

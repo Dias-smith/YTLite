@@ -35,6 +35,7 @@
     <string name="subscriptions_all_channels">全部订阅</string>
     <string name="subscriptions_sort_most_relevant">最相关</string>
     <string name="subscriptions_channels_empty">暂无订阅频道</string>
+    <string name="channel_videos_empty">该频道暂无视频</string>
     <string name="subscriptions_error_title">无法加载订阅内容</string>
     <string name="subscriptions_reauth_required">需要重新登录以授权 YouTube 数据访问。请退出账号后重新使用 Google 登录，并同意 YouTube 只读权限。</string>
     <string name="subscriptions_awaiting_youtube_login">正在等待 YouTube 授权，请在弹出的页面中完成 Google 登录</string>

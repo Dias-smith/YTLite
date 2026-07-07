@@ -3,18 +3,13 @@ package com.ytlite.player.ui.subscriptions
 import androidx.compose.runtime.Immutable
 import com.ytlite.player.data.model.SubscriptionChannel
 import com.ytlite.player.data.model.VideoItem
-import com.ytlite.player.data.youtube.YoutubeSessionState
 
 @Immutable
-data class SubscriptionsUiState(
+data class ChannelVideosUiState(
+    val channel: SubscriptionChannel,
     val videos: List<VideoItem> = emptyList(),
-    val channels: List<SubscriptionChannel> = emptyList(),
     val continuation: String? = null,
-    val channelsContinuation: String? = null,
     val isLoading: Boolean = false,
     val isLoadingMore: Boolean = false,
-    val isLoadingMoreChannels: Boolean = false,
     val errorMessage: String? = null,
-    val needsYoutubeReauth: Boolean = false,
-    val youtubeSessionState: YoutubeSessionState = YoutubeSessionState.Disconnected,
 )

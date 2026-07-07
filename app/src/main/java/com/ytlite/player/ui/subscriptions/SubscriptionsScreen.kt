@@ -33,6 +33,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import android.app.Application
 import com.ytlite.player.R
 import com.ytlite.player.data.auth.UserSession
+import com.ytlite.player.data.model.SubscriptionChannel
 import com.ytlite.player.data.youtube.YoutubeSessionState
 import com.ytlite.player.ui.common.SignInPromptScreen
 import com.ytlite.player.ui.common.SubscriptionsIllustration
@@ -45,6 +46,7 @@ fun SubscriptionsScreen(
     onSignInClick: () -> Unit,
     onVideoClick: (String) -> Unit,
     onChannelListClick: () -> Unit,
+    onChannelClick: (SubscriptionChannel) -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: SubscriptionsViewModel = viewModel(
         factory = SubscriptionsViewModel.factory(
@@ -56,6 +58,7 @@ fun SubscriptionsScreen(
         is UserSession.Authenticated -> SubscriptionsAuthenticatedContent(
             onVideoClick = onVideoClick,
             onChannelListClick = onChannelListClick,
+            onChannelClick = onChannelClick,
             viewModel = viewModel,
             modifier = modifier,
         )
@@ -74,6 +77,7 @@ fun SubscriptionsScreen(
 private fun SubscriptionsAuthenticatedContent(
     onVideoClick: (String) -> Unit,
     onChannelListClick: () -> Unit,
+    onChannelClick: (SubscriptionChannel) -> Unit,
     viewModel: SubscriptionsViewModel,
     modifier: Modifier = Modifier,
 ) {
@@ -117,6 +121,15 @@ private fun SubscriptionsAuthenticatedContent(
         ) {
             Text(text = stringResource(R.string.subscriptions_all_channels))
         }
+
+        SubscriptionChannelsRow(
+            channels = uiState.channels,
+            imageLoader = imageLoader,
+            onChannelClick = onChannelClick,
+            onLoadMore = { viewModel.loadMoreChannels() },
+            hasMore = uiState.channelsContinuation != null,
+            isLoadingMore = uiState.isLoadingMoreChannels,
+        )
 
         PullToRefreshBox(
             isRefreshing = uiState.isLoading && uiState.videos.isNotEmpty(),

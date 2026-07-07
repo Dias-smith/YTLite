@@ -27,6 +27,21 @@ class YoutubeSubscriptionsDataSource(
         dataApiClient.listSubscriptions(oauthToken, pageToken = continuation)
     }
 
+    suspend fun fetchChannelVideos(
+        channelId: String,
+        channelName: String,
+        continuation: String? = null,
+    ): FeedPage? = withContext(Dispatchers.IO) {
+        val oauthToken = oauthTokenProvider() ?: return@withContext null
+        if (!dataApiClient.isConfigured) return@withContext null
+        dataApiClient.listChannelVideos(
+            oauthAccessToken = oauthToken,
+            channelId = channelId,
+            channelName = channelName,
+            pageToken = continuation,
+        )
+    }
+
     private fun fetchFeedViaDataApi(): FeedPage? {
         val oauthToken = oauthTokenProvider() ?: return null
         if (!dataApiClient.isConfigured) return null
