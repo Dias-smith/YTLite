@@ -87,4 +87,11 @@
     <string name="library_help">帮助</string>
     <string name="library_feedback">反馈</string>
     <string name="library_premium">升级 Premium</string>
+    <string name="account_switcher_title">账号</string>
+    <string name="account_switcher_guest_hint">登录后可同步观看历史与播放列表</string>
+    <string name="account_switcher_add_account">添加账号</string>
+    <string name="account_switcher_sign_out">退出登录</string>
+    <string name="account_switcher_no_subscribers">无订阅者</string>
+    <string name="account_switcher_subscriber_count">%1$s 位订阅者</string>
+    <string name="account_switcher_retry">重试</string>
 </resources>

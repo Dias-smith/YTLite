@@ -61,9 +61,26 @@ class GuestSessionStore(
     suspend fun getGoogleAccessToken(): String? =
         dataStore.data.first()[GOOGLE_ACCESS_TOKEN_KEY]?.takeIf { it.isNotBlank() }
 
+    suspend fun getActiveChannelId(userId: String): String? =
+        dataStore.data.first()[activeChannelKey(userId)]?.takeIf { it.isNotBlank() }
+
+    suspend fun setActiveChannelId(userId: String, channelId: String?) {
+        dataStore.edit { prefs ->
+            val key = activeChannelKey(userId)
+            if (channelId.isNullOrBlank()) {
+                prefs.remove(key)
+            } else {
+                prefs[key] = channelId
+            }
+        }
+    }
+
     companion object {
         private val GUEST_ID_KEY = stringPreferencesKey("guest_id")
         private val SUPABASE_USER_ID_KEY = stringPreferencesKey("supabase_user_id")
         private val GOOGLE_ACCESS_TOKEN_KEY = stringPreferencesKey("google_access_token")
+
+        private fun activeChannelKey(userId: String) =
+            stringPreferencesKey("active_channel_$userId")
     }
 }

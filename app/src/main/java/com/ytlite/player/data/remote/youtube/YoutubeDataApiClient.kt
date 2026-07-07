@@ -1,5 +1,6 @@
 package com.ytlite.player.data.remote.youtube
 
+import com.ytlite.player.data.auth.OwnedYoutubeChannel
 import com.ytlite.player.BuildConfig
 import com.ytlite.player.data.model.ChannelPage
 import com.ytlite.player.data.model.FeedPage
@@ -59,6 +60,57 @@ class YoutubeDataApiClient(
             parseSubscriptionsList(JSONObject(result.result))
         }.onFailure { error ->
             YoutubeDiagnostics.e("DataApi", "subscriptions.list error: ${error.message}", error)
+        }.getOrNull()
+    }
+
+    fun listOwnedChannels(
+        oauthAccessToken: String,
+        maxResults: Int = 50,
+    ): List<OwnedYoutubeChannel>? {
+        if (!isConfigured) return null
+        val channels = mutableListOf<OwnedYoutubeChannel>()
+        var pageToken: String? = null
+        do {
+            val page = fetchOwnedChannelsPage(
+                oauthAccessToken = oauthAccessToken,
+                pageToken = pageToken,
+                maxResults = maxResults,
+            ) ?: return null
+            channels += page.channels
+            pageToken = page.continuation
+        } while (!pageToken.isNullOrBlank())
+        return channels.takeIf { it.isNotEmpty() }
+    }
+
+    private fun fetchOwnedChannelsPage(
+        oauthAccessToken: String,
+        pageToken: String? = null,
+        maxResults: Int = 50,
+    ): OwnedChannelsPage? {
+        val url = buildString {
+            append(YoutubeDataApiConfig.CHANNELS_LIST_URL)
+            append("?part=snippet,statistics")
+            append("&mine=true")
+            append("&maxResults=$maxResults")
+            append("&key=${BuildConfig.YOUTUBE_DATA_API_KEY}")
+            if (!pageToken.isNullOrBlank()) {
+                append("&pageToken=$pageToken")
+            }
+        }
+        return runCatching {
+            val result = httpClient.request(
+                url = url,
+                method = "GET",
+                headers = mapOf("Authorization" to "Bearer $oauthAccessToken"),
+                body = null,
+            )
+            if (!result.success || result.result.isNullOrBlank()) {
+                logApiFailure("channels.list", result)
+                return null
+            }
+            parseOwnedChannelsList(JSONObject(result.result))
+        }.onFailure { error ->
+            YoutubeDiagnostics.e("DataApi", "channels.list error: ${error.message}", error)
         }.getOrNull()
     }
 
@@ -264,6 +316,47 @@ class YoutubeDataApiClient(
         }
         return parseActivities(JSONObject(result.result), channelName, channelId)
     }
+
+    private fun parseOwnedChannelsList(json: JSONObject): OwnedChannelsPage? {
+        val items = json.optJSONArray("items") ?: return null
+        val channels = buildList {
+            for (index in 0 until items.length()) {
+                val item = items.optJSONObject(index) ?: continue
+                val channelId = item.optString("id").takeIf { it.isNotBlank() } ?: continue
+                val snippet = item.optJSONObject("snippet") ?: continue
+                val title = snippet.optString("title").takeIf { it.isNotBlank() } ?: continue
+                val thumbnails = snippet.optJSONObject("thumbnails")
+                val avatarUrl = thumbnails?.optJSONObject("default")?.optString("url")
+                    ?: thumbnails?.optJSONObject("medium")?.optString("url")
+                val customUrl = snippet.optString("customUrl").takeIf { it.isNotBlank() }
+                val handle = customUrl?.let { url ->
+                    if (url.startsWith("@")) url else "@$url"
+                }
+                val statistics = item.optJSONObject("statistics")
+                val hiddenSubscribers = statistics?.optBoolean("hiddenSubscriberCount") == true
+                val subscriberCount = statistics?.optString("subscriberCount")?.toLongOrNull()
+                add(
+                    OwnedYoutubeChannel(
+                        channelId = channelId,
+                        title = title,
+                        handle = handle,
+                        avatarUrl = avatarUrl,
+                        subscriberCount = subscriberCount,
+                        hiddenSubscriberCount = hiddenSubscribers,
+                    ),
+                )
+            }
+        }
+        return OwnedChannelsPage(
+            channels = channels,
+            continuation = json.optString("nextPageToken").takeIf { it.isNotBlank() },
+        ).takeIf { it.channels.isNotEmpty() }
+    }
+
+    private data class OwnedChannelsPage(
+        val channels: List<OwnedYoutubeChannel>,
+        val continuation: String?,
+    )
 
     private fun parseSubscriptionsList(json: JSONObject): ChannelPage? {
         val items = json.optJSONArray("items") ?: return null

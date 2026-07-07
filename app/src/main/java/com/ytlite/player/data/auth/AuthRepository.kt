@@ -36,8 +36,12 @@ class AuthRepository(
             val currentUser = client.auth.currentUserOrNull()
             if (currentUser != null && storedUserId == currentUser.id) {
                 val profile = buildProfileFromAuth(currentUser.id, currentUser.userMetadata)
-                _session.value = UserSession.Authenticated(profile)
-                onAuthenticated?.invoke(profile)
+                val activeChannelId = guestSessionStore.getActiveChannelId(currentUser.id)
+                val authenticated = UserSession.Authenticated(
+                    profile.copy(channelId = activeChannelId),
+                )
+                _session.value = authenticated
+                onAuthenticated?.invoke(authenticated.profile)
                 return
             }
         }
@@ -94,6 +98,10 @@ class AuthRepository(
         runCatching { client?.auth?.signOut() }
         cachedGoogleAccessToken = null
         guestSessionStore.setGoogleAccessToken(null)
+        val userId = (_session.value as? UserSession.Authenticated)?.profile?.userId
+        if (userId != null) {
+            guestSessionStore.setActiveChannelId(userId, null)
+        }
         onSignedOut?.invoke()
         guestSessionStore.setSupabaseUserId(null)
         val newGuestId = guestSessionStore.rotateGuestId()
@@ -116,6 +124,24 @@ class AuthRepository(
 
     fun updateAuthenticatedProfile(profile: UserProfile) {
         _session.value = UserSession.Authenticated(profile)
+    }
+
+    suspend fun selectYoutubeChannel(channel: OwnedYoutubeChannel) {
+        val session = currentSession() as? UserSession.Authenticated ?: return
+        guestSessionStore.setActiveChannelId(session.profile.userId, channel.channelId)
+        updateAuthenticatedProfile(
+            session.profile.copy(
+                channelId = channel.channelId,
+                displayName = channel.title,
+                handle = channel.handle,
+                avatarUrl = channel.avatarUrl,
+            ),
+        )
+    }
+
+    fun getActiveChannelId(): String? {
+        val session = currentSession() as? UserSession.Authenticated ?: return null
+        return session.profile.channelId
     }
 
     private fun buildProfileFromAuth(

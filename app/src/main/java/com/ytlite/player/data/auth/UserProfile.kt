@@ -9,4 +9,5 @@ data class UserProfile(
     val handle: String?,
     val avatarUrl: String?,
     val email: String? = null,
+    val channelId: String? = null,
 )

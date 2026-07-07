@@ -105,13 +105,6 @@ fun MainScreen(
         }
     }
 
-    val onSwitchAccountClick: () -> Unit = {
-        when (authSession) {
-            is UserSession.Authenticated -> authViewModel.signOut()
-            else -> onSignInClick()
-        }
-    }
-
     Scaffold(
         modifier = modifier.fillMaxSize(),
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -190,7 +183,8 @@ fun MainScreen(
                 )
                 MainTab.Library -> LibraryScreen(
                     onVideoClick = onVideoClick,
-                    onSwitchAccountClick = onSwitchAccountClick,
+                    onSignInClick = onSignInClick,
+                    onSignOutClick = { authViewModel.signOut() },
                     onMenuItemClick = {
                         scope.launch { snackbarHostState.showSnackbar(comingSoon) }
                     },

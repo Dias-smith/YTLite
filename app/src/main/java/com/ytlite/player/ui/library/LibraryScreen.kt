@@ -13,6 +13,9 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -26,7 +29,8 @@ import com.ytlite.player.data.auth.UserSession
 @Composable
 fun LibraryScreen(
     onVideoClick: (String) -> Unit,
-    onSwitchAccountClick: () -> Unit,
+    onSignInClick: () -> Unit,
+    onSignOutClick: () -> Unit,
     onMenuItemClick: () -> Unit,
     onViewAllClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -35,16 +39,25 @@ fun LibraryScreen(
     val viewModel: LibraryViewModel = viewModel(factory = LibraryViewModel.factory(application))
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val session = uiState.session
+    var showAccountSheet by remember { mutableStateOf(false) }
 
     LaunchedEffect(session.ownerKey) {
         viewModel.refreshIfNeeded()
     }
 
+    AccountSwitcherSheet(
+        session = session,
+        visible = showAccountSheet,
+        onDismiss = { showAccountSheet = false },
+        onAddAccountClick = onSignInClick,
+        onSignOutClick = onSignOutClick,
+    )
+
     LazyColumn(modifier = modifier.fillMaxSize()) {
         item(key = "profile") {
             LibraryProfileHeader(
                 session = session,
-                onSwitchAccountClick = onSwitchAccountClick,
+                onSwitchAccountClick = { showAccountSheet = true },
             )
         }
 
