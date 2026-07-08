@@ -15,9 +15,9 @@ internal object LibraryItemMapper {
 
     fun playlistItem(playlist: PlaylistEntity, subtitle: String): LibraryItem.Playlist =
         LibraryItem.Playlist(
-            id = playlist.playlistId,
+            id = playlist.listKey(),
             playlistId = playlist.playlistId,
-            title = playlist.name,
+            title = playlist.displayTitle(),
             subtitle = subtitle,
             coverUrl = playlist.coverUrlOrPath,
             source = playlist.dataSource,
@@ -100,5 +100,17 @@ internal object LibraryItemMapper {
         playlist.systemType == PlaylistSystemType.WATCH_LATER -> "System · Watch later"
         playlist.isYoutube() -> "YouTube · Read-only"
         else -> "Local · Playlist"
+    }
+
+    private fun PlaylistEntity.listKey(): String = when (systemType) {
+        PlaylistSystemType.FAVORITES -> "system:favorites"
+        PlaylistSystemType.WATCH_LATER -> "system:watch_later"
+        else -> playlistId
+    }
+
+    private fun PlaylistEntity.displayTitle(): String = when (systemType) {
+        PlaylistSystemType.WATCH_LATER -> "Watch later"
+        PlaylistSystemType.FAVORITES -> "Liked videos"
+        else -> name
     }
 }

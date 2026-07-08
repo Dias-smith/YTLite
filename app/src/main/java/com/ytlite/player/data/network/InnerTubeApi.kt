@@ -144,6 +144,21 @@ class InnerTubeApi(
         )
     }
 
+    fun fetchWatchNext(videoId: String): JSONObject {
+        val body = JSONObject().apply {
+            put("context", buildClientContext(InnerTubeConfig.FEED_CLIENT))
+            put("videoId", videoId)
+            put("racyCheckOk", true)
+            put("contentCheckOk", true)
+        }
+        return post(
+            url = InnerTubeConfig.NEXT_URL,
+            body = body,
+            label = "watch_next",
+            client = InnerTubeConfig.FEED_CLIENT,
+        )
+    }
+
     fun browseExplore(
         browseId: String,
         params: String? = null,

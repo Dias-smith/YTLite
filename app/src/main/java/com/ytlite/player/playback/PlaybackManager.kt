@@ -55,6 +55,8 @@ object PlaybackManager {
     private var servicePlayer: ExoPlayer? = null
     private var playerListener: Player.Listener? = null
     private var pendingPlay: NowPlaying? = null
+    private var pendingQueue: List<NowPlaying>? = null
+    private var pendingQueueIndex: Int = 0
     private val mainHandler = Handler(Looper.getMainLooper())
 
     private inline fun runOnMainThread(crossinline block: () -> Unit) {
@@ -130,6 +132,65 @@ object PlaybackManager {
         runOnMainThread { requestPlay(item) }
     }
 
+    fun playQueue(items: List<NowPlaying>, startIndex: Int = 0) {
+        runOnMainThread {
+            if (items.isEmpty()) return@runOnMainThread
+            val safeIndex = startIndex.coerceIn(0, items.lastIndex)
+            ensureConnected()
+            val activePlayer = getPlayer()
+            if (activePlayer == null) {
+                pendingQueue = items
+                pendingQueueIndex = safeIndex
+                pendingPlay = items[safeIndex]
+                return@runOnMainThread
+            }
+            playQueueOnPlayer(activePlayer, items, safeIndex)
+        }
+    }
+
+    fun skipToQueueIndex(index: Int) {
+        runOnMainThread {
+            val queueState = PlayQueueRepository.state.value
+            val item = queueState.items.getOrNull(index) ?: return@runOnMainThread
+            val streamUrl = item.streamUrl ?: return@runOnMainThread
+            PlayQueueRepository.setCurrentIndex(index)
+            play(item.toNowPlaying(streamUrl))
+        }
+    }
+
+    fun skipToNextInQueue(): Boolean {
+        val next = PlayQueueRepository.advanceToNext() ?: return false
+        val streamUrl = next.streamUrl ?: return true
+        play(next.toNowPlaying(streamUrl))
+        return true
+    }
+
+    fun skipToPreviousInQueue(): Boolean {
+        val previous = PlayQueueRepository.skipToPrevious() ?: return false
+        val streamUrl = previous.streamUrl ?: return true
+        play(previous.toNowPlaying(streamUrl))
+        return true
+    }
+
+    fun syncQueueOrder(items: List<QueueItem>) {
+        runOnMainThread {
+            val activePlayer = getPlayer() ?: return@runOnMainThread
+            val playable = items.mapNotNull { item ->
+                val url = item.streamUrl ?: return@mapNotNull null
+                item.toNowPlaying(url).toMediaItem()
+            }
+            if (playable.isEmpty()) return@runOnMainThread
+            val currentId = _nowPlaying.value?.videoId
+            val currentIndex = items.indexOfFirst { it.videoId == currentId }.coerceAtLeast(0)
+            activePlayer.setMediaItems(playable, currentIndex.coerceAtMost(playable.lastIndex), 0L)
+            activePlayer.prepare()
+        }
+    }
+
+    fun resetPlaybackEnded() {
+        _playbackEnded.value = false
+    }
+
     private fun requestPlay(item: NowPlaying) {
         ensureConnected()
         val activePlayer = getPlayer()
@@ -142,6 +203,15 @@ object PlaybackManager {
     }
 
     private fun flushPendingPlay() {
+        val queue = pendingQueue
+        if (queue != null) {
+            val activePlayer = getPlayer()
+            if (activePlayer == null) return
+            pendingQueue = null
+            playQueueOnPlayer(activePlayer, queue, pendingQueueIndex)
+            pendingPlay = null
+            return
+        }
         val pending = pendingPlay ?: return
         val activePlayer = getPlayer()
         if (activePlayer == null) {
@@ -151,6 +221,18 @@ object PlaybackManager {
         Log.d(TAG, "Playing queued videoId=${pending.videoId}")
         pendingPlay = null
         playOnPlayer(activePlayer, pending)
+    }
+
+    private fun playQueueOnPlayer(activePlayer: Player, items: List<NowPlaying>, startIndex: Int) {
+        val mediaItems = items.map { it.toMediaItem() }
+        val safeIndex = startIndex.coerceIn(0, mediaItems.lastIndex)
+        val current = items[safeIndex]
+        _nowPlaying.value = current
+        _playbackEnded.value = false
+        _playbackError.value = null
+        activePlayer.setMediaItems(mediaItems, safeIndex, 0L)
+        activePlayer.prepare()
+        activePlayer.playWhenReady = true
     }
 
     private fun playOnPlayer(activePlayer: Player, item: NowPlaying) {
@@ -180,22 +262,24 @@ object PlaybackManager {
         _playbackEnded.value = false
         _playbackError.value = null
 
-        val mediaItem = MediaItem.Builder()
-            .setMediaId(item.videoId)
-            .setUri(item.streamUrl)
-            .setMediaMetadata(
-                MediaMetadata.Builder()
-                    .setTitle(item.title)
-                    .setArtist(item.channelName)
-                    .setArtworkUri(Uri.parse(item.thumbnailUrl))
-                    .build(),
-            )
-            .build()
-
+        val mediaItem = item.toMediaItem()
         activePlayer.setMediaItem(mediaItem)
         activePlayer.prepare()
         activePlayer.playWhenReady = true
     }
+
+    private fun NowPlaying.toMediaItem(): MediaItem =
+        MediaItem.Builder()
+            .setMediaId(videoId)
+            .setUri(streamUrl)
+            .setMediaMetadata(
+                MediaMetadata.Builder()
+                    .setTitle(title)
+                    .setArtist(channelName)
+                    .setArtworkUri(Uri.parse(thumbnailUrl))
+                    .build(),
+            )
+            .build()
 
     fun togglePlayPause() {
         runOnMainThread {
@@ -246,8 +330,21 @@ object PlaybackManager {
                 if (playbackState == Player.STATE_ENDED) {
                     _playbackEnded.value = true
                     _isPlaying.value = false
+                } else if (playbackState == Player.STATE_READY && player.isPlaying) {
+                    _playbackEnded.value = false
                 }
                 syncFromPlayer(player)
+            }
+
+            override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+                val videoId = mediaItem?.mediaId ?: return
+                val queueItem = PlayQueueRepository.state.value.items.firstOrNull { it.videoId == videoId }
+                if (queueItem != null) {
+                    val streamUrl = queueItem.streamUrl ?: mediaItem.localConfiguration?.uri?.toString().orEmpty()
+                    _nowPlaying.value = queueItem.toNowPlaying(streamUrl)
+                    val index = PlayQueueRepository.state.value.items.indexOfFirst { it.videoId == videoId }
+                    if (index >= 0) PlayQueueRepository.setCurrentIndex(index)
+                }
             }
 
             override fun onPlayerError(error: PlaybackException) {

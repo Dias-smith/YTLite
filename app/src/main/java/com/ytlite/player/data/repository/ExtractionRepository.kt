@@ -12,8 +12,10 @@ import com.ytlite.player.data.network.InnerTubeApi
 import com.ytlite.player.data.network.NetworkConfig
 import com.ytlite.player.data.network.YouTubeNetworkException
 import com.ytlite.player.data.parser.FeedParser
+import com.ytlite.player.data.parser.RelatedVideoParser
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.json.JSONObject
 
 /**
  * Hybrid extraction: Kotlin InnerTube for home feed, JS extractor for playback.
@@ -90,6 +92,11 @@ class ExtractionRepository(
         }
     }
 
+    suspend fun fetchVideoPlaybackRaw(videoId: String): JSONObject? = withContext(Dispatchers.IO) {
+        if (videoId.isBlank()) return@withContext null
+        runCatching { jsClient.extractVideo(videoId) }.getOrNull()
+    }
+
     private inline fun runFeedRequest(
         request: () -> FeedPage,
     ): ExtractionResult<FeedPage> {
@@ -108,6 +115,35 @@ class ExtractionRepository(
         } catch (e: Exception) {
             ExtractionResult.Error(
                 message = "Network error while loading feed",
+                cause = e,
+            )
+        }
+    }
+
+    suspend fun fetchRelatedVideos(
+        videoId: String,
+        extractMessage: JSONObject? = null,
+    ): ExtractionResult<List<com.ytlite.player.data.model.VideoItem>> = withContext(Dispatchers.IO) {
+        if (videoId.isBlank()) {
+            return@withContext ExtractionResult.Error("Video ID is empty")
+        }
+        try {
+            extractMessage?.let { message ->
+                val fromJs = RelatedVideoParser.parseFromJsExtract(message)
+                if (fromJs.isNotEmpty()) {
+                    return@withContext ExtractionResult.Success(fromJs)
+                }
+            }
+            val response = innerTubeApi.fetchWatchNext(videoId)
+            val related = RelatedVideoParser.parse(response)
+            if (related.isEmpty()) {
+                ExtractionResult.Error("No related videos found")
+            } else {
+                ExtractionResult.Success(related)
+            }
+        } catch (e: Exception) {
+            ExtractionResult.Error(
+                message = "Failed to load related videos",
                 cause = e,
             )
         }

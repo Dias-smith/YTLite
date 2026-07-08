@@ -12,10 +12,13 @@ import com.ytlite.player.data.local.entity.PlaylistSystemType
 import com.ytlite.player.data.local.model.PlaylistTrackDetailRow
 import com.ytlite.player.data.model.DataSource
 import com.ytlite.player.data.repository.LibraryRepository
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.Instant
@@ -33,9 +36,11 @@ data class PlaylistDetailUiState(
     val isLoading: Boolean = true,
 )
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class PlaylistDetailViewModel(
     private val playlistId: String,
     private val ownerKey: String,
+    private val systemType: String?,
     private val libraryRepository: LibraryRepository,
 ) : ViewModel() {
 
@@ -43,24 +48,27 @@ class PlaylistDetailViewModel(
 
     init {
         viewModelScope.launch {
-            playlistState.value = libraryRepository.getPlaylistById(playlistId, ownerKey)
+            playlistState.value = libraryRepository.getPlaylistById(
+                playlistId = playlistId,
+                ownerKey = ownerKey,
+                systemType = systemType,
+            )
         }
     }
 
-    val uiState: StateFlow<PlaylistDetailUiState> = combine(
-        playlistState,
-        libraryRepository.observePlaylistTrackDetails(playlistId),
-    ) { playlist, tracks ->
+    val uiState: StateFlow<PlaylistDetailUiState> = playlistState.flatMapLatest { playlist ->
         if (playlist == null) {
-            PlaylistDetailUiState(isLoading = true)
+            flowOf(PlaylistDetailUiState(isLoading = true))
         } else {
-            PlaylistDetailUiState(
-                playlist = playlist,
-                tracks = tracks,
-                coverUrls = buildCoverUrls(playlist, tracks),
-                statsText = buildStatsText(playlist, tracks),
-                isLoading = false,
-            )
+            libraryRepository.observePlaylistTrackDetails(playlist.playlistId).map { tracks ->
+                PlaylistDetailUiState(
+                    playlist = playlist,
+                    tracks = tracks,
+                    coverUrls = buildCoverUrls(playlist, tracks),
+                    statsText = buildStatsText(playlist, tracks),
+                    isLoading = false,
+                )
+            }
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), PlaylistDetailUiState())
 
@@ -112,11 +120,13 @@ class PlaylistDetailViewModel(
             application: Application,
             playlistId: String,
             ownerKey: String,
+            systemType: String? = null,
         ): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 PlaylistDetailViewModel(
                     playlistId = playlistId,
                     ownerKey = ownerKey,
+                    systemType = systemType,
                     libraryRepository = LibraryRepository.getInstance(application),
                 )
             }

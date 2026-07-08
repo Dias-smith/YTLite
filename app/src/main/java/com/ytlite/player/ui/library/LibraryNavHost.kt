@@ -72,7 +72,10 @@ fun LibraryNavHost(
                 onItemClick = { item ->
                     when (item) {
                         is LibraryItem.Playlist -> {
-                            destination = LibraryDestination.Playlist(item.playlistId)
+                            destination = LibraryDestination.Playlist(
+                                playlistId = item.playlistId,
+                                systemType = item.systemType,
+                            )
                         }
                         is LibraryItem.Song -> onVideoClick(item.videoId)
                         is LibraryItem.Artist -> Unit
@@ -104,6 +107,7 @@ fun LibraryNavHost(
         is LibraryDestination.Playlist -> {
             PlaylistDetailScreen(
                 playlistId = current.playlistId,
+                systemType = current.systemType,
                 ownerKey = uiState.session.ownerKey,
                 onBack = { destination = LibraryDestination.Home },
                 onVideoClick = onVideoClick,

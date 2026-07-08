@@ -52,6 +52,7 @@ import com.ytlite.player.data.model.DataSource
 fun PlaylistDetailScreen(
     playlistId: String,
     ownerKey: String,
+    systemType: String? = null,
     onBack: () -> Unit,
     onVideoClick: (String) -> Unit,
     onCloneYoutubePlaylist: () -> Unit,
@@ -60,7 +61,13 @@ fun PlaylistDetailScreen(
 ) {
     val application = LocalContext.current.applicationContext as Application
     val viewModel: PlaylistDetailViewModel = viewModel(
-        factory = PlaylistDetailViewModel.factory(application, playlistId, ownerKey),
+        key = "$ownerKey:${systemType ?: playlistId}",
+        factory = PlaylistDetailViewModel.factory(
+            application,
+            playlistId,
+            ownerKey,
+            systemType,
+        ),
     )
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val playlist = uiState.playlist

@@ -90,6 +90,8 @@ class LibraryRepository(
             rows.map { it.toLibraryVideo() }
         }
 
+    fun currentOwnerKey(): String? = authRepository.currentSession()?.ownerKey
+
     fun getUnifiedPlaylists(ownerKey: String): Flow<List<PlaylistEntity>> =
         combine(
             playlistDao.observeLocalByOwner(ownerKey).map { dedupeLocalPlaylistsForDisplay(it) },
@@ -164,12 +166,18 @@ class LibraryRepository(
     fun observePlaylistTrackDetails(playlistId: String) =
         playlistTrackDao.observePlaylistTrackDetails(playlistId)
 
-    suspend fun getPlaylistById(playlistId: String, ownerKey: String): PlaylistEntity? =
-        withContext(Dispatchers.IO) {
-            playlistDao.getAllByOwner(ownerKey).firstOrNull { it.playlistId == playlistId }
-                ?: youtubeRemote.getYoutubePlaylistsFlow().first()
-                    .firstOrNull { it.playlistId == playlistId }
+    suspend fun getPlaylistById(
+        playlistId: String,
+        ownerKey: String,
+        systemType: String? = null,
+    ): PlaylistEntity? = withContext(Dispatchers.IO) {
+        if (systemType != null) {
+            playlistDao.getSystemPlaylist(ownerKey, systemType)?.let { return@withContext it }
         }
+        playlistDao.getAllByOwner(ownerKey).firstOrNull { it.playlistId == playlistId }
+            ?: youtubeRemote.getYoutubePlaylistsFlow().first()
+                .firstOrNull { it.playlistId == playlistId }
+    }
 
     fun observeIsTrackLiked(ownerKey: String, trackId: String): Flow<Boolean> =
         playlistTrackDao.observeTrackInSystemPlaylist(
@@ -203,6 +211,24 @@ class LibraryRepository(
                 ),
             )
             playlistId
+        }
+
+    suspend fun addTrackToPlaylist(playlistId: String, video: LibraryVideo) =
+        withContext(Dispatchers.IO) {
+            playbackHistoryRepository.depositPlayback(
+                video = video,
+                ownerKey = authRepository.currentSession()?.ownerKey ?: return@withContext,
+                userId = (authRepository.currentSession() as? UserSession.Authenticated)?.profile?.userId,
+            )
+            val existing = playlistTrackDao.getAllByPlaylist(playlistId)
+            if (existing.any { it.trackId == video.videoId }) return@withContext
+            playlistTrackDao.upsert(
+                PlaylistTrackEntity(
+                    playlistId = playlistId,
+                    trackId = video.videoId,
+                    position = existing.size,
+                ),
+            )
         }
 
     private suspend fun addTrackToSystemPlaylist(

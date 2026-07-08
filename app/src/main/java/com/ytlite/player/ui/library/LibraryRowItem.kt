@@ -35,12 +35,12 @@ fun LibraryRowItem(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box {
-            LibraryImage(
-                model = item.coverUrl,
-                contentDescription = item.title,
+            LibraryPlaylistThumbnail(
+                item = item,
                 modifier = Modifier
                     .size(56.dp)
                     .clip(RoundedCornerShape(8.dp)),
+                iconSize = 28.dp,
             )
             if (item.source == DataSource.YOUTUBE) {
                 YoutubeBadge(modifier = Modifier.align(Alignment.BottomEnd))

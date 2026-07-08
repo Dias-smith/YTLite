@@ -32,6 +32,11 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name=".ui.player.FullscreenPlayerActivity"
+            android:exported="false"
+            android:theme="@style/Theme.YTLite" />
+
         <service
             android:name=".playback.PlaybackService"
             android:exported="false"

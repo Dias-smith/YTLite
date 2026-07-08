@@ -36,6 +36,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ytlite.player.R
 import com.ytlite.player.data.model.DataSource
 import com.ytlite.player.data.model.LibraryVideo
+import com.ytlite.player.playback.NowPlaying
+import com.ytlite.player.playback.PlayQueueRepository
+import com.ytlite.player.playback.QueueItem
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -112,7 +115,17 @@ fun SongActionBottomSheet(
             ) {
                 QuickActionCard(
                     label = stringResource(R.string.library_action_play_next),
-                    onClick = { onVideoClick(context.videoId) },
+                    onClick = {
+                        PlayQueueRepository.insertNext(
+                            QueueItem(
+                                videoId = context.videoId,
+                                title = context.title,
+                                channelName = context.channelName,
+                                thumbnailUrl = context.thumbnailUrl,
+                            ),
+                        )
+                        onDismiss()
+                    },
                     modifier = Modifier.weight(1f),
                 )
                 QuickActionCard(
@@ -137,8 +150,17 @@ fun SongActionBottomSheet(
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
             SongMenuRow(
                 label = stringResource(R.string.library_action_add_queue),
-                enabled = false,
-                onClick = { },
+                onClick = {
+                    PlayQueueRepository.addToEnd(
+                        QueueItem(
+                            videoId = context.videoId,
+                            title = context.title,
+                            channelName = context.channelName,
+                            thumbnailUrl = context.thumbnailUrl,
+                        ),
+                    )
+                    onDismiss()
+                },
             )
             SongMenuRow(
                 label = stringResource(R.string.library_action_download),

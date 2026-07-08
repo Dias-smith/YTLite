@@ -27,4 +27,7 @@ object InnerTubeConfig {
 
     val SEARCH_URL: String
         get() = "$BASE_URL/youtubei/v1/search?key=$API_KEY"
+
+    val NEXT_URL: String
+        get() = "$BASE_URL/youtubei/v1/next?key=$API_KEY"
 }

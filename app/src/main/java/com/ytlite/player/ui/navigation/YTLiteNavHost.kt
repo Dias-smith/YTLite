@@ -31,7 +31,9 @@ object Routes {
 fun YTLiteNavHost(modifier: Modifier = Modifier) {
     val navController = rememberNavController()
     val application = LocalContext.current.applicationContext as Application
-    val globalPlaybackViewModel: GlobalPlaybackViewModel = viewModel()
+    val globalPlaybackViewModel: GlobalPlaybackViewModel = viewModel(
+        factory = GlobalPlaybackViewModel.factory(application),
+    )
     val authViewModel: AuthViewModel = viewModel(factory = AuthViewModel.factory(application))
     val globalPlaybackState by globalPlaybackViewModel.uiState.collectAsStateWithLifecycle()
 
@@ -91,6 +93,8 @@ fun YTLiteNavHost(modifier: Modifier = Modifier) {
                     navController.popBackStack()
                 },
                 viewModel = playerViewModel,
+                globalPlaybackViewModel = globalPlaybackViewModel,
+                globalPlaybackState = globalPlaybackState,
             )
         }
     }
