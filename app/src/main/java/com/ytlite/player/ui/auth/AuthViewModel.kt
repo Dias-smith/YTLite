@@ -27,9 +27,9 @@ class AuthViewModel(
         }
     }
 
-    fun signOut() {
+    fun switchToGuestMode() {
         viewModelScope.launch {
-            authRepository.signOut()
+            authRepository.switchToGuestMode()
         }
     }
 

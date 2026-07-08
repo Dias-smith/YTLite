@@ -53,6 +53,9 @@ fun LibraryScreen(
         onSignOutClick = onSignOutClick,
     )
 
+    val localPlaylists = uiState.unifiedPlaylists.filter { it.isLocal() }
+    val youtubePlaylists = uiState.unifiedPlaylists.filter { it.isYoutube() }
+
     LazyColumn(modifier = modifier.fillMaxSize()) {
         item(key = "profile") {
             LibraryProfileHeader(
@@ -68,11 +71,23 @@ fun LibraryScreen(
             )
         }
 
-        item(key = "history_row") {
+        item(key = "history_ytlite_label") {
+            LibrarySourceLabel(title = stringResource(R.string.library_source_ytlite))
+        }
+
+        item(key = "history_ytlite_row") {
             LibraryHistoryRow(
                 videos = uiState.history,
                 onVideoClick = onVideoClick,
             )
+        }
+
+        item(key = "history_youtube_label") {
+            LibrarySourceLabel(title = stringResource(R.string.library_source_youtube))
+        }
+
+        item(key = "history_youtube_row") {
+            LibraryYoutubeHistoryUnavailable()
         }
 
         item(key = "playlists_header") {
@@ -82,9 +97,13 @@ fun LibraryScreen(
             )
         }
 
-        item(key = "playlists_row") {
+        item(key = "playlists_ytlite_label") {
+            LibrarySourceLabel(title = stringResource(R.string.library_source_ytlite))
+        }
+
+        item(key = "playlists_ytlite_row") {
             LibraryPlaylistsRow(
-                playlists = uiState.unifiedPlaylists,
+                playlists = localPlaylists,
                 onPlaylistClick = { playlist ->
                     if (!playlist.isYoutube()) {
                         onMenuItemClick()
@@ -93,6 +112,21 @@ fun LibraryScreen(
                 onCloneYoutubePlaylist = { playlist ->
                     viewModel.cloneYoutubePlaylistToLocal(playlist.playlistId)
                 },
+            )
+        }
+
+        item(key = "playlists_youtube_label") {
+            LibrarySourceLabel(title = stringResource(R.string.library_source_youtube))
+        }
+
+        item(key = "playlists_youtube_row") {
+            LibraryPlaylistsRow(
+                playlists = youtubePlaylists,
+                onPlaylistClick = { },
+                onCloneYoutubePlaylist = { playlist ->
+                    viewModel.cloneYoutubePlaylistToLocal(playlist.playlistId)
+                },
+                emptyText = stringResource(R.string.library_playlists_youtube_empty),
                 modifier = Modifier.padding(bottom = 8.dp),
             )
         }

@@ -69,6 +69,12 @@
     <string name="sign_in_google_not_configured">请在 local.properties 中配置 GOOGLE_WEB_CLIENT_ID</string>
     <string name="library_history">历史记录</string>
     <string name="library_playlists">播放列表</string>
+    <string name="library_source_ytlite">YTLite</string>
+    <string name="library_source_youtube">YouTube</string>
+    <string name="library_history_youtube_empty">暂无 YouTube 观看记录</string>
+    <string name="library_history_youtube_unavailable_title">无法同步 YouTube 观看记录</string>
+    <string name="library_history_youtube_unavailable_description">Google 未向第三方应用开放账号观看历史 API。YTLite 仅记录在本应用内的播放历史。</string>
+    <string name="library_playlists_youtube_empty">暂无 YouTube 播放列表</string>
     <string name="library_view_all">查看全部</string>
     <string name="library_history_empty">暂无观看记录</string>
     <string name="library_watch_later">稍后观看</string>
@@ -90,7 +96,7 @@
     <string name="account_switcher_title">账号</string>
     <string name="account_switcher_guest_hint">登录后可同步观看历史与播放列表</string>
     <string name="account_switcher_add_account">添加账号</string>
-    <string name="account_switcher_sign_out">退出登录</string>
+    <string name="account_switcher_sign_out_youtube">退出 YouTube 账号</string>
     <string name="account_switcher_no_subscribers">无订阅者</string>
     <string name="account_switcher_subscriber_count">%1$s 位订阅者</string>
     <string name="account_switcher_retry">重试</string>

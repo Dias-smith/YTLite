@@ -16,6 +16,7 @@ import com.ytlite.player.data.remote.SupabaseLibraryRemote
 import com.ytlite.player.data.remote.dto.PlaylistDto
 import com.ytlite.player.data.remote.dto.PlaylistTrackDto
 import com.ytlite.player.data.remote.youtube.YoutubeRemoteDataSource
+import com.ytlite.player.data.youtube.YoutubeDiagnostics
 import com.ytlite.player.playback.NowPlaying
 import com.ytlite.player.playback.PlaybackManager
 import kotlinx.coroutines.CoroutineScope
@@ -56,10 +57,17 @@ class LibraryRepository(
         authRepository.onMergeGuestData = { guestOwnerKey, userId, profile ->
             mergeGuestDataIntoUser(guestOwnerKey, userId, profile)
         }
+        authRepository.onSwitchToGuestMode = { userOwnerKey, guestOwnerKey ->
+            migrateUserLocalDataToGuest(userOwnerKey, guestOwnerKey)
+        }
         authRepository.onAuthenticated = { profile ->
             youtubeRemote.setOwnerKey("user:${profile.userId}")
+            YoutubeDiagnostics.d(
+                step = "Playlists/Repo",
+                message = "onAuthenticated userId=${profile.userId} scheduling refreshYoutubePlaylists",
+            )
             repositoryScope.launch {
-                youtubeRemote.refreshPlaylists()
+                refreshYoutubePlaylists()
             }
         }
         authRepository.onSignedOut = {
@@ -80,7 +88,7 @@ class LibraryRepository(
 
     fun getUnifiedPlaylists(ownerKey: String): Flow<List<PlaylistEntity>> =
         combine(
-            playlistDao.observeLocalByOwner(ownerKey),
+            playlistDao.observeLocalByOwner(ownerKey).map { dedupeLocalPlaylistsForDisplay(it) },
             youtubeRemote.getYoutubePlaylistsFlow(),
         ) { local, youtube ->
             (local + youtube).sortedByDescending { it.updatedAt }
@@ -93,7 +101,34 @@ class LibraryRepository(
         playlistTrackDao.observeSystemPlaylistCount(ownerKey, PlaylistSystemType.WATCH_LATER)
 
     suspend fun refreshYoutubePlaylists() {
-        youtubeRemote.refreshPlaylists()
+        val session = authRepository.currentSession()
+        val token = authRepository.getGoogleProviderAccessToken()
+        val needsReauth = authRepository.needsYoutubeDataApiReauth()
+        YoutubeDiagnostics.logPlaylistsFetchStart(
+            step = "Playlists/Repo",
+            ownerKey = session?.ownerKey,
+            sessionType = session?.javaClass?.simpleName ?: "null",
+            apiConfigured = authRepository.isYoutubeDataApiKeyConfigured(),
+            needsReauth = needsReauth,
+            tokenPresent = !token.isNullOrBlank(),
+            tokenLength = token?.length ?: 0,
+            tokenSource = authRepository.diagnoseGoogleAccessTokenSource(),
+        )
+        if (needsReauth) {
+            YoutubeDiagnostics.logPlaylistsFetchOutcome(
+                step = "Playlists/Repo",
+                outcome = "skipped",
+                detail = "needsYoutubeDataApiReauth=true → clearing youtube playlists",
+            )
+            youtubeRemote.refreshPlaylists(null)
+            return
+        }
+        youtubeRemote.refreshPlaylists(token)
+    }
+
+    suspend fun ensureLocalLibraryReady(ownerKey: String) {
+        ensureSystemPlaylists(ownerKey)
+        deduplicateSystemPlaylists(ownerKey)
     }
 
     suspend fun importYoutubePlaylistToLocal(
@@ -103,7 +138,10 @@ class LibraryRepository(
         val sourcePlaylist = youtubeRemote.getYoutubePlaylistsFlow()
             .first()
             .firstOrNull { it.playlistId == youtubePlaylistId } ?: return@withContext
-        val tracks = youtubeRemote.getPlaylistTracks(youtubePlaylistId)
+        val tracks = youtubeRemote.getPlaylistTracks(
+            youtubePlaylistId,
+            authRepository.getGoogleProviderAccessToken(),
+        )
         val newPlaylistId = UUID.randomUUID().toString()
         val now = System.currentTimeMillis()
         playlistDao.upsert(
@@ -142,6 +180,9 @@ class LibraryRepository(
     }
 
     suspend fun addToHistory(nowPlaying: NowPlaying) {
+        if (authRepository.currentSession() == null) {
+            authRepository.initialize()
+        }
         val ownerKey = authRepository.currentSession()?.ownerKey ?: return
         addToHistory(
             LibraryVideo(
@@ -154,6 +195,43 @@ class LibraryRepository(
         )
     }
 
+    suspend fun migrateUserLocalDataToGuest(
+        userOwnerKey: String,
+        guestOwnerKey: String,
+    ) = withContext(Dispatchers.IO) {
+        ensureSystemPlaylists(guestOwnerKey)
+
+        val guestFavorites = playlistDao.getSystemPlaylist(guestOwnerKey, PlaylistSystemType.FAVORITES)
+        val guestWatchLater = playlistDao.getSystemPlaylist(guestOwnerKey, PlaylistSystemType.WATCH_LATER)
+        val userFavorites = playlistDao.getSystemPlaylist(userOwnerKey, PlaylistSystemType.FAVORITES)
+        val userWatchLater = playlistDao.getSystemPlaylist(userOwnerKey, PlaylistSystemType.WATCH_LATER)
+
+        if (guestFavorites != null && userFavorites != null) {
+            mergePlaylistTracks(userFavorites.playlistId, guestFavorites.playlistId)
+        }
+        if (guestWatchLater != null && userWatchLater != null) {
+            mergePlaylistTracks(userWatchLater.playlistId, guestWatchLater.playlistId)
+        }
+
+        mergeUserHistoryToGuest(userOwnerKey, guestOwnerKey)
+        playbackHistoryDao.migrateOwnerKey(userOwnerKey, guestOwnerKey)
+
+        playlistDao.getAllByOwner(userOwnerKey)
+            .filter { it.isLocal() && it.systemType == null }
+            .forEach { playlist ->
+                playlistDao.upsert(
+                    playlist.copy(
+                        ownerKey = guestOwnerKey,
+                        userId = null,
+                        isSynced = false,
+                        updatedAt = System.currentTimeMillis(),
+                    ),
+                )
+            }
+
+        deduplicateSystemPlaylists(guestOwnerKey)
+    }
+
     suspend fun mergeGuestDataIntoUser(
         guestOwnerKey: String,
         userId: String,
@@ -162,19 +240,23 @@ class LibraryRepository(
         val userOwnerKey = "user:$userId"
 
         ensureSystemPlaylists(guestOwnerKey)
+
+        playlistDao.getAllByOwner(guestOwnerKey)
+            .filter { it.systemType != null }
+            .forEach { playlist ->
+                playlistDao.upsert(
+                    playlist.copy(
+                        ownerKey = userOwnerKey,
+                        userId = userId,
+                        isSynced = false,
+                        updatedAt = System.currentTimeMillis(),
+                    ),
+                )
+            }
+
+        systemPlaylistsEnsured.remove(userOwnerKey)
         ensureSystemPlaylists(userOwnerKey, userId)
-
-        val guestFavorites = playlistDao.getSystemPlaylist(guestOwnerKey, PlaylistSystemType.FAVORITES)
-        val guestWatchLater = playlistDao.getSystemPlaylist(guestOwnerKey, PlaylistSystemType.WATCH_LATER)
-        val userFavorites = playlistDao.getSystemPlaylist(userOwnerKey, PlaylistSystemType.FAVORITES)
-        val userWatchLater = playlistDao.getSystemPlaylist(userOwnerKey, PlaylistSystemType.WATCH_LATER)
-
-        if (guestFavorites != null && userFavorites != null) {
-            mergePlaylistTracks(guestFavorites.playlistId, userFavorites.playlistId)
-        }
-        if (guestWatchLater != null && userWatchLater != null) {
-            mergePlaylistTracks(guestWatchLater.playlistId, userWatchLater.playlistId)
-        }
+        deduplicateSystemPlaylists(userOwnerKey)
 
         userTrackLastPlayedDao.migrateOwnerKey(guestOwnerKey, userOwnerKey)
         playbackHistoryDao.migrateOwnerKey(guestOwnerKey, userOwnerKey)
@@ -192,13 +274,10 @@ class LibraryRepository(
             playlistTrackDao.migratePlaylistId(guestPlaylist.playlistId, migrated.playlistId)
         }
 
-        playlistDao.getAllByOwner(guestOwnerKey)
-            .filter { it.systemType != null }
-            .forEach { playlistDao.upsert(it.copy(ownerKey = userOwnerKey, userId = userId)) }
-
         uploadLocalDataToRemote(userId, userOwnerKey)
         remote?.upsertProfile(profile)
         pullRemoteIntoLocal(userId, userOwnerKey)
+        deduplicateSystemPlaylists(userOwnerKey)
     }
 
     suspend fun pullRemoteIntoLocal(userId: String, userOwnerKey: String) = withContext(Dispatchers.IO) {
@@ -219,6 +298,7 @@ class LibraryRepository(
 
         syncSystemPlaylistFromRemote(userId, userOwnerKey, PlaylistSystemType.FAVORITES)
         syncSystemPlaylistFromRemote(userId, userOwnerKey, PlaylistSystemType.WATCH_LATER)
+        deduplicateSystemPlaylists(userOwnerKey)
 
         remoteClient.fetchProfile(userId)?.let { authRepository.updateAuthenticatedProfile(it) }
     }
@@ -264,6 +344,63 @@ class LibraryRepository(
                 updatedAt = now,
             ),
         )
+    }
+
+    private suspend fun mergeUserHistoryToGuest(
+        userOwnerKey: String,
+        guestOwnerKey: String,
+    ) {
+        val guestByTrack = userTrackLastPlayedDao.getAllByOwner(guestOwnerKey)
+            .associateBy { it.trackId }
+        userTrackLastPlayedDao.getAllByOwner(userOwnerKey).forEach { userEntry ->
+            val guestEntry = guestByTrack[userEntry.trackId]
+            val merged = when {
+                guestEntry == null || userEntry.lastPlayedAt >= guestEntry.lastPlayedAt ->
+                    userEntry.copy(ownerKey = guestOwnerKey, isSynced = false)
+                else -> guestEntry
+            }
+            userTrackLastPlayedDao.upsert(merged)
+        }
+        userTrackLastPlayedDao.deleteByOwner(userOwnerKey)
+    }
+
+    private suspend fun deduplicateSystemPlaylists(ownerKey: String) {
+        listOf(PlaylistSystemType.FAVORITES, PlaylistSystemType.WATCH_LATER).forEach { systemType ->
+            val duplicates = playlistDao.getAllByOwner(ownerKey)
+                .filter { it.isLocal() && it.systemType == systemType }
+            if (duplicates.size <= 1) return@forEach
+
+            val duplicatesWithTrackCounts = duplicates.map { playlist ->
+                playlist to playlistTrackDao.getAllByPlaylist(playlist.playlistId).size
+            }
+            val canonical = duplicatesWithTrackCounts.maxWithOrNull(
+                compareBy<Pair<PlaylistEntity, Int>> { it.first.isSynced }
+                    .thenBy { it.second }
+                    .thenBy { it.first.updatedAt },
+            )?.first ?: return@forEach
+
+            duplicates
+                .filter { it.playlistId != canonical.playlistId }
+                .forEach { duplicate ->
+                    mergePlaylistTracks(duplicate.playlistId, canonical.playlistId)
+                    playlistTrackDao.deleteAllByPlaylist(duplicate.playlistId)
+                    playlistDao.deleteById(duplicate.playlistId)
+                }
+        }
+    }
+
+    private fun dedupeLocalPlaylistsForDisplay(playlists: List<PlaylistEntity>): List<PlaylistEntity> {
+        val customPlaylists = playlists.filter { it.systemType == null }
+        val systemPlaylists = playlists
+            .filter { it.systemType != null }
+            .groupBy { it.systemType }
+            .mapNotNull { (_, group) ->
+                group.maxWithOrNull(
+                    compareBy<PlaylistEntity> { it.isSynced }
+                        .thenBy { it.updatedAt },
+                )
+            }
+        return (systemPlaylists + customPlaylists).sortedByDescending { it.updatedAt }
     }
 
     private suspend fun mergePlaylistTracks(fromPlaylistId: String, toPlaylistId: String) {
@@ -357,6 +494,8 @@ class LibraryRepository(
 
         if (localPlaylist != null && localPlaylist.playlistId != playlistId) {
             mergePlaylistTracks(localPlaylist.playlistId, playlistId)
+            playlistTrackDao.deleteAllByPlaylist(localPlaylist.playlistId)
+            playlistDao.deleteById(localPlaylist.playlistId)
         }
 
         val remoteTracks = remoteClient.pullSystemPlaylistTracks(userId, systemType)

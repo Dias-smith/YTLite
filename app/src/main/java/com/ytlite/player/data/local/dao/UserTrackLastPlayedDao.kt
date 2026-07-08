@@ -38,6 +38,9 @@ interface UserTrackLastPlayedDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(entity: UserTrackLastPlayedEntity)
 
+    @Query("DELETE FROM user_track_last_played WHERE ownerKey = :ownerKey")
+    suspend fun deleteByOwner(ownerKey: String)
+
     @Query("UPDATE user_track_last_played SET ownerKey = :newOwnerKey WHERE ownerKey = :oldOwnerKey")
     suspend fun migrateOwnerKey(oldOwnerKey: String, newOwnerKey: String)
 }

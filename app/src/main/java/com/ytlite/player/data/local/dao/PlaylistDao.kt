@@ -44,6 +44,9 @@ interface PlaylistDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(entity: PlaylistEntity)
 
+    @Query("DELETE FROM playlists WHERE playlistId = :playlistId")
+    suspend fun deleteById(playlistId: String)
+
     @Query("UPDATE playlists SET ownerKey = :newOwnerKey, userId = :userId WHERE ownerKey = :oldOwnerKey")
     suspend fun migrateOwnerKey(oldOwnerKey: String, newOwnerKey: String, userId: String)
 }

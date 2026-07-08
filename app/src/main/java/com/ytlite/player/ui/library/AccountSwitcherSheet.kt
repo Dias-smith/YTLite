@@ -124,7 +124,7 @@ fun AccountSwitcherSheet(
                             contentDescription = null,
                         )
                     },
-                    label = stringResource(R.string.account_switcher_sign_out),
+                    label = stringResource(R.string.account_switcher_sign_out_youtube),
                     onClick = {
                         onDismiss()
                         onSignOutClick()

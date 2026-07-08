@@ -24,6 +24,8 @@ class AuthRepository(
 
     var onAuthenticated: (suspend (UserProfile) -> Unit)? = null
 
+    var onSwitchToGuestMode: (suspend (userOwnerKey: String, guestOwnerKey: String) -> Unit)? = null
+
     var onSignedOut: (suspend () -> Unit)? = null
 
     suspend fun initialize() {
@@ -93,19 +95,24 @@ class AuthRepository(
         onAuthenticated?.invoke(profile)
     }
 
-    suspend fun signOut() {
+    suspend fun switchToGuestMode() {
+        val authenticated = _session.value as? UserSession.Authenticated ?: return
+        val userId = authenticated.profile.userId
+        val userOwnerKey = authenticated.ownerKey
+
         val client = SupabaseClientProvider.get(context)
         runCatching { client?.auth?.signOut() }
         cachedGoogleAccessToken = null
         guestSessionStore.setGoogleAccessToken(null)
-        val userId = (_session.value as? UserSession.Authenticated)?.profile?.userId
-        if (userId != null) {
-            guestSessionStore.setActiveChannelId(userId, null)
-        }
+        guestSessionStore.setActiveChannelId(userId, null)
+
+        val guestId = guestSessionStore.ensureGuestId()
+        val guestOwnerKey = "guest:$guestId"
+        onSwitchToGuestMode?.invoke(userOwnerKey, guestOwnerKey)
         onSignedOut?.invoke()
+
         guestSessionStore.setSupabaseUserId(null)
-        val newGuestId = guestSessionStore.rotateGuestId()
-        _session.value = UserSession.Guest(guestId = newGuestId)
+        _session.value = UserSession.Guest(guestId = guestId)
     }
 
     fun currentSession(): UserSession? = _session.value
@@ -114,6 +121,18 @@ class AuthRepository(
         cachedGoogleAccessToken?.let { return it }
         val client = SupabaseClientProvider.get(context) ?: return null
         return client.auth.currentSessionOrNull()?.providerToken
+    }
+
+    /** Debug-only: where the OAuth token would be read from (no token value logged). */
+    fun diagnoseGoogleAccessTokenSource(): String {
+        if (!cachedGoogleAccessToken.isNullOrBlank()) {
+            return "guest_store_cached(len=${cachedGoogleAccessToken!!.length})"
+        }
+        val provider = SupabaseClientProvider.get(context)?.auth?.currentSessionOrNull()?.providerToken
+        if (!provider.isNullOrBlank()) {
+            return "supabase_provider(len=${provider.length})"
+        }
+        return "missing"
     }
 
     fun isYoutubeDataApiKeyConfigured(): Boolean =

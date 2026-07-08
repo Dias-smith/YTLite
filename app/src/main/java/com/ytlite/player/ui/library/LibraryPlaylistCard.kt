@@ -45,10 +45,11 @@ fun LibraryPlaylistsRow(
     onPlaylistClick: (PlaylistEntity) -> Unit,
     onCloneYoutubePlaylist: (PlaylistEntity) -> Unit,
     modifier: Modifier = Modifier,
+    emptyText: String? = null,
 ) {
     if (playlists.isEmpty()) {
         Text(
-            text = stringResource(R.string.library_playlists_empty),
+            text = emptyText ?: stringResource(R.string.library_playlists_empty),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = modifier

@@ -9,9 +9,11 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.ytlite.player.data.auth.AuthRepository
 import com.ytlite.player.data.auth.UserSession
 import com.ytlite.player.data.repository.LibraryRepository
+import com.ytlite.player.data.youtube.YoutubeDiagnostics
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
@@ -25,9 +27,16 @@ class LibraryViewModel(
 
     private val sessionFlow = authRepository.session
 
+    init {
+        viewModelScope.launch {
+            authRepository.initialize()
+        }
+    }
+
     val uiState: StateFlow<LibraryUiState> = sessionFlow
         .flatMapLatest { session ->
-            val ownerKey = session?.ownerKey ?: return@flatMapLatest flowOf(LibraryUiState(isLoading = false))
+            val ownerKey = session?.ownerKey
+                ?: return@flatMapLatest flowOf(LibraryUiState(isLoading = true))
             combine(
                 libraryRepository.observeHistory(ownerKey),
                 libraryRepository.getUnifiedPlaylists(ownerKey),
@@ -44,9 +53,39 @@ class LibraryViewModel(
 
     fun refreshIfNeeded() {
         viewModelScope.launch {
+            authRepository.initialize()
             val session = authRepository.currentSession()
+            if (session == null) {
+                YoutubeDiagnostics.logPlaylistsFetchOutcome(
+                    step = "Playlists/VM",
+                    outcome = "skipped",
+                    detail = "session=null after initialize",
+                )
+                return@launch
+            }
+            YoutubeDiagnostics.d(
+                step = "Playlists/VM",
+                message = "refreshIfNeeded ownerKey=${session.ownerKey} type=${session.javaClass.simpleName}",
+            )
+            libraryRepository.ensureLocalLibraryReady(session.ownerKey)
             if (session is UserSession.Authenticated) {
                 libraryRepository.refreshYoutubePlaylists()
+                val playlists = libraryRepository.getUnifiedPlaylists(session.ownerKey).first()
+                val youtube = playlists.filter { it.isYoutube() }
+                val local = playlists.filter { it.isLocal() }
+                YoutubeDiagnostics.logUnifiedPlaylistsSnapshot(
+                    step = "Playlists/VM",
+                    ownerKey = session.ownerKey,
+                    localCount = local.size,
+                    youtubeCount = youtube.size,
+                    youtubeIds = youtube.map { "${it.name}:${it.playlistId}" },
+                )
+            } else {
+                YoutubeDiagnostics.logPlaylistsFetchOutcome(
+                    step = "Playlists/VM",
+                    outcome = "skipped",
+                    detail = "not Authenticated session=${session.javaClass.simpleName}",
+                )
             }
         }
     }

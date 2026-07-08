@@ -35,6 +35,19 @@ import com.ytlite.player.ui.image.rememberYTLiteImageLoader
 import com.ytlite.player.ui.image.thumbnailRequest
 
 @Composable
+fun LibrarySourceLabel(
+    title: String,
+    modifier: Modifier = Modifier,
+) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.titleSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+    )
+}
+
+@Composable
 fun LibrarySectionHeader(
     title: String,
     onViewAllClick: () -> Unit,
@@ -58,14 +71,36 @@ fun LibrarySectionHeader(
 }
 
 @Composable
+fun LibraryYoutubeHistoryUnavailable(
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Text(
+            text = stringResource(R.string.library_history_youtube_unavailable_title),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            text = stringResource(R.string.library_history_youtube_unavailable_description),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
 fun LibraryHistoryRow(
     videos: List<LibraryVideo>,
     onVideoClick: (String) -> Unit,
     modifier: Modifier = Modifier,
+    emptyText: String? = null,
 ) {
     if (videos.isEmpty()) {
         Text(
-            text = stringResource(R.string.library_history_empty),
+            text = emptyText ?: stringResource(R.string.library_history_empty),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),

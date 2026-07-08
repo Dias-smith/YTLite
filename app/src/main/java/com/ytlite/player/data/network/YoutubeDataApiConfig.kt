@@ -7,4 +7,5 @@ object YoutubeDataApiConfig {
     const val ACTIVITIES_LIST_URL = "$BASE_URL/activities"
     const val SEARCH_LIST_URL = "$BASE_URL/search"
     const val PLAYLIST_ITEMS_LIST_URL = "$BASE_URL/playlistItems"
+    const val PLAYLISTS_LIST_URL = "$BASE_URL/playlists"
 }

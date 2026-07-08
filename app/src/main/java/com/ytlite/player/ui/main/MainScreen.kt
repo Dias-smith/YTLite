@@ -184,7 +184,7 @@ fun MainScreen(
                 MainTab.Library -> LibraryScreen(
                     onVideoClick = onVideoClick,
                     onSignInClick = onSignInClick,
-                    onSignOutClick = { authViewModel.signOut() },
+                    onSignOutClick = { authViewModel.switchToGuestMode() },
                     onMenuItemClick = {
                         scope.launch { snackbarHostState.showSnackbar(comingSoon) }
                     },
