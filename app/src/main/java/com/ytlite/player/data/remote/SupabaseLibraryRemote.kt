@@ -155,7 +155,7 @@ class SupabaseLibraryRemote(
 
     private fun ProfileDto.toUserProfile() = UserProfile(
         userId = id,
-        displayName = displayName.ifBlank { "用户" },
+        displayName = displayName.ifBlank { "User" },
         handle = handle,
         avatarUrl = avatarUrl,
     )

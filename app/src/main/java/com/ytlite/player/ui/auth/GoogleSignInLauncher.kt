@@ -58,7 +58,7 @@ fun rememberGoogleSignInLauncher(
                         }
                         .onFailure { error ->
                             if (error !is GoogleSignInCancelledException) {
-                                onError(error.message ?: "登录失败")
+                                onError(error.message ?: context.getString(R.string.error_sign_in_failed))
                             }
                         }
                 }

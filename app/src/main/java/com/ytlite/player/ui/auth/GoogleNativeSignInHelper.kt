@@ -20,6 +20,7 @@ import com.google.android.gms.common.api.Scope
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.ytlite.player.BuildConfig
+import com.ytlite.player.R
 import com.ytlite.player.data.auth.GoogleNativeSignInTokens
 import com.ytlite.player.data.auth.YoutubeOAuthConfig
 import com.ytlite.player.data.youtube.YoutubeDiagnostics
@@ -30,7 +31,7 @@ import kotlinx.coroutines.withContext
 import java.security.MessageDigest
 import java.util.UUID
 
-class GoogleSignInCancelledException : Exception("用户取消了登录")
+class GoogleSignInCancelledException(message: String) : Exception(message)
 
 typealias AuthorizationLauncher = (IntentSenderRequest, CompletableDeferred<String?>) -> Unit
 
@@ -59,13 +60,15 @@ class GoogleNativeSignInHelper(
                     request = credentialRequest,
                 )
             } catch (_: GetCredentialCancellationException) {
-                throw GoogleSignInCancelledException()
+                throw GoogleSignInCancelledException(
+                    activity.getString(R.string.error_sign_in_cancelled),
+                )
             }
 
             val customCredential = credentialResponse.credential as? CustomCredential
-                ?: throw IllegalStateException("不支持的登录凭证类型")
+                ?: throw IllegalStateException(activity.getString(R.string.error_unsupported_credential))
             if (customCredential.type != GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
-                throw IllegalStateException("不支持的登录凭证类型")
+                throw IllegalStateException(activity.getString(R.string.error_unsupported_credential))
             }
             val idToken = GoogleIdTokenCredential.createFrom(customCredential.data).idToken
             val accessToken = requestYoutubeAccessToken()

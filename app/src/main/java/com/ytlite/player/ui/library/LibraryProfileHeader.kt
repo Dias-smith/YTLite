@@ -38,11 +38,11 @@ fun LibraryProfileHeader(
 ) {
     val imageLoader = rememberYTLiteImageLoader()
     val displayName = when (session) {
-        is UserSession.Guest -> session.displayName
+        is UserSession.Guest -> stringResource(R.string.guest_display_name)
         is UserSession.Authenticated -> session.profile.displayName
     }
     val handle = when (session) {
-        is UserSession.Guest -> session.handle
+        is UserSession.Guest -> stringResource(R.string.guest_handle)
         is UserSession.Authenticated -> session.profile.handle ?: stringResource(R.string.library_view_channel)
     }
     val avatarUrl = (session as? UserSession.Authenticated)?.profile?.avatarUrl

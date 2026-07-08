@@ -3,6 +3,7 @@ package com.ytlite.player.data.repository
 import android.content.Context
 import com.ytlite.player.data.auth.AuthRepository
 import com.ytlite.player.data.auth.UserSession
+import com.ytlite.player.R
 import com.ytlite.player.data.model.ChannelPage
 import com.ytlite.player.data.model.ExtractionResult
 import com.ytlite.player.data.model.FeedPage
@@ -17,6 +18,15 @@ class SubscriptionsRepository(
     private val authRepository: AuthRepository,
     private val dataSource: YoutubeSubscriptionsDataSource,
 ) {
+    private val appContext = context.applicationContext
+
+    private fun signInRequiredMessage(): String =
+        appContext.getString(R.string.error_sign_in_google_first)
+
+    private fun youtubeReauthRequiredMessage(): String =
+        appContext.getString(R.string.subscriptions_reauth_required)
+
+    fun youtubeReauthRequiredMessageForComparison(): String = youtubeReauthRequiredMessage()
     private fun isAuthenticated(): Boolean =
         authRepository.currentSession() is UserSession.Authenticated
 
@@ -49,10 +59,10 @@ class SubscriptionsRepository(
         continuation: String? = null,
     ): ExtractionResult<FeedPage> = withContext(Dispatchers.IO) {
         if (authRepository.currentSession() !is UserSession.Authenticated) {
-            return@withContext ExtractionResult.Error("请先登录 Google 账号")
+            return@withContext ExtractionResult.Error(signInRequiredMessage())
         }
         if (authRepository.needsYoutubeDataApiReauth()) {
-            return@withContext ExtractionResult.Error(YOUTUBE_REAUTH_REQUIRED)
+            return@withContext ExtractionResult.Error(youtubeReauthRequiredMessage())
         }
         return@withContext try {
             val page = dataSource.fetchChannelVideos(
@@ -74,10 +84,10 @@ class SubscriptionsRepository(
 
     private inline fun runFeedRequest(request: () -> FeedPage?): ExtractionResult<FeedPage> {
         if (!isAuthenticated()) {
-            return ExtractionResult.Error("请先登录 Google 账号")
+            return ExtractionResult.Error(signInRequiredMessage())
         }
         if (authRepository.needsYoutubeDataApiReauth()) {
-            return ExtractionResult.Error(YOUTUBE_REAUTH_REQUIRED)
+            return ExtractionResult.Error(youtubeReauthRequiredMessage())
         }
         return try {
             val page = request()
@@ -95,10 +105,10 @@ class SubscriptionsRepository(
 
     private inline fun runChannelRequest(request: () -> ChannelPage?): ExtractionResult<ChannelPage> {
         if (!isAuthenticated()) {
-            return ExtractionResult.Error("请先登录 Google 账号")
+            return ExtractionResult.Error(signInRequiredMessage())
         }
         if (authRepository.needsYoutubeDataApiReauth()) {
-            return ExtractionResult.Error(YOUTUBE_REAUTH_REQUIRED)
+            return ExtractionResult.Error(youtubeReauthRequiredMessage())
         }
         return try {
             val page = request()
@@ -115,9 +125,6 @@ class SubscriptionsRepository(
     }
 
     companion object {
-        const val YOUTUBE_REAUTH_REQUIRED =
-            "需要重新登录以授权 YouTube 数据访问。请退出账号后重新使用 Google 登录，并同意 YouTube 只读权限。"
-
         @Volatile
         private var instance: SubscriptionsRepository? = null
 

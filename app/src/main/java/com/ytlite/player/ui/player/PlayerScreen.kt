@@ -248,12 +248,9 @@ fun PlayerScreen(
                         )
                     }
 
-                    items(
-                        items = placeholderComments,
-                        key = { it },
-                    ) { comment ->
+                    item(key = "comments_placeholder") {
                         Text(
-                            text = comment,
+                            text = stringResource(R.string.player_comments_coming_soon),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
@@ -399,11 +396,9 @@ private fun ErrorContent(
     }
 }
 
+@Composable
 private fun formatViewCount(count: Long): String {
     if (count <= 0L) return ""
-    return NumberFormat.getNumberInstance(Locale.getDefault()).format(count) + " 次观看"
+    val formatted = NumberFormat.getNumberInstance(Locale.getDefault()).format(count)
+    return stringResource(R.string.player_view_count, formatted)
 }
-
-private val placeholderComments = listOf(
-    "评论功能即将推出…",
-)

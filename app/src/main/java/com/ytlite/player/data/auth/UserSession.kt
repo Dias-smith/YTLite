@@ -9,8 +9,8 @@ sealed interface UserSession {
     @Immutable
     data class Guest(
         val guestId: String,
-        val displayName: String = "游客",
-        val handle: String = "本地模式",
+        val displayName: String = "",
+        val handle: String = "",
     ) : UserSession {
         override val ownerKey: String = "guest:$guestId"
     }

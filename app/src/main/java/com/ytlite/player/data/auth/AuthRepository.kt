@@ -2,6 +2,7 @@ package com.ytlite.player.data.auth
 
 import android.content.Context
 import com.ytlite.player.BuildConfig
+import com.ytlite.player.R
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.providers.Google
 import io.github.jan.supabase.auth.providers.builtin.IDToken
@@ -52,10 +53,10 @@ class AuthRepository(
 
     suspend fun signInWithGoogleNative(tokens: GoogleNativeSignInTokens): Result<UserProfile> {
         val client = SupabaseClientProvider.get(context)
-            ?: return Result.failure(IllegalStateException("Supabase 未配置"))
+            ?: return Result.failure(IllegalStateException(context.getString(R.string.error_supabase_not_configured)))
         return runCatching {
             if (tokens.accessToken.isNullOrBlank()) {
-                throw IllegalStateException("未获取 YouTube 授权，请重新登录并同意 YouTube 只读权限")
+                throw IllegalStateException(context.getString(R.string.error_youtube_auth_missing))
             }
             client.auth.signInWith(IDToken) {
                 provider = Google
@@ -77,7 +78,7 @@ class AuthRepository(
 
     private fun buildProfileFromOAuth(client: io.github.jan.supabase.SupabaseClient): UserProfile {
         val user = client.auth.currentUserOrNull()
-            ?: throw IllegalStateException("登录成功但未获取到用户信息")
+            ?: throw IllegalStateException(context.getString(R.string.error_user_info_missing))
         return buildProfileFromAuth(user.id, user.userMetadata).copy(
             email = user.userMetadata?.get("email")?.toString()?.trim('"')
                 ?: user.email,
@@ -173,7 +174,7 @@ class AuthRepository(
         val email = metadata?.get("email")?.toString()?.trim('"')
         return UserProfile(
             userId = userId,
-            displayName = name?.ifBlank { null } ?: "用户",
+            displayName = name?.ifBlank { null } ?: context.getString(R.string.default_user_display_name),
             handle = email?.substringBefore("@")?.let { "@$it" },
             avatarUrl = avatar,
             email = email?.ifBlank { null },

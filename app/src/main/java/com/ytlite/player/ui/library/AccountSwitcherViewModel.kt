@@ -1,6 +1,7 @@
 package com.ytlite.player.ui.library
 
 import android.app.Application
+import com.ytlite.player.R
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -24,6 +25,7 @@ data class AccountChannelsUiState(
 
 class AccountSwitcherViewModel(
     application: Application,
+    private val appContext: Application = application,
     private val authRepository: AuthRepository = AuthRepository.getInstance(application),
     private val ownedChannelsRepository: OwnedChannelsRepository =
         OwnedChannelsRepository.getInstance(application),
@@ -61,7 +63,8 @@ class AccountSwitcherViewModel(
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            errorMessage = error.message ?: "无法加载频道列表",
+                            errorMessage = error.message
+                                ?: appContext.getString(R.string.error_load_channels_failed),
                         )
                     }
                 }

@@ -116,7 +116,7 @@ class SubscriptionsViewModel(
                     }
                 }
                 is ExtractionResult.Error -> {
-                    val needsReauth = feedResult.message == SubscriptionsRepository.YOUTUBE_REAUTH_REQUIRED
+                    val needsReauth = feedResult.message == repository.youtubeReauthRequiredMessageForComparison()
                     _uiState.update {
                         it.copy(
                             isLoading = false,
