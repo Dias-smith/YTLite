@@ -32,6 +32,27 @@ interface UserTrackLastPlayedDao {
     )
     fun observeHistoryRows(ownerKey: String, limit: Int = 20): Flow<List<LibraryVideoRow>>
 
+    @Query(
+        """
+        SELECT
+            t.trackId AS trackId,
+            t.title AS title,
+            t.primaryArtistName AS primaryArtistName,
+            t.primaryArtistId AS primaryArtistId,
+            COALESCE(t.thumbnailHigh, t.thumbnailMedium, t.thumbnailLow, '') AS thumbnailUrl,
+            t.durationText AS durationText,
+            t.viewCountText AS viewCountText,
+            t.publishedText AS publishedText,
+            u.lastPlayedAt AS lastPlayedAt,
+            u.progressMs AS progressMs
+        FROM user_track_last_played u
+        INNER JOIN tracks t ON t.trackId = u.trackId
+        WHERE u.ownerKey = :ownerKey
+        ORDER BY u.lastPlayedAt DESC
+        """,
+    )
+    fun observeAllHistoryRows(ownerKey: String): Flow<List<LibraryVideoRow>>
+
     @Query("SELECT * FROM user_track_last_played WHERE ownerKey = :ownerKey")
     suspend fun getAllByOwner(ownerKey: String): List<UserTrackLastPlayedEntity>
 

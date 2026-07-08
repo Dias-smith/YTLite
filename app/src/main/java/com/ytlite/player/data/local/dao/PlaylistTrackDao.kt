@@ -33,6 +33,68 @@ interface PlaylistTrackDao {
     @Query("DELETE FROM playlist_track_cross_ref WHERE playlistId = :playlistId")
     suspend fun deleteAllByPlaylist(playlistId: String)
 
+    @Query("DELETE FROM playlist_track_cross_ref WHERE playlistId = :playlistId AND trackId = :trackId")
+    suspend fun deleteTrack(playlistId: String, trackId: String)
+
+    @Query(
+        """
+        SELECT EXISTS(
+            SELECT 1 FROM playlist_track_cross_ref p
+            INNER JOIN playlists pl ON pl.playlistId = p.playlistId
+            WHERE pl.ownerKey = :ownerKey AND pl.systemType = :systemType AND p.trackId = :trackId
+        )
+        """,
+    )
+    fun observeTrackInSystemPlaylist(
+        ownerKey: String,
+        systemType: String,
+        trackId: String,
+    ): Flow<Boolean>
+
+    @Query(
+        """
+        SELECT
+            t.trackId AS trackId,
+            t.title AS title,
+            t.primaryArtistName AS primaryArtistName,
+            t.primaryArtistId AS primaryArtistId,
+            COALESCE(t.thumbnailHigh, t.thumbnailMedium, t.thumbnailLow, '') AS thumbnailUrl,
+            MAX(COALESCE(u.lastPlayedAt, p.createdAt)) AS lastActivityAt,
+            MAX(p.createdAt) AS savedAt
+        FROM playlist_track_cross_ref p
+        INNER JOIN playlists pl ON pl.playlistId = p.playlistId
+        INNER JOIN tracks t ON t.trackId = p.trackId
+        LEFT JOIN user_track_last_played u ON u.trackId = t.trackId AND u.ownerKey = :ownerKey
+        WHERE pl.ownerKey = :ownerKey AND pl.source = :localSource
+        GROUP BY t.trackId
+        ORDER BY lastActivityAt DESC
+        """,
+    )
+    fun observeLocalSongs(
+        ownerKey: String,
+        localSource: String = com.ytlite.player.data.model.DataSource.LOCAL.dbValue,
+    ): Flow<List<com.ytlite.player.data.local.model.LibrarySongRow>>
+
+    @Query(
+        """
+        SELECT
+            t.trackId AS trackId,
+            t.title AS title,
+            t.primaryArtistName AS primaryArtistName,
+            t.primaryArtistId AS primaryArtistId,
+            COALESCE(t.thumbnailHigh, t.thumbnailMedium, t.thumbnailLow, '') AS thumbnailUrl,
+            t.durationSeconds AS durationSeconds,
+            t.durationText AS durationText,
+            p.position AS position,
+            p.createdAt AS addedAt
+        FROM playlist_track_cross_ref p
+        INNER JOIN tracks t ON t.trackId = p.trackId
+        WHERE p.playlistId = :playlistId
+        ORDER BY p.position ASC
+        """,
+    )
+    fun observePlaylistTrackDetails(playlistId: String): Flow<List<com.ytlite.player.data.local.model.PlaylistTrackDetailRow>>
+
     @Query(
         """
         UPDATE playlist_track_cross_ref

@@ -11,6 +11,9 @@ import com.ytlite.player.data.local.entity.PlaylistSystemType
 import com.ytlite.player.data.local.entity.PlaylistTrackEntity
 import com.ytlite.player.data.local.model.LibraryVideoRow
 import com.ytlite.player.data.model.DataSource
+import com.ytlite.player.data.model.LibraryFilterChip
+import com.ytlite.player.data.model.LibraryItem
+import com.ytlite.player.data.model.LibrarySort
 import com.ytlite.player.data.model.LibraryVideo
 import com.ytlite.player.data.remote.SupabaseLibraryRemote
 import com.ytlite.player.data.remote.dto.PlaylistDto
@@ -25,6 +28,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -99,6 +103,151 @@ class LibraryRepository(
 
     fun observeWatchLaterCount(ownerKey: String): Flow<Int> =
         playlistTrackDao.observeSystemPlaylistCount(ownerKey, PlaylistSystemType.WATCH_LATER)
+
+    fun observeLibraryItems(
+        ownerKey: String,
+        filter: LibraryFilterChip?,
+        sort: LibrarySort,
+        isAuthenticated: Boolean,
+    ): Flow<List<LibraryItem>> = when (filter) {
+        null -> combine(
+            playlistDao.observeLocalByOwner(ownerKey).map { dedupeLocalPlaylistsForDisplay(it) },
+            playlistTrackDao.observeLocalSongs(ownerKey),
+            artistDao.observeAll(),
+            observeHistory(ownerKey, limit = 50),
+        ) { playlists, songs, artists, history ->
+            val playlistItems = playlists.map {
+                LibraryItemMapper.playlistItem(it, LibraryItemMapper.playlistSubtitle(it))
+            }
+            val songItems = buildSongItems(songs, history)
+            val artistItems = artists.map { LibraryItemMapper.artistItem(it) }
+            LibraryItemMapper.mergeLocalMixed(playlistItems, songItems, artistItems, sort)
+        }
+        LibraryFilterChip.PLAYLISTS -> playlistDao.observeLocalByOwner(ownerKey)
+            .map { playlists ->
+                LibraryItemMapper.sortItems(
+                    dedupeLocalPlaylistsForDisplay(playlists).map {
+                        LibraryItemMapper.playlistItem(it, LibraryItemMapper.playlistSubtitle(it))
+                    },
+                    sort,
+                )
+            }
+        LibraryFilterChip.SONGS -> combine(
+            playlistTrackDao.observeLocalSongs(ownerKey),
+            observeHistory(ownerKey, limit = 100),
+        ) { songs, history ->
+            LibraryItemMapper.sortItems(buildSongItems(songs, history), sort)
+        }
+        LibraryFilterChip.ARTISTS -> artistDao.observeAll().map { artists ->
+            LibraryItemMapper.sortItems(artists.map { LibraryItemMapper.artistItem(it) }, sort)
+        }
+        LibraryFilterChip.DOWNLOADS -> flowOf(emptyList())
+        LibraryFilterChip.YOUTUBE -> if (!isAuthenticated) {
+            flowOf(emptyList())
+        } else {
+            youtubeRemote.getYoutubePlaylistsFlow().map { playlists ->
+                LibraryItemMapper.sortItems(
+                    playlists.map {
+                        LibraryItemMapper.playlistItem(it, LibraryItemMapper.playlistSubtitle(it))
+                    },
+                    sort,
+                )
+            }
+        }
+    }.flowOn(Dispatchers.Default)
+
+    fun observeAllHistory(ownerKey: String): Flow<List<LibraryVideo>> =
+        userTrackLastPlayedDao.observeAllHistoryRows(ownerKey).map { rows ->
+            rows.map { it.toLibraryVideo() }
+        }
+
+    fun observePlaylistTrackDetails(playlistId: String) =
+        playlistTrackDao.observePlaylistTrackDetails(playlistId)
+
+    suspend fun getPlaylistById(playlistId: String, ownerKey: String): PlaylistEntity? =
+        withContext(Dispatchers.IO) {
+            playlistDao.getAllByOwner(ownerKey).firstOrNull { it.playlistId == playlistId }
+                ?: youtubeRemote.getYoutubePlaylistsFlow().first()
+                    .firstOrNull { it.playlistId == playlistId }
+        }
+
+    fun observeIsTrackLiked(ownerKey: String, trackId: String): Flow<Boolean> =
+        playlistTrackDao.observeTrackInSystemPlaylist(
+            ownerKey,
+            PlaylistSystemType.FAVORITES,
+            trackId,
+        )
+
+    suspend fun addTrackToFavorites(ownerKey: String, video: LibraryVideo) =
+        addTrackToSystemPlaylist(ownerKey, PlaylistSystemType.FAVORITES, video)
+
+    suspend fun removeTrackFromFavorites(ownerKey: String, trackId: String) =
+        removeTrackFromSystemPlaylist(ownerKey, PlaylistSystemType.FAVORITES, trackId)
+
+    suspend fun removeTrackFromPlaylist(playlistId: String, trackId: String) =
+        withContext(Dispatchers.IO) {
+            playlistTrackDao.deleteTrack(playlistId, trackId)
+        }
+
+    suspend fun createLocalPlaylist(ownerKey: String, name: String): String =
+        withContext(Dispatchers.IO) {
+            ensureSystemPlaylists(ownerKey)
+            val playlistId = UUID.randomUUID().toString()
+            playlistDao.upsert(
+                PlaylistEntity(
+                    playlistId = playlistId,
+                    ownerKey = ownerKey,
+                    name = name,
+                    source = DataSource.LOCAL.dbValue,
+                    updatedAt = System.currentTimeMillis(),
+                ),
+            )
+            playlistId
+        }
+
+    private suspend fun addTrackToSystemPlaylist(
+        ownerKey: String,
+        systemType: String,
+        video: LibraryVideo,
+    ) = withContext(Dispatchers.IO) {
+        ensureSystemPlaylists(ownerKey)
+        val playlist = playlistDao.getSystemPlaylist(ownerKey, systemType) ?: return@withContext
+        playbackHistoryRepository.depositPlayback(
+            video = video,
+            ownerKey = ownerKey,
+            userId = (authRepository.currentSession() as? UserSession.Authenticated)?.profile?.userId,
+        )
+        val existing = playlistTrackDao.getAllByPlaylist(playlist.playlistId)
+        if (existing.any { it.trackId == video.videoId }) return@withContext
+        playlistTrackDao.upsert(
+            PlaylistTrackEntity(
+                playlistId = playlist.playlistId,
+                trackId = video.videoId,
+                position = existing.size,
+            ),
+        )
+    }
+
+    private suspend fun removeTrackFromSystemPlaylist(
+        ownerKey: String,
+        systemType: String,
+        trackId: String,
+    ) = withContext(Dispatchers.IO) {
+        val playlist = playlistDao.getSystemPlaylist(ownerKey, systemType) ?: return@withContext
+        playlistTrackDao.deleteTrack(playlist.playlistId, trackId)
+    }
+
+    private fun buildSongItems(
+        songs: List<com.ytlite.player.data.local.model.LibrarySongRow>,
+        history: List<LibraryVideo>,
+    ): List<LibraryItem.Song> {
+        val merged = LinkedHashMap<String, LibraryItem.Song>()
+        songs.forEach { merged[it.trackId] = LibraryItemMapper.songItem(it) }
+        history.forEach { video ->
+            merged.putIfAbsent(video.videoId, LibraryItemMapper.songFromVideo(video))
+        }
+        return merged.values.toList()
+    }
 
     suspend fun refreshYoutubePlaylists() {
         val session = authRepository.currentSession()

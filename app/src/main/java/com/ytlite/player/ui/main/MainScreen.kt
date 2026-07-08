@@ -185,12 +185,7 @@ fun MainScreen(
                     onVideoClick = onVideoClick,
                     onSignInClick = onSignInClick,
                     onSignOutClick = { authViewModel.switchToGuestMode() },
-                    onMenuItemClick = {
-                        scope.launch { snackbarHostState.showSnackbar(comingSoon) }
-                    },
-                    onViewAllClick = {
-                        scope.launch { snackbarHostState.showSnackbar(comingSoon) }
-                    },
+                    onNavigateHomeTab = { selectedTab = MainTab.Home.ordinal },
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(innerPadding),
