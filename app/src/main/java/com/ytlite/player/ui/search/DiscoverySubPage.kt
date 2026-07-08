@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.dp
 import com.ytlite.player.R
 import com.ytlite.player.data.model.DiscoveryType
 import com.ytlite.player.data.model.VideoItem
+import com.ytlite.player.data.parser.BrowseMoodItem
 import com.ytlite.player.data.parser.BrowsePage
 import com.ytlite.player.ui.home.VideoFeedItem
 import com.ytlite.player.ui.image.rememberYTLiteImageLoader
@@ -55,6 +56,7 @@ fun DiscoverySubPage(
     error: String?,
     onBack: () -> Unit,
     onVideoClick: (String) -> Unit,
+    onMoodClick: (BrowseMoodItem) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val title = when (type) {
@@ -96,7 +98,7 @@ fun DiscoverySubPage(
                     when (type) {
                         DiscoveryType.NEW_RELEASES -> NewReleasesContent(page, onVideoClick)
                         DiscoveryType.CHARTS -> ChartsContent(page, onVideoClick)
-                        DiscoveryType.MOODS_AND_GENRES -> MoodsContent(page)
+                        DiscoveryType.MOODS_AND_GENRES -> MoodsContent(page, onMoodClick)
                     }
                 }
             }
@@ -145,7 +147,10 @@ private fun ChartsContent(page: BrowsePage, onVideoClick: (String) -> Unit) {
 }
 
 @Composable
-private fun MoodsContent(page: BrowsePage) {
+private fun MoodsContent(
+    page: BrowsePage,
+    onMoodClick: (BrowseMoodItem) -> Unit,
+) {
     LazyVerticalGrid(
         columns = GridCells.Fixed(2),
         contentPadding = PaddingValues(16.dp),
@@ -156,7 +161,8 @@ private fun MoodsContent(page: BrowsePage) {
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(96.dp),
+                    .height(96.dp)
+                    .clickable { onMoodClick(mood) },
             ) {
                 Row(modifier = Modifier.fillMaxSize()) {
                     Box(

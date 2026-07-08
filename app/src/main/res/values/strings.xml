@@ -168,6 +168,7 @@
     <string name="search_delete_recent_message">This item will be removed from your recent searches.</string>
     <string name="search_delete">Delete</string>
     <string name="search_fill_query">Fill search box</string>
+    <string name="search_playlist_empty">No videos in this playlist</string>
     <string name="error_sign_in_cancelled">Sign-in cancelled</string>
     <string name="error_unsupported_credential">Unsupported credential type</string>
 </resources>

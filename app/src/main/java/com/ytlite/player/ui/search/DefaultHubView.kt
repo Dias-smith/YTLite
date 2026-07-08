@@ -169,10 +169,9 @@ private fun RecentClickCard(
                 modifier = Modifier
                     .size(124.dp)
                     .clip(
-                        if (entity.type == SearchRecentType.CHANNEL.name) {
-                            androidx.compose.foundation.shape.CircleShape
-                        } else {
-                            RoundedCornerShape(8.dp)
+                        when (entity.type) {
+                            SearchRecentType.CHANNEL.name -> androidx.compose.foundation.shape.CircleShape
+                            else -> RoundedCornerShape(8.dp)
                         },
                     ),
             )

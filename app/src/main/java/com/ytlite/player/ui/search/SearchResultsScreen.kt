@@ -49,6 +49,7 @@ fun SearchResultsScreen(
     onLoadMore: () -> Unit,
     onVideoClick: (String) -> Unit,
     onChannelClick: (SearchResultItem.Channel) -> Unit,
+    onPlaylistClick: (SearchResultItem.Playlist) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val tabs = SearchResultTab.entries
@@ -108,7 +109,7 @@ fun SearchResultsScreen(
                         when (item) {
                             is SearchResultItem.Video -> VideoResultRow(item, onVideoClick)
                             is SearchResultItem.Channel -> ChannelResultRow(item, onChannelClick)
-                            is SearchResultItem.Playlist -> PlaylistResultRow(item)
+                            is SearchResultItem.Playlist -> PlaylistResultRow(item, onPlaylistClick)
                         }
                     }
                     if (isLoadingMore) {
@@ -195,10 +196,14 @@ private fun ChannelResultRow(
 }
 
 @Composable
-private fun PlaylistResultRow(item: SearchResultItem.Playlist) {
+private fun PlaylistResultRow(
+    item: SearchResultItem.Playlist,
+    onClick: (SearchResultItem.Playlist) -> Unit,
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .clickable { onClick(item) }
             .padding(horizontal = 16.dp, vertical = 10.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {

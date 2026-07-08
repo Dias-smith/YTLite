@@ -8,6 +8,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.ytlite.player.data.local.entity.SearchQueryEntity
 import com.ytlite.player.data.local.entity.SearchRecentClickEntity
+import com.ytlite.player.data.model.BrowseVideosKind
 import com.ytlite.player.data.model.DiscoveryType
 import com.ytlite.player.data.model.SearchRecentType
 import com.ytlite.player.data.model.SearchResultItem
@@ -15,6 +16,8 @@ import com.ytlite.player.data.model.SearchResultTab
 import com.ytlite.player.data.model.SearchScreenState
 import com.ytlite.player.data.model.SearchSuggestion
 import com.ytlite.player.data.model.SubscriptionChannel
+import com.ytlite.player.data.model.VideoItem
+import com.ytlite.player.data.parser.BrowseMoodItem
 import com.ytlite.player.data.parser.BrowsePage
 import com.ytlite.player.data.repository.SearchRepository
 import kotlinx.coroutines.FlowPreview
@@ -45,6 +48,11 @@ data class SearchUiState(
     val isDiscoveryLoading: Boolean = false,
     val discoveryError: String? = null,
     val pendingDeleteRecentId: String? = null,
+    val browseVideos: List<VideoItem> = emptyList(),
+    val browseContinuation: String? = null,
+    val isBrowseLoading: Boolean = false,
+    val isBrowseLoadingMore: Boolean = false,
+    val browseError: String? = null,
 )
 
 @OptIn(FlowPreview::class)
@@ -54,6 +62,7 @@ class SearchViewModel(
 ) : ViewModel() {
 
     private val mutableState = MutableStateFlow(SearchUiState())
+    private var stateBeforeBrowse: SearchScreenState? = null
 
     val uiState: StateFlow<SearchUiState> = combine(
         mutableState,
@@ -163,7 +172,20 @@ class SearchViewModel(
     }
 
     fun onRecentClick(entity: SearchRecentClickEntity) {
-        onSubmitSearch(entity.title)
+        when (entity.type) {
+            SearchRecentType.PLAYLIST.name -> {
+                openPlaylistBrowse(
+                    SearchResultItem.Playlist(
+                        id = entity.targetId,
+                        playlistId = entity.targetId,
+                        title = entity.title,
+                        subtitle = entity.subtitle,
+                        thumbnailUrl = entity.thumbnailUrl.takeIf { it.isNotBlank() },
+                    ),
+                )
+            }
+            else -> onSubmitSearch(entity.title)
+        }
     }
 
     fun onResultTabSelected(tab: SearchResultTab) {
@@ -204,6 +226,122 @@ class SearchViewModel(
     fun onDiscoveryBack() {
         mutableState.update {
             it.copy(screenState = SearchScreenState.DefaultHub, discoveryPage = null)
+        }
+    }
+
+    fun openPlaylistBrowse(playlist: SearchResultItem.Playlist) {
+        stateBeforeBrowse = mutableState.value.screenState
+        mutableState.update {
+            it.copy(
+                screenState = SearchScreenState.BrowseVideos(
+                    browseId = playlist.playlistId,
+                    title = playlist.title,
+                    kind = BrowseVideosKind.PLAYLIST,
+                ),
+                browseVideos = emptyList(),
+                browseContinuation = null,
+                browseError = null,
+                isBrowseLoading = true,
+            )
+        }
+        viewModelScope.launch {
+            repository.recordRecentClick(
+                targetId = playlist.playlistId,
+                type = SearchRecentType.PLAYLIST,
+                title = playlist.title,
+                subtitle = playlist.subtitle,
+                thumbnailUrl = playlist.thumbnailUrl.orEmpty(),
+            )
+        }
+        loadBrowse(reset = true)
+    }
+
+    fun openMoodBrowse(mood: BrowseMoodItem) {
+        stateBeforeBrowse = mutableState.value.screenState
+        mutableState.update {
+            it.copy(
+                screenState = SearchScreenState.BrowseVideos(
+                    browseId = mood.browseId,
+                    title = mood.title,
+                    kind = BrowseVideosKind.MOOD,
+                ),
+                browseVideos = emptyList(),
+                browseContinuation = null,
+                browseError = null,
+                isBrowseLoading = true,
+            )
+        }
+        loadBrowse(reset = true)
+    }
+
+    fun onBrowseBack() {
+        val returnState = stateBeforeBrowse ?: SearchScreenState.DefaultHub
+        stateBeforeBrowse = null
+        mutableState.update {
+            it.copy(
+                screenState = returnState,
+                browseVideos = emptyList(),
+                browseContinuation = null,
+                browseError = null,
+                isBrowseLoading = false,
+                isBrowseLoadingMore = false,
+            )
+        }
+    }
+
+    fun refreshBrowse() {
+        loadBrowse(reset = true)
+    }
+
+    fun loadMoreBrowse() {
+        val continuation = mutableState.value.browseContinuation ?: return
+        if (mutableState.value.isBrowseLoadingMore || mutableState.value.isBrowseLoading) return
+        loadBrowse(reset = false, continuation = continuation)
+    }
+
+    private fun loadBrowse(reset: Boolean, continuation: String? = null) {
+        val browseState = mutableState.value.screenState as? SearchScreenState.BrowseVideos ?: return
+        viewModelScope.launch {
+            if (reset) {
+                mutableState.update { it.copy(isBrowseLoading = true, browseError = null) }
+            } else {
+                mutableState.update { it.copy(isBrowseLoadingMore = true) }
+            }
+            val result = runCatching {
+                when (browseState.kind) {
+                    BrowseVideosKind.PLAYLIST -> repository.fetchPlaylistVideos(
+                        browseState.browseId,
+                        continuation,
+                    )
+                    BrowseVideosKind.MOOD -> repository.fetchBrowseVideos(
+                        browseState.browseId,
+                        continuation,
+                    )
+                }
+            }
+            result.onSuccess { page ->
+                mutableState.update { current ->
+                    val videos = if (reset) {
+                        page.rankedVideos
+                    } else {
+                        val merged = LinkedHashMap<String, VideoItem>()
+                        current.browseVideos.forEach { merged[it.videoId] = it }
+                        page.rankedVideos.forEach { merged[it.videoId] = it }
+                        merged.values.toList()
+                    }
+                    current.copy(
+                        browseVideos = videos,
+                        browseContinuation = page.continuation,
+                    )
+                }
+            }.onFailure { error ->
+                if (reset) {
+                    mutableState.update {
+                        it.copy(browseError = error.message, browseVideos = emptyList())
+                    }
+                }
+            }
+            mutableState.update { it.copy(isBrowseLoading = false, isBrowseLoadingMore = false) }
         }
     }
 

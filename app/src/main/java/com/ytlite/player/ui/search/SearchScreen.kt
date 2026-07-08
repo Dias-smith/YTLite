@@ -61,6 +61,23 @@ fun SearchScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { innerPadding ->
         when (val state = uiState.screenState) {
+            is SearchScreenState.BrowseVideos -> {
+                BrowseVideosScreen(
+                    title = state.title,
+                    videos = uiState.browseVideos,
+                    isLoading = uiState.isBrowseLoading,
+                    isLoadingMore = uiState.isBrowseLoadingMore,
+                    error = uiState.browseError,
+                    hasMore = uiState.browseContinuation != null,
+                    onBack = viewModel::onBrowseBack,
+                    onRefresh = viewModel::refreshBrowse,
+                    onLoadMore = viewModel::loadMoreBrowse,
+                    onVideoClick = onVideoClick,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding),
+                )
+            }
             is SearchScreenState.SubCategory -> {
                 DiscoverySubPage(
                     type = state.type,
@@ -69,6 +86,7 @@ fun SearchScreen(
                     error = uiState.discoveryError,
                     onBack = viewModel::onDiscoveryBack,
                     onVideoClick = onVideoClick,
+                    onMoodClick = viewModel::openMoodBrowse,
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(innerPadding),
@@ -101,6 +119,7 @@ fun SearchScreen(
                     onResultChannelClick = { item ->
                         onChannelClick(viewModel.toSubscriptionChannel(item))
                     },
+                    onPlaylistClick = viewModel::openPlaylistBrowse,
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(innerPadding),
@@ -129,6 +148,7 @@ private fun SearchContent(
     onVideoClick: (String) -> Unit,
     onChannelClick: (SubscriptionChannel) -> Unit,
     onResultChannelClick: (SearchResultItem.Channel) -> Unit,
+    onPlaylistClick: (SearchResultItem.Playlist) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     androidx.compose.foundation.layout.Column(modifier = modifier) {
@@ -172,9 +192,11 @@ private fun SearchContent(
                     onLoadMore = onLoadMoreResults,
                     onVideoClick = onVideoClick,
                     onChannelClick = onResultChannelClick,
+                    onPlaylistClick = onPlaylistClick,
                 )
             }
             is SearchScreenState.SubCategory -> Unit
+            is SearchScreenState.BrowseVideos -> Unit
         }
     }
 }

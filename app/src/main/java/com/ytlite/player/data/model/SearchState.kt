@@ -5,6 +5,16 @@ sealed interface SearchScreenState {
     data class Suggestions(val query: String) : SearchScreenState
     data class Results(val query: String, val tab: SearchResultTab = SearchResultTab.ALL) : SearchScreenState
     data class SubCategory(val type: DiscoveryType) : SearchScreenState
+    data class BrowseVideos(
+        val browseId: String,
+        val title: String,
+        val kind: BrowseVideosKind,
+    ) : SearchScreenState
+}
+
+enum class BrowseVideosKind {
+    PLAYLIST,
+    MOOD,
 }
 
 enum class SearchResultTab {
@@ -23,4 +33,5 @@ enum class DiscoveryType {
 enum class SearchRecentType {
     VIDEO,
     CHANNEL,
+    PLAYLIST,
 }

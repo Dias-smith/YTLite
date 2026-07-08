@@ -46,6 +46,13 @@ object BrowseParser {
         }
     }
 
+    fun parseVideoList(response: JSONObject): BrowsePage {
+        return BrowsePage(
+            rankedVideos = extractVideos(response),
+            continuation = extractContinuation(response),
+        )
+    }
+
     private fun parseNewReleases(response: JSONObject): BrowsePage {
         val videos = extractVideos(response)
         val featured = videos.firstOrNull()

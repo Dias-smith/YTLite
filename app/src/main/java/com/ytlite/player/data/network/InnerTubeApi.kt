@@ -19,13 +19,16 @@ class InnerTubeApi(
         )
     }
 
-    fun browsePlaylistItems(youtubePlaylistId: String): JSONObject {
+    fun browsePlaylistItems(
+        youtubePlaylistId: String,
+        continuation: String? = null,
+    ): JSONObject {
         val browseId = if (youtubePlaylistId.startsWith("VL")) {
             youtubePlaylistId
         } else {
             "VL$youtubePlaylistId"
         }
-        return browse(browseId, label = "browse_playlist")
+        return browse(browseId, label = "browse_playlist", continuation = continuation)
     }
 
     private fun browse(
@@ -141,7 +144,14 @@ class InnerTubeApi(
         )
     }
 
-    fun browseExplore(browseId: String, params: String? = null): JSONObject {
+    fun browseExplore(
+        browseId: String,
+        params: String? = null,
+        continuation: String? = null,
+    ): JSONObject {
+        if (!continuation.isNullOrBlank()) {
+            return browse(browseId, label = "browse_explore", continuation = continuation)
+        }
         val body = buildBrowseBody(browseId, params)
         return postBrowseBody(body = body, label = "browse_explore", authenticated = false)
     }

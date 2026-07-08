@@ -7,7 +7,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Subscriptions
 import androidx.compose.material.icons.filled.VideoLibrary
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Subscriptions
@@ -59,8 +61,8 @@ private enum class MainTab(
     ),
     Shorts(
         labelRes = R.string.nav_shorts,
-        selectedIcon = Icons.Filled.Home,
-        unselectedIcon = Icons.Outlined.Home,
+        selectedIcon = Icons.Filled.PlayArrow,
+        unselectedIcon = Icons.Outlined.PlayArrow,
     ),
     Search(
         labelRes = R.string.nav_search,
@@ -127,12 +129,13 @@ fun MainScreen(
                 }
                 NavigationBar {
                     MainTab.entries.forEachIndexed { index, tab ->
+                        val selected = selectedTab == index
                         NavigationBarItem(
-                            selected = selectedTab == index,
+                            selected = selected,
                             onClick = { selectedTab = index },
                             icon = {
                                 Icon(
-                                    imageVector = if (selectedTab == index) {
+                                    imageVector = if (selected) {
                                         tab.selectedIcon
                                     } else {
                                         tab.unselectedIcon
@@ -141,6 +144,7 @@ fun MainScreen(
                                 )
                             },
                             label = { Text(text = stringResource(tab.labelRes)) },
+                            alwaysShowLabel = false,
                         )
                     }
                 }

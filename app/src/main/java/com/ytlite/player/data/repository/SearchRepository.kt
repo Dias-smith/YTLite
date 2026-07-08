@@ -102,6 +102,26 @@ class SearchRepository(
         }.getOrElse { BrowsePage() }
     }
 
+    suspend fun fetchPlaylistVideos(
+        playlistId: String,
+        continuation: String? = null,
+    ): BrowsePage = withContext(Dispatchers.IO) {
+        runCatching {
+            val response = innerTubeApi.browsePlaylistItems(playlistId, continuation)
+            BrowseParser.parseVideoList(response)
+        }.getOrElse { BrowsePage() }
+    }
+
+    suspend fun fetchBrowseVideos(
+        browseId: String,
+        continuation: String? = null,
+    ): BrowsePage = withContext(Dispatchers.IO) {
+        runCatching {
+            val response = innerTubeApi.browseExplore(browseId, continuation = continuation)
+            BrowseParser.parseVideoList(response)
+        }.getOrElse { BrowsePage() }
+    }
+
     companion object {
         @Volatile
         private var instance: SearchRepository? = null
