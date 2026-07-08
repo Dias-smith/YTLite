@@ -17,6 +17,7 @@ import com.ytlite.player.ui.main.MainScreen
 import com.ytlite.player.ui.player.PlayerScreen
 import com.ytlite.player.ui.player.PlayerViewModel
 import com.ytlite.player.playback.GlobalPlaybackViewModel
+import com.ytlite.player.playback.PlaybackNavigation
 import com.ytlite.player.ui.auth.AuthViewModel
 
 object Routes {
@@ -33,6 +34,18 @@ fun YTLiteNavHost(modifier: Modifier = Modifier) {
     val globalPlaybackViewModel: GlobalPlaybackViewModel = viewModel()
     val authViewModel: AuthViewModel = viewModel(factory = AuthViewModel.factory(application))
     val globalPlaybackState by globalPlaybackViewModel.uiState.collectAsStateWithLifecycle()
+
+    LaunchedEffect(navController) {
+        PlaybackNavigation.openPlayerRequests.collect { videoId ->
+            val route = Routes.player(videoId)
+            val currentRoute = navController.currentBackStackEntry?.destination?.route
+            if (currentRoute != route) {
+                navController.navigate(route) {
+                    launchSingleTop = true
+                }
+            }
+        }
+    }
 
     NavHost(
         navController = navController,

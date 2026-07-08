@@ -1,6 +1,7 @@
 package com.ytlite.player
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -11,6 +12,9 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
+import com.ytlite.player.playback.PlaybackIntents
+import com.ytlite.player.playback.PlaybackManager
+import com.ytlite.player.playback.PlaybackNavigation
 import com.ytlite.player.ui.navigation.YTLiteNavHost
 import com.ytlite.player.ui.theme.YTLiteTheme
 
@@ -23,12 +27,27 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         requestNotificationPermissionIfNeeded()
+        handleOpenPlayerIntent(intent)
         enableEdgeToEdge()
         setContent {
             YTLiteTheme {
                 YTLiteNavHost(modifier = Modifier.fillMaxSize())
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleOpenPlayerIntent(intent)
+    }
+
+    private fun handleOpenPlayerIntent(intent: Intent?) {
+        if (intent?.action != PlaybackIntents.ACTION_OPEN_PLAYER) return
+        val videoId = PlaybackIntents.extractVideoId(intent)
+            ?: PlaybackManager.nowPlaying.value?.videoId
+            ?: return
+        PlaybackNavigation.requestOpenPlayer(videoId)
     }
 
     private fun requestNotificationPermissionIfNeeded() {

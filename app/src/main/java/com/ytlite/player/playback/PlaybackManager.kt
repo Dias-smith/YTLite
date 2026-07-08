@@ -208,6 +208,12 @@ object PlaybackManager {
         }
     }
 
+    fun pause() {
+        runOnMainThread {
+            getPlayer()?.pause()
+        }
+    }
+
     fun stop() {
         runOnMainThread {
             val activePlayer = getPlayer() ?: return@runOnMainThread
