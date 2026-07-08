@@ -13,6 +13,7 @@ class YTLiteApplication : Application() {
         super.onCreate()
         ExtractionRepository.init(this)
         PlaybackManager.init(this)
+        PlaybackManager.ensureConnected()
         AuthRepository.getInstance(this)
         LibraryRepository.getInstance(this)
         SubscriptionsRepository.getInstance(this)

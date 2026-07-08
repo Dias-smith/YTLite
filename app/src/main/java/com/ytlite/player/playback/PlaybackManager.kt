@@ -5,8 +5,12 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
+import android.util.Log
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
@@ -18,10 +22,11 @@ import com.google.common.util.concurrent.MoreExecutors
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
 
 @UnstableApi
 object PlaybackManager {
+
+    private const val TAG = "PlaybackManager"
 
     private val _nowPlaying = MutableStateFlow<NowPlaying?>(null)
     val nowPlaying: StateFlow<NowPlaying?> = _nowPlaying.asStateFlow()
@@ -38,6 +43,9 @@ object PlaybackManager {
     private val _playbackEnded = MutableStateFlow(false)
     val playbackEnded: StateFlow<Boolean> = _playbackEnded.asStateFlow()
 
+    private val _playbackError = MutableStateFlow<String?>(null)
+    val playbackError: StateFlow<String?> = _playbackError.asStateFlow()
+
     private val _playerState = MutableStateFlow<Player?>(null)
     val playerState: StateFlow<Player?> = _playerState.asStateFlow()
 
@@ -46,19 +54,32 @@ object PlaybackManager {
     private var controller: MediaController? = null
     private var servicePlayer: ExoPlayer? = null
     private var playerListener: Player.Listener? = null
+    private var pendingPlay: NowPlaying? = null
+    private val mainHandler = Handler(Looper.getMainLooper())
+
+    private inline fun runOnMainThread(crossinline block: () -> Unit) {
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            block()
+        } else {
+            mainHandler.post { block() }
+        }
+    }
 
     fun init(context: Context) {
         appContext = context.applicationContext
     }
 
     fun onServiceCreated(player: ExoPlayer, session: MediaSession) {
+        Log.d(TAG, "Service player ready")
         servicePlayer = player
         _playerState.value = player
         attachPlayerListener(player)
         syncFromPlayer(player)
+        runOnMainThread { flushPendingPlay() }
     }
 
     fun onServiceDestroyed() {
+        Log.d(TAG, "Service destroyed")
         detachPlayerListener()
         servicePlayer = null
         controller?.release()
@@ -69,8 +90,9 @@ object PlaybackManager {
 
     fun ensureConnected() {
         val context = appContext ?: return
-        if (controller != null) return
+        if (controller != null || controllerFuture != null) return
 
+        Log.d(TAG, "Connecting MediaController")
         val intent = Intent(context, PlaybackService::class.java)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             context.startForegroundService(intent)
@@ -83,11 +105,20 @@ object PlaybackManager {
         controllerFuture = future
         future.addListener(
             {
-                val mediaController = future.get()
-                controller = mediaController
-                _playerState.value = mediaController
-                attachPlayerListener(mediaController)
-                syncFromPlayer(mediaController)
+                runOnMainThread {
+                    try {
+                        val mediaController = future.get()
+                        controller = mediaController
+                        _playerState.value = mediaController
+                        attachPlayerListener(mediaController)
+                        syncFromPlayer(mediaController)
+                        Log.d(TAG, "MediaController connected")
+                        flushPendingPlay()
+                    } catch (error: Exception) {
+                        Log.e(TAG, "MediaController connection failed", error)
+                        controllerFuture = null
+                    }
+                }
             },
             MoreExecutors.directExecutor(),
         )
@@ -96,8 +127,39 @@ object PlaybackManager {
     fun getPlayer(): Player? = controller ?: servicePlayer
 
     fun play(item: NowPlaying) {
+        runOnMainThread { requestPlay(item) }
+    }
+
+    private fun requestPlay(item: NowPlaying) {
         ensureConnected()
-        val activePlayer = getPlayer() ?: return
+        val activePlayer = getPlayer()
+        if (activePlayer == null) {
+            Log.w(TAG, "Player not ready, queueing videoId=${item.videoId}")
+            pendingPlay = item
+            return
+        }
+        playOnPlayer(activePlayer, item)
+    }
+
+    private fun flushPendingPlay() {
+        val pending = pendingPlay ?: return
+        val activePlayer = getPlayer()
+        if (activePlayer == null) {
+            Log.w(TAG, "flushPendingPlay: player still null for videoId=${pending.videoId}")
+            return
+        }
+        Log.d(TAG, "Playing queued videoId=${pending.videoId}")
+        pendingPlay = null
+        playOnPlayer(activePlayer, pending)
+    }
+
+    private fun playOnPlayer(activePlayer: Player, item: NowPlaying) {
+        val urlHost = runCatching { Uri.parse(item.streamUrl).host }.getOrNull()
+        Log.d(
+            TAG,
+            "playOnPlayer videoId=${item.videoId} player=${activePlayer::class.simpleName} " +
+                "urlHost=$urlHost state=${playbackStateName(activePlayer.playbackState)}",
+        )
 
         val current = _nowPlaying.value
         if (
@@ -107,6 +169,7 @@ object PlaybackManager {
         ) {
             _nowPlaying.value = item
             _playbackEnded.value = false
+            _playbackError.value = null
             if (!activePlayer.isPlaying) {
                 activePlayer.play()
             }
@@ -115,6 +178,7 @@ object PlaybackManager {
 
         _nowPlaying.value = item
         _playbackEnded.value = false
+        _playbackError.value = null
 
         val mediaItem = MediaItem.Builder()
             .setMediaId(item.videoId)
@@ -134,38 +198,61 @@ object PlaybackManager {
     }
 
     fun togglePlayPause() {
-        val activePlayer = getPlayer() ?: return
-        if (activePlayer.isPlaying) {
-            activePlayer.pause()
-        } else {
-            activePlayer.play()
+        runOnMainThread {
+            val activePlayer = getPlayer() ?: return@runOnMainThread
+            if (activePlayer.isPlaying) {
+                activePlayer.pause()
+            } else {
+                activePlayer.play()
+            }
         }
     }
 
     fun stop() {
-        val activePlayer = getPlayer() ?: return
-        activePlayer.stop()
-        activePlayer.clearMediaItems()
-        _nowPlaying.value = null
-        _playbackEnded.value = false
-        _positionMs.value = 0L
-        _durationMs.value = 0L
-        _isPlaying.value = false
+        runOnMainThread {
+            val activePlayer = getPlayer() ?: return@runOnMainThread
+            activePlayer.stop()
+            activePlayer.clearMediaItems()
+            pendingPlay = null
+            _nowPlaying.value = null
+            _playbackEnded.value = false
+            _playbackError.value = null
+            _positionMs.value = 0L
+            _durationMs.value = 0L
+            _isPlaying.value = false
+        }
+    }
+
+    fun clearPlaybackError() {
+        _playbackError.value = null
     }
 
     private fun attachPlayerListener(player: Player) {
         detachPlayerListener()
         playerListener = object : Player.Listener {
             override fun onIsPlayingChanged(isPlaying: Boolean) {
+                Log.d(TAG, "isPlaying=$isPlaying")
                 _isPlaying.value = isPlaying
             }
 
             override fun onPlaybackStateChanged(playbackState: Int) {
+                Log.d(TAG, "playbackState=${playbackStateName(playbackState)}")
                 if (playbackState == Player.STATE_ENDED) {
                     _playbackEnded.value = true
                     _isPlaying.value = false
                 }
                 syncFromPlayer(player)
+            }
+
+            override fun onPlayerError(error: PlaybackException) {
+                val message = error.message ?: error.errorCodeName
+                Log.e(
+                    TAG,
+                    "onPlayerError code=${error.errorCode} name=${error.errorCodeName} message=$message",
+                    error,
+                )
+                _playbackError.value = message
+                _isPlaying.value = false
             }
         }
         player.addListener(playerListener!!)
@@ -194,5 +281,13 @@ object PlaybackManager {
         _isPlaying.value = player.isPlaying
         _positionMs.value = player.currentPosition.coerceAtLeast(0L)
         _durationMs.value = player.duration.coerceAtLeast(0L)
+    }
+
+    private fun playbackStateName(state: Int): String = when (state) {
+        Player.STATE_IDLE -> "IDLE"
+        Player.STATE_BUFFERING -> "BUFFERING"
+        Player.STATE_READY -> "READY"
+        Player.STATE_ENDED -> "ENDED"
+        else -> "UNKNOWN($state)"
     }
 }

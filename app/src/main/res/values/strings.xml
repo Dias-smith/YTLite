@@ -61,6 +61,8 @@
     <string name="player_format_no">No</string>
     <string name="player_format_audio_only">Audio</string>
     <string name="player_select_format_hint">Select a playback format</string>
+    <string name="player_format_unavailable">No playable stream format is available for this video</string>
+    <string name="player_playback_failed">Playback failed</string>
     <string name="player_view_count">%1$s views</string>
     <string name="player_comments_coming_soon">Comments coming soon…</string>
     <string name="playback_notification_channel">Playback controls</string>

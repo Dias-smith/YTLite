@@ -8,11 +8,14 @@ import android.content.pm.ServiceInfo
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import com.ytlite.player.R
+import com.ytlite.player.data.network.InnerTubeConfig
 
 @UnstableApi
 class PlaybackService : MediaSessionService() {
@@ -23,7 +26,14 @@ class PlaybackService : MediaSessionService() {
         super.onCreate()
         ensureNotificationChannel()
         startForegroundImmediately()
-        val player = ExoPlayer.Builder(this).build()
+        val dataSourceFactory = DefaultHttpDataSource.Factory()
+            .setUserAgent(InnerTubeConfig.USER_AGENT)
+            .setDefaultRequestProperties(
+                mapOf("Referer" to "${InnerTubeConfig.BASE_URL}/"),
+            )
+        val player = ExoPlayer.Builder(this)
+            .setMediaSourceFactory(DefaultMediaSourceFactory(dataSourceFactory))
+            .build()
         mediaSession = MediaSession.Builder(this, player).build()
         setMediaNotificationProvider(
             DefaultMediaNotificationProvider.Builder(this)

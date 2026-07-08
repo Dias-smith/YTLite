@@ -1,11 +1,14 @@
 package com.ytlite.player.ui.player
 
 import android.app.Application
+import android.net.Uri
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.ytlite.player.R
 import com.ytlite.player.data.js.JsExtractorEngine
 import com.ytlite.player.data.model.ExtractionResult
 import com.ytlite.player.data.model.StreamFormat
@@ -23,6 +26,7 @@ import kotlinx.coroutines.launch
 
 class PlayerViewModel(
     private val videoId: String,
+    private val application: Application,
     private val repository: ExtractionRepository = ExtractionRepository.getInstance(),
     private val libraryRepository: LibraryRepository,
     private val jsEngine: JsExtractorEngine,
@@ -40,7 +44,6 @@ class PlayerViewModel(
                     isLoading = false,
                     playback = active.toStubPlayback(),
                     selectedStreamUrl = active.streamUrl,
-                    showFormatPicker = false,
                     errorMessage = null,
                 )
             }
@@ -74,26 +77,35 @@ class PlayerViewModel(
 
     fun loadPlayback() {
         viewModelScope.launch(Dispatchers.IO) {
+            PlaybackManager.clearPlaybackError()
             _uiState.update {
                 it.copy(
                     isLoading = true,
                     errorMessage = null,
                     playback = null,
                     selectedStreamUrl = null,
-                    showFormatPicker = false,
-                    showStreamUrlDialog = false,
                 )
             }
             when (val result = repository.fetchVideoPlayback(videoId)) {
                 is ExtractionResult.Success -> {
-                    _uiState.update {
-                        it.copy(
-                            playback = result.data,
-                            isLoading = false,
-                            errorMessage = null,
-                            showFormatPicker = true,
-                        )
+                    val format = selectPlaybackFormat(result.data.formats)
+                    Log.d(
+                        TAG,
+                        "formats=${result.data.formats.size} selected=" +
+                            "${format?.itag ?: "none"} hasAudio=${format?.hasAudio} " +
+                            "hasVideo=${format?.hasVideo}",
+                    )
+                    if (format == null) {
+                        _uiState.update {
+                            it.copy(
+                                playback = result.data,
+                                isLoading = false,
+                                errorMessage = application.getString(R.string.player_format_unavailable),
+                            )
+                        }
+                        return@launch
                     }
+                    startPlayback(result.data, format)
                 }
                 is ExtractionResult.Error -> {
                     _uiState.update {
@@ -107,8 +119,17 @@ class PlayerViewModel(
         }
     }
 
-    fun selectFormat(format: StreamFormat) {
-        val playback = _uiState.value.playback ?: return
+    fun toggleDescription() {
+        _uiState.update { it.copy(isDescriptionExpanded = !it.isDescriptionExpanded) }
+    }
+
+    private fun startPlayback(playback: VideoPlayback, format: StreamFormat) {
+        val urlHost = runCatching { Uri.parse(format.url).host }.getOrNull()
+        Log.d(
+            TAG,
+            "startPlayback videoId=${playback.videoId} itag=${format.itag} " +
+                "mime=${format.mimeType} urlHost=$urlHost",
+        )
         val nowPlaying = NowPlaying(
             videoId = playback.videoId,
             title = playback.title,
@@ -122,19 +143,12 @@ class PlayerViewModel(
         }
         _uiState.update {
             it.copy(
+                playback = playback,
+                isLoading = false,
                 selectedStreamUrl = format.url,
-                showFormatPicker = false,
-                showStreamUrlDialog = true,
+                errorMessage = null,
             )
         }
-    }
-
-    fun dismissStreamUrlDialog() {
-        _uiState.update { it.copy(showStreamUrlDialog = false) }
-    }
-
-    fun toggleDescription() {
-        _uiState.update { it.copy(isDescriptionExpanded = !it.isDescriptionExpanded) }
     }
 
     private fun NowPlaying.toStubPlayback() = VideoPlayback(
@@ -149,6 +163,20 @@ class PlayerViewModel(
     )
 
     companion object {
+        private const val TAG = "PlayerViewModel"
+        private const val PREFERRED_ITAG = 18
+
+        internal fun selectPlaybackFormat(formats: List<StreamFormat>): StreamFormat? {
+            formats.firstOrNull { it.itag == PREFERRED_ITAG }?.let { return it }
+
+            formats
+                .filter { it.hasAudio && it.hasVideo }
+                .maxByOrNull { it.height }
+                ?.let { return it }
+
+            return formats.firstOrNull { it.hasAudio }
+        }
+
         fun factory(
             videoId: String,
             application: Application,
@@ -156,6 +184,7 @@ class PlayerViewModel(
             initializer {
                 PlayerViewModel(
                     videoId = videoId,
+                    application = application,
                     libraryRepository = LibraryRepository.getInstance(application),
                     jsEngine = JsExtractorEngine.getInstance(application),
                 )
