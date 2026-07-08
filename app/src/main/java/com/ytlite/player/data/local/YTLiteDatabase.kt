@@ -5,6 +5,7 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import com.ytlite.player.data.local.dao.ArtistDao
+import com.ytlite.player.data.local.dao.NotInterestedDao
 import com.ytlite.player.data.local.dao.PlaybackHistoryDao
 import com.ytlite.player.data.local.dao.PlaylistDao
 import com.ytlite.player.data.local.dao.PlaylistTrackDao
@@ -13,6 +14,7 @@ import com.ytlite.player.data.local.dao.SearchRecentClickDao
 import com.ytlite.player.data.local.dao.TrackDao
 import com.ytlite.player.data.local.dao.UserTrackLastPlayedDao
 import com.ytlite.player.data.local.entity.ArtistEntity
+import com.ytlite.player.data.local.entity.NotInterestedEntity
 import com.ytlite.player.data.local.entity.PlaybackHistoryEntity
 import com.ytlite.player.data.local.entity.PlaylistEntity
 import com.ytlite.player.data.local.entity.PlaylistTrackEntity
@@ -31,8 +33,9 @@ import com.ytlite.player.data.local.entity.UserTrackLastPlayedEntity
         UserTrackLastPlayedEntity::class,
         SearchQueryEntity::class,
         SearchRecentClickEntity::class,
+        NotInterestedEntity::class,
     ],
-    version = 4,
+    version = 5,
     exportSchema = false,
 )
 abstract class YTLiteDatabase : RoomDatabase() {
@@ -44,6 +47,7 @@ abstract class YTLiteDatabase : RoomDatabase() {
     abstract fun userTrackLastPlayedDao(): UserTrackLastPlayedDao
     abstract fun searchQueryDao(): SearchQueryDao
     abstract fun searchRecentClickDao(): SearchRecentClickDao
+    abstract fun notInterestedDao(): NotInterestedDao
 
     companion object {
         @Volatile

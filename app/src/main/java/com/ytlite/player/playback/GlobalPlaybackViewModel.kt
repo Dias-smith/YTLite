@@ -4,14 +4,22 @@ import android.app.Application
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.ytlite.player.data.model.CaptionTrack
 import com.ytlite.player.data.model.ExtractionResult
+import com.ytlite.player.data.model.StreamFormat
+import com.ytlite.player.data.model.VideoPlayback
+import com.ytlite.player.data.preferences.PlaybackPreferences
+import com.ytlite.player.data.repository.CaptionRepository
 import com.ytlite.player.data.repository.ExtractionRepository
 import com.ytlite.player.ui.player.PlaybackFormatSelector
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
@@ -19,6 +27,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import java.io.File
 
 @androidx.compose.runtime.Immutable
 data class GlobalPlaybackUiState(
@@ -27,7 +36,23 @@ data class GlobalPlaybackUiState(
     val positionMs: Long = 0,
     val durationMs: Long = 0,
     val showMiniPlayer: Boolean = false,
+    val isQueueExpanded: Boolean = false,
     val queueState: PlayQueueState = PlayQueueState(),
+)
+
+@androidx.compose.runtime.Immutable
+data class ExpandedPlayerUiState(
+    val captionTracks: List<CaptionTrack> = emptyList(),
+    val selectedCaption: CaptionTrack? = null,
+    val subtitlesEnabled: Boolean = false,
+    val isLiked: Boolean = false,
+    val isDisliked: Boolean = false,
+    val showSettingsSheet: Boolean = false,
+    val showCaptionSheet: Boolean = false,
+    val currentFormats: List<StreamFormat> = emptyList(),
+    val playbackSpeed: Float = PlaybackPreferences.DEFAULT_SPEED,
+    val preferredItag: Int? = null,
+    val pendingSnackbar: String? = null,
 )
 
 private data class PlaybackSnapshot(
@@ -40,9 +65,17 @@ private data class PlaybackSnapshot(
 
 class GlobalPlaybackViewModel(
     private val extractionRepository: ExtractionRepository = ExtractionRepository.getInstance(),
+    private val captionRepository: CaptionRepository = CaptionRepository.getInstance(),
+    private val playbackPreferences: PlaybackPreferences? = null,
+    private val libraryRepository: com.ytlite.player.data.repository.LibraryRepository? = null,
+    private val authRepository: com.ytlite.player.data.auth.AuthRepository? = null,
 ) : ViewModel() {
 
     private val showMiniPlayer = MutableStateFlow(false)
+    private val isQueueExpanded = MutableStateFlow(false)
+    private val expandedState = MutableStateFlow(ExpandedPlayerUiState())
+
+    val expandedUiState: StateFlow<ExpandedPlayerUiState> = expandedState.asStateFlow()
 
     private val playbackSnapshot = combine(
         PlaybackManager.nowPlaying,
@@ -57,14 +90,20 @@ class GlobalPlaybackViewModel(
     val uiState: StateFlow<GlobalPlaybackUiState> = combine(
         playbackSnapshot,
         showMiniPlayer,
+        isQueueExpanded,
         PlayQueueRepository.state,
-    ) { snapshot, showMini, queueState ->
+    ) { snapshot, showMini, expanded, queueState ->
         GlobalPlaybackUiState(
-            nowPlaying = if (snapshot.ended && !queueState.hasNext) null else snapshot.nowPlaying,
+            nowPlaying = if (snapshot.ended && !queueState.hasNext && queueState.repeatMode == QueueRepeatMode.OFF) {
+                null
+            } else {
+                snapshot.nowPlaying
+            },
             isPlaying = snapshot.isPlaying && !snapshot.ended,
             positionMs = snapshot.positionMs,
             durationMs = snapshot.durationMs,
             showMiniPlayer = showMini && snapshot.nowPlaying != null && !snapshot.ended,
+            isQueueExpanded = expanded,
             queueState = queueState,
         )
     }.stateIn(
@@ -89,40 +128,99 @@ class GlobalPlaybackViewModel(
                 kotlinx.coroutines.delay(1_000)
             }
         }
+
+        playbackPreferences?.let { prefs ->
+            viewModelScope.launch {
+                prefs.playbackSpeed.collect { speed ->
+                    expandedState.update { it.copy(playbackSpeed = speed) }
+                    PlaybackManager.setPlaybackSpeed(speed)
+                }
+            }
+            viewModelScope.launch {
+                prefs.preferredItag.collect { itag ->
+                    expandedState.update { it.copy(preferredItag = itag) }
+                }
+            }
+        }
+
+        viewModelScope.launch {
+            PlaybackManager.nowPlaying.collect { nowPlaying ->
+                if (nowPlaying != null) {
+                    loadPlaybackExtras(nowPlaying.videoId)
+                } else {
+                    expandedState.update {
+                        it.copy(
+                            captionTracks = emptyList(),
+                            selectedCaption = null,
+                            subtitlesEnabled = false,
+                            currentFormats = emptyList(),
+                            isLiked = false,
+                            isDisliked = false,
+                        )
+                    }
+                    PlaybackManager.clearSubtitles()
+                }
+            }
+        }
+
+        val lib = libraryRepository
+        val auth = authRepository
+        if (lib != null && auth != null) {
+            viewModelScope.launch {
+                PlaybackManager.nowPlaying.flatMapLatest { nowPlaying ->
+                    val ownerKey = auth.currentSession()?.ownerKey
+                    if (nowPlaying == null || ownerKey == null) {
+                        flowOf(Pair(false, false))
+                    } else {
+                        combine(
+                            lib.observeIsTrackLiked(ownerKey, nowPlaying.videoId),
+                            lib.observeIsNotInterested(ownerKey, nowPlaying.videoId),
+                        ) { liked, disliked -> liked to disliked }
+                    }
+                }.collect { (liked, disliked) ->
+                    expandedState.update { it.copy(isLiked = liked, isDisliked = disliked) }
+                }
+            }
+        }
+    }
+
+    private suspend fun loadPlaybackExtras(videoId: String) {
+        when (val result = withContext(Dispatchers.IO) {
+            extractionRepository.fetchVideoPlayback(videoId)
+        }) {
+            is ExtractionResult.Success -> applyPlaybackExtras(result.data)
+            is ExtractionResult.Error -> Unit
+        }
+    }
+
+    private fun applyPlaybackExtras(playback: VideoPlayback) {
+        val tracks = playback.captionTracks
+        val selected = captionRepository.pickDefaultTrack(tracks)
+        expandedState.update {
+            it.copy(
+                captionTracks = tracks,
+                selectedCaption = selected,
+                currentFormats = playback.formats,
+            )
+        }
     }
 
     private suspend fun handlePlaybackEnded() {
+        val repeatMode = PlayQueueRepository.state.value.repeatMode
+        if (repeatMode == QueueRepeatMode.ONE) {
+            PlaybackManager.resetPlaybackEnded()
+            return
+        }
         val advanced = PlayQueueRepository.advanceToNext()
         if (advanced == null) {
             showMiniPlayer.update { false }
+            isQueueExpanded.update { false }
             PlaybackManager.stop()
             PlayQueueRepository.clear()
             return
         }
         PlaybackManager.resetPlaybackEnded()
-        val streamUrl = advanced.streamUrl
-        if (!streamUrl.isNullOrBlank()) {
-            PlaybackManager.play(advanced.toNowPlaying(streamUrl))
-            return
-        }
-        when (val result = withContext(Dispatchers.IO) {
-            extractionRepository.fetchVideoPlayback(advanced.videoId)
-        }) {
-            is ExtractionResult.Success -> {
-                val format = PlaybackFormatSelector.selectVideoFormat(result.data.formats)
-                if (format == null) {
-                    Log.w(TAG, "No format for queue item ${advanced.videoId}")
-                    handlePlaybackEnded()
-                    return
-                }
-                PlayQueueRepository.updateStreamUrl(advanced.videoId, format.url)
-                PlaybackManager.play(advanced.toNowPlaying(format.url))
-            }
-            is ExtractionResult.Error -> {
-                Log.w(TAG, "Failed to resolve queue item ${advanced.videoId}: ${result.message}")
-                handlePlaybackEnded()
-            }
-        }
+        playQueueItemInternal(advanced)
     }
 
     fun onLeavePlayerScreen() {
@@ -135,6 +233,14 @@ class GlobalPlaybackViewModel(
         showMiniPlayer.update { false }
     }
 
+    fun setQueueExpanded(expanded: Boolean) {
+        isQueueExpanded.update { expanded }
+    }
+
+    fun toggleQueueExpanded() {
+        isQueueExpanded.update { !it }
+    }
+
     fun togglePlayPause() {
         PlaybackManager.togglePlayPause()
     }
@@ -143,39 +249,66 @@ class GlobalPlaybackViewModel(
         PlaybackManager.play(nowPlaying)
     }
 
+    fun seekTo(positionMs: Long) {
+        PlaybackManager.seekTo(positionMs)
+    }
+
     fun skipToNext() {
         viewModelScope.launch {
             val queueState = PlayQueueRepository.state.value
-            if (queueState.hasNext) {
-                val nextIndex = queueState.currentIndex + 1
-                val nextItem = queueState.items[nextIndex]
-                PlayQueueRepository.setCurrentIndex(nextIndex)
-                playQueueItem(nextItem)
+            val nextIndex = when {
+                queueState.hasNext -> queueState.currentIndex + 1
+                queueState.repeatMode == QueueRepeatMode.ALL && queueState.items.isNotEmpty() -> 0
+                else -> return@launch
             }
+            val nextItem = queueState.items.getOrNull(nextIndex) ?: return@launch
+            PlayQueueRepository.setCurrentIndex(nextIndex)
+            playQueueItemInternal(nextItem)
         }
     }
 
-    fun openQueueSheet() {
-        // handled in UI layer
+    fun skipToPrevious() {
+        viewModelScope.launch {
+            val previous = PlayQueueRepository.skipToPrevious() ?: return@launch
+            playQueueItemInternal(previous)
+        }
     }
 
     fun playQueueItem(item: QueueItem) {
         viewModelScope.launch {
-            val streamUrl = item.streamUrl
-            if (!streamUrl.isNullOrBlank()) {
-                PlaybackManager.play(item.toNowPlaying(streamUrl))
-                return@launch
-            }
-            when (val result = withContext(Dispatchers.IO) {
-                extractionRepository.fetchVideoPlayback(item.videoId)
-            }) {
-                is ExtractionResult.Success -> {
-                    val format = PlaybackFormatSelector.selectVideoFormat(result.data.formats)
-                        ?: return@launch
-                    PlayQueueRepository.updateStreamUrl(item.videoId, format.url)
-                    PlaybackManager.play(item.toNowPlaying(format.url))
+            PlayQueueRepository.setCurrentIndex(
+                PlayQueueRepository.state.value.items.indexOfFirst { it.videoId == item.videoId }
+                    .coerceAtLeast(0),
+            )
+            playQueueItemInternal(item)
+        }
+    }
+
+    private suspend fun playQueueItemInternal(item: QueueItem) {
+        val streamUrl = item.streamUrl
+        if (!streamUrl.isNullOrBlank()) {
+            PlaybackManager.play(item.toNowPlaying(streamUrl))
+            PlaybackManager.syncRepeatMode()
+            return
+        }
+        when (val result = withContext(Dispatchers.IO) {
+            extractionRepository.fetchVideoPlayback(item.videoId)
+        }) {
+            is ExtractionResult.Success -> {
+                val format = selectFormat(result.data)
+                if (format == null) {
+                    Log.w(TAG, "No format for queue item ${item.videoId}")
+                    handlePlaybackEnded()
+                    return
                 }
-                is ExtractionResult.Error -> Unit
+                applyPlaybackExtras(result.data)
+                PlayQueueRepository.updateStreamUrl(item.videoId, format.url)
+                PlaybackManager.play(item.toNowPlaying(format.url))
+                PlaybackManager.syncRepeatMode()
+            }
+            is ExtractionResult.Error -> {
+                Log.w(TAG, "Failed to resolve queue item ${item.videoId}: ${result.message}")
+                handlePlaybackEnded()
             }
         }
     }
@@ -185,6 +318,161 @@ class GlobalPlaybackViewModel(
         PlaybackManager.syncQueueOrder(PlayQueueRepository.state.value.items)
     }
 
+    fun cycleRepeatMode() {
+        val mode = PlayQueueRepository.cycleRepeatMode()
+        PlaybackManager.setRepeatMode(mode)
+    }
+
+    fun toggleShuffle() {
+        PlayQueueRepository.toggleShuffle()
+    }
+
+    fun removeFromQueue(videoId: String) {
+        val wasCurrent = PlaybackManager.nowPlaying.value?.videoId == videoId
+        PlayQueueRepository.removeItem(videoId)
+        if (wasCurrent) {
+            val next = PlayQueueRepository.state.value.currentItem
+            if (next != null) {
+                viewModelScope.launch { playQueueItemInternal(next) }
+            } else {
+                PlaybackManager.stop()
+                isQueueExpanded.update { false }
+            }
+        }
+    }
+
+    fun toggleLike(application: Application) {
+        val nowPlaying = PlaybackManager.nowPlaying.value ?: return
+        val lib = libraryRepository ?: LibraryRepositoryHolder.get(application)
+        val auth = authRepository ?: com.ytlite.player.data.auth.AuthRepository.getInstance(application)
+        viewModelScope.launch {
+            val ownerKey = auth.currentSession()?.ownerKey ?: run {
+                expandedState.update { it.copy(pendingSnackbar = "sign_in_required") }
+                return@launch
+            }
+            val video = com.ytlite.player.data.model.LibraryVideo(
+                videoId = nowPlaying.videoId,
+                title = nowPlaying.title,
+                channelName = nowPlaying.channelName,
+                thumbnailUrl = nowPlaying.thumbnailUrl,
+            )
+            if (expandedState.value.isLiked) {
+                lib.removeTrackFromFavorites(ownerKey, nowPlaying.videoId)
+            } else {
+                lib.addTrackToFavorites(ownerKey, video)
+                if (expandedState.value.isDisliked) {
+                    lib.removeNotInterested(ownerKey, nowPlaying.videoId)
+                }
+            }
+        }
+    }
+
+    fun toggleDislike(application: Application) {
+        val nowPlaying = PlaybackManager.nowPlaying.value ?: return
+        val lib = libraryRepository ?: LibraryRepositoryHolder.get(application)
+        val auth = authRepository ?: com.ytlite.player.data.auth.AuthRepository.getInstance(application)
+        viewModelScope.launch {
+            val ownerKey = auth.currentSession()?.ownerKey ?: run {
+                expandedState.update { it.copy(pendingSnackbar = "sign_in_required") }
+                return@launch
+            }
+            if (expandedState.value.isDisliked) {
+                lib.removeNotInterested(ownerKey, nowPlaying.videoId)
+            } else {
+                lib.addNotInterested(ownerKey, nowPlaying.videoId)
+                if (expandedState.value.isLiked) {
+                    lib.removeTrackFromFavorites(ownerKey, nowPlaying.videoId)
+                }
+            }
+        }
+    }
+
+    fun showSettingsSheet(show: Boolean) {
+        expandedState.update { it.copy(showSettingsSheet = show) }
+    }
+
+    fun showCaptionSheet(show: Boolean) {
+        expandedState.update { it.copy(showCaptionSheet = show) }
+    }
+
+    fun clearSnackbar() {
+        expandedState.update { it.copy(pendingSnackbar = null) }
+    }
+
+    fun toggleSubtitles(application: Application) {
+        val tracks = expandedState.value.captionTracks
+        if (tracks.isEmpty()) {
+            expandedState.update { it.copy(pendingSnackbar = "no_captions") }
+            return
+        }
+        if (tracks.size > 1 && !expandedState.value.subtitlesEnabled) {
+            showCaptionSheet(true)
+            return
+        }
+        val enabled = !expandedState.value.subtitlesEnabled
+        if (!enabled) {
+            expandedState.update { it.copy(subtitlesEnabled = false) }
+            PlaybackManager.setSubtitles(enabled = false)
+            return
+        }
+        val track = expandedState.value.selectedCaption ?: tracks.first()
+        applySubtitleTrack(application, track, enabled = true)
+    }
+
+    fun selectCaptionTrack(application: Application, track: CaptionTrack) {
+        applySubtitleTrack(application, track, enabled = true)
+        showCaptionSheet(false)
+    }
+
+    private fun applySubtitleTrack(application: Application, track: CaptionTrack, enabled: Boolean) {
+        viewModelScope.launch {
+            val vtt = withContext(Dispatchers.IO) { captionRepository.fetchVtt(track) }
+            if (vtt.isNullOrBlank()) {
+                expandedState.update { it.copy(pendingSnackbar = "caption_load_failed") }
+                return@launch
+            }
+            val file = File(application.cacheDir, "caption_${track.languageCode}.vtt")
+            withContext(Dispatchers.IO) { file.writeText(vtt) }
+            expandedState.update {
+                it.copy(
+                    selectedCaption = track,
+                    subtitlesEnabled = enabled,
+                )
+            }
+            PlaybackManager.setSubtitles(
+                enabled = enabled,
+                uri = file.toURI().toString(),
+                mimeType = "text/vtt",
+            )
+        }
+    }
+
+    fun setPlaybackSpeed(speed: Float) {
+        viewModelScope.launch {
+            playbackPreferences?.setPlaybackSpeed(speed)
+            PlaybackManager.setPlaybackSpeed(speed)
+            expandedState.update { it.copy(playbackSpeed = speed) }
+        }
+    }
+
+    fun selectQualityFormat(format: StreamFormat) {
+        viewModelScope.launch {
+            playbackPreferences?.setPreferredItag(format.itag)
+            expandedState.update { it.copy(preferredItag = format.itag) }
+            val nowPlaying = PlaybackManager.nowPlaying.value ?: return@launch
+            PlayQueueRepository.updateStreamUrl(nowPlaying.videoId, format.url)
+            PlaybackManager.swapStreamUrl(nowPlaying.copy(streamUrl = format.url))
+        }
+    }
+
+    private fun selectFormat(playback: VideoPlayback): StreamFormat? {
+        val preferredItag = expandedState.value.preferredItag
+        if (preferredItag != null) {
+            PlaybackFormatSelector.selectByItag(playback.formats, preferredItag)?.let { return it }
+        }
+        return PlaybackFormatSelector.selectVideoFormat(playback.formats)
+    }
+
     companion object {
         private const val TAG = "GlobalPlaybackVM"
 
@@ -192,8 +480,17 @@ class GlobalPlaybackViewModel(
             viewModelFactory {
                 initializer {
                     ExtractionRepository.init(application)
-                    GlobalPlaybackViewModel()
+                    GlobalPlaybackViewModel(
+                        playbackPreferences = PlaybackPreferences.getInstance(application),
+                        libraryRepository = com.ytlite.player.data.repository.LibraryRepository.getInstance(application),
+                        authRepository = com.ytlite.player.data.auth.AuthRepository.getInstance(application),
+                    )
                 }
             }
     }
+}
+
+private object LibraryRepositoryHolder {
+    fun get(application: Application) =
+        com.ytlite.player.data.repository.LibraryRepository.getInstance(application)
 }

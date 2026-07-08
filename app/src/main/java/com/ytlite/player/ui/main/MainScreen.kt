@@ -88,8 +88,9 @@ private enum class MainTab(
 fun MainScreen(
     onVideoClick: (String) -> Unit,
     globalPlaybackState: GlobalPlaybackUiState,
-    onMiniPlayerOpen: () -> Unit,
+    onMiniPlayerExpandQueue: (Boolean) -> Unit,
     onMiniPlayerTogglePlayPause: () -> Unit,
+    onMiniPlayerSkipNext: () -> Unit,
     authViewModel: AuthViewModel,
     modifier: Modifier = Modifier,
 ) {
@@ -127,8 +128,9 @@ fun MainScreen(
                 if (globalPlaybackState.showMiniPlayer) {
                     MiniPlayerBar(
                         state = globalPlaybackState,
-                        onOpenPlayer = onMiniPlayerOpen,
+                        onExpandQueue = { onMiniPlayerExpandQueue(true) },
                         onTogglePlayPause = onMiniPlayerTogglePlayPause,
+                        onSkipNext = onMiniPlayerSkipNext,
                     )
                 }
                 NavigationBar {

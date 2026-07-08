@@ -34,6 +34,7 @@ import com.ytlite.player.playback.PlaybackManager
 import com.ytlite.player.ui.library.NewPlaylistDialog
 import com.ytlite.player.ui.library.PlaylistPickerSheet
 import com.ytlite.player.ui.library.PlaylistPickerViewModel
+import com.ytlite.player.ui.playback.PlayerMiniBar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -77,7 +78,7 @@ fun PlayerScreen(
                 PlayerMiniBar(
                     state = globalPlaybackState,
                     player = sharedPlayer,
-                    onOpenQueue = viewModel::showQueueSheet,
+                    onOpenQueue = { globalPlaybackViewModel.setQueueExpanded(true) },
                     onTogglePlayPause = globalPlaybackViewModel::togglePlayPause,
                     onSkipNext = globalPlaybackViewModel::skipToNext,
                 )
@@ -210,18 +211,6 @@ fun PlayerScreen(
         }
     }
 
-    SlidingPlayQueueSheet(
-        visible = uiState.isQueueSheetVisible,
-        queueState = globalPlaybackState.queueState,
-        nowPlaying = globalPlaybackState.nowPlaying,
-        onDismiss = viewModel::dismissQueueSheet,
-        onItemClick = { index, item ->
-            globalPlaybackViewModel.playQueueItem(item)
-            PlayQueueRepositorySetIndex(index)
-        },
-        onReorder = globalPlaybackViewModel::reorderQueue,
-    )
-
     val libraryVideo = viewModel.libraryVideo()
     if (uiState.isPlaylistPickerVisible && libraryVideo != null) {
         PlaylistPickerSheet(
@@ -239,10 +228,6 @@ fun PlayerScreen(
             onConfirm = viewModel::createPlaylistAndSave,
         )
     }
-}
-
-private fun PlayQueueRepositorySetIndex(index: Int) {
-    com.ytlite.player.playback.PlayQueueRepository.setCurrentIndex(index)
 }
 
 @Composable

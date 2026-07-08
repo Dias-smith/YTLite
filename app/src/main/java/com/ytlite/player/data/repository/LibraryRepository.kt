@@ -49,6 +49,7 @@ class LibraryRepository(
     private val playlistTrackDao = database.playlistTrackDao()
     private val playbackHistoryDao = database.playbackHistoryDao()
     private val userTrackLastPlayedDao = database.userTrackLastPlayedDao()
+    private val notInterestedDao = database.notInterestedDao()
 
     private val remote: SupabaseLibraryRemote? =
         SupabaseClientProvider.get(appContext)?.let { SupabaseLibraryRemote(it) }
@@ -191,6 +192,25 @@ class LibraryRepository(
 
     suspend fun removeTrackFromFavorites(ownerKey: String, trackId: String) =
         removeTrackFromSystemPlaylist(ownerKey, PlaylistSystemType.FAVORITES, trackId)
+
+    fun observeIsNotInterested(ownerKey: String, videoId: String): Flow<Boolean> =
+        notInterestedDao.observeIsNotInterested(ownerKey, videoId)
+
+    suspend fun addNotInterested(ownerKey: String, videoId: String) =
+        withContext(Dispatchers.IO) {
+            notInterestedDao.upsert(
+                com.ytlite.player.data.local.entity.NotInterestedEntity(
+                    ownerKey = ownerKey,
+                    videoId = videoId,
+                    createdAt = System.currentTimeMillis(),
+                ),
+            )
+        }
+
+    suspend fun removeNotInterested(ownerKey: String, videoId: String) =
+        withContext(Dispatchers.IO) {
+            notInterestedDao.delete(ownerKey, videoId)
+        }
 
     suspend fun removeTrackFromPlaylist(playlistId: String, trackId: String) =
         withContext(Dispatchers.IO) {

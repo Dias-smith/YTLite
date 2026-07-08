@@ -12,4 +12,5 @@ data class VideoPlayback(
     val formats: List<StreamFormat>,
     val durationSeconds: Long,
     val viewCount: Long,
+    val captionTracks: List<CaptionTrack> = emptyList(),
 )

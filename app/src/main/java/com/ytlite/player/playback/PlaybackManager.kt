@@ -59,6 +59,11 @@ object PlaybackManager {
     private var pendingQueueIndex: Int = 0
     private val mainHandler = Handler(Looper.getMainLooper())
 
+    private var subtitleUri: String? = null
+    private var subtitleMimeType: String = "text/vtt"
+    private var subtitlesEnabled: Boolean = false
+    private var playbackSpeed: Float = 1f
+
     private inline fun runOnMainThread(crossinline block: () -> Unit) {
         if (Looper.myLooper() == Looper.getMainLooper()) {
             block()
@@ -187,9 +192,73 @@ object PlaybackManager {
         }
     }
 
-    fun resetPlaybackEnded() {
-        _playbackEnded.value = false
+    fun seekTo(positionMs: Long) {
+        runOnMainThread {
+            getPlayer()?.seekTo(positionMs.coerceAtLeast(0L))
+            refreshProgress()
+        }
     }
+
+    fun setPlaybackSpeed(speed: Float) {
+        playbackSpeed = speed.coerceIn(0.25f, 2f)
+        runOnMainThread {
+            val player = getPlayer() ?: return@runOnMainThread
+            player.playbackParameters = player.playbackParameters.withSpeed(playbackSpeed)
+        }
+    }
+
+    fun setRepeatMode(mode: QueueRepeatMode) {
+        runOnMainThread {
+            val player = getPlayer() ?: return@runOnMainThread
+            player.repeatMode = when (mode) {
+                QueueRepeatMode.OFF -> Player.REPEAT_MODE_OFF
+                QueueRepeatMode.ONE -> Player.REPEAT_MODE_ONE
+                QueueRepeatMode.ALL -> Player.REPEAT_MODE_ALL
+            }
+        }
+    }
+
+    fun setSubtitles(enabled: Boolean, uri: String? = null, mimeType: String = "text/vtt") {
+        subtitlesEnabled = enabled
+        if (uri != null) {
+            subtitleUri = uri
+            subtitleMimeType = mimeType
+        }
+        runOnMainThread {
+            val current = _nowPlaying.value ?: return@runOnMainThread
+            val player = getPlayer() ?: return@runOnMainThread
+            if (player.playbackState == Player.STATE_IDLE && player.mediaItemCount == 0) return@runOnMainThread
+            val position = player.currentPosition
+            val wasPlaying = player.isPlaying
+            player.setMediaItem(current.toMediaItem())
+            player.prepare()
+            player.seekTo(position)
+            player.playWhenReady = wasPlaying
+        }
+    }
+
+    fun clearSubtitles() {
+        subtitlesEnabled = false
+        subtitleUri = null
+    }
+
+    fun swapStreamUrl(item: NowPlaying) {
+        runOnMainThread {
+            val activePlayer = getPlayer() ?: return@runOnMainThread
+            val position = activePlayer.currentPosition
+            val wasPlaying = activePlayer.isPlaying
+            _nowPlaying.value = item
+            activePlayer.setMediaItem(item.toMediaItem())
+            activePlayer.prepare()
+            activePlayer.seekTo(position)
+            activePlayer.playWhenReady = wasPlaying
+        }
+    }
+
+    fun syncRepeatMode() {
+        setRepeatMode(PlayQueueRepository.state.value.repeatMode)
+    }
+
 
     private fun requestPlay(item: NowPlaying) {
         ensureConnected()
@@ -232,6 +301,8 @@ object PlaybackManager {
         _playbackError.value = null
         activePlayer.setMediaItems(mediaItems, safeIndex, 0L)
         activePlayer.prepare()
+        activePlayer.playbackParameters = activePlayer.playbackParameters.withSpeed(playbackSpeed)
+        syncRepeatMode()
         activePlayer.playWhenReady = true
     }
 
@@ -265,11 +336,13 @@ object PlaybackManager {
         val mediaItem = item.toMediaItem()
         activePlayer.setMediaItem(mediaItem)
         activePlayer.prepare()
+        activePlayer.playbackParameters = activePlayer.playbackParameters.withSpeed(playbackSpeed)
+        syncRepeatMode()
         activePlayer.playWhenReady = true
     }
 
-    private fun NowPlaying.toMediaItem(): MediaItem =
-        MediaItem.Builder()
+    private fun NowPlaying.toMediaItem(): MediaItem {
+        val builder = MediaItem.Builder()
             .setMediaId(videoId)
             .setUri(streamUrl)
             .setMediaMetadata(
@@ -279,7 +352,24 @@ object PlaybackManager {
                     .setArtworkUri(Uri.parse(thumbnailUrl))
                     .build(),
             )
-            .build()
+        if (subtitlesEnabled) {
+            subtitleUri?.let { uri ->
+                builder.setSubtitleConfigurations(
+                    listOf(
+                        MediaItem.SubtitleConfiguration.Builder(Uri.parse(uri))
+                            .setMimeType(subtitleMimeType)
+                            .setLanguage("und")
+                            .build(),
+                    ),
+                )
+            }
+        }
+        return builder.build()
+    }
+
+    fun resetPlaybackEnded() {
+        _playbackEnded.value = false
+    }
 
     fun togglePlayPause() {
         runOnMainThread {
@@ -327,9 +417,16 @@ object PlaybackManager {
 
             override fun onPlaybackStateChanged(playbackState: Int) {
                 Log.d(TAG, "playbackState=${playbackStateName(playbackState)}")
+                val repeatMode = PlayQueueRepository.state.value.repeatMode
                 if (playbackState == Player.STATE_ENDED) {
-                    _playbackEnded.value = true
-                    _isPlaying.value = false
+                    if (repeatMode == QueueRepeatMode.ONE) {
+                        _playbackEnded.value = false
+                        player.seekTo(0)
+                        player.play()
+                    } else {
+                        _playbackEnded.value = true
+                        _isPlaying.value = false
+                    }
                 } else if (playbackState == Player.STATE_READY && player.isPlaying) {
                     _playbackEnded.value = false
                 }

@@ -29,4 +29,13 @@ object PlaybackFormatSelector {
 
     fun selectFormat(formats: List<StreamFormat>, audioOnly: Boolean): StreamFormat? =
         if (audioOnly) selectAudioFormat(formats) else selectVideoFormat(formats)
+
+    fun selectByItag(formats: List<StreamFormat>, itag: Int): StreamFormat? =
+        formats.firstOrNull { it.itag == itag }
+
+    fun listVideoFormats(formats: List<StreamFormat>): List<StreamFormat> =
+        formats
+            .filter { it.hasVideo }
+            .distinctBy { it.itag }
+            .sortedByDescending { it.height }
 }

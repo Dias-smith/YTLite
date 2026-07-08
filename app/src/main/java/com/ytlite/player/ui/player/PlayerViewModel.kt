@@ -288,14 +288,6 @@ class PlayerViewModel(
         }
     }
 
-    fun showQueueSheet() {
-        _uiState.update { it.copy(isQueueSheetVisible = true) }
-    }
-
-    fun dismissQueueSheet() {
-        _uiState.update { it.copy(isQueueSheetVisible = false) }
-    }
-
     fun libraryVideo(): LibraryVideo? {
         val playback = _uiState.value.playback ?: return null
         return LibraryVideo(
@@ -371,6 +363,9 @@ class PlayerViewModel(
         channelName = channelName,
         thumbnailUrl = thumbnailUrl,
         streamUrl = streamUrl,
+        durationText = durationText,
+        viewCountText = viewCountText,
+        publishedTimeText = publishedTimeText,
     )
 
     companion object {

@@ -1,5 +1,7 @@
 package com.ytlite.player.ui.navigation
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -19,6 +21,7 @@ import com.ytlite.player.ui.player.PlayerViewModel
 import com.ytlite.player.playback.GlobalPlaybackViewModel
 import com.ytlite.player.playback.PlaybackNavigation
 import com.ytlite.player.ui.auth.AuthViewModel
+import com.ytlite.player.ui.playback.ExpandedPlayerQueueOverlay
 
 object Routes {
     const val MAIN = "main"
@@ -36,6 +39,7 @@ fun YTLiteNavHost(modifier: Modifier = Modifier) {
     )
     val authViewModel: AuthViewModel = viewModel(factory = AuthViewModel.factory(application))
     val globalPlaybackState by globalPlaybackViewModel.uiState.collectAsStateWithLifecycle()
+    val expandedState by globalPlaybackViewModel.expandedUiState.collectAsStateWithLifecycle()
 
     LaunchedEffect(navController) {
         PlaybackNavigation.openPlayerRequests.collect { videoId ->
@@ -49,53 +53,59 @@ fun YTLiteNavHost(modifier: Modifier = Modifier) {
         }
     }
 
-    NavHost(
-        navController = navController,
-        startDestination = Routes.MAIN,
-        modifier = modifier,
-    ) {
-        composable(Routes.MAIN) {
-            MainScreen(
-                onVideoClick = { videoId ->
-                    navController.navigate(Routes.player(videoId))
-                },
-                globalPlaybackState = globalPlaybackState,
-                onMiniPlayerOpen = {
-                    val videoId = globalPlaybackState.nowPlaying?.videoId ?: return@MainScreen
-                    navController.navigate(Routes.player(videoId))
-                },
-                onMiniPlayerTogglePlayPause = globalPlaybackViewModel::togglePlayPause,
-                authViewModel = authViewModel,
-            )
-        }
-        composable(
-            route = Routes.PLAYER,
-            arguments = listOf(
-                navArgument("videoId") { type = NavType.StringType },
-            ),
-        ) { backStackEntry ->
-            val videoId = backStackEntry.arguments?.getString("videoId")
-            if (videoId == null) {
-                navController.popBackStack()
-                return@composable
+    Box(modifier = modifier.fillMaxSize()) {
+        NavHost(
+            navController = navController,
+            startDestination = Routes.MAIN,
+            modifier = Modifier.fillMaxSize(),
+        ) {
+            composable(Routes.MAIN) {
+                MainScreen(
+                    onVideoClick = { videoId ->
+                        navController.navigate(Routes.player(videoId))
+                    },
+                    globalPlaybackState = globalPlaybackState,
+                    onMiniPlayerExpandQueue = globalPlaybackViewModel::setQueueExpanded,
+                    onMiniPlayerTogglePlayPause = globalPlaybackViewModel::togglePlayPause,
+                    onMiniPlayerSkipNext = globalPlaybackViewModel::skipToNext,
+                    authViewModel = authViewModel,
+                )
             }
-            val application = LocalContext.current.applicationContext as android.app.Application
-            val playerViewModel: PlayerViewModel = viewModel(
-                viewModelStoreOwner = backStackEntry,
-                factory = PlayerViewModel.factory(videoId, application),
-            )
-            LaunchedEffect(Unit) {
-                globalPlaybackViewModel.onEnterPlayerScreen()
-            }
-            PlayerScreen(
-                onBack = {
-                    globalPlaybackViewModel.onLeavePlayerScreen()
+            composable(
+                route = Routes.PLAYER,
+                arguments = listOf(
+                    navArgument("videoId") { type = NavType.StringType },
+                ),
+            ) { backStackEntry ->
+                val videoId = backStackEntry.arguments?.getString("videoId")
+                if (videoId == null) {
                     navController.popBackStack()
-                },
-                viewModel = playerViewModel,
-                globalPlaybackViewModel = globalPlaybackViewModel,
-                globalPlaybackState = globalPlaybackState,
-            )
+                    return@composable
+                }
+                val application = LocalContext.current.applicationContext as android.app.Application
+                val playerViewModel: PlayerViewModel = viewModel(
+                    viewModelStoreOwner = backStackEntry,
+                    factory = PlayerViewModel.factory(videoId, application),
+                )
+                LaunchedEffect(Unit) {
+                    globalPlaybackViewModel.onEnterPlayerScreen()
+                }
+                PlayerScreen(
+                    onBack = {
+                        globalPlaybackViewModel.onLeavePlayerScreen()
+                        navController.popBackStack()
+                    },
+                    viewModel = playerViewModel,
+                    globalPlaybackViewModel = globalPlaybackViewModel,
+                    globalPlaybackState = globalPlaybackState,
+                )
+            }
         }
+
+        ExpandedPlayerQueueOverlay(
+            state = globalPlaybackState,
+            expandedState = expandedState,
+            viewModel = globalPlaybackViewModel,
+        )
     }
 }
