@@ -129,19 +129,24 @@ class ExtractionRepository(
         }
         try {
             extractMessage?.let { message ->
-                val fromJs = RelatedVideoParser.parseFromJsExtract(message)
+                val fromJs = RelatedVideoParser.parseFromJsExtract(message, excludeVideoId = videoId)
+                Log.d(TAG, "fetchRelatedVideos jsPath count=${fromJs.size} videoId=$videoId")
                 if (fromJs.isNotEmpty()) {
                     return@withContext ExtractionResult.Success(fromJs)
                 }
             }
             val response = innerTubeApi.fetchWatchNext(videoId)
-            val related = RelatedVideoParser.parse(response)
+            val lockupCount = RelatedVideoParser.countLockupViewModels(response)
+            Log.d(TAG, "fetchRelatedVideos innertube lockupViewModels=$lockupCount videoId=$videoId")
+            val related = RelatedVideoParser.parse(response, excludeVideoId = videoId)
+            Log.d(TAG, "fetchRelatedVideos mapped=${related.size} videoId=$videoId")
             if (related.isEmpty()) {
                 ExtractionResult.Error("No related videos found")
             } else {
                 ExtractionResult.Success(related)
             }
         } catch (e: Exception) {
+            Log.e(TAG, "fetchRelatedVideos failed videoId=$videoId", e)
             ExtractionResult.Error(
                 message = "Failed to load related videos",
                 cause = e,

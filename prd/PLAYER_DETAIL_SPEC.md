@@ -7,7 +7,7 @@
 | Paradigm | **Hybrid** — YouTube video playback + music-style UI copy (歌曲/歌手) |
 | RAM threshold | **Fixed 4GB** — `ActivityManager.MemoryInfo.totalMem` |
 | Audio power-save | **Pure audio stream** (audio-only itag) + destroy `PlayerView` + cover `RGB_565` + lyrics placeholder |
-| Up Next source | JS extractor watch-page payload; parsed via `RelatedVideoParser` + `AdContentFilter` |
+| Up Next source | InnerTube `/next` via `RelatedVideoParser` + `AdContentFilter`; JS extract fallback when available |
 | Queue prefill | **First 20** related items on enter |
 | Bottom bar | **Merge** into global `MiniPlayerBar` variant on player screen (`Next:` + swipe-up queue) |
 | Fullscreen | **Separate `FullscreenPlayerActivity`**, shared `PlaybackManager` |
@@ -29,7 +29,7 @@
 | 歌曲 / 歌名 | `VideoItem.title` / `NowPlaying.title` |
 | 歌手 | `VideoItem.channelName` |
 | 封面 | `NowPlaying.thumbnailUrl` / Coil `RGB_565` in audio mode |
-| Up Next | Related videos from watch `playerResponse` / `next` tree |
+| Up Next | Related videos from InnerTube `/next` → `secondaryResults` → `lockupViewModel` |
 | 播放队列 | `PlayQueueRepository` → `PlaybackManager` ExoPlayer queue |
 
 ---
@@ -67,6 +67,12 @@ Vertical scrollable layout, four blocks:
 - Horizontal `LazyRow` actions: Like, Dislike, Share, Save to playlist, Download (stubs except Share + Save)
 
 ### 2.3 Purified Up Next
+
+**Data source:** `InnerTubeApi.fetchWatchNext` (`POST /youtubei/v1/next`). YouTube 2025+ returns related items as **`lockupViewModel`** (not legacy `videoRenderer`). Parse path:
+
+`contents.twoColumnWatchNextResults.secondaryResults.secondaryResults.results[]`
+
+**Parser:** `RelatedVideoParser` uses targeted `secondaryResults` roots, then `LockupViewModelParser` + legacy renderer fallback. Exclude current `videoId` from results.
 
 **Ad filter (repository layer):** drop nodes with `compactAdRenderer`, `adSlotRenderer`, `adVideoRenderer`, `promotedVideoRenderer`, or metadata containing `Sponsored` / `promoted`.
 
