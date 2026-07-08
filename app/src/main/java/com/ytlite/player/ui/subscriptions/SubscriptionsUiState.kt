@@ -15,4 +15,6 @@ data class SubscriptionsUiState(
     val isLoadingMoreChannels: Boolean = false,
     val errorMessage: String? = null,
     val needsYoutubeReauth: Boolean = false,
+    val hasLoadedOnce: Boolean = false,
+    val lastLoadedUserId: String? = null,
 )

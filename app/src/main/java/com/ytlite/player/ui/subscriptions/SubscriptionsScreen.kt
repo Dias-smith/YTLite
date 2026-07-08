@@ -54,6 +54,7 @@ fun SubscriptionsScreen(
 ) {
     when (session) {
         is UserSession.Authenticated -> SubscriptionsAuthenticatedContent(
+            userId = session.profile.userId,
             onVideoClick = onVideoClick,
             onChannelListClick = onChannelListClick,
             onChannelClick = onChannelClick,
@@ -73,6 +74,7 @@ fun SubscriptionsScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SubscriptionsAuthenticatedContent(
+    userId: String,
     onVideoClick: (String) -> Unit,
     onChannelListClick: () -> Unit,
     onChannelClick: (SubscriptionChannel) -> Unit,
@@ -83,8 +85,8 @@ private fun SubscriptionsAuthenticatedContent(
     val imageLoader = rememberYTLiteImageLoader()
     val listState = rememberLazyListState()
 
-    LaunchedEffect(Unit) {
-        viewModel.refreshIfNeeded()
+    LaunchedEffect(userId) {
+        viewModel.refreshIfNeeded(userId)
     }
 
     val shouldLoadMore by remember {

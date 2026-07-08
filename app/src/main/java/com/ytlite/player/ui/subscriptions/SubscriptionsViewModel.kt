@@ -6,6 +6,8 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.ytlite.player.data.auth.AuthRepository
+import com.ytlite.player.data.auth.UserSession
 import com.ytlite.player.data.model.ExtractionResult
 import com.ytlite.player.data.repository.SubscriptionsRepository
 import kotlinx.coroutines.async
@@ -18,18 +20,35 @@ import kotlinx.coroutines.launch
 class SubscriptionsViewModel(
     application: Application,
     private val repository: SubscriptionsRepository = SubscriptionsRepository.getInstance(application),
+    private val authRepository: AuthRepository = AuthRepository.getInstance(application),
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SubscriptionsUiState())
     val uiState: StateFlow<SubscriptionsUiState> = _uiState.asStateFlow()
 
-    fun refreshIfNeeded() {
-        if (_uiState.value.isLoading) return
-        loadFeed()
+    fun refreshIfNeeded(userId: String) {
+        viewModelScope.launch {
+            if (_uiState.value.isLoading) return@launch
+            val state = _uiState.value
+            val shouldLoad = state.lastLoadedUserId != userId ||
+                !state.hasLoadedOnce ||
+                (state.videos.isEmpty() && state.channels.isEmpty() && state.errorMessage == null)
+            if (!shouldLoad) return@launch
+            loadFeed(userId)
+        }
+    }
+
+    fun refreshForUser(userId: String) {
+        viewModelScope.launch {
+            loadFeed(userId)
+        }
     }
 
     fun refresh() {
-        loadFeed()
+        val userId = (authRepository.currentSession() as? UserSession.Authenticated)?.profile?.userId
+        if (userId != null) {
+            refreshForUser(userId)
+        }
     }
 
     fun loadMore() {
@@ -84,7 +103,7 @@ class SubscriptionsViewModel(
         }
     }
 
-    private fun loadFeed() {
+    private fun loadFeed(userId: String) {
         viewModelScope.launch {
             _uiState.update {
                 it.copy(
@@ -98,42 +117,66 @@ class SubscriptionsViewModel(
                 )
             }
 
-            val feedDeferred = async { repository.fetchFeed() }
-            val channelsDeferred = async { repository.fetchChannels() }
-            val feedResult = feedDeferred.await()
-            val channelsResult = channelsDeferred.await()
+            try {
+                val feedDeferred = async { repository.fetchFeed() }
+                val channelsDeferred = async { repository.fetchChannels() }
+                val feedResult = feedDeferred.await()
+                val channelsResult = channelsDeferred.await()
 
-            when (feedResult) {
-                is ExtractionResult.Success -> {
-                    _uiState.update { current ->
-                        current.copy(
-                            videos = feedResult.data.videos,
-                            continuation = feedResult.data.continuation,
-                            isLoading = false,
-                            errorMessage = null,
-                            needsYoutubeReauth = false,
-                        )
+                when (feedResult) {
+                    is ExtractionResult.Success -> {
+                        _uiState.update { current ->
+                            current.copy(
+                                videos = feedResult.data.videos,
+                                continuation = feedResult.data.continuation,
+                                isLoading = false,
+                                errorMessage = null,
+                                needsYoutubeReauth = false,
+                                hasLoadedOnce = true,
+                                lastLoadedUserId = userId,
+                            )
+                        }
+                    }
+                    is ExtractionResult.Error -> {
+                        val needsReauth = feedResult.message == repository.youtubeReauthRequiredMessageForComparison()
+                        _uiState.update {
+                            it.copy(
+                                isLoading = false,
+                                errorMessage = feedResult.message,
+                                needsYoutubeReauth = needsReauth,
+                                hasLoadedOnce = true,
+                                lastLoadedUserId = userId,
+                            )
+                        }
                     }
                 }
-                is ExtractionResult.Error -> {
-                    val needsReauth = feedResult.message == repository.youtubeReauthRequiredMessageForComparison()
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            errorMessage = feedResult.message,
-                            needsYoutubeReauth = needsReauth,
-                        )
+
+                when (channelsResult) {
+                    is ExtractionResult.Success -> {
+                        _uiState.update { current ->
+                            current.copy(
+                                channels = channelsResult.data.channels,
+                                channelsContinuation = channelsResult.data.continuation,
+                            )
+                        }
+                    }
+                    is ExtractionResult.Error -> {
+                        if (_uiState.value.errorMessage.isNullOrBlank()) {
+                            val needsReauth =
+                                channelsResult.message == repository.youtubeReauthRequiredMessageForComparison()
+                            _uiState.update {
+                                it.copy(
+                                    errorMessage = channelsResult.message,
+                                    needsYoutubeReauth = needsReauth,
+                                    hasLoadedOnce = true,
+                                    lastLoadedUserId = userId,
+                                )
+                            }
+                        }
                     }
                 }
-            }
-
-            if (channelsResult is ExtractionResult.Success) {
-                _uiState.update { current ->
-                    current.copy(
-                        channels = channelsResult.data.channels,
-                        channelsContinuation = channelsResult.data.continuation,
-                    )
-                }
+            } finally {
+                _uiState.update { it.copy(isLoading = false) }
             }
         }
     }

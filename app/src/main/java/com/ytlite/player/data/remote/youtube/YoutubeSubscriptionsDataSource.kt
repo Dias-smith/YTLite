@@ -46,8 +46,11 @@ class YoutubeSubscriptionsDataSource(
         val oauthToken = oauthTokenProvider() ?: return null
         if (!dataApiClient.isConfigured) return null
         val channelPage = dataApiClient.listSubscriptions(oauthToken) ?: return null
-        if (channelPage.channels.isEmpty()) return null
+        if (channelPage.channels.isEmpty()) {
+            return FeedPage(videos = emptyList(), continuation = null)
+        }
         return dataApiClient.buildFeedFromActivities(oauthToken, channelPage.channels)
+            ?: FeedPage(videos = emptyList(), continuation = null)
     }
 
     companion object {

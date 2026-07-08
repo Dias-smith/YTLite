@@ -2,7 +2,7 @@
     <string name="app_name">YTLite</string>
     <string name="nav_home">Home</string>
     <string name="nav_shorts">Shorts</string>
-    <string name="nav_subscriptions">Subscriptions</string>
+    <string name="nav_subscriptions">Subs</string>
     <string name="nav_library">Library</string>
     <string name="home_loading">Loading recommendations…</string>
     <string name="home_error">Failed to load</string>
@@ -144,6 +144,7 @@
     <string name="error_sign_in_google_first">Sign in with Google first</string>
     <string name="error_youtube_api_not_configured">YouTube Data API is not configured</string>
     <string name="error_load_channels_failed">Couldn\'t load channel list</string>
+    <string name="error_load_subscriptions_failed">Couldn\'t load subscriptions</string>
     <string name="nav_search">Search</string>
     <string name="search_hint">Search videos, channels…</string>
     <string name="search_clear">Clear</string>

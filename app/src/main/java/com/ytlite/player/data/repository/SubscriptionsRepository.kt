@@ -30,12 +30,28 @@ class SubscriptionsRepository(
     private fun isAuthenticated(): Boolean =
         authRepository.currentSession() is UserSession.Authenticated
 
+    suspend fun ensureAuthReady() {
+        authRepository.initialize()
+    }
+
+    private fun resolveFetchFailureMessage(): String {
+        if (!authRepository.isYoutubeDataApiKeyConfigured()) {
+            return appContext.getString(R.string.error_youtube_api_not_configured)
+        }
+        if (authRepository.getGoogleProviderAccessToken() == null) {
+            return youtubeReauthRequiredMessage()
+        }
+        return appContext.getString(R.string.error_load_subscriptions_failed)
+    }
+
     suspend fun fetchFeed(): ExtractionResult<FeedPage> = withContext(Dispatchers.IO) {
+        ensureAuthReady()
         runFeedRequest { dataSource.fetchFeed() }
     }
 
     suspend fun fetchFeedContinuation(continuation: String): ExtractionResult<FeedPage> =
         withContext(Dispatchers.IO) {
+            ensureAuthReady()
             if (continuation.isBlank()) {
                 return@withContext ExtractionResult.Error("Continuation token is empty")
             }
@@ -43,11 +59,13 @@ class SubscriptionsRepository(
         }
 
     suspend fun fetchChannels(): ExtractionResult<ChannelPage> = withContext(Dispatchers.IO) {
+        ensureAuthReady()
         runChannelRequest { dataSource.fetchChannels() }
     }
 
     suspend fun fetchChannelsContinuation(continuation: String): ExtractionResult<ChannelPage> =
         withContext(Dispatchers.IO) {
+            ensureAuthReady()
             if (continuation.isBlank()) {
                 return@withContext ExtractionResult.Error("Continuation token is empty")
             }
@@ -91,10 +109,10 @@ class SubscriptionsRepository(
         }
         return try {
             val page = request()
-            if (page == null || page.videos.isEmpty()) {
-                ExtractionResult.Success(FeedPage(videos = emptyList(), continuation = null))
-            } else {
-                ExtractionResult.Success(page)
+            when {
+                page == null -> ExtractionResult.Error(resolveFetchFailureMessage())
+                page.videos.isEmpty() -> ExtractionResult.Success(page)
+                else -> ExtractionResult.Success(page)
             }
         } catch (e: YouTubeNetworkException) {
             ExtractionResult.Error("Network error while loading subscriptions", e)
@@ -112,10 +130,9 @@ class SubscriptionsRepository(
         }
         return try {
             val page = request()
-            if (page == null) {
-                ExtractionResult.Success(ChannelPage(channels = emptyList(), continuation = null))
-            } else {
-                ExtractionResult.Success(page)
+            when {
+                page == null -> ExtractionResult.Error(resolveFetchFailureMessage())
+                else -> ExtractionResult.Success(page)
             }
         } catch (e: YouTubeNetworkException) {
             ExtractionResult.Error("Network error while loading subscription channels", e)

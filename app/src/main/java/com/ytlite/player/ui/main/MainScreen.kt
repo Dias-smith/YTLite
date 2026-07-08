@@ -17,13 +17,15 @@ import androidx.compose.material.icons.outlined.VideoLibrary
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -32,6 +34,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ytlite.player.R
 import com.ytlite.player.data.auth.UserSession
@@ -90,7 +93,8 @@ fun MainScreen(
     authViewModel: AuthViewModel,
     modifier: Modifier = Modifier,
 ) {
-    var selectedTab by rememberSaveable { mutableIntStateOf(MainTab.Home.ordinal) }
+    var selectedTabName by rememberSaveable { mutableStateOf(MainTab.Home.name) }
+    val selectedTab = MainTab.entries.find { it.name == selectedTabName } ?: MainTab.Home
     var showSubscriptionChannels by rememberSaveable { mutableStateOf(false) }
     var selectedChannel by remember { mutableStateOf<SubscriptionChannel?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
@@ -128,11 +132,11 @@ fun MainScreen(
                     )
                 }
                 NavigationBar {
-                    MainTab.entries.forEachIndexed { index, tab ->
-                        val selected = selectedTab == index
+                    MainTab.entries.forEach { tab ->
+                        val selected = selectedTab == tab
                         NavigationBarItem(
                             selected = selected,
-                            onClick = { selectedTab = index },
+                            onClick = { selectedTabName = tab.name },
                             icon = {
                                 Icon(
                                     imageVector = if (selected) {
@@ -143,7 +147,15 @@ fun MainScreen(
                                     contentDescription = stringResource(tab.labelRes),
                                 )
                             },
-                            label = { Text(text = stringResource(tab.labelRes)) },
+                            label = {
+                                Text(
+                                    text = stringResource(tab.labelRes),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    maxLines = 1,
+                                    softWrap = false,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            },
                             alwaysShowLabel = false,
                         )
                     }
@@ -171,7 +183,7 @@ fun MainScreen(
                         .padding(innerPadding),
                 )
             }
-            else -> when (MainTab.entries[selectedTab]) {
+            else -> when (selectedTab) {
                 MainTab.Home -> HomeScreen(
                     onVideoClick = onVideoClick,
                     modifier = Modifier
@@ -204,7 +216,7 @@ fun MainScreen(
                     onVideoClick = onVideoClick,
                     onSignInClick = onSignInClick,
                     onSignOutClick = { authViewModel.switchToGuestMode() },
-                    onNavigateHomeTab = { selectedTab = MainTab.Home.ordinal },
+                    onNavigateHomeTab = { selectedTabName = MainTab.Home.name },
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(innerPadding),
