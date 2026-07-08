@@ -7,7 +7,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Subscriptions
 import androidx.compose.material.icons.filled.VideoLibrary
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Subscriptions
 import androidx.compose.material.icons.outlined.VideoLibrary
 import androidx.compose.material3.Icon
@@ -38,6 +40,7 @@ import com.ytlite.player.ui.auth.rememberGoogleSignInLauncher
 import com.ytlite.player.ui.home.HomeScreen
 import com.ytlite.player.ui.library.LibraryScreen
 import com.ytlite.player.ui.playback.MiniPlayerBar
+import com.ytlite.player.ui.search.SearchScreen
 import com.ytlite.player.ui.shorts.ShortsScreen
 import com.ytlite.player.ui.subscriptions.ChannelVideosScreen
 import com.ytlite.player.ui.subscriptions.SubscriptionChannelsScreen
@@ -58,6 +61,11 @@ private enum class MainTab(
         labelRes = R.string.nav_shorts,
         selectedIcon = Icons.Filled.Home,
         unselectedIcon = Icons.Outlined.Home,
+    ),
+    Search(
+        labelRes = R.string.nav_search,
+        selectedIcon = Icons.Filled.Search,
+        unselectedIcon = Icons.Outlined.Search,
     ),
     Subscriptions(
         labelRes = R.string.nav_subscriptions,
@@ -167,6 +175,13 @@ fun MainScreen(
                         .padding(innerPadding),
                 )
                 MainTab.Shorts -> ShortsScreen(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding),
+                )
+                MainTab.Search -> SearchScreen(
+                    onVideoClick = onVideoClick,
+                    onChannelClick = { channel -> selectedChannel = channel },
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(innerPadding),

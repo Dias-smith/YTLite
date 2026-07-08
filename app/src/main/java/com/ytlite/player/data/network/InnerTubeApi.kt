@@ -112,6 +112,12 @@ class InnerTubeApi(
     fun searchVideos(
         query: String,
         continuation: String? = null,
+    ): JSONObject = search(query = query, params = null, continuation = continuation)
+
+    fun search(
+        query: String,
+        params: String? = null,
+        continuation: String? = null,
     ): JSONObject {
         val body = if (!continuation.isNullOrBlank()) {
             JSONObject().apply {
@@ -122,6 +128,9 @@ class InnerTubeApi(
             JSONObject().apply {
                 put("context", buildClientContext(InnerTubeConfig.FEED_CLIENT))
                 put("query", query)
+                if (!params.isNullOrBlank()) {
+                    put("params", params)
+                }
             }
         }
         return post(
@@ -130,6 +139,11 @@ class InnerTubeApi(
             label = "search",
             client = InnerTubeConfig.FEED_CLIENT,
         )
+    }
+
+    fun browseExplore(browseId: String, params: String? = null): JSONObject {
+        val body = buildBrowseBody(browseId, params)
+        return postBrowseBody(body = body, label = "browse_explore", authenticated = false)
     }
 
     private fun post(

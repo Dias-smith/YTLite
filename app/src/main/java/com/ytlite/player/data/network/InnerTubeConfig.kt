@@ -14,6 +14,13 @@ object InnerTubeConfig {
 
     const val BROWSE_ID_HOME = "FEwhat_to_watch"
     const val BROWSE_ID_LIBRARY = "FEmy_youtube"
+    const val BROWSE_ID_TRENDING = "FEtrending"
+    const val BROWSE_ID_EXPLORE = "FEtopics_base"
+    const val BROWSE_ID_CHARTS = "FEmusic_charts"
+
+    const val SEARCH_PARAMS_VIDEOS = "EgIQAQ%3D%3D"
+    const val SEARCH_PARAMS_CHANNELS = "EgIQAg%3D%3D"
+    const val SEARCH_PARAMS_PLAYLISTS = "EgIQAUAB"
 
     val BROWSE_URL: String
         get() = "$BASE_URL/youtubei/v1/browse?key=$API_KEY"

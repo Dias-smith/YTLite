@@ -8,12 +8,16 @@ import com.ytlite.player.data.local.dao.ArtistDao
 import com.ytlite.player.data.local.dao.PlaybackHistoryDao
 import com.ytlite.player.data.local.dao.PlaylistDao
 import com.ytlite.player.data.local.dao.PlaylistTrackDao
+import com.ytlite.player.data.local.dao.SearchQueryDao
+import com.ytlite.player.data.local.dao.SearchRecentClickDao
 import com.ytlite.player.data.local.dao.TrackDao
 import com.ytlite.player.data.local.dao.UserTrackLastPlayedDao
 import com.ytlite.player.data.local.entity.ArtistEntity
 import com.ytlite.player.data.local.entity.PlaybackHistoryEntity
 import com.ytlite.player.data.local.entity.PlaylistEntity
 import com.ytlite.player.data.local.entity.PlaylistTrackEntity
+import com.ytlite.player.data.local.entity.SearchQueryEntity
+import com.ytlite.player.data.local.entity.SearchRecentClickEntity
 import com.ytlite.player.data.local.entity.TrackEntity
 import com.ytlite.player.data.local.entity.UserTrackLastPlayedEntity
 
@@ -25,8 +29,10 @@ import com.ytlite.player.data.local.entity.UserTrackLastPlayedEntity
         PlaylistTrackEntity::class,
         PlaybackHistoryEntity::class,
         UserTrackLastPlayedEntity::class,
+        SearchQueryEntity::class,
+        SearchRecentClickEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = false,
 )
 abstract class YTLiteDatabase : RoomDatabase() {
@@ -36,6 +42,8 @@ abstract class YTLiteDatabase : RoomDatabase() {
     abstract fun playlistTrackDao(): PlaylistTrackDao
     abstract fun playbackHistoryDao(): PlaybackHistoryDao
     abstract fun userTrackLastPlayedDao(): UserTrackLastPlayedDao
+    abstract fun searchQueryDao(): SearchQueryDao
+    abstract fun searchRecentClickDao(): SearchRecentClickDao
 
     companion object {
         @Volatile

@@ -1,0 +1,26 @@
+package com.ytlite.player.data.model
+
+sealed interface SearchScreenState {
+    data object DefaultHub : SearchScreenState
+    data class Suggestions(val query: String) : SearchScreenState
+    data class Results(val query: String, val tab: SearchResultTab = SearchResultTab.ALL) : SearchScreenState
+    data class SubCategory(val type: DiscoveryType) : SearchScreenState
+}
+
+enum class SearchResultTab {
+    ALL,
+    VIDEOS,
+    CHANNELS,
+    PLAYLISTS,
+}
+
+enum class DiscoveryType {
+    NEW_RELEASES,
+    CHARTS,
+    MOODS_AND_GENRES,
+}
+
+enum class SearchRecentType {
+    VIDEO,
+    CHANNEL,
+}
