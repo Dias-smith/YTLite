@@ -26,6 +26,7 @@ import com.ytlite.player.playback.GlobalPlaybackViewModel
 import com.ytlite.player.playback.PlaybackNavigation
 import com.ytlite.player.ui.auth.AuthViewModel
 import com.ytlite.player.ui.playback.ExpandedPlayerQueueOverlay
+import com.ytlite.player.ui.playlistaction.PlaylistActionHost
 import com.ytlite.player.ui.trackaction.TrackActionHost
 import com.ytlite.player.ui.trackaction.TrackActionNavigation
 
@@ -73,6 +74,9 @@ fun YTLiteNavHost(modifier: Modifier = Modifier) {
         ),
         onRemoveFromQueue = globalPlaybackViewModel::removeFromQueue,
     ) {
+        PlaylistActionHost(
+            onShufflePlay = globalPlaybackViewModel::shufflePlayPlaylist,
+        ) {
         Box(modifier = modifier.fillMaxSize()) {
             NavHost(
                 navController = navController,
@@ -132,6 +136,7 @@ fun YTLiteNavHost(modifier: Modifier = Modifier) {
                 expandedState = expandedState,
                 viewModel = globalPlaybackViewModel,
             )
+        }
         }
     }
 }

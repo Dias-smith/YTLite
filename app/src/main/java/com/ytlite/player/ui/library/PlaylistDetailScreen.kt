@@ -58,6 +58,7 @@ fun PlaylistDetailScreen(
     onVideoClick: (String) -> Unit,
     onCloneYoutubePlaylist: () -> Unit,
     onSongMoreClick: (PlaylistTrackDetailRow, String, DataSource) -> Unit,
+    onPlaylistMoreClick: (com.ytlite.player.ui.playlistaction.PlaylistActionContext) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val application = LocalContext.current.applicationContext as Application
@@ -116,6 +117,15 @@ fun PlaylistDetailScreen(
                     onPlayFirst = {
                         uiState.tracks.firstOrNull()?.let { onVideoClick(it.trackId) }
                     },
+                    onMoreClick = {
+                        onPlaylistMoreClick(
+                            com.ytlite.player.ui.playlistaction.PlaylistActionContext.fromPlaylistEntity(
+                                playlist = playlist,
+                                coverUrl = uiState.coverUrls.firstOrNull(),
+                                ownerKey = ownerKey,
+                            ),
+                        )
+                    },
                 )
             }
             if (playlist.isLocal()) {
@@ -156,6 +166,7 @@ private fun PlaylistDetailHeader(
     isLiked: Boolean,
     isWatchLater: Boolean,
     onPlayFirst: () -> Unit,
+    onMoreClick: () -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -201,8 +212,8 @@ private fun PlaylistDetailHeader(
                     modifier = Modifier.size(32.dp),
                 )
             }
-            IconButton(onClick = { }) {
-                Icon(Icons.Default.MoreVert, contentDescription = null)
+            IconButton(onClick = onMoreClick) {
+                Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.library_song_more))
             }
         }
     }

@@ -38,7 +38,7 @@ import com.ytlite.player.data.local.entity.UserTrackMetadataEntity
         NotInterestedEntity::class,
         UserTrackMetadataEntity::class,
     ],
-    version = 6,
+    version = 7,
     exportSchema = false,
 )
 abstract class YTLiteDatabase : RoomDatabase() {

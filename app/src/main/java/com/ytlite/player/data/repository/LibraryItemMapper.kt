@@ -25,6 +25,7 @@ internal object LibraryItemMapper {
             sortKeyActivity = playlist.updatedAt,
             sortKeySaved = playlist.updatedAt,
             systemType = playlist.systemType,
+            isPinned = playlist.isPinned,
         )
 
     fun songItem(row: LibrarySongRow): LibraryItem.Song =
@@ -130,7 +131,9 @@ internal object LibraryItemMapper {
             add(historyPlaylistItem())
         }
         val customPlaylists = items.filter { it.systemType == null }
-        return pinned + sortItems(customPlaylists, sort)
+        val pinnedCustom = customPlaylists.filter { it.isPinned }
+        val unpinnedCustom = customPlaylists.filter { !it.isPinned }
+        return pinned + sortItems(pinnedCustom, sort) + sortItems(unpinnedCustom, sort)
     }
 
     fun historyPlaylistItem(): LibraryItem.Playlist = LibraryItem.Playlist(

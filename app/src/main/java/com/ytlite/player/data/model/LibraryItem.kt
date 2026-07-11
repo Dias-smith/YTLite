@@ -23,6 +23,7 @@ sealed interface LibraryItem {
         override val sortKeySaved: Long,
         val systemType: String? = null,
         val playlistId: String = id,
+        val isPinned: Boolean = false,
     ) : LibraryItem
 
     @Immutable

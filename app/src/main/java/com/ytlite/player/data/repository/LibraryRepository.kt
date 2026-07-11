@@ -179,6 +179,79 @@ class LibraryRepository(
     fun observePlaylistTrackDetails(playlistId: String) =
         playlistTrackDao.observePlaylistTrackDetails(playlistId)
 
+    fun observePlaylistStats(playlistId: String) =
+        playlistTrackDao.observePlaylistStats(playlistId)
+
+    suspend fun getPlaylistQueueItems(
+        ownerKey: String,
+        playlistId: String,
+        systemType: String?,
+    ): List<com.ytlite.player.playback.QueueItem> = withContext(Dispatchers.IO) {
+        when (systemType) {
+            PlaylistSystemType.HISTORY -> {
+                observeAllHistory(ownerKey).first().map { video ->
+                    com.ytlite.player.playback.QueueItem(
+                        videoId = video.videoId,
+                        title = video.title,
+                        channelName = video.channelName,
+                        thumbnailUrl = video.thumbnailUrl,
+                        album = video.album,
+                        year = video.year,
+                    )
+                }
+            }
+            else -> {
+                val resolvedId = resolvePlaylistIdForAction(ownerKey, playlistId, systemType)
+                    ?: return@withContext emptyList()
+                observePlaylistTrackDetails(resolvedId).first().map { track ->
+                    com.ytlite.player.playback.QueueItem(
+                        videoId = track.trackId,
+                        title = track.title,
+                        channelName = track.primaryArtistName.orEmpty(),
+                        thumbnailUrl = track.thumbnailUrl,
+                        durationText = track.durationText,
+                        album = track.album,
+                        year = track.year,
+                    )
+                }
+            }
+        }
+    }
+
+    suspend fun renameLocalPlaylist(playlistId: String, ownerKey: String, name: String): Boolean =
+        withContext(Dispatchers.IO) {
+            val playlist = findOwnedLocalCustomPlaylist(playlistId, ownerKey) ?: return@withContext false
+            playlistDao.upsert(
+                playlist.copy(
+                    name = name.trim(),
+                    updatedAt = System.currentTimeMillis(),
+                    isSynced = false,
+                ),
+            )
+            true
+        }
+
+    suspend fun togglePlaylistPin(playlistId: String, ownerKey: String): Boolean =
+        withContext(Dispatchers.IO) {
+            val playlist = findOwnedLocalCustomPlaylist(playlistId, ownerKey) ?: return@withContext false
+            playlistDao.upsert(
+                playlist.copy(
+                    isPinned = !playlist.isPinned,
+                    updatedAt = System.currentTimeMillis(),
+                    isSynced = false,
+                ),
+            )
+            true
+        }
+
+    suspend fun deleteLocalPlaylist(playlistId: String, ownerKey: String): Boolean =
+        withContext(Dispatchers.IO) {
+            val playlist = findOwnedLocalCustomPlaylist(playlistId, ownerKey) ?: return@withContext false
+            playlistTrackDao.deleteAllByPlaylist(playlistId)
+            playlistDao.deleteById(playlistId)
+            true
+        }
+
     suspend fun getPlaylistById(
         playlistId: String,
         ownerKey: String,
@@ -873,6 +946,30 @@ class LibraryRepository(
         year = year,
         watchedAt = lastActivityAt,
     )
+
+    private suspend fun resolvePlaylistIdForAction(
+        ownerKey: String,
+        playlistId: String,
+        systemType: String?,
+    ): String? {
+        if (systemType != null && systemType != PlaylistSystemType.HISTORY) {
+            return playlistDao.getSystemPlaylist(ownerKey, systemType)?.playlistId ?: playlistId
+        }
+        return playlistId.takeIf { it.isNotBlank() && !it.startsWith("system:") }
+            ?: playlistDao.getAllByOwner(ownerKey).firstOrNull { it.playlistId == playlistId }?.playlistId
+    }
+
+    private suspend fun findOwnedLocalCustomPlaylist(
+        playlistId: String,
+        ownerKey: String,
+    ): PlaylistEntity? {
+        val playlist = playlistDao.getAllByOwner(ownerKey).firstOrNull { it.playlistId == playlistId }
+            ?: return null
+        if (playlist.ownerKey != ownerKey || playlist.systemType != null || playlist.isYoutube()) {
+            return null
+        }
+        return playlist
+    }
 
     companion object {
         @Volatile

@@ -146,4 +146,16 @@
     <string name="error_load_channels_failed">无法加载频道列表</string>
     <string name="error_sign_in_cancelled">用户取消了登录</string>
     <string name="error_unsupported_credential">不支持的登录凭证类型</string>
+    <string name="playlist_action_shuffle_play">随机播放</string>
+    <string name="playlist_action_edit">编辑</string>
+    <string name="playlist_action_pin">置顶</string>
+    <string name="playlist_action_unpin">取消置顶</string>
+    <string name="playlist_action_delete">删除</string>
+    <string name="playlist_edit_title">编辑歌单</string>
+    <string name="playlist_delete_title">删除歌单？</string>
+    <string name="playlist_delete_message">从资料库中删除「%1$s」？</string>
+    <string name="playlist_stats_songs">%1$d 首歌曲</string>
+    <string name="playlist_stats_subtitle">%1$s · %2$s</string>
+    <string name="playlist_duration_hours">%1$d 小时 %2$d 分钟</string>
+    <string name="playlist_duration_minutes">%1$d 分钟</string>
 </resources>

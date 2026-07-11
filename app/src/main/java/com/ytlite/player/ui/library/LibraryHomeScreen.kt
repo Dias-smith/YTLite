@@ -31,6 +31,7 @@ fun LibraryHomeScreen(
     onToggleViewMode: () -> Unit,
     onItemClick: (LibraryItem) -> Unit,
     onSongMoreClick: (LibraryItem.Song) -> Unit,
+    onPlaylistMoreClick: (LibraryItem.Playlist) -> Unit,
     onFindMusic: () -> Unit,
     onNewPlaylist: () -> Unit,
     modifier: Modifier = Modifier,
@@ -74,6 +75,7 @@ fun LibraryHomeScreen(
                 selectedFilter = uiState.selectedFilter,
                 onItemClick = onItemClick,
                 onSongMoreClick = onSongMoreClick,
+                onPlaylistMoreClick = onPlaylistMoreClick,
                 onFindMusic = onFindMusic,
                 modifier = Modifier.weight(1f),
             )

@@ -104,6 +104,18 @@ interface PlaylistTrackDao {
 
     @Query(
         """
+        SELECT
+            COUNT(*) AS trackCount,
+            COALESCE(SUM(t.durationSeconds), 0) AS totalDurationSeconds
+        FROM playlist_track_cross_ref p
+        INNER JOIN tracks t ON t.trackId = p.trackId
+        WHERE p.playlistId = :playlistId
+        """,
+    )
+    fun observePlaylistStats(playlistId: String): Flow<com.ytlite.player.data.local.model.PlaylistStatsRow>
+
+    @Query(
+        """
         UPDATE playlist_track_cross_ref
         SET playlistId = :newPlaylistId
         WHERE playlistId = :oldPlaylistId

@@ -14,6 +14,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ytlite.player.data.local.entity.PlaylistSystemType
 import com.ytlite.player.data.model.DataSource
 import com.ytlite.player.data.model.LibraryItem
+import com.ytlite.player.ui.playlistaction.LocalPlaylistMoreClick
+import com.ytlite.player.ui.playlistaction.PlaylistActionContext
 import com.ytlite.player.ui.trackaction.LocalTrackMoreClick
 import com.ytlite.player.ui.trackaction.TrackActionContext
 
@@ -34,6 +36,7 @@ fun LibraryNavHost(
     var showAccountSheet by remember { mutableStateOf(false) }
     var showNewPlaylistDialog by remember { mutableStateOf(false) }
     val onTrackMoreClick = LocalTrackMoreClick.current
+    val onPlaylistMoreClick = LocalPlaylistMoreClick.current
 
     LaunchedEffect(uiState.session.ownerKey) {
         viewModel.refreshIfNeeded()
@@ -93,6 +96,11 @@ fun LibraryNavHost(
                 onSongMoreClick = { song ->
                     onTrackMoreClick(TrackActionContext.fromLibraryItemSong(song))
                 },
+                onPlaylistMoreClick = { playlist ->
+                    onPlaylistMoreClick(
+                        PlaylistActionContext.fromLibraryItem(playlist, uiState.session.ownerKey),
+                    )
+                },
                 onFindMusic = onNavigateHomeTab,
                 onNewPlaylist = { showNewPlaylistDialog = true },
                 modifier = modifier,
@@ -123,6 +131,9 @@ fun LibraryNavHost(
                     onTrackMoreClick(
                         TrackActionContext.fromPlaylistTrack(track, playlistId, source),
                     )
+                },
+                onPlaylistMoreClick = { context ->
+                    onPlaylistMoreClick(context)
                 },
                 modifier = modifier,
             )

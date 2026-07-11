@@ -22,6 +22,7 @@ fun LibraryContentView(
     selectedFilter: LibraryFilterChip,
     onItemClick: (LibraryItem) -> Unit,
     onSongMoreClick: (LibraryItem.Song) -> Unit,
+    onPlaylistMoreClick: (LibraryItem.Playlist) -> Unit,
     onFindMusic: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -44,10 +45,10 @@ fun LibraryContentView(
                     LibraryRowItem(
                         item = item,
                         onClick = { onItemClick(item) },
-                        onSongMoreClick = if (item is LibraryItem.Song) {
-                            { onSongMoreClick(item) }
-                        } else {
-                            null
+                        onMoreClick = when (item) {
+                            is LibraryItem.Song -> { { onSongMoreClick(item) } }
+                            is LibraryItem.Playlist -> { { onPlaylistMoreClick(item) } }
+                            else -> null
                         },
                     )
                 }

@@ -30,7 +30,7 @@ import com.ytlite.player.data.model.LibraryItem
 fun LibraryRowItem(
     item: LibraryItem,
     onClick: () -> Unit,
-    onSongMoreClick: (() -> Unit)? = null,
+    onMoreClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -70,8 +70,8 @@ fun LibraryRowItem(
                 )
             }
         }
-        if (onSongMoreClick != null) {
-            IconButton(onClick = onSongMoreClick) {
+        if (onMoreClick != null) {
+            IconButton(onClick = onMoreClick) {
                 Icon(
                     imageVector = Icons.Default.MoreVert,
                     contentDescription = stringResource(R.string.library_song_more),

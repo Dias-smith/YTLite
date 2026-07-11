@@ -341,6 +341,20 @@ class GlobalPlaybackViewModel(
         }
     }
 
+    fun shufflePlayPlaylist(items: List<QueueItem>) {
+        if (items.isEmpty()) return
+        viewModelScope.launch {
+            PlayQueueRepository.setQueue(items, startIndex = 0)
+            if (!PlayQueueRepository.state.value.shuffleEnabled) {
+                PlayQueueRepository.toggleShuffle()
+            }
+            val first = PlayQueueRepository.state.value.currentItem ?: return@launch
+            playQueueItemInternal(first)
+            PlaybackNavigation.requestOpenPlayer(first.videoId)
+            showMiniPlayer.update { true }
+        }
+    }
+
     fun toggleLike(application: Application) {
         val nowPlaying = PlaybackManager.nowPlaying.value ?: return
         val lib = libraryRepository ?: LibraryRepositoryHolder.get(application)
