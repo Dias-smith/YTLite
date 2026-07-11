@@ -67,4 +67,22 @@ interface UserTrackMetadataDao {
         ownerKey: String,
         album: String,
     ): Flow<List<com.ytlite.player.data.local.model.LibrarySongRow>>
+
+    @Query(
+        """
+        SELECT
+            TRIM(m.customAlbum) AS albumName,
+            MAX(COALESCE(u.lastPlayedAt, m.updatedAt, 0)) AS lastActivityAt,
+            MAX(COALESCE(m.updatedAt, 0)) AS savedAt
+        FROM user_track_metadata m
+        LEFT JOIN user_track_last_played u
+            ON u.trackId = m.trackId AND u.ownerKey = :ownerKey
+        WHERE m.ownerKey = :ownerKey
+          AND m.customAlbum IS NOT NULL
+          AND TRIM(m.customAlbum) != ''
+        GROUP BY LOWER(TRIM(m.customAlbum))
+        ORDER BY lastActivityAt DESC
+        """,
+    )
+    fun observeDistinctAlbums(ownerKey: String): Flow<List<com.ytlite.player.data.local.model.LibraryAlbumRow>>
 }

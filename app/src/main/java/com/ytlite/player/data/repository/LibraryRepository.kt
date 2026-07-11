@@ -135,7 +135,7 @@ class LibraryRepository(
         }
         LibraryFilterChip.PLAYLISTS -> playlistDao.observeLocalByOwner(ownerKey)
             .map { playlists ->
-                LibraryItemMapper.sortItems(
+                LibraryItemMapper.orderPlaylistItems(
                     dedupeLocalPlaylistsForDisplay(playlists).map {
                         LibraryItemMapper.playlistItem(it, LibraryItemMapper.playlistSubtitle(it))
                     },
@@ -151,7 +151,12 @@ class LibraryRepository(
         LibraryFilterChip.ARTISTS -> artistDao.observeAll().map { artists ->
             LibraryItemMapper.sortItems(artists.map { LibraryItemMapper.artistItem(it) }, sort)
         }
-        LibraryFilterChip.DOWNLOADS -> flowOf(emptyList())
+        LibraryFilterChip.ALBUMS -> userTrackMetadataDao.observeDistinctAlbums(ownerKey).map { albums ->
+            LibraryItemMapper.sortItems(
+                albums.map { LibraryItemMapper.albumItem(it) },
+                sort,
+            )
+        }
         LibraryFilterChip.YOUTUBE -> if (!isAuthenticated) {
             flowOf(emptyList())
         } else {
@@ -706,7 +711,7 @@ class LibraryRepository(
 
     private fun dedupeLocalPlaylistsForDisplay(playlists: List<PlaylistEntity>): List<PlaylistEntity> {
         val customPlaylists = playlists.filter { it.systemType == null }
-        val systemPlaylists = playlists
+        val systemByType = playlists
             .filter { it.systemType != null }
             .groupBy { it.systemType }
             .mapNotNull { (_, group) ->
@@ -715,7 +720,13 @@ class LibraryRepository(
                         .thenBy { it.updatedAt },
                 )
             }
-        return (systemPlaylists + customPlaylists).sortedByDescending { it.updatedAt }
+            .associateBy { it.systemType!! }
+        return buildList {
+            listOf(PlaylistSystemType.FAVORITES, PlaylistSystemType.WATCH_LATER).forEach { systemType ->
+                systemByType[systemType]?.let(::add)
+            }
+            addAll(customPlaylists.sortedByDescending { it.updatedAt })
+        }
     }
 
     private suspend fun mergePlaylistTracks(fromPlaylistId: String, toPlaylistId: String) {

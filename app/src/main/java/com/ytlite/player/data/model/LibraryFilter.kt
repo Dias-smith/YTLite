@@ -4,7 +4,7 @@ enum class LibraryFilterChip {
     PLAYLISTS,
     SONGS,
     ARTISTS,
-    DOWNLOADS,
+    ALBUMS,
     YOUTUBE,
 }
 

@@ -42,6 +42,18 @@ sealed interface LibraryItem {
     ) : LibraryItem
 
     @Immutable
+    data class Album(
+        override val id: String,
+        override val title: String,
+        override val subtitle: String,
+        override val coverUrl: String?,
+        override val source: DataSource,
+        override val sortKeyActivity: Long,
+        override val sortKeySaved: Long,
+        val albumName: String = title,
+    ) : LibraryItem
+
+    @Immutable
     data class Artist(
         override val id: String,
         override val title: String,

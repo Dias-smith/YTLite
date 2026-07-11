@@ -1,6 +1,7 @@
 package com.ytlite.player.ui.main
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -35,6 +36,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ytlite.player.R
 import com.ytlite.player.data.auth.UserSession
@@ -83,6 +85,14 @@ private enum class MainTab(
         unselectedIcon = Icons.Outlined.VideoLibrary,
     ),
 }
+
+private fun Modifier.mainTabPadding(
+    innerPadding: PaddingValues,
+    applyTopInset: Boolean,
+): Modifier = padding(
+    top = if (applyTopInset) innerPadding.calculateTopPadding() else 0.dp,
+    bottom = innerPadding.calculateBottomPadding(),
+)
 
 @Composable
 fun MainScreen(
@@ -207,7 +217,7 @@ fun MainScreen(
                     onVideoClick = onVideoClick,
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(innerPadding),
+                        .mainTabPadding(innerPadding, applyTopInset = false),
                 )
             }
             showSubscriptionChannels -> {
@@ -216,7 +226,7 @@ fun MainScreen(
                     onChannelClick = { channel -> selectedChannel = channel },
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(innerPadding),
+                        .mainTabPadding(innerPadding, applyTopInset = false),
                 )
             }
             else -> when (selectedTab) {
@@ -224,19 +234,19 @@ fun MainScreen(
                     onVideoClick = onVideoClick,
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(innerPadding),
+                        .mainTabPadding(innerPadding, applyTopInset = true),
                 )
                 MainTab.Shorts -> ShortsScreen(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(innerPadding),
+                        .mainTabPadding(innerPadding, applyTopInset = true),
                 )
                 MainTab.Search -> SearchScreen(
                     onVideoClick = onVideoClick,
                     onChannelClick = { channel -> selectedChannel = channel },
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(innerPadding),
+                        .mainTabPadding(innerPadding, applyTopInset = true),
                 )
                 MainTab.Subscriptions -> SubscriptionsScreen(
                     session = authSession,
@@ -246,7 +256,7 @@ fun MainScreen(
                     onChannelClick = { channel -> selectedChannel = channel },
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(innerPadding),
+                        .mainTabPadding(innerPadding, applyTopInset = true),
                 )
                 MainTab.Library -> LibraryScreen(
                     onVideoClick = onVideoClick,
@@ -257,7 +267,7 @@ fun MainScreen(
                     onPendingAlbumConsumed = onPendingAlbumConsumed,
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(innerPadding),
+                        .mainTabPadding(innerPadding, applyTopInset = false),
                 )
             }
         }

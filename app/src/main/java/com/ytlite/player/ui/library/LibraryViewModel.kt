@@ -32,7 +32,7 @@ class LibraryViewModel(
 ) : ViewModel() {
 
     private val sessionFlow = authRepository.session
-    private val selectedFilter = MutableStateFlow<LibraryFilterChip?>(null)
+    private val selectedFilter = MutableStateFlow(LibraryFilterChip.PLAYLISTS)
     private val sort = MutableStateFlow(LibrarySort.RECENT_ACTIVITY)
     private val viewMode = MutableStateFlow(LibraryViewMode.LIST)
 
@@ -85,12 +85,8 @@ class LibraryViewModel(
         }
     }
 
-    fun selectFilter(chip: LibraryFilterChip?) {
+    fun selectFilter(chip: LibraryFilterChip) {
         selectedFilter.value = chip
-    }
-
-    fun clearFilter() {
-        selectedFilter.value = null
     }
 
     fun toggleSort() {
@@ -121,7 +117,7 @@ class LibraryViewModel(
 
     private data class LibraryQuery(
         val session: UserSession?,
-        val filter: LibraryFilterChip?,
+        val filter: LibraryFilterChip,
         val sort: LibrarySort,
         val mode: LibraryViewMode,
     )

@@ -11,7 +11,7 @@ import com.ytlite.player.data.model.LibraryViewMode
 data class LibraryUiState(
     val session: UserSession = UserSession.Guest(guestId = ""),
     val items: List<LibraryItem> = emptyList(),
-    val selectedFilter: LibraryFilterChip? = null,
+    val selectedFilter: LibraryFilterChip = LibraryFilterChip.PLAYLISTS,
     val sort: LibrarySort = LibrarySort.RECENT_ACTIVITY,
     val viewMode: LibraryViewMode = LibraryViewMode.LIST,
     val visibleChips: List<LibraryFilterChip> = emptyList(),

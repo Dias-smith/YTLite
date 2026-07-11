@@ -19,7 +19,7 @@ import com.ytlite.player.data.model.LibraryViewMode
 fun LibraryContentView(
     items: List<LibraryItem>,
     viewMode: LibraryViewMode,
-    selectedFilter: LibraryFilterChip?,
+    selectedFilter: LibraryFilterChip,
     onItemClick: (LibraryItem) -> Unit,
     onSongMoreClick: (LibraryItem.Song) -> Unit,
     onFindMusic: () -> Unit,

@@ -21,7 +21,7 @@ import com.ytlite.player.data.model.LibraryFilterChip
 
 @Composable
 fun LibraryEmptyState(
-    filter: LibraryFilterChip?,
+    filter: LibraryFilterChip,
     onFindMusic: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -40,7 +40,7 @@ fun LibraryEmptyState(
         Text(
             text = when (filter) {
                 LibraryFilterChip.SONGS -> stringResource(R.string.library_empty_songs)
-                LibraryFilterChip.DOWNLOADS -> stringResource(R.string.library_empty_downloads)
+                LibraryFilterChip.ALBUMS -> stringResource(R.string.library_empty_albums)
                 LibraryFilterChip.YOUTUBE -> stringResource(R.string.library_playlists_youtube_empty)
                 else -> stringResource(R.string.library_empty_default)
             },
@@ -48,7 +48,7 @@ fun LibraryEmptyState(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
         )
-        if (filter == LibraryFilterChip.SONGS || filter == null) {
+        if (filter == LibraryFilterChip.SONGS) {
             Button(onClick = onFindMusic) {
                 Text(text = stringResource(R.string.library_find_music))
             }

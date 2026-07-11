@@ -11,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.ytlite.player.data.local.entity.PlaylistSystemType
 import com.ytlite.player.data.model.DataSource
 import com.ytlite.player.data.model.LibraryItem
 import com.ytlite.player.ui.trackaction.LocalTrackMoreClick
@@ -67,19 +68,23 @@ fun LibraryNavHost(
         LibraryDestination.Home -> {
             LibraryHomeScreen(
                 uiState = uiState,
-                onHistoryClick = { destination = LibraryDestination.History },
                 onProfileClick = { showAccountSheet = true },
                 onFilterSelected = viewModel::selectFilter,
-                onClearFilter = viewModel::clearFilter,
-                onSortClick = viewModel::toggleSort,
                 onToggleViewMode = viewModel::toggleViewMode,
                 onItemClick = { item ->
                     when (item) {
                         is LibraryItem.Playlist -> {
-                            destination = LibraryDestination.Playlist(
-                                playlistId = item.playlistId,
-                                systemType = item.systemType,
-                            )
+                            if (item.systemType == PlaylistSystemType.HISTORY) {
+                                destination = LibraryDestination.History
+                            } else {
+                                destination = LibraryDestination.Playlist(
+                                    playlistId = item.playlistId,
+                                    systemType = item.systemType,
+                                )
+                            }
+                        }
+                        is LibraryItem.Album -> {
+                            destination = LibraryDestination.AlbumTracks(item.albumName)
                         }
                         is LibraryItem.Song -> onVideoClick(item.videoId)
                         is LibraryItem.Artist -> Unit

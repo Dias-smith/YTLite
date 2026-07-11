@@ -100,7 +100,7 @@
     <string name="library_chip_playlists">播放列表</string>
     <string name="library_chip_songs">歌曲</string>
     <string name="library_chip_artists">艺术家</string>
-    <string name="library_chip_downloads">下载</string>
+    <string name="library_chip_albums">专辑</string>
     <string name="library_chip_youtube">YouTube</string>
     <string name="library_clear_filter">清除筛选</string>
     <string name="library_sort_recent_activity">最近活动</string>
@@ -112,7 +112,7 @@
     <string name="library_new_playlist_create">创建</string>
     <string name="library_cancel">取消</string>
     <string name="library_empty_songs">库中还没有歌曲</string>
-    <string name="library_empty_downloads">暂无下载</string>
+    <string name="library_empty_albums">暂无专辑</string>
     <string name="library_empty_default">这里还没有内容</string>
     <string name="library_find_music">发现音乐</string>
     <string name="library_song_more">更多选项</string>

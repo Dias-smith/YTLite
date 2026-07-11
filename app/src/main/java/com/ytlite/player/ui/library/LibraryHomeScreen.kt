@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material.icons.filled.History
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -27,11 +26,8 @@ import com.ytlite.player.data.model.LibraryItem
 @Composable
 fun LibraryHomeScreen(
     uiState: LibraryUiState,
-    onHistoryClick: () -> Unit,
     onProfileClick: () -> Unit,
     onFilterSelected: (LibraryFilterChip) -> Unit,
-    onClearFilter: () -> Unit,
-    onSortClick: () -> Unit,
     onToggleViewMode: () -> Unit,
     onItemClick: (LibraryItem) -> Unit,
     onSongMoreClick: (LibraryItem.Song) -> Unit,
@@ -45,12 +41,6 @@ fun LibraryHomeScreen(
             TopAppBar(
                 title = { Text(text = stringResource(R.string.nav_library)) },
                 actions = {
-                    IconButton(onClick = onHistoryClick) {
-                        Icon(
-                            imageVector = Icons.Default.History,
-                            contentDescription = stringResource(R.string.library_history),
-                        )
-                    }
                     IconButton(onClick = onProfileClick) {
                         Icon(
                             imageVector = Icons.Default.AccountCircle,
@@ -75,12 +65,7 @@ fun LibraryHomeScreen(
                 visibleChips = uiState.visibleChips,
                 selectedFilter = uiState.selectedFilter,
                 onChipSelected = onFilterSelected,
-                onClearFilter = onClearFilter,
-            )
-            LibraryControlBar(
-                sort = uiState.sort,
                 viewMode = uiState.viewMode,
-                onSortClick = onSortClick,
                 onToggleViewMode = onToggleViewMode,
             )
             LibraryContentView(

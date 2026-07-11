@@ -4,6 +4,7 @@ import com.ytlite.player.data.auth.UserSession
 import com.ytlite.player.data.local.entity.ArtistEntity
 import com.ytlite.player.data.local.entity.PlaylistEntity
 import com.ytlite.player.data.local.entity.PlaylistSystemType
+import com.ytlite.player.data.local.model.LibraryAlbumRow
 import com.ytlite.player.data.local.model.LibrarySongRow
 import com.ytlite.player.data.model.DataSource
 import com.ytlite.player.data.model.LibraryFilterChip
@@ -78,6 +79,18 @@ internal object LibraryItemMapper {
             sortKeySaved = 0L,
         )
 
+    fun albumItem(row: LibraryAlbumRow): LibraryItem.Album =
+        LibraryItem.Album(
+            id = row.albumName.lowercase(),
+            albumName = row.albumName,
+            title = row.albumName,
+            subtitle = "Album",
+            coverUrl = null,
+            source = DataSource.LOCAL,
+            sortKeyActivity = row.lastActivityAt,
+            sortKeySaved = row.savedAt,
+        )
+
     fun mergeLocalMixed(
         playlists: List<LibraryItem.Playlist>,
         songs: List<LibraryItem.Song>,
@@ -98,12 +111,79 @@ internal object LibraryItemMapper {
             LibrarySort.RECENTLY_SAVED -> items.sortedByDescending { it.sortKeySaved }
         }
 
+    private val pinnedSystemPlaylistTypes = listOf(
+        PlaylistSystemType.FAVORITES,
+        PlaylistSystemType.WATCH_LATER,
+    )
+
+    fun orderPlaylistItems(
+        items: List<LibraryItem.Playlist>,
+        sort: LibrarySort,
+    ): List<LibraryItem> {
+        val bySystemType = items
+            .filter { it.systemType != null }
+            .associateBy { it.systemType!! }
+        val pinned = buildList {
+            pinnedSystemPlaylistTypes.forEach { systemType ->
+                add(bySystemType[systemType] ?: syntheticSystemPlaylist(systemType))
+            }
+            add(historyPlaylistItem())
+        }
+        val customPlaylists = items.filter { it.systemType == null }
+        return pinned + sortItems(customPlaylists, sort)
+    }
+
+    fun historyPlaylistItem(): LibraryItem.Playlist = LibraryItem.Playlist(
+        id = "system:history",
+        playlistId = "system:history",
+        title = "History",
+        subtitle = systemPlaylistSubtitle(PlaylistSystemType.HISTORY),
+        coverUrl = null,
+        source = DataSource.LOCAL,
+        sortKeyActivity = Long.MAX_VALUE,
+        sortKeySaved = Long.MAX_VALUE,
+        systemType = PlaylistSystemType.HISTORY,
+    )
+
+    private fun syntheticSystemPlaylist(systemType: String): LibraryItem.Playlist {
+        val id = when (systemType) {
+            PlaylistSystemType.FAVORITES -> "system:favorites"
+            PlaylistSystemType.WATCH_LATER -> "system:watch_later"
+            else -> "system:$systemType"
+        }
+        return LibraryItem.Playlist(
+            id = id,
+            playlistId = id,
+            title = systemPlaylistTitle(systemType),
+            subtitle = systemPlaylistSubtitle(systemType),
+            coverUrl = null,
+            source = DataSource.LOCAL,
+            sortKeyActivity = Long.MAX_VALUE,
+            sortKeySaved = Long.MAX_VALUE,
+            systemType = systemType,
+        )
+    }
+
+    private fun systemPlaylistTitle(systemType: String): String = when (systemType) {
+        PlaylistSystemType.WATCH_LATER -> "Watch later"
+        PlaylistSystemType.FAVORITES -> "Liked videos"
+        PlaylistSystemType.HISTORY -> "History"
+        else -> systemType
+    }
+
+    private fun systemPlaylistSubtitle(systemType: String): String = when (systemType) {
+        PlaylistSystemType.FAVORITES -> "System · Liked"
+        PlaylistSystemType.WATCH_LATER -> "System · Watch later"
+        PlaylistSystemType.HISTORY -> "System · History"
+        else -> "System · Playlist"
+    }
+
     fun visibleChips(session: UserSession): List<LibraryFilterChip> =
         buildList {
             add(LibraryFilterChip.PLAYLISTS)
             add(LibraryFilterChip.SONGS)
             add(LibraryFilterChip.ARTISTS)
-            add(LibraryFilterChip.DOWNLOADS)
+            add(LibraryFilterChip.ALBUMS)
             if (session is UserSession.Authenticated) {
                 add(LibraryFilterChip.YOUTUBE)
             }

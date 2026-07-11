@@ -126,7 +126,7 @@
     <string name="library_chip_playlists">Playlists</string>
     <string name="library_chip_songs">Songs</string>
     <string name="library_chip_artists">Artists</string>
-    <string name="library_chip_downloads">Downloads</string>
+    <string name="library_chip_albums">Albums</string>
     <string name="library_chip_youtube">YouTube</string>
     <string name="library_clear_filter">Clear filter</string>
     <string name="library_sort_recent_activity">Recent activity</string>
@@ -138,7 +138,7 @@
     <string name="library_new_playlist_create">Create</string>
     <string name="library_cancel">Cancel</string>
     <string name="library_empty_songs">No songs in your library yet</string>
-    <string name="library_empty_downloads">No downloads yet</string>
+    <string name="library_empty_albums">No albums yet</string>
     <string name="library_empty_default">Nothing here yet</string>
     <string name="library_find_music">Find music</string>
     <string name="library_song_more">More options</string>

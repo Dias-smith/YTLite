@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Album
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.PlaylistPlay
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.ThumbUp
@@ -41,6 +43,21 @@ fun LibraryPlaylistThumbnail(
                     systemType = item.systemType,
                     modifier = modifier,
                     iconSize = iconSize,
+                )
+            }
+        }
+        is LibraryItem.Album -> {
+            Box(
+                modifier = modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(MaterialTheme.colorScheme.tertiaryContainer),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Album,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onTertiaryContainer,
+                    modifier = Modifier.size(iconSize),
                 )
             }
         }
@@ -98,6 +115,21 @@ fun SystemPlaylistIcon(
                 )
             }
         }
+        PlaylistSystemType.HISTORY -> {
+            Box(
+                modifier = modifier
+                    .clip(shape)
+                    .background(MaterialTheme.colorScheme.secondaryContainer),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Default.History,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                    modifier = Modifier.size(iconSize),
+                )
+            }
+        }
         else -> {
             Box(
                 modifier = modifier
@@ -119,5 +151,6 @@ fun SystemPlaylistIcon(
 private fun playlistIcon(systemType: String?): ImageVector = when (systemType) {
     PlaylistSystemType.WATCH_LATER -> Icons.Default.Schedule
     PlaylistSystemType.FAVORITES -> Icons.Default.ThumbUp
+    PlaylistSystemType.HISTORY -> Icons.Default.History
     else -> Icons.Default.PlaylistPlay
 }
