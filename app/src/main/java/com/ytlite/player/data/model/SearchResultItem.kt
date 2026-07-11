@@ -17,6 +17,7 @@ sealed interface SearchResultItem {
         override val subtitle: String,
         override val thumbnailUrl: String?,
         val channelName: String = "",
+        val channelId: String? = null,
         val viewCountText: String? = null,
     ) : SearchResultItem
 

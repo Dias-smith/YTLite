@@ -66,6 +66,18 @@ data class PlaybackHistoryDto(
 )
 
 @Serializable
+data class UserTrackMetadataDto(
+    @SerialName("user_id") val userId: String,
+    @SerialName("track_id") val trackId: String,
+    @SerialName("custom_title") val customTitle: String? = null,
+    @SerialName("custom_artist_name") val customArtistName: String? = null,
+    @SerialName("custom_thumbnail_url") val customThumbnailUrl: String? = null,
+    @SerialName("custom_album") val customAlbum: String? = null,
+    @SerialName("custom_year") val customYear: String? = null,
+    @SerialName("updated_at") val updatedAt: String,
+)
+
+@Serializable
 data class UserTrackLastPlayedDto(
     @SerialName("user_id") val userId: String,
     @SerialName("track_id") val trackId: String,

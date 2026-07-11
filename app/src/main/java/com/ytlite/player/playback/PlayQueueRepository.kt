@@ -221,6 +221,41 @@ object PlayQueueRepository {
         originalOrder = null
     }
 
+    fun updateItemMetadata(
+        videoId: String,
+        title: String,
+        channelName: String,
+        thumbnailUrl: String,
+        album: String? = null,
+        year: String? = null,
+    ) {
+        _state.update { state ->
+            val updated = state.items.map { item ->
+                if (item.videoId != videoId) item else {
+                    item.copy(
+                        title = title,
+                        channelName = channelName,
+                        thumbnailUrl = thumbnailUrl,
+                        album = album,
+                        year = year,
+                    )
+                }
+            }
+            originalOrder = originalOrder?.map { item ->
+                if (item.videoId != videoId) item else {
+                    item.copy(
+                        title = title,
+                        channelName = channelName,
+                        thumbnailUrl = thumbnailUrl,
+                        album = album,
+                        year = year,
+                    )
+                }
+            }
+            state.copy(items = updated)
+        }
+    }
+
     private fun insertShuffled(existing: List<QueueItem>, newItems: List<QueueItem>): List<QueueItem> {
         val mutable = existing.toMutableList()
         newItems.shuffled(Random.Default).forEach { item ->

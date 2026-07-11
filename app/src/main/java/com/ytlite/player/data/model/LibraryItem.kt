@@ -36,6 +36,9 @@ sealed interface LibraryItem {
         override val sortKeySaved: Long,
         val videoId: String = id,
         val channelId: String? = null,
+        val artistName: String = "",
+        val album: String? = null,
+        val year: String? = null,
     ) : LibraryItem
 
     @Immutable

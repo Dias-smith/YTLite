@@ -31,13 +31,26 @@ internal object LibraryItemMapper {
             id = row.trackId,
             videoId = row.trackId,
             title = row.title,
-            subtitle = row.primaryArtistName.orEmpty(),
+            subtitle = formatSongSubtitle(row.primaryArtistName, row.album, row.year),
             coverUrl = row.thumbnailUrl.takeIf { it.isNotBlank() },
             source = DataSource.LOCAL,
             sortKeyActivity = row.lastActivityAt,
             sortKeySaved = row.savedAt,
             channelId = row.primaryArtistId,
+            artistName = row.primaryArtistName.orEmpty(),
+            album = row.album,
+            year = row.year,
         )
+
+    fun formatSongSubtitle(
+        artist: String?,
+        album: String?,
+        year: String?,
+    ): String = listOfNotNull(
+        artist?.takeIf { it.isNotBlank() },
+        album?.takeIf { it.isNotBlank() },
+        year?.takeIf { it.isNotBlank() },
+    ).joinToString(" · ")
 
     fun songFromVideo(video: LibraryVideo): LibraryItem.Song =
         LibraryItem.Song(
@@ -50,6 +63,7 @@ internal object LibraryItemMapper {
             sortKeyActivity = video.watchedAt,
             sortKeySaved = video.watchedAt,
             channelId = video.channelId,
+            artistName = video.channelName,
         )
 
     fun artistItem(artist: ArtistEntity): LibraryItem.Artist =

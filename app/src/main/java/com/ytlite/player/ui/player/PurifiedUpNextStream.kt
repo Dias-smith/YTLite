@@ -8,6 +8,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -22,7 +26,10 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.ytlite.player.R
+import com.ytlite.player.ui.trackaction.TrackActionSource
 import com.ytlite.player.data.model.VideoItem
+import com.ytlite.player.ui.trackaction.LocalTrackMoreClick
+import com.ytlite.player.ui.trackaction.TrackActionContext
 
 @Composable
 fun PurifiedUpNextItem(
@@ -31,6 +38,7 @@ fun PurifiedUpNextItem(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
+    val onTrackMoreClick = LocalTrackMoreClick.current
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -65,6 +73,13 @@ fun PurifiedUpNextItem(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
+        }
+        IconButton(onClick = {
+            onTrackMoreClick(
+                TrackActionContext.fromVideoItem(item, TrackActionSource.PLAYER_UP_NEXT),
+            )
+        }) {
+            Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.library_song_more))
         }
     }
 }

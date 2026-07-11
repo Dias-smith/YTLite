@@ -31,7 +31,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import com.ytlite.player.R
+import com.ytlite.player.ui.trackaction.LocalTrackMoreClick
+import com.ytlite.player.ui.trackaction.TrackActionContext
 import com.ytlite.player.data.model.SearchResultItem
 import com.ytlite.player.data.model.SearchResultTab
 import com.ytlite.player.ui.library.LibraryImage
@@ -135,12 +141,14 @@ private fun VideoResultRow(
     item: SearchResultItem.Video,
     onClick: (String) -> Unit,
 ) {
+    val onTrackMoreClick = LocalTrackMoreClick.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick(item.videoId) }
             .padding(horizontal = 16.dp, vertical = 10.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         LibraryImage(
             model = item.thumbnailUrl,
@@ -158,6 +166,9 @@ private fun VideoResultRow(
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
+        }
+        IconButton(onClick = { onTrackMoreClick(TrackActionContext.fromSearchVideo(item)) }) {
+            Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.library_song_more))
         }
     }
 }

@@ -55,16 +55,19 @@ interface PlaylistTrackDao {
         """
         SELECT
             t.trackId AS trackId,
-            t.title AS title,
-            t.primaryArtistName AS primaryArtistName,
+            COALESCE(m.customTitle, t.title) AS title,
+            COALESCE(m.customArtistName, t.primaryArtistName) AS primaryArtistName,
             t.primaryArtistId AS primaryArtistId,
-            COALESCE(t.thumbnailHigh, t.thumbnailMedium, t.thumbnailLow, '') AS thumbnailUrl,
+            COALESCE(m.customThumbnailUrl, t.thumbnailHigh, t.thumbnailMedium, t.thumbnailLow, '') AS thumbnailUrl,
+            m.customAlbum AS album,
+            m.customYear AS year,
             MAX(COALESCE(u.lastPlayedAt, p.createdAt)) AS lastActivityAt,
             MAX(p.createdAt) AS savedAt
         FROM playlist_track_cross_ref p
         INNER JOIN playlists pl ON pl.playlistId = p.playlistId
         INNER JOIN tracks t ON t.trackId = p.trackId
         LEFT JOIN user_track_last_played u ON u.trackId = t.trackId AND u.ownerKey = :ownerKey
+        LEFT JOIN user_track_metadata m ON m.ownerKey = :ownerKey AND m.trackId = t.trackId
         WHERE pl.ownerKey = :ownerKey AND pl.source = :localSource
         GROUP BY t.trackId
         ORDER BY lastActivityAt DESC
@@ -79,16 +82,20 @@ interface PlaylistTrackDao {
         """
         SELECT
             t.trackId AS trackId,
-            t.title AS title,
-            t.primaryArtistName AS primaryArtistName,
+            COALESCE(m.customTitle, t.title) AS title,
+            COALESCE(m.customArtistName, t.primaryArtistName) AS primaryArtistName,
             t.primaryArtistId AS primaryArtistId,
-            COALESCE(t.thumbnailHigh, t.thumbnailMedium, t.thumbnailLow, '') AS thumbnailUrl,
+            COALESCE(m.customThumbnailUrl, t.thumbnailHigh, t.thumbnailMedium, t.thumbnailLow, '') AS thumbnailUrl,
+            m.customAlbum AS album,
+            m.customYear AS year,
             t.durationSeconds AS durationSeconds,
             t.durationText AS durationText,
             p.position AS position,
             p.createdAt AS addedAt
         FROM playlist_track_cross_ref p
         INNER JOIN tracks t ON t.trackId = p.trackId
+        INNER JOIN playlists pl ON pl.playlistId = p.playlistId
+        LEFT JOIN user_track_metadata m ON m.ownerKey = pl.ownerKey AND m.trackId = t.trackId
         WHERE p.playlistId = :playlistId
         ORDER BY p.position ASC
         """,

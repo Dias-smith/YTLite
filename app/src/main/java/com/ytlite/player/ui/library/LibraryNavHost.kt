@@ -11,7 +11,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.ytlite.player.data.model.DataSource
 import com.ytlite.player.data.model.LibraryItem
+import com.ytlite.player.ui.trackaction.LocalTrackMoreClick
+import com.ytlite.player.ui.trackaction.TrackActionContext
 
 @Composable
 fun LibraryNavHost(
@@ -19,6 +22,8 @@ fun LibraryNavHost(
     onSignInClick: () -> Unit,
     onSignOutClick: () -> Unit,
     onNavigateHomeTab: () -> Unit,
+    pendingAlbumName: String? = null,
+    onPendingAlbumConsumed: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val application = LocalContext.current.applicationContext as Application
@@ -27,10 +32,17 @@ fun LibraryNavHost(
     var destination by remember { mutableStateOf<LibraryDestination>(LibraryDestination.Home) }
     var showAccountSheet by remember { mutableStateOf(false) }
     var showNewPlaylistDialog by remember { mutableStateOf(false) }
-    var songActionContext by remember { mutableStateOf<SongActionContext?>(null) }
+    val onTrackMoreClick = LocalTrackMoreClick.current
 
     LaunchedEffect(uiState.session.ownerKey) {
         viewModel.refreshIfNeeded()
+    }
+
+    LaunchedEffect(pendingAlbumName) {
+        pendingAlbumName?.let { album ->
+            destination = LibraryDestination.AlbumTracks(album)
+            onPendingAlbumConsumed()
+        }
     }
 
     AccountSwitcherSheet(
@@ -48,14 +60,6 @@ fun LibraryNavHost(
                 viewModel.createPlaylist(name)
                 showNewPlaylistDialog = false
             },
-        )
-    }
-
-    songActionContext?.let { context ->
-        SongActionBottomSheet(
-            context = context,
-            onDismiss = { songActionContext = null },
-            onVideoClick = onVideoClick,
         )
     }
 
@@ -81,6 +85,9 @@ fun LibraryNavHost(
                         is LibraryItem.Artist -> Unit
                     }
                 },
+                onSongMoreClick = { song ->
+                    onTrackMoreClick(TrackActionContext.fromLibraryItemSong(song))
+                },
                 onFindMusic = onNavigateHomeTab,
                 onNewPlaylist = { showNewPlaylistDialog = true },
                 modifier = modifier,
@@ -92,13 +99,8 @@ fun LibraryNavHost(
                 onBack = { destination = LibraryDestination.Home },
                 onVideoClick = onVideoClick,
                 onSongMoreClick = { video, playlistId, source ->
-                    songActionContext = SongActionContext(
-                        videoId = video.videoId,
-                        title = video.title,
-                        channelName = video.channelName,
-                        thumbnailUrl = video.thumbnailUrl,
-                        playlistId = playlistId,
-                        playlistSource = source,
+                    onTrackMoreClick(
+                        TrackActionContext.fromLibraryVideo(video, playlistId, source),
                     )
                 },
                 modifier = modifier,
@@ -113,26 +115,21 @@ fun LibraryNavHost(
                 onVideoClick = onVideoClick,
                 onCloneYoutubePlaylist = { viewModel.cloneYoutubePlaylistToLocal(current.playlistId) },
                 onSongMoreClick = { track, playlistId, source ->
-                    songActionContext = SongActionContext(
-                        videoId = track.trackId,
-                        title = track.title,
-                        channelName = track.primaryArtistName.orEmpty(),
-                        thumbnailUrl = track.thumbnailUrl,
-                        playlistId = playlistId,
-                        playlistSource = source,
+                    onTrackMoreClick(
+                        TrackActionContext.fromPlaylistTrack(track, playlistId, source),
                     )
                 },
                 modifier = modifier,
             )
         }
+        is LibraryDestination.AlbumTracks -> {
+            AlbumTracksScreen(
+                albumName = current.albumName,
+                ownerKey = uiState.session.ownerKey,
+                onBack = { destination = LibraryDestination.Home },
+                onVideoClick = onVideoClick,
+                modifier = modifier,
+            )
+        }
     }
 }
-
-data class SongActionContext(
-    val videoId: String,
-    val title: String,
-    val channelName: String,
-    val thumbnailUrl: String,
-    val playlistId: String?,
-    val playlistSource: com.ytlite.player.data.model.DataSource,
-)

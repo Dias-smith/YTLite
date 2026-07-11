@@ -14,10 +14,12 @@ interface UserTrackLastPlayedDao {
         """
         SELECT
             t.trackId AS trackId,
-            t.title AS title,
-            t.primaryArtistName AS primaryArtistName,
+            COALESCE(m.customTitle, t.title) AS title,
+            COALESCE(m.customArtistName, t.primaryArtistName) AS primaryArtistName,
             t.primaryArtistId AS primaryArtistId,
-            COALESCE(t.thumbnailHigh, t.thumbnailMedium, t.thumbnailLow, '') AS thumbnailUrl,
+            COALESCE(m.customThumbnailUrl, t.thumbnailHigh, t.thumbnailMedium, t.thumbnailLow, '') AS thumbnailUrl,
+            m.customAlbum AS album,
+            m.customYear AS year,
             t.durationText AS durationText,
             t.viewCountText AS viewCountText,
             t.publishedText AS publishedText,
@@ -25,6 +27,7 @@ interface UserTrackLastPlayedDao {
             u.progressMs AS progressMs
         FROM user_track_last_played u
         INNER JOIN tracks t ON t.trackId = u.trackId
+        LEFT JOIN user_track_metadata m ON m.ownerKey = :ownerKey AND m.trackId = t.trackId
         WHERE u.ownerKey = :ownerKey
         ORDER BY u.lastPlayedAt DESC
         LIMIT :limit
@@ -36,10 +39,12 @@ interface UserTrackLastPlayedDao {
         """
         SELECT
             t.trackId AS trackId,
-            t.title AS title,
-            t.primaryArtistName AS primaryArtistName,
+            COALESCE(m.customTitle, t.title) AS title,
+            COALESCE(m.customArtistName, t.primaryArtistName) AS primaryArtistName,
             t.primaryArtistId AS primaryArtistId,
-            COALESCE(t.thumbnailHigh, t.thumbnailMedium, t.thumbnailLow, '') AS thumbnailUrl,
+            COALESCE(m.customThumbnailUrl, t.thumbnailHigh, t.thumbnailMedium, t.thumbnailLow, '') AS thumbnailUrl,
+            m.customAlbum AS album,
+            m.customYear AS year,
             t.durationText AS durationText,
             t.viewCountText AS viewCountText,
             t.publishedText AS publishedText,
@@ -47,6 +52,7 @@ interface UserTrackLastPlayedDao {
             u.progressMs AS progressMs
         FROM user_track_last_played u
         INNER JOIN tracks t ON t.trackId = u.trackId
+        LEFT JOIN user_track_metadata m ON m.ownerKey = :ownerKey AND m.trackId = t.trackId
         WHERE u.ownerKey = :ownerKey
         ORDER BY u.lastPlayedAt DESC
         """,

@@ -35,14 +35,16 @@ class PlaybackHistoryRepository(
         if (!channelId.isNullOrBlank() && !channelName.isNullOrBlank()) {
             artistDao.upsert(ArtistEntity(artistId = channelId, name = channelName))
         }
+        val existing = trackDao.getById(trackId)
         trackDao.upsert(
-            TrackEntity(
+            mergeCanonicalTrack(
+                existing = existing,
                 trackId = trackId,
                 title = title,
                 durationSeconds = durationSeconds,
-                thumbnailHigh = thumbnailUrl,
-                primaryArtistId = channelId,
-                primaryArtistName = channelName,
+                thumbnailUrl = thumbnailUrl,
+                channelId = channelId,
+                channelName = channelName,
             ),
         )
         val historyId = UUID.randomUUID().toString()
@@ -100,6 +102,30 @@ class PlaybackHistoryRepository(
             ),
         )
     }
+
+    private fun mergeCanonicalTrack(
+        existing: TrackEntity?,
+        trackId: String,
+        title: String,
+        durationSeconds: Int,
+        thumbnailUrl: String,
+        channelId: String?,
+        channelName: String?,
+    ): TrackEntity = TrackEntity(
+        trackId = trackId,
+        title = title.takeIf { it.isNotBlank() } ?: existing?.title.orEmpty(),
+        durationSeconds = durationSeconds.takeIf { it > 0 } ?: existing?.durationSeconds ?: 0,
+        durationText = existing?.durationText,
+        thumbnailLow = existing?.thumbnailLow,
+        thumbnailMedium = existing?.thumbnailMedium,
+        thumbnailHigh = thumbnailUrl.takeIf { it.isNotBlank() }
+            ?: existing?.thumbnailHigh,
+        viewCount = existing?.viewCount ?: 0L,
+        viewCountText = existing?.viewCountText,
+        publishedText = existing?.publishedText,
+        primaryArtistId = channelId?.takeIf { it.isNotBlank() } ?: existing?.primaryArtistId,
+        primaryArtistName = channelName?.takeIf { it.isNotBlank() } ?: existing?.primaryArtistName,
+    )
 
     private suspend fun syncToRemote(
         userId: String,

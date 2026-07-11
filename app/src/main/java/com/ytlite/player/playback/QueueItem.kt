@@ -12,21 +12,23 @@ data class QueueItem(
     val durationText: String? = null,
     val viewCountText: String? = null,
     val publishedTimeText: String? = null,
+    val album: String? = null,
+    val year: String? = null,
 ) {
-    fun subtitleLine(): String = listOfNotNull(
-        channelName.takeIf { it.isNotBlank() },
-        viewCountText?.takeIf { it.isNotBlank() },
-        publishedTimeText?.takeIf { it.isNotBlank() },
-    ).joinToString(" · ")
+    fun subtitleLine(): String = com.ytlite.player.data.repository.LibraryItemMapper.formatSongSubtitle(
+        artist = channelName,
+        album = album,
+        year = year,
+    ).ifBlank {
+        listOfNotNull(
+            channelName.takeIf { it.isNotBlank() },
+            viewCountText?.takeIf { it.isNotBlank() },
+            publishedTimeText?.takeIf { it.isNotBlank() },
+        ).joinToString(" · ")
+    }
 
-    fun toSongActionContext() = com.ytlite.player.ui.library.SongActionContext(
-        videoId = videoId,
-        title = title,
-        channelName = channelName,
-        thumbnailUrl = thumbnailUrl,
-        playlistId = null,
-        playlistSource = com.ytlite.player.data.model.DataSource.LOCAL,
-    )
+    fun toTrackActionContext(showRemoveFromQueue: Boolean = false) =
+        com.ytlite.player.ui.trackaction.TrackActionContext.fromQueueItem(this, showRemoveFromQueue)
     fun toNowPlaying(streamUrl: String): NowPlaying = NowPlaying(
         videoId = videoId,
         title = title,

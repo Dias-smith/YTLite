@@ -7,6 +7,7 @@ import com.ytlite.player.data.local.entity.PlaylistEntity
 import com.ytlite.player.data.local.entity.PlaylistTrackEntity
 import com.ytlite.player.data.local.entity.TrackEntity
 import com.ytlite.player.data.local.entity.UserTrackLastPlayedEntity
+import com.ytlite.player.data.local.entity.UserTrackMetadataEntity
 import com.ytlite.player.data.remote.dto.ArtistDto
 import com.ytlite.player.data.remote.dto.PlaybackHistoryDto
 import com.ytlite.player.data.remote.dto.PlaylistDto
@@ -14,6 +15,7 @@ import com.ytlite.player.data.remote.dto.PlaylistTrackDto
 import com.ytlite.player.data.remote.dto.ProfileDto
 import com.ytlite.player.data.remote.dto.TrackDto
 import com.ytlite.player.data.remote.dto.UserTrackLastPlayedDto
+import com.ytlite.player.data.remote.dto.UserTrackMetadataDto
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Order
@@ -153,6 +155,34 @@ class SupabaseLibraryRemote(
         }.getOrDefault(emptyList())
     }
 
+    suspend fun upsertUserTrackMetadata(userId: String, entity: UserTrackMetadataEntity) =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                client.postgrest["user_track_metadata"].upsert(entity.toDto(userId))
+            }
+        }
+
+    suspend fun pullUserTrackMetadata(userId: String): List<UserTrackMetadataDto> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                client.postgrest["user_track_metadata"]
+                    .select { filter { eq("user_id", userId) } }
+                    .decodeList<UserTrackMetadataDto>()
+            }.getOrDefault(emptyList())
+        }
+
+    suspend fun deleteUserTrackMetadata(userId: String, trackId: String) =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                client.postgrest["user_track_metadata"].delete {
+                    filter {
+                        eq("user_id", userId)
+                        eq("track_id", trackId)
+                    }
+                }
+            }
+        }
+
     private fun ProfileDto.toUserProfile() = UserProfile(
         userId = id,
         displayName = displayName.ifBlank { "User" },
@@ -218,4 +248,30 @@ class SupabaseLibraryRemote(
         progressMs = progressMs,
         isSynced = true,
     )
+
+    private fun UserTrackMetadataEntity.toDto(userId: String) = UserTrackMetadataDto(
+        userId = userId,
+        trackId = trackId,
+        customTitle = customTitle,
+        customArtistName = customArtistName,
+        customThumbnailUrl = customThumbnailUrl,
+        customAlbum = customAlbum,
+        customYear = customYear,
+        updatedAt = Instant.ofEpochMilli(updatedAt).toString(),
+    )
 }
+
+fun UserTrackMetadataDto.updatedAtMillis(): Long =
+    runCatching { Instant.parse(updatedAt).toEpochMilli() }.getOrDefault(0L)
+
+fun UserTrackMetadataDto.toEntity(ownerKey: String) = UserTrackMetadataEntity(
+    ownerKey = ownerKey,
+    trackId = trackId,
+    customTitle = customTitle,
+    customArtistName = customArtistName,
+    customThumbnailUrl = customThumbnailUrl,
+    customAlbum = customAlbum,
+    customYear = customYear,
+    updatedAt = updatedAtMillis(),
+    isSynced = true,
+)

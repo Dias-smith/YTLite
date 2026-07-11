@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -22,8 +23,18 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import coil.ImageLoader
+import androidx.compose.foundation.layout.Row
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.ui.res.stringResource
+import com.ytlite.player.R
 import com.ytlite.player.data.model.VideoItem
 import com.ytlite.player.ui.image.thumbnailRequest
+import com.ytlite.player.ui.trackaction.TrackActionSource
+import com.ytlite.player.ui.trackaction.LocalTrackMoreClick
+import com.ytlite.player.ui.trackaction.TrackActionContext
 
 @Composable
 fun VideoFeedItem(
@@ -31,7 +42,13 @@ fun VideoFeedItem(
     imageLoader: ImageLoader,
     modifier: Modifier = Modifier,
     onClick: () -> Unit = {},
+    onMoreClick: (() -> Unit)? = null,
 ) {
+    val defaultMoreClick = LocalTrackMoreClick.current
+    val moreHandler = onMoreClick ?: {
+        defaultMoreClick(TrackActionContext.fromVideoItem(video, TrackActionSource.FEED))
+    }
+
     Card(
         onClick = onClick,
         modifier = modifier.fillMaxWidth(),
@@ -75,19 +92,35 @@ fun VideoFeedItem(
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                Text(
-                    text = video.title,
-                    style = MaterialTheme.typography.titleSmall,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    text = video.channelName,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.Top,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = video.title,
+                            style = MaterialTheme.typography.titleSmall,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        Text(
+                            text = video.channelName,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                    IconButton(
+                        onClick = moreHandler,
+                        modifier = Modifier.size(36.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.MoreVert,
+                            contentDescription = stringResource(R.string.library_song_more),
+                        )
+                    }
+                }
                 val meta = buildMetaLine(video)
                 if (meta.isNotBlank()) {
                     Text(

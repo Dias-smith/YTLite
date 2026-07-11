@@ -133,6 +133,7 @@ object SearchResultParser {
             ?: ""
         val viewCount = extractText(renderer.optJSONObject("shortViewCountText"))
             ?: extractText(renderer.optJSONObject("viewCountText"))
+        val channelId = extractChannelId(renderer)
         return SearchResultItem.Video(
             id = videoId,
             videoId = videoId,
@@ -140,6 +141,7 @@ object SearchResultParser {
             subtitle = listOfNotNull(channelName, viewCount).joinToString(" · ").ifBlank { channelName },
             thumbnailUrl = pickThumbnailUrl(renderer.optJSONObject("thumbnail")),
             channelName = channelName,
+            channelId = channelId,
             viewCountText = viewCount,
         )
     }
@@ -177,6 +179,21 @@ object SearchResultParser {
             thumbnailUrl = pickThumbnailUrl(renderer.optJSONObject("thumbnail")),
             videoCountText = videoCount,
         )
+    }
+
+    private fun extractChannelId(renderer: JSONObject): String? {
+        renderer.optString("channelId").takeIf { it.isNotBlank() }?.let { return it }
+        val runs = renderer.optJSONObject("ownerText")?.optJSONArray("runs")
+            ?: renderer.optJSONObject("shortBylineText")?.optJSONArray("runs")
+            ?: renderer.optJSONObject("longBylineText")?.optJSONArray("runs")
+        if (runs != null) {
+            for (index in 0 until runs.length()) {
+                val browseId = runs.optJSONObject(index)?.optJSONObject("navigationEndpoint")
+                    ?.optJSONObject("browseEndpoint")?.optString("browseId")?.takeIf { it.isNotBlank() }
+                if (browseId != null) return browseId
+            }
+        }
+        return null
     }
 
     private fun pickThumbnailUrl(thumbnail: JSONObject?): String? {

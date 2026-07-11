@@ -13,6 +13,7 @@ import com.ytlite.player.data.local.dao.SearchQueryDao
 import com.ytlite.player.data.local.dao.SearchRecentClickDao
 import com.ytlite.player.data.local.dao.TrackDao
 import com.ytlite.player.data.local.dao.UserTrackLastPlayedDao
+import com.ytlite.player.data.local.dao.UserTrackMetadataDao
 import com.ytlite.player.data.local.entity.ArtistEntity
 import com.ytlite.player.data.local.entity.NotInterestedEntity
 import com.ytlite.player.data.local.entity.PlaybackHistoryEntity
@@ -22,6 +23,7 @@ import com.ytlite.player.data.local.entity.SearchQueryEntity
 import com.ytlite.player.data.local.entity.SearchRecentClickEntity
 import com.ytlite.player.data.local.entity.TrackEntity
 import com.ytlite.player.data.local.entity.UserTrackLastPlayedEntity
+import com.ytlite.player.data.local.entity.UserTrackMetadataEntity
 
 @Database(
     entities = [
@@ -34,8 +36,9 @@ import com.ytlite.player.data.local.entity.UserTrackLastPlayedEntity
         SearchQueryEntity::class,
         SearchRecentClickEntity::class,
         NotInterestedEntity::class,
+        UserTrackMetadataEntity::class,
     ],
-    version = 5,
+    version = 6,
     exportSchema = false,
 )
 abstract class YTLiteDatabase : RoomDatabase() {
@@ -48,6 +51,7 @@ abstract class YTLiteDatabase : RoomDatabase() {
     abstract fun searchQueryDao(): SearchQueryDao
     abstract fun searchRecentClickDao(): SearchRecentClickDao
     abstract fun notInterestedDao(): NotInterestedDao
+    abstract fun userTrackMetadataDao(): UserTrackMetadataDao
 
     companion object {
         @Volatile

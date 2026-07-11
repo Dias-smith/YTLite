@@ -44,6 +44,7 @@ import android.app.Application
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ytlite.player.R
+import com.ytlite.player.data.repository.LibraryItemMapper.formatSongSubtitle
 import com.ytlite.player.data.local.model.PlaylistTrackDetailRow
 import com.ytlite.player.data.model.DataSource
 
@@ -311,7 +312,7 @@ private fun PlaylistTrackRow(
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                text = track.primaryArtistName.orEmpty(),
+                text = formatSongSubtitle(track.primaryArtistName, track.album, track.year),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,

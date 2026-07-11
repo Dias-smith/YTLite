@@ -407,6 +407,30 @@ object PlaybackManager {
         _playbackError.value = null
     }
 
+    fun updateNowPlayingMetadata(
+        title: String,
+        channelName: String,
+        thumbnailUrl: String,
+    ) {
+        runOnMainThread {
+            val current = _nowPlaying.value ?: return@runOnMainThread
+            val updated = current.copy(
+                title = title,
+                channelName = channelName,
+                thumbnailUrl = thumbnailUrl,
+            )
+            _nowPlaying.value = updated
+            val player = getPlayer() ?: return@runOnMainThread
+            if (player.playbackState == Player.STATE_IDLE && player.mediaItemCount == 0) return@runOnMainThread
+            val position = player.currentPosition
+            val wasPlaying = player.isPlaying
+            player.setMediaItem(updated.toMediaItem())
+            player.prepare()
+            player.seekTo(position)
+            player.playWhenReady = wasPlaying
+        }
+    }
+
     private fun attachPlayerListener(player: Player) {
         detachPlayerListener()
         playerListener = object : Player.Listener {

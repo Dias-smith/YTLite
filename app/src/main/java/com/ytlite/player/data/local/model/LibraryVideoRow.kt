@@ -6,6 +6,8 @@ data class LibraryVideoRow(
     val primaryArtistName: String?,
     val primaryArtistId: String?,
     val thumbnailUrl: String,
+    val album: String?,
+    val year: String?,
     val durationText: String?,
     val viewCountText: String?,
     val publishedText: String?,

@@ -9,6 +9,8 @@ data class LibraryVideo(
     val channelName: String,
     val channelId: String? = null,
     val thumbnailUrl: String,
+    val album: String? = null,
+    val year: String? = null,
     val durationText: String? = null,
     val viewCountText: String? = null,
     val publishedTimeText: String? = null,

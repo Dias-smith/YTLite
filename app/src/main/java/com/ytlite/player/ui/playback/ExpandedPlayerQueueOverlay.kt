@@ -24,9 +24,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -42,6 +40,8 @@ import com.ytlite.player.playback.GlobalPlaybackViewModel
 import com.ytlite.player.playback.QueueItem
 import com.ytlite.player.ui.player.FullscreenPlayerActivity
 import com.ytlite.player.ui.player.PlaybackFormatSelector
+import com.ytlite.player.ui.trackaction.LocalTrackMoreClick
+import com.ytlite.player.ui.trackaction.TrackActionContext
 
 @Composable
 fun ExpandedPlayerQueueOverlay(
@@ -56,7 +56,7 @@ fun ExpandedPlayerQueueOverlay(
     val context = LocalContext.current
     val application = context.applicationContext as Application
     val snackbarHostState = remember { SnackbarHostState() }
-    var actionItem by remember { mutableStateOf<QueueItem?>(null) }
+    val onTrackMoreClick = LocalTrackMoreClick.current
 
     val signInRequired = stringResource(R.string.player_sign_in_required)
     val noCaptions = stringResource(R.string.player_no_captions)
@@ -141,7 +141,9 @@ fun ExpandedPlayerQueueOverlay(
                         onClick = {
                             viewModel.playQueueItem(item)
                         },
-                        onMoreClick = { actionItem = item },
+                        onMoreClick = {
+                            onTrackMoreClick(TrackActionContext.fromQueueItem(item))
+                        },
                         onDrag = viewModel::reorderQueue,
                     )
                     if (isCurrent) {
@@ -179,15 +181,6 @@ fun ExpandedPlayerQueueOverlay(
         onDismiss = { viewModel.showCaptionSheet(false) },
         onTrackSelected = { track -> viewModel.selectCaptionTrack(application, track) },
     )
-
-    actionItem?.let { item ->
-        QueueItemActionSheet(
-            context = item.toSongActionContext(),
-            showRemoveFromQueue = true,
-            onDismiss = { actionItem = null },
-            onRemoveFromQueue = { viewModel.removeFromQueue(item.videoId) },
-        )
-    }
 }
 
 @Composable

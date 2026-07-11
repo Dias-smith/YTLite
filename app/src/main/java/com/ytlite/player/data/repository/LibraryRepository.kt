@@ -9,15 +9,20 @@ import com.ytlite.player.data.local.YTLiteDatabase
 import com.ytlite.player.data.local.entity.PlaylistEntity
 import com.ytlite.player.data.local.entity.PlaylistSystemType
 import com.ytlite.player.data.local.entity.PlaylistTrackEntity
+import com.ytlite.player.data.local.entity.UserTrackMetadataEntity
 import com.ytlite.player.data.local.model.LibraryVideoRow
 import com.ytlite.player.data.model.DataSource
 import com.ytlite.player.data.model.LibraryFilterChip
 import com.ytlite.player.data.model.LibraryItem
 import com.ytlite.player.data.model.LibrarySort
 import com.ytlite.player.data.model.LibraryVideo
+import com.ytlite.player.data.model.ResolvedTrackMetadata
+import com.ytlite.player.data.model.TrackMetadataEdits
 import com.ytlite.player.data.remote.SupabaseLibraryRemote
 import com.ytlite.player.data.remote.dto.PlaylistDto
 import com.ytlite.player.data.remote.dto.PlaylistTrackDto
+import com.ytlite.player.data.remote.toEntity
+import com.ytlite.player.data.remote.updatedAtMillis
 import com.ytlite.player.data.remote.youtube.YoutubeRemoteDataSource
 import com.ytlite.player.data.youtube.YoutubeDiagnostics
 import com.ytlite.player.playback.NowPlaying
@@ -50,6 +55,7 @@ class LibraryRepository(
     private val playbackHistoryDao = database.playbackHistoryDao()
     private val userTrackLastPlayedDao = database.userTrackLastPlayedDao()
     private val notInterestedDao = database.notInterestedDao()
+    private val userTrackMetadataDao = database.userTrackMetadataDao()
 
     private val remote: SupabaseLibraryRemote? =
         SupabaseClientProvider.get(appContext)?.let { SupabaseLibraryRemote(it) }
@@ -211,6 +217,83 @@ class LibraryRepository(
         withContext(Dispatchers.IO) {
             notInterestedDao.delete(ownerKey, videoId)
         }
+
+    fun observeTrackMetadata(ownerKey: String, trackId: String) =
+        userTrackMetadataDao.observe(ownerKey, trackId)
+
+    fun observeAlbumTracks(ownerKey: String, album: String) =
+        userTrackMetadataDao.observeTracksByAlbum(ownerKey, album)
+            .map { rows -> rows.map { row -> row.toLibraryVideo() } }
+
+    suspend fun getResolvedMetadata(ownerKey: String, trackId: String): ResolvedTrackMetadata? =
+        withContext(Dispatchers.IO) {
+            val canonical = trackDao.getById(trackId) ?: return@withContext null
+            val override = userTrackMetadataDao.getById(ownerKey, trackId)
+            TrackMetadataResolver.resolve(canonical, override)
+        }
+
+    suspend fun upsertTrackMetadata(
+        ownerKey: String,
+        trackId: String,
+        edits: TrackMetadataEdits,
+    ): ResolvedTrackMetadata? = withContext(Dispatchers.IO) {
+        val canonical = trackDao.getById(trackId)
+        if (edits.isEmpty()) {
+            resetTrackMetadata(ownerKey, trackId)
+            return@withContext canonical?.let { TrackMetadataResolver.resolve(it, override = null) }
+        }
+        val now = System.currentTimeMillis()
+        val entity = UserTrackMetadataEntity(
+            ownerKey = ownerKey,
+            trackId = trackId,
+            customTitle = edits.title,
+            customArtistName = edits.artistName,
+            customThumbnailUrl = edits.thumbnailUrl,
+            customAlbum = edits.album,
+            customYear = edits.year,
+            updatedAt = now,
+            isSynced = false,
+        )
+        userTrackMetadataDao.upsert(entity)
+        val resolved = if (canonical != null) {
+            TrackMetadataResolver.resolve(canonical, entity)
+        } else {
+            ResolvedTrackMetadata(
+                trackId = trackId,
+                title = edits.title.orEmpty(),
+                artistName = edits.artistName.orEmpty(),
+                thumbnailUrl = edits.thumbnailUrl.orEmpty(),
+                album = edits.album,
+                year = edits.year,
+                hasUserOverride = true,
+            )
+        }
+        authRepository.currentSession()?.let { session ->
+            if (session is UserSession.Authenticated) {
+                syncTrackMetadataToRemote(session.profile.userId, ownerKey, entity)
+            }
+        }
+        resolved
+    }
+
+    suspend fun resetTrackMetadata(ownerKey: String, trackId: String) = withContext(Dispatchers.IO) {
+        userTrackMetadataDao.delete(ownerKey, trackId)
+        authRepository.currentSession()?.let { session ->
+            if (session is UserSession.Authenticated) {
+                remote?.deleteUserTrackMetadata(session.profile.userId, trackId)
+            }
+        }
+    }
+
+    private suspend fun syncTrackMetadataToRemote(
+        userId: String,
+        ownerKey: String,
+        entity: UserTrackMetadataEntity,
+    ) {
+        val remoteClient = remote ?: return
+        remoteClient.upsertUserTrackMetadata(userId, entity)
+        userTrackMetadataDao.markSynced(ownerKey, entity.trackId)
+    }
 
     suspend fun removeTrackFromPlaylist(playlistId: String, trackId: String) =
         withContext(Dispatchers.IO) {
@@ -410,6 +493,7 @@ class LibraryRepository(
 
         mergeUserHistoryToGuest(userOwnerKey, guestOwnerKey)
         playbackHistoryDao.migrateOwnerKey(userOwnerKey, guestOwnerKey)
+        userTrackMetadataDao.migrateOwnerKey(userOwnerKey, guestOwnerKey)
 
         playlistDao.getAllByOwner(userOwnerKey)
             .filter { it.isLocal() && it.systemType == null }
@@ -455,6 +539,7 @@ class LibraryRepository(
 
         userTrackLastPlayedDao.migrateOwnerKey(guestOwnerKey, userOwnerKey)
         playbackHistoryDao.migrateOwnerKey(guestOwnerKey, userOwnerKey)
+        userTrackMetadataDao.migrateOwnerKey(guestOwnerKey, userOwnerKey)
 
         val guestPlaylists = playlistDao.getAllByOwner(guestOwnerKey)
             .filter { it.systemType == null }
@@ -493,6 +578,7 @@ class LibraryRepository(
 
         syncSystemPlaylistFromRemote(userId, userOwnerKey, PlaylistSystemType.FAVORITES)
         syncSystemPlaylistFromRemote(userId, userOwnerKey, PlaylistSystemType.WATCH_LATER)
+        pullUserTrackMetadataFromRemote(userId, userOwnerKey)
         deduplicateSystemPlaylists(userOwnerKey)
 
         remoteClient.fetchProfile(userId)?.let { authRepository.updateAuthenticatedProfile(it) }
@@ -660,6 +746,24 @@ class LibraryRepository(
                 )
             }
         }
+
+        userTrackMetadataDao.getUnsyncedByOwner(userOwnerKey).forEach { metadata ->
+            syncTrackMetadataToRemote(userId, userOwnerKey, metadata)
+        }
+    }
+
+    private suspend fun pullUserTrackMetadataFromRemote(userId: String, userOwnerKey: String) {
+        val remoteClient = remote ?: return
+        val remoteMetadata = remoteClient.pullUserTrackMetadata(userId)
+        remoteMetadata.forEach { dto ->
+            val local = userTrackMetadataDao.getById(userOwnerKey, dto.trackId)
+            val remoteUpdatedAt = dto.updatedAtMillis()
+            if (local == null || remoteUpdatedAt >= local.updatedAt) {
+                userTrackMetadataDao.upsert(
+                    dto.toEntity(userOwnerKey).copy(isSynced = true),
+                )
+            }
+        }
     }
 
     private suspend fun syncSystemPlaylistFromRemote(
@@ -705,11 +809,24 @@ class LibraryRepository(
         channelName = primaryArtistName.orEmpty(),
         channelId = primaryArtistId,
         thumbnailUrl = thumbnailUrl,
+        album = album,
+        year = year,
         durationText = durationText,
         viewCountText = viewCountText,
         publishedTimeText = publishedText,
         watchedAt = lastPlayedAt,
         progressMs = progressMs,
+    )
+
+    private fun com.ytlite.player.data.local.model.LibrarySongRow.toLibraryVideo() = LibraryVideo(
+        videoId = trackId,
+        title = title,
+        channelName = primaryArtistName.orEmpty(),
+        channelId = primaryArtistId,
+        thumbnailUrl = thumbnailUrl,
+        album = album,
+        year = year,
+        watchedAt = lastActivityAt,
     )
 
     companion object {

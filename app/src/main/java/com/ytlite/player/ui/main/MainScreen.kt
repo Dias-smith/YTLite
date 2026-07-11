@@ -92,6 +92,12 @@ fun MainScreen(
     onMiniPlayerTogglePlayPause: () -> Unit,
     onMiniPlayerSkipNext: () -> Unit,
     authViewModel: AuthViewModel,
+    pendingArtistChannel: SubscriptionChannel? = null,
+    onPendingArtistConsumed: () -> Unit = {},
+    pendingAlbumName: String? = null,
+    onPendingAlbumConsumed: () -> Unit = {},
+    switchToLibraryTab: Boolean = false,
+    onSwitchToLibraryTabConsumed: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     var selectedTabName by rememberSaveable { mutableStateOf(MainTab.Home.name) }
@@ -104,6 +110,20 @@ fun MainScreen(
     val comingSoon = stringResource(R.string.placeholder_coming_soon)
 
     val authSession by authViewModel.session.collectAsStateWithLifecycle()
+
+    androidx.compose.runtime.LaunchedEffect(pendingArtistChannel) {
+        pendingArtistChannel?.let { channel ->
+            selectedChannel = channel
+            onPendingArtistConsumed()
+        }
+    }
+
+    androidx.compose.runtime.LaunchedEffect(switchToLibraryTab) {
+        if (switchToLibraryTab) {
+            selectedTabName = MainTab.Library.name
+            onSwitchToLibraryTabConsumed()
+        }
+    }
 
     val googleSignIn = rememberGoogleSignInLauncher(
         onError = { message ->
@@ -219,6 +239,8 @@ fun MainScreen(
                     onSignInClick = onSignInClick,
                     onSignOutClick = { authViewModel.switchToGuestMode() },
                     onNavigateHomeTab = { selectedTabName = MainTab.Home.name },
+                    pendingAlbumName = pendingAlbumName,
+                    onPendingAlbumConsumed = onPendingAlbumConsumed,
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(innerPadding),
