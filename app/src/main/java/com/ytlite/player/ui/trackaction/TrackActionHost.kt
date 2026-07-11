@@ -14,6 +14,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ytlite.player.data.model.LibraryVideo
 import com.ytlite.player.data.model.SubscriptionChannel
 import com.ytlite.player.ui.library.EditTrackMetadataDialog
+import com.ytlite.player.data.model.TrackMetadataSeed
+import com.ytlite.player.ui.trackaction.toMetadataSeed
 import com.ytlite.player.ui.library.NewPlaylistDialog
 import com.ytlite.player.ui.library.PlaylistPickerSheet
 import com.ytlite.player.ui.library.PlaylistPickerViewModel
@@ -33,7 +35,7 @@ fun TrackActionHost(
 ) {
     val application = LocalContext.current.applicationContext as Application
     var trackActionContext by remember { mutableStateOf<TrackActionContext?>(null) }
-    var editMetadataTrackId by remember { mutableStateOf<String?>(null) }
+    var editMetadataSeed by remember { mutableStateOf<TrackMetadataSeed?>(null) }
     var lyricsVideoId by remember { mutableStateOf<String?>(null) }
     var playlistPickerVideo by remember { mutableStateOf<LibraryVideo?>(null) }
     var showNewPlaylistDialog by remember { mutableStateOf(false) }
@@ -56,7 +58,9 @@ fun TrackActionHost(
             context = context,
             onDismiss = { trackActionContext = null },
             onSaveToLibrary = { playlistPickerVideo = it.toLibraryVideo() },
-            onEditMetadata = { trackId -> editMetadataTrackId = trackId },
+            onEditMetadata = { context ->
+                editMetadataSeed = context.toMetadataSeed()
+            },
             onGoToAlbum = { album -> navigation.onGoToAlbum(album) },
             onGoToArtist = { channelId, channelName ->
                 navigation.onGoToArtist(
@@ -79,10 +83,11 @@ fun TrackActionHost(
         )
     }
 
-    editMetadataTrackId?.let { trackId ->
+    editMetadataSeed?.let { seed ->
         EditTrackMetadataDialog(
-            trackId = trackId,
-            onDismiss = { editMetadataTrackId = null },
+            trackId = seed.trackId,
+            seed = seed,
+            onDismiss = { editMetadataSeed = null },
         )
     }
 

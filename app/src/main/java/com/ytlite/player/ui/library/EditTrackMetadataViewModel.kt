@@ -10,8 +10,8 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.ytlite.player.data.auth.AuthRepository
 import com.ytlite.player.data.model.ResolvedTrackMetadata
 import com.ytlite.player.data.model.TrackMetadataEdits
+import com.ytlite.player.data.model.TrackMetadataSeed
 import com.ytlite.player.data.repository.LibraryRepository
-import com.ytlite.player.playback.NowPlaying
 import com.ytlite.player.playback.PlayQueueRepository
 import com.ytlite.player.playback.PlaybackManager
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -37,6 +37,7 @@ data class EditTrackMetadataUiState(
 
 class EditTrackMetadataViewModel(
     private val trackId: String,
+    private val seed: TrackMetadataSeed?,
     private val authRepository: AuthRepository,
     private val libraryRepository: LibraryRepository,
 ) : ViewModel() {
@@ -51,16 +52,9 @@ class EditTrackMetadataViewModel(
                 _uiState.update { it.copy(isLoading = false, errorMessage = "not_signed_in") }
                 return@launch
             }
-            val resolved = libraryRepository.getResolvedMetadata(ownerKey, trackId)
+            val resolved = libraryRepository.getResolvedMetadataForEdit(ownerKey, trackId, seed)
             if (resolved == null) {
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        title = "",
-                        artistName = "",
-                        thumbnailUrl = "",
-                    )
-                }
+                _uiState.update { it.copy(isLoading = false, errorMessage = "track_not_found") }
             } else {
                 _uiState.update {
                     it.copy(
@@ -88,6 +82,13 @@ class EditTrackMetadataViewModel(
             val ownerKey = authRepository.currentSession()?.ownerKey ?: return@launch
             val state = _uiState.value
             _uiState.update { it.copy(isSaving = true, errorMessage = null) }
+            libraryRepository.ensureCanonicalTrack(
+                trackId = trackId,
+                title = state.title,
+                artistName = state.artistName,
+                thumbnailUrl = state.thumbnailUrl,
+                channelId = seed?.channelId,
+            )
             val edits = TrackMetadataEdits.fromForm(
                 title = state.title,
                 artistName = state.artistName,
@@ -114,7 +115,7 @@ class EditTrackMetadataViewModel(
             val ownerKey = authRepository.currentSession()?.ownerKey ?: return@launch
             _uiState.update { it.copy(isSaving = true, errorMessage = null) }
             libraryRepository.resetTrackMetadata(ownerKey, trackId)
-            val resolved = libraryRepository.getResolvedMetadata(ownerKey, trackId)
+            val resolved = libraryRepository.getResolvedMetadataForEdit(ownerKey, trackId, seed)
             if (resolved != null) {
                 applyResolvedMetadata(resolved)
                 _uiState.update {
@@ -155,11 +156,16 @@ class EditTrackMetadataViewModel(
     }
 
     companion object {
-        fun factory(application: Application, trackId: String): ViewModelProvider.Factory =
+        fun factory(
+            application: Application,
+            trackId: String,
+            seed: TrackMetadataSeed? = null,
+        ): ViewModelProvider.Factory =
             viewModelFactory {
                 initializer {
                     EditTrackMetadataViewModel(
                         trackId = trackId,
+                        seed = seed,
                         authRepository = AuthRepository.getInstance(application),
                         libraryRepository = LibraryRepository.getInstance(application),
                     )

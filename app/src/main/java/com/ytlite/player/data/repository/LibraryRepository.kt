@@ -18,6 +18,7 @@ import com.ytlite.player.data.model.LibrarySort
 import com.ytlite.player.data.model.LibraryVideo
 import com.ytlite.player.data.model.ResolvedTrackMetadata
 import com.ytlite.player.data.model.TrackMetadataEdits
+import com.ytlite.player.data.model.TrackMetadataSeed
 import com.ytlite.player.data.remote.SupabaseLibraryRemote
 import com.ytlite.player.data.remote.dto.PlaylistDto
 import com.ytlite.player.data.remote.dto.PlaylistTrackDto
@@ -231,6 +232,39 @@ class LibraryRepository(
             val override = userTrackMetadataDao.getById(ownerKey, trackId)
             TrackMetadataResolver.resolve(canonical, override)
         }
+
+    suspend fun getResolvedMetadataForEdit(
+        ownerKey: String,
+        trackId: String,
+        seed: TrackMetadataSeed?,
+    ): ResolvedTrackMetadata? = withContext(Dispatchers.IO) {
+        val canonical = trackDao.getById(trackId)
+        val override = userTrackMetadataDao.getById(ownerKey, trackId)
+        if (canonical != null) {
+            return@withContext TrackMetadataResolver.resolve(canonical, override)
+        }
+        seed ?: return@withContext null
+        TrackMetadataResolver.resolveForQueueItem(seed.toQueueItem(), override)
+    }
+
+    suspend fun ensureCanonicalTrack(
+        trackId: String,
+        title: String,
+        artistName: String,
+        thumbnailUrl: String,
+        channelId: String? = null,
+    ) = withContext(Dispatchers.IO) {
+        if (trackDao.getById(trackId) != null) return@withContext
+        trackDao.upsert(
+            com.ytlite.player.data.local.entity.TrackEntity(
+                trackId = trackId,
+                title = title,
+                thumbnailHigh = thumbnailUrl.takeIf { it.isNotBlank() },
+                primaryArtistName = artistName.takeIf { it.isNotBlank() },
+                primaryArtistId = channelId?.takeIf { it.isNotBlank() },
+            ),
+        )
+    }
 
     suspend fun upsertTrackMetadata(
         ownerKey: String,

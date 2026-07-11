@@ -25,17 +25,19 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.ytlite.player.R
+import com.ytlite.player.data.model.TrackMetadataSeed
 
 @Composable
 fun EditTrackMetadataDialog(
     trackId: String,
+    seed: TrackMetadataSeed? = null,
     onDismiss: () -> Unit,
     onSaved: () -> Unit = {},
 ) {
     val application = androidx.compose.ui.platform.LocalContext.current.applicationContext as Application
     val viewModel: EditTrackMetadataViewModel = viewModel(
-        key = "edit-metadata-$trackId",
-        factory = EditTrackMetadataViewModel.factory(application, trackId),
+        key = "edit-metadata-$trackId-${seed?.title}",
+        factory = EditTrackMetadataViewModel.factory(application, trackId, seed),
     )
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 

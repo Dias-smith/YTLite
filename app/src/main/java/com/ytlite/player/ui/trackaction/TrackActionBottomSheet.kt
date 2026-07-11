@@ -54,7 +54,7 @@ fun TrackActionBottomSheet(
     context: TrackActionContext,
     onDismiss: () -> Unit,
     onSaveToLibrary: (TrackActionContext) -> Unit,
-    onEditMetadata: (String) -> Unit,
+    onEditMetadata: (TrackActionContext) -> Unit,
     onGoToAlbum: (String) -> Unit,
     onGoToArtist: (String, String) -> Unit,
     onViewLyrics: (String) -> Unit,
@@ -155,7 +155,7 @@ fun TrackActionBottomSheet(
                 icon = Icons.Outlined.Edit,
                 label = stringResource(R.string.library_action_edit_metadata),
                 onClick = {
-                    onEditMetadata(context.videoId)
+                    onEditMetadata(context)
                     onDismiss()
                 },
             )
