@@ -82,22 +82,24 @@ fun LibraryNavHost(
                 onFilterSelected = viewModel::selectFilter,
                 onToggleViewMode = viewModel::toggleViewMode,
                 onItemClick = { item ->
-                    when (item) {
-                        is LibraryItem.Playlist -> {
-                            if (item.systemType == PlaylistSystemType.HISTORY) {
-                                destination = LibraryDestination.History
-                            } else {
-                                destination = LibraryDestination.Playlist(
-                                    playlistId = item.playlistId,
-                                    systemType = item.systemType,
-                                )
+                    if (!uiState.isPlaylistReorderMode) {
+                        when (item) {
+                            is LibraryItem.Playlist -> {
+                                if (item.systemType == PlaylistSystemType.HISTORY) {
+                                    destination = LibraryDestination.History
+                                } else {
+                                    destination = LibraryDestination.Playlist(
+                                        playlistId = item.playlistId,
+                                        systemType = item.systemType,
+                                    )
+                                }
                             }
+                            is LibraryItem.Album -> {
+                                destination = LibraryDestination.AlbumTracks(item.albumName)
+                            }
+                            is LibraryItem.Song -> onVideoClick(item.videoId)
+                            is LibraryItem.Artist -> Unit
                         }
-                        is LibraryItem.Album -> {
-                            destination = LibraryDestination.AlbumTracks(item.albumName)
-                        }
-                        is LibraryItem.Song -> onVideoClick(item.videoId)
-                        is LibraryItem.Artist -> Unit
                     }
                 },
                 onSongMoreClick = { song ->
@@ -112,7 +114,7 @@ fun LibraryNavHost(
                 onNewPlaylist = { showNewPlaylistDialog = true },
                 onEnterPlaylistReorder = viewModel::enterPlaylistReorderMode,
                 onExitPlaylistReorder = viewModel::exitPlaylistReorderMode,
-                onPlaylistReorder = viewModel::reorderPlaylist,
+                onPlaylistOrderCommitted = viewModel::commitPlaylistOrder,
                 modifier = modifier,
             )
         }

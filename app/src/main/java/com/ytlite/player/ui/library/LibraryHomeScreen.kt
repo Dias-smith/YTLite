@@ -36,7 +36,7 @@ fun LibraryHomeScreen(
     onNewPlaylist: () -> Unit,
     onEnterPlaylistReorder: () -> Unit = {},
     onExitPlaylistReorder: () -> Unit = {},
-    onPlaylistReorder: ((from: Int, to: Int) -> Unit)? = null,
+    onPlaylistOrderCommitted: ((List<LibraryItem.Playlist>) -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     Scaffold(
@@ -84,7 +84,7 @@ fun LibraryHomeScreen(
                 onPlaylistMoreClick = onPlaylistMoreClick,
                 onFindMusic = onFindMusic,
                 isPlaylistReorderMode = uiState.isPlaylistReorderMode,
-                onPlaylistReorder = onPlaylistReorder,
+                onPlaylistOrderCommitted = onPlaylistOrderCommitted,
                 modifier = Modifier.weight(1f),
             )
         }

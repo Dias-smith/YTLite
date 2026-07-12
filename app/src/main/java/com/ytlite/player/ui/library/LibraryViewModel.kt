@@ -131,25 +131,10 @@ class LibraryViewModel(
         sort.value = LibrarySort.CUSTOM
     }
 
-    fun reorderPlaylist(fromIndex: Int, toIndex: Int) {
+    fun commitPlaylistOrder(playlists: List<LibraryItem.Playlist>) {
         viewModelScope.launch {
             val session = authRepository.currentSession() ?: return@launch
-            val playlists = uiState.value.items.filterIsInstance<LibraryItem.Playlist>()
-            if (fromIndex !in playlists.indices || toIndex !in playlists.indices) return@launch
-            val from = playlists[fromIndex]
-            val to = playlists[toIndex]
-            if (from.isPinned != to.isPinned) return@launch
-            val pinGroup = from.isPinned
-            val groupItems = playlists.filter { it.isPinned == pinGroup }
-            val fromGroupPos = groupItems.indexOfFirst { it.id == from.id }
-            val toGroupPos = groupItems.indexOfFirst { it.id == to.id }
-            if (fromGroupPos < 0 || toGroupPos < 0 || fromGroupPos == toGroupPos) return@launch
-            libraryRepository.reorderPlaylistInGroup(
-                ownerKey = session.ownerKey,
-                pinGroup = pinGroup,
-                fromPosition = fromGroupPos,
-                toPosition = toGroupPos,
-            )
+            libraryRepository.seedDisplayOrderFromCurrent(session.ownerKey, playlists)
         }
     }
 

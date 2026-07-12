@@ -25,7 +25,7 @@ fun LibraryContentView(
     onPlaylistMoreClick: (LibraryItem.Playlist) -> Unit,
     onFindMusic: () -> Unit,
     isPlaylistReorderMode: Boolean = false,
-    onPlaylistReorder: ((from: Int, to: Int) -> Unit)? = null,
+    onPlaylistOrderCommitted: ((List<LibraryItem.Playlist>) -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     if (items.isEmpty()) {
@@ -45,26 +45,29 @@ fun LibraryContentView(
 
     when (viewMode) {
         LibraryViewMode.LIST -> {
-            LazyColumn(
-                modifier = modifier.fillMaxSize(),
-                contentPadding = PaddingValues(bottom = 88.dp),
-            ) {
-                items(items = items, key = { it.id }) { item ->
-                    val index = playlists.indexOfFirst { it.id == item.id }.takeIf { it >= 0 } ?: 0
-                    LibraryRowItem(
-                        item = item,
-                        onClick = { onItemClick(item) },
-                        onMoreClick = when (item) {
-                            is LibraryItem.Song -> { { onSongMoreClick(item) } }
-                            is LibraryItem.Playlist -> { { onPlaylistMoreClick(item) } }
-                            else -> null
-                        },
-                        reorderMode = playlistReorderEnabled && item is LibraryItem.Playlist,
-                        index = index,
-                        itemCount = playlists.size,
-                        playlists = playlists,
-                        onDrag = onPlaylistReorder,
-                    )
+            if (playlistReorderEnabled && onPlaylistOrderCommitted != null) {
+                ReorderablePlaylistList(
+                    playlists = playlists,
+                    onItemClick = { onItemClick(it) },
+                    onOrderCommitted = onPlaylistOrderCommitted,
+                    modifier = modifier,
+                )
+            } else {
+                LazyColumn(
+                    modifier = modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(bottom = 88.dp),
+                ) {
+                    items(items = items, key = { it.id }) { item ->
+                        LibraryRowItem(
+                            item = item,
+                            onClick = { onItemClick(item) },
+                            onMoreClick = when (item) {
+                                is LibraryItem.Song -> { { onSongMoreClick(item) } }
+                                is LibraryItem.Playlist -> { { onPlaylistMoreClick(item) } }
+                                else -> null
+                            },
+                        )
+                    }
                 }
             }
         }
