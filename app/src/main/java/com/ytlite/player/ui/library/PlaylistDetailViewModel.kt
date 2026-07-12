@@ -10,29 +10,30 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.ytlite.player.data.local.entity.PlaylistEntity
 import com.ytlite.player.data.local.entity.PlaylistSystemType
 import com.ytlite.player.data.local.model.PlaylistTrackDetailRow
-import com.ytlite.player.data.model.DataSource
+import com.ytlite.player.data.model.PlaylistTrackSort
 import com.ytlite.player.data.repository.LibraryRepository
+import com.ytlite.player.data.repository.PlaylistTrackSorter
+import com.ytlite.player.playback.QueueItem
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import java.time.Instant
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
-import java.util.Locale
-import java.util.concurrent.TimeUnit
 
 @Immutable
 data class PlaylistDetailUiState(
     val playlist: PlaylistEntity? = null,
     val tracks: List<PlaylistTrackDetailRow> = emptyList(),
     val coverUrls: List<String> = emptyList(),
-    val statsText: String = "",
+    val trackCount: Int = 0,
+    val totalDurationSeconds: Int = 0,
+    val sort: PlaylistTrackSort = PlaylistTrackSort.MANUAL,
+    val canEdit: Boolean = false,
+    val canReorder: Boolean = false,
     val isLoading: Boolean = true,
 )
 
@@ -45,6 +46,7 @@ class PlaylistDetailViewModel(
 ) : ViewModel() {
 
     private val playlistState = MutableStateFlow<PlaylistEntity?>(null)
+    private val sortState = MutableStateFlow(PlaylistTrackSort.MANUAL)
 
     init {
         viewModelScope.launch {
@@ -60,22 +62,84 @@ class PlaylistDetailViewModel(
         if (playlist == null) {
             flowOf(PlaylistDetailUiState(isLoading = true))
         } else {
-            libraryRepository.observePlaylistTrackDetails(playlist.playlistId).map { tracks ->
+            combine(
+                libraryRepository.observePlaylistTrackDetails(playlist.playlistId),
+                sortState,
+            ) { tracks, currentSort ->
+                val displayed = PlaylistTrackSorter.sort(tracks, currentSort)
                 PlaylistDetailUiState(
                     playlist = playlist,
-                    tracks = tracks,
+                    tracks = displayed,
                     coverUrls = buildCoverUrls(playlist, tracks),
-                    statsText = buildStatsText(playlist, tracks),
+                    trackCount = tracks.size,
+                    totalDurationSeconds = tracks.sumOf { it.durationSeconds },
+                    sort = currentSort,
+                    canEdit = playlist.isLocal() && playlist.systemType == null,
+                    canReorder = playlist.isLocal() && currentSort == PlaylistTrackSort.MANUAL,
                     isLoading = false,
                 )
             }
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), PlaylistDetailUiState())
 
-    fun cloneToLocal() {
-        viewModelScope.launch {
-            libraryRepository.importYoutubePlaylistToLocal(playlistId, ownerKey)
+    fun setSort(sort: PlaylistTrackSort) {
+        val playlist = playlistState.value
+        if (playlist?.isYoutube() == true && sort == PlaylistTrackSort.MANUAL) {
+            return
         }
+        sortState.value = sort
+    }
+
+    fun commitTrackOrder(orderedTrackIds: List<String>) {
+        viewModelScope.launch {
+            val playlist = playlistState.value ?: return@launch
+            if (!playlist.isLocal()) return@launch
+            libraryRepository.reorderPlaylistTracks(
+                playlistId = playlist.playlistId,
+                ownerKey = ownerKey,
+                orderedTrackIds = orderedTrackIds,
+            )
+        }
+    }
+
+    fun renamePlaylist(name: String, onDone: (Boolean) -> Unit) {
+        viewModelScope.launch {
+            val success = libraryRepository.renameLocalPlaylist(
+                playlistId = playlistId,
+                ownerKey = ownerKey,
+                name = name,
+            )
+            if (success) {
+                playlistState.value = libraryRepository.getPlaylistById(
+                    playlistId = playlistId,
+                    ownerKey = ownerKey,
+                    systemType = systemType,
+                )
+            }
+            onDone(success)
+        }
+    }
+
+    suspend fun loadQueueItems(): List<QueueItem> {
+        val displayed = uiState.value.tracks
+        if (displayed.isNotEmpty()) {
+            return displayed.map { track ->
+                QueueItem(
+                    videoId = track.trackId,
+                    title = track.title,
+                    channelName = track.primaryArtistName.orEmpty(),
+                    thumbnailUrl = track.thumbnailUrl,
+                    durationText = track.durationText,
+                    album = track.album,
+                    year = track.year,
+                )
+            }
+        }
+        return libraryRepository.getPlaylistQueueItems(
+            ownerKey = ownerKey,
+            playlistId = playlistId,
+            systemType = systemType,
+        )
     }
 
     private fun buildCoverUrls(
@@ -84,35 +148,6 @@ class PlaylistDetailViewModel(
     ): List<String> {
         playlist.coverUrlOrPath?.takeIf { it.isNotBlank() }?.let { return listOf(it) }
         return tracks.mapNotNull { it.thumbnailUrl.takeIf { url -> url.isNotBlank() } }.take(4)
-    }
-
-    private fun buildStatsText(
-        playlist: PlaylistEntity,
-        tracks: List<PlaylistTrackDetailRow>,
-    ): String {
-        val totalSeconds = tracks.sumOf { it.durationSeconds }
-        val duration = if (totalSeconds > 0) {
-            val minutes = totalSeconds / 60
-            val seconds = totalSeconds % 60
-            "$minutes mins $seconds secs"
-        } else {
-            "${tracks.size} songs"
-        }
-        val updated = formatRelativeTime(playlist.updatedAt)
-        return "$duration • $updated"
-    }
-
-    private fun formatRelativeTime(timestamp: Long): String {
-        val now = System.currentTimeMillis()
-        val diff = now - timestamp
-        val days = TimeUnit.MILLISECONDS.toDays(diff)
-        return when {
-            days < 1 -> "today"
-            days < 30 -> "${days}d ago"
-            days < 365 -> "${days / 30} mo ago"
-            else -> DateTimeFormatter.ofPattern("MMM yyyy", Locale.getDefault())
-                .format(Instant.ofEpochMilli(timestamp).atZone(ZoneId.systemDefault()))
-        }
     }
 
     companion object {

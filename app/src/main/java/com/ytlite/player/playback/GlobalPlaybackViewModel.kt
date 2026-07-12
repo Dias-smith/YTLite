@@ -341,16 +341,38 @@ class GlobalPlaybackViewModel(
         }
     }
 
-    fun shufflePlayPlaylist(items: List<QueueItem>) {
+    fun shufflePlayPlaylist(items: List<QueueItem>, sourcePlaylistId: String? = null) {
         if (items.isEmpty()) return
         viewModelScope.launch {
-            PlayQueueRepository.setQueue(items, startIndex = 0)
+            PlayQueueRepository.setQueue(items, startIndex = 0, sourcePlaylistId = sourcePlaylistId)
             if (!PlayQueueRepository.state.value.shuffleEnabled) {
                 PlayQueueRepository.toggleShuffle()
             }
             val first = PlayQueueRepository.state.value.currentItem ?: return@launch
             playQueueItemInternal(first)
             PlaybackNavigation.requestOpenPlayer(first.videoId)
+            showMiniPlayer.update { true }
+        }
+    }
+
+    fun playPlaylist(
+        items: List<QueueItem>,
+        startIndex: Int = 0,
+        sourcePlaylistId: String?,
+        openPlayer: Boolean = true,
+    ) {
+        if (items.isEmpty()) return
+        viewModelScope.launch {
+            PlayQueueRepository.setQueue(
+                items = items,
+                startIndex = startIndex,
+                sourcePlaylistId = sourcePlaylistId,
+            )
+            val start = PlayQueueRepository.state.value.currentItem ?: return@launch
+            playQueueItemInternal(start)
+            if (openPlayer) {
+                PlaybackNavigation.requestOpenPlayer(start.videoId)
+            }
             showMiniPlayer.update { true }
         }
     }

@@ -160,4 +160,13 @@
     <string name="playlist_stats_subtitle">%1$s · %2$s</string>
     <string name="playlist_duration_hours">%1$d 小时 %2$d 分钟</string>
     <string name="playlist_duration_minutes">%1$d 分钟</string>
+    <string name="playlist_detail_duration">%1$d 分 %2$d 秒</string>
+    <string name="playlist_detail_stats">%1$s • %2$s</string>
+    <string name="playlist_detail_pause">暂停</string>
+    <string name="playlist_sort_title_header">排序</string>
+    <string name="playlist_sort_manual">手动</string>
+    <string name="playlist_sort_recently_added">最近添加</string>
+    <string name="playlist_sort_title">曲名</string>
+    <string name="playlist_suggestions_title">推荐</string>
+    <string name="playlist_suggestions_empty">暂无推荐</string>
 </resources>

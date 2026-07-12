@@ -13,12 +13,4 @@ class ReorderablePlaylistLogicTest {
         assertEquals(-76f, clampDragOffsetY(-200f, draggingIndex = 1, itemCount = 3, itemHeight))
         assertEquals(0f, clampDragOffsetY(10f, draggingIndex = 2, itemCount = 3, itemHeight))
     }
-
-    @Test
-    fun playlistItemDragOffset_shiftsNeighborsWithinGroup() {
-        val itemHeight = 76f
-        assertEquals(40f, playlistItemDragOffset(0, 0, 40f, itemHeight, itemCount = 3))
-        assertEquals(0f, playlistItemDragOffset(1, 0, 30f, itemHeight, itemCount = 3))
-        assertEquals(-76f, playlistItemDragOffset(1, 0, 80f, itemHeight, itemCount = 3))
-    }
 }

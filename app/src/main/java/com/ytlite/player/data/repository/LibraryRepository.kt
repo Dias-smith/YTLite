@@ -252,6 +252,29 @@ class LibraryRepository(
             true
         }
 
+    suspend fun reorderPlaylistTracks(
+        playlistId: String,
+        ownerKey: String,
+        orderedTrackIds: List<String>,
+    ): Boolean = withContext(Dispatchers.IO) {
+        val playlist = findOwnedLocalPlaylist(playlistId, ownerKey) ?: return@withContext false
+        if (playlist.isYoutube()) return@withContext false
+        val existing = playlistTrackDao.getAllByPlaylist(playlistId).associateBy { it.trackId }
+        val rewritten = orderedTrackIds.mapIndexedNotNull { index, trackId ->
+            existing[trackId]?.copy(position = index, isSynced = false)
+        }
+        if (rewritten.size != orderedTrackIds.size) return@withContext false
+        playlistTrackDao.upsertAll(rewritten)
+        playlistDao.upsert(
+            playlist.copy(
+                updatedAt = System.currentTimeMillis(),
+                isSynced = false,
+            ),
+        )
+        schedulePlaylistUpload()
+        true
+    }
+
     suspend fun togglePlaylistPin(playlistId: String, ownerKey: String): Boolean =
         withContext(Dispatchers.IO) {
             val localPlaylist = findOwnedLocalPlaylist(playlistId, ownerKey)

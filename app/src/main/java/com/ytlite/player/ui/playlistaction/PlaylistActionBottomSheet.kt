@@ -48,7 +48,7 @@ import kotlinx.coroutines.launch
 fun PlaylistActionBottomSheet(
     context: PlaylistActionContext,
     onDismiss: () -> Unit,
-    onShufflePlay: (List<QueueItem>) -> Unit,
+    onShufflePlay: (List<QueueItem>, String?) -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
 ) {
@@ -150,7 +150,7 @@ fun PlaylistActionBottomSheet(
                     scope.launch {
                         val items = viewModel.loadQueueItems()
                         if (items.isNotEmpty()) {
-                            onShufflePlay(items)
+                            onShufflePlay(items, context.playlistId)
                             onDismiss()
                         }
                     }

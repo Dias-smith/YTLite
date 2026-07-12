@@ -1,5 +1,6 @@
 package com.ytlite.player.ui.library
 
+import com.ytlite.player.playback.QueueItem
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
@@ -10,6 +11,8 @@ fun LibraryScreen(
     onSignInClick: () -> Unit,
     onSignOutClick: () -> Unit,
     onNavigateHomeTab: () -> Unit,
+    onPlayPlaylist: (List<QueueItem>, Int, String) -> Unit,
+    onTogglePlayPause: () -> Unit,
     pendingAlbumName: String? = null,
     onPendingAlbumConsumed: () -> Unit = {},
     modifier: Modifier = Modifier,
@@ -22,6 +25,8 @@ fun LibraryScreen(
         onSignInClick = onSignInClick,
         onSignOutClick = onSignOutClick,
         onNavigateHomeTab = onNavigateHomeTab,
+        onPlayPlaylist = onPlayPlaylist,
+        onTogglePlayPause = onTogglePlayPause,
         pendingAlbumName = pendingAlbumName,
         onPendingAlbumConsumed = onPendingAlbumConsumed,
         modifier = modifier,

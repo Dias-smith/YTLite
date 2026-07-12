@@ -168,6 +168,15 @@
     <string name="playlist_stats_subtitle">%1$s · %2$s</string>
     <string name="playlist_duration_hours">%1$d hr %2$d min</string>
     <string name="playlist_duration_minutes">%1$d min</string>
+    <string name="playlist_detail_duration">%1$d minutes, %2$d seconds</string>
+    <string name="playlist_detail_stats">%1$s • %2$s</string>
+    <string name="playlist_detail_pause">Pause</string>
+    <string name="playlist_sort_title_header">Sort</string>
+    <string name="playlist_sort_manual">Manual</string>
+    <string name="playlist_sort_recently_added">Recently added</string>
+    <string name="playlist_sort_title">Title</string>
+    <string name="playlist_suggestions_title">Suggestions</string>
+    <string name="playlist_suggestions_empty">No suggestions yet</string>
     <string name="edit_metadata_title">Edit track info</string>
     <string name="edit_metadata_field_title">Title</string>
     <string name="edit_metadata_field_artist">Artist / channel</string>

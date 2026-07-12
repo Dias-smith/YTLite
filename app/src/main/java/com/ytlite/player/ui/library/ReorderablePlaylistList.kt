@@ -66,6 +66,7 @@ fun ReorderablePlaylistList(
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = 88.dp),
+        userScrollEnabled = !isDragging,
     ) {
         if (localPinned.isNotEmpty()) {
             reorderablePlaylistGroup(
@@ -141,13 +142,7 @@ private fun ReorderablePlaylistRow(
     } else {
         0f
     }
-    val itemTranslationY = playlistItemDragOffset(
-        index = index,
-        draggingIndex = draggingIndex,
-        dragOffsetY = clampedDragOffsetY,
-        itemHeightPx = itemHeightPx,
-        itemCount = currentItems.size,
-    )
+    val itemTranslationY = if (index == draggingIndex) clampedDragOffsetY else 0f
     val isActiveDragItem = index == draggingIndex
 
     LibraryRowItem(
@@ -225,24 +220,4 @@ internal fun clampDragOffsetY(
     val maxDown = (itemCount - 1 - draggingIndex) * itemHeightPx
     val maxUp = draggingIndex * itemHeightPx
     return dragOffsetY.coerceIn(-maxUp, maxDown)
-}
-
-internal fun playlistItemDragOffset(
-    index: Int,
-    draggingIndex: Int,
-    dragOffsetY: Float,
-    itemHeightPx: Float,
-    itemCount: Int,
-): Float {
-    if (draggingIndex < 0 || itemCount <= 0) return 0f
-
-    val targetIndex = (draggingIndex + (dragOffsetY / itemHeightPx).roundToInt())
-        .coerceIn(0, itemCount - 1)
-
-    return when {
-        index == draggingIndex -> dragOffsetY
-        targetIndex > draggingIndex && index in (draggingIndex + 1)..targetIndex -> -itemHeightPx
-        targetIndex < draggingIndex && index in targetIndex until draggingIndex -> itemHeightPx
-        else -> 0f
-    }
 }

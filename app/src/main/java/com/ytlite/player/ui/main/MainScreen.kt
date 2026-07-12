@@ -42,6 +42,7 @@ import com.ytlite.player.R
 import com.ytlite.player.data.auth.UserSession
 import com.ytlite.player.data.model.SubscriptionChannel
 import com.ytlite.player.playback.GlobalPlaybackUiState
+import com.ytlite.player.playback.QueueItem
 import com.ytlite.player.ui.auth.AuthViewModel
 import com.ytlite.player.ui.auth.rememberGoogleSignInLauncher
 import com.ytlite.player.ui.home.HomeScreen
@@ -101,6 +102,7 @@ fun MainScreen(
     onMiniPlayerExpandQueue: (Boolean) -> Unit,
     onMiniPlayerTogglePlayPause: () -> Unit,
     onMiniPlayerSkipNext: () -> Unit,
+    onPlayPlaylist: (List<QueueItem>, Int, String) -> Unit,
     authViewModel: AuthViewModel,
     pendingArtistChannel: SubscriptionChannel? = null,
     onPendingArtistConsumed: () -> Unit = {},
@@ -263,6 +265,8 @@ fun MainScreen(
                     onSignInClick = onSignInClick,
                     onSignOutClick = { authViewModel.switchToGuestMode() },
                     onNavigateHomeTab = { selectedTabName = MainTab.Home.name },
+                    onPlayPlaylist = onPlayPlaylist,
+                    onTogglePlayPause = onMiniPlayerTogglePlayPause,
                     pendingAlbumName = pendingAlbumName,
                     onPendingAlbumConsumed = onPendingAlbumConsumed,
                     modifier = Modifier

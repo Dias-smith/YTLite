@@ -17,6 +17,7 @@ data class PlayQueueState(
     val currentIndex: Int = 0,
     val repeatMode: QueueRepeatMode = QueueRepeatMode.OFF,
     val shuffleEnabled: Boolean = false,
+    val sourcePlaylistId: String? = null,
 ) {
     val currentItem: QueueItem? = items.getOrNull(currentIndex)
     val nextItem: QueueItem? = items.getOrNull(currentIndex + 1)
@@ -31,7 +32,11 @@ object PlayQueueRepository {
 
     private var originalOrder: List<QueueItem>? = null
 
-    fun setQueue(items: List<QueueItem>, startIndex: Int = 0) {
+    fun setQueue(
+        items: List<QueueItem>,
+        startIndex: Int = 0,
+        sourcePlaylistId: String? = null,
+    ) {
         if (items.isEmpty()) {
             _state.value = PlayQueueState()
             originalOrder = null
@@ -39,7 +44,11 @@ object PlayQueueRepository {
         }
         val safeIndex = startIndex.coerceIn(0, items.lastIndex)
         originalOrder = items
-        _state.value = PlayQueueState(items = items, currentIndex = safeIndex)
+        _state.value = PlayQueueState(
+            items = items,
+            currentIndex = safeIndex,
+            sourcePlaylistId = sourcePlaylistId,
+        )
     }
 
     fun replaceCurrentAndAppend(current: QueueItem, related: List<QueueItem>, maxRelated: Int = 20) {
@@ -96,6 +105,7 @@ object PlayQueueRepository {
                 return@update PlayQueueState(
                     repeatMode = state.repeatMode,
                     shuffleEnabled = state.shuffleEnabled,
+                    sourcePlaylistId = state.sourcePlaylistId,
                 )
             }
             val currentId = state.currentItem?.videoId

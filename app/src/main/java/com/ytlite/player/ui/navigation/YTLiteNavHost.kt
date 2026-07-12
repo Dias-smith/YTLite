@@ -75,7 +75,9 @@ fun YTLiteNavHost(modifier: Modifier = Modifier) {
         onRemoveFromQueue = globalPlaybackViewModel::removeFromQueue,
     ) {
         PlaylistActionHost(
-            onShufflePlay = globalPlaybackViewModel::shufflePlayPlaylist,
+            onShufflePlay = { items, sourcePlaylistId ->
+                globalPlaybackViewModel.shufflePlayPlaylist(items, sourcePlaylistId)
+            },
         ) {
         Box(modifier = modifier.fillMaxSize()) {
             NavHost(
@@ -92,6 +94,13 @@ fun YTLiteNavHost(modifier: Modifier = Modifier) {
                         onMiniPlayerExpandQueue = globalPlaybackViewModel::setQueueExpanded,
                         onMiniPlayerTogglePlayPause = globalPlaybackViewModel::togglePlayPause,
                         onMiniPlayerSkipNext = globalPlaybackViewModel::skipToNext,
+                        onPlayPlaylist = { items, startIndex, sourcePlaylistId ->
+                            globalPlaybackViewModel.playPlaylist(
+                                items = items,
+                                startIndex = startIndex,
+                                sourcePlaylistId = sourcePlaylistId,
+                            )
+                        },
                         authViewModel = authViewModel,
                         pendingArtistChannel = pendingArtistChannel,
                         onPendingArtistConsumed = { pendingArtistChannel = null },

@@ -22,7 +22,7 @@ val LocalPlaylistMoreClick = compositionLocalOf<(PlaylistActionContext) -> Unit>
 
 @Composable
 fun PlaylistActionHost(
-    onShufflePlay: (List<QueueItem>) -> Unit,
+    onShufflePlay: (List<QueueItem>, String?) -> Unit,
     content: @Composable () -> Unit,
 ) {
     val application = LocalContext.current.applicationContext as Application
@@ -41,7 +41,9 @@ fun PlaylistActionHost(
         PlaylistActionBottomSheet(
             context = context,
             onDismiss = { sheetContext = null },
-            onShufflePlay = onShufflePlay,
+            onShufflePlay = { items, sourcePlaylistId ->
+                onShufflePlay(items, sourcePlaylistId)
+            },
             onEdit = {
                 dialogContext = context
                 sheetContext = null

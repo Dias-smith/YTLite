@@ -14,6 +14,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ytlite.player.data.local.entity.PlaylistSystemType
 import com.ytlite.player.data.model.DataSource
 import com.ytlite.player.data.model.LibraryItem
+import com.ytlite.player.playback.QueueItem
 import com.ytlite.player.ui.playlistaction.LocalPlaylistMoreClick
 import com.ytlite.player.ui.playlistaction.PlaylistActionContext
 import com.ytlite.player.ui.trackaction.LocalTrackMoreClick
@@ -25,6 +26,8 @@ fun LibraryNavHost(
     onSignInClick: () -> Unit,
     onSignOutClick: () -> Unit,
     onNavigateHomeTab: () -> Unit,
+    onPlayPlaylist: (List<QueueItem>, Int, String) -> Unit,
+    onTogglePlayPause: () -> Unit,
     pendingAlbumName: String? = null,
     onPendingAlbumConsumed: () -> Unit = {},
     modifier: Modifier = Modifier,
@@ -147,6 +150,8 @@ fun LibraryNavHost(
                 onPlaylistMoreClick = { context ->
                     onPlaylistMoreClick(context)
                 },
+                onPlayPlaylist = onPlayPlaylist,
+                onTogglePlayPause = onTogglePlayPause,
                 modifier = modifier,
             )
         }
