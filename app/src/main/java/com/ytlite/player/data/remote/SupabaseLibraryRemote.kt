@@ -74,6 +74,18 @@ class SupabaseLibraryRemote(
             }.getOrNull()
         }
 
+    suspend fun fetchAllPlaylists(userId: String): List<PlaylistDto> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                client.postgrest["playlists"]
+                    .select {
+                        filter { eq("user_id", userId) }
+                        order("updated_at", Order.DESCENDING)
+                    }
+                    .decodeList<PlaylistDto>()
+            }.getOrDefault(emptyList())
+        }
+
     suspend fun upsertPlaylist(dto: PlaylistDto) = withContext(Dispatchers.IO) {
         runCatching {
             client.postgrest["playlists"].upsert(dto)
@@ -83,6 +95,27 @@ class SupabaseLibraryRemote(
     suspend fun upsertPlaylistTrack(dto: PlaylistTrackDto) = withContext(Dispatchers.IO) {
         runCatching {
             client.postgrest["playlist_track_cross_ref"].upsert(dto)
+        }
+    }
+
+    suspend fun pullPlaylistTracks(playlistId: String): List<PlaylistTrackEntity> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                client.postgrest["playlist_track_cross_ref"]
+                    .select {
+                        filter { eq("playlist_id", playlistId) }
+                        order("position", Order.ASCENDING)
+                    }
+                    .decodeList<PlaylistTrackDto>()
+                    .map { it.toEntity(playlistId) }
+            }.getOrDefault(emptyList())
+        }
+
+    suspend fun deletePlaylist(playlistId: String) = withContext(Dispatchers.IO) {
+        runCatching {
+            client.postgrest["playlists"].delete {
+                filter { eq("playlist_id", playlistId) }
+            }
         }
     }
 

@@ -20,7 +20,7 @@ data class PlaylistActionContext(
     val isSystemPlaylist: Boolean get() = systemType != null
     val canEdit: Boolean get() = source == DataSource.LOCAL && systemType == null
     val canDelete: Boolean get() = canEdit
-    val canPin: Boolean get() = canEdit
+    val canPin: Boolean get() = systemType != PlaylistSystemType.HISTORY
 
     companion object {
         fun fromLibraryItem(item: LibraryItem.Playlist, ownerKey: String) = PlaylistActionContext(

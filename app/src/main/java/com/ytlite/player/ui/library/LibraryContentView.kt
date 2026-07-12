@@ -24,6 +24,8 @@ fun LibraryContentView(
     onSongMoreClick: (LibraryItem.Song) -> Unit,
     onPlaylistMoreClick: (LibraryItem.Playlist) -> Unit,
     onFindMusic: () -> Unit,
+    isPlaylistReorderMode: Boolean = false,
+    onPlaylistReorder: ((from: Int, to: Int) -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     if (items.isEmpty()) {
@@ -35,6 +37,12 @@ fun LibraryContentView(
         return
     }
 
+    val playlistReorderEnabled =
+        isPlaylistReorderMode &&
+            selectedFilter == LibraryFilterChip.PLAYLISTS &&
+            viewMode == LibraryViewMode.LIST
+    val playlists = items.filterIsInstance<LibraryItem.Playlist>()
+
     when (viewMode) {
         LibraryViewMode.LIST -> {
             LazyColumn(
@@ -42,6 +50,7 @@ fun LibraryContentView(
                 contentPadding = PaddingValues(bottom = 88.dp),
             ) {
                 items(items = items, key = { it.id }) { item ->
+                    val index = playlists.indexOfFirst { it.id == item.id }.takeIf { it >= 0 } ?: 0
                     LibraryRowItem(
                         item = item,
                         onClick = { onItemClick(item) },
@@ -50,6 +59,11 @@ fun LibraryContentView(
                             is LibraryItem.Playlist -> { { onPlaylistMoreClick(item) } }
                             else -> null
                         },
+                        reorderMode = playlistReorderEnabled && item is LibraryItem.Playlist,
+                        index = index,
+                        itemCount = playlists.size,
+                        playlists = playlists,
+                        onDrag = onPlaylistReorder,
                     )
                 }
             }

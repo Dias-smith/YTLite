@@ -7,6 +7,8 @@ import com.ytlite.player.data.auth.UserProfile
 import com.ytlite.player.data.auth.UserSession
 import com.ytlite.player.data.local.YTLiteDatabase
 import com.ytlite.player.data.local.entity.PlaylistEntity
+import com.ytlite.player.data.local.entity.PlaylistDisplayOrderEntity
+import com.ytlite.player.data.local.entity.PlaylistPinOverlayEntity
 import com.ytlite.player.data.local.entity.PlaylistSystemType
 import com.ytlite.player.data.local.entity.PlaylistTrackEntity
 import com.ytlite.player.data.local.entity.UserTrackMetadataEntity
@@ -23,6 +25,8 @@ import com.ytlite.player.data.remote.SupabaseLibraryRemote
 import com.ytlite.player.data.remote.dto.PlaylistDto
 import com.ytlite.player.data.remote.dto.PlaylistTrackDto
 import com.ytlite.player.data.remote.toEntity
+import com.ytlite.player.data.remote.toPlaylistDto
+import com.ytlite.player.data.remote.toPlaylistEntity
 import com.ytlite.player.data.remote.updatedAtMillis
 import com.ytlite.player.data.remote.youtube.YoutubeRemoteDataSource
 import com.ytlite.player.data.youtube.YoutubeDiagnostics
@@ -33,6 +37,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
@@ -52,6 +57,8 @@ class LibraryRepository(
     private val artistDao = database.artistDao()
     private val trackDao = database.trackDao()
     private val playlistDao = database.playlistDao()
+    private val playlistPinOverlayDao = database.playlistPinOverlayDao()
+    private val playlistDisplayOrderDao = database.playlistDisplayOrderDao()
     private val playlistTrackDao = database.playlistTrackDao()
     private val playbackHistoryDao = database.playbackHistoryDao()
     private val userTrackLastPlayedDao = database.userTrackLastPlayedDao()
@@ -104,8 +111,9 @@ class LibraryRepository(
         combine(
             playlistDao.observeLocalByOwner(ownerKey).map { dedupeLocalPlaylistsForDisplay(it) },
             youtubeRemote.getYoutubePlaylistsFlow(),
-        ) { local, youtube ->
-            (local + youtube).sortedByDescending { it.updatedAt }
+            playlistPinOverlayDao.observeByOwner(ownerKey),
+        ) { local, youtube, overlays ->
+            orderPlaylistEntitiesByPin(applyPinOverlay(youtube, overlays) + local)
         }.flowOn(Dispatchers.Default)
 
     fun observeLikedCount(ownerKey: String): Flow<Int> =
@@ -133,15 +141,23 @@ class LibraryRepository(
             val artistItems = artists.map { LibraryItemMapper.artistItem(it) }
             LibraryItemMapper.mergeLocalMixed(playlistItems, songItems, artistItems, sort)
         }
-        LibraryFilterChip.PLAYLISTS -> playlistDao.observeLocalByOwner(ownerKey)
-            .map { playlists ->
-                LibraryItemMapper.orderPlaylistItems(
-                    dedupeLocalPlaylistsForDisplay(playlists).map {
-                        LibraryItemMapper.playlistItem(it, LibraryItemMapper.playlistSubtitle(it))
-                    },
-                    sort,
-                )
+        LibraryFilterChip.PLAYLISTS -> combine(
+            playlistDao.observeLocalByOwner(ownerKey).map { dedupeLocalPlaylistsForDisplay(it) },
+            playlistDisplayOrderDao.observeByOwner(ownerKey),
+        ) { playlists, displayOrders ->
+            val manualOrder = if (sort == LibrarySort.CUSTOM) {
+                displayOrders.associate { it.playlistKey to it.position }
+            } else {
+                emptyMap()
             }
+            LibraryItemMapper.orderPlaylistItems(
+                playlists.map {
+                    LibraryItemMapper.playlistItem(it, LibraryItemMapper.playlistSubtitle(it))
+                },
+                sort,
+                manualOrder = manualOrder,
+            )
+        }
         LibraryFilterChip.SONGS -> combine(
             playlistTrackDao.observeLocalSongs(ownerKey),
             observeHistory(ownerKey, limit = 100),
@@ -160,12 +176,16 @@ class LibraryRepository(
         LibraryFilterChip.YOUTUBE -> if (!isAuthenticated) {
             flowOf(emptyList())
         } else {
-            youtubeRemote.getYoutubePlaylistsFlow().map { playlists ->
-                LibraryItemMapper.sortItems(
-                    playlists.map {
+            combine(
+                youtubeRemote.getYoutubePlaylistsFlow(),
+                playlistPinOverlayDao.observeByOwner(ownerKey),
+            ) { playlists, overlays ->
+                LibraryItemMapper.orderPlaylistItems(
+                    applyPinOverlay(playlists, overlays).map {
                         LibraryItemMapper.playlistItem(it, LibraryItemMapper.playlistSubtitle(it))
                     },
                     sort,
+                    includeHistory = false,
                 )
             }
         }
@@ -228,27 +248,173 @@ class LibraryRepository(
                     isSynced = false,
                 ),
             )
+            schedulePlaylistUpload()
             true
         }
 
     suspend fun togglePlaylistPin(playlistId: String, ownerKey: String): Boolean =
         withContext(Dispatchers.IO) {
-            val playlist = findOwnedLocalCustomPlaylist(playlistId, ownerKey) ?: return@withContext false
-            playlistDao.upsert(
-                playlist.copy(
-                    isPinned = !playlist.isPinned,
-                    updatedAt = System.currentTimeMillis(),
-                    isSynced = false,
-                ),
-            )
-            true
+            val localPlaylist = findOwnedLocalPlaylist(playlistId, ownerKey)
+            var playlistKey: String? = null
+            var nowPinned = false
+            val success = when {
+                localPlaylist != null -> {
+                    val now = System.currentTimeMillis()
+                    val updated = if (!localPlaylist.isPinned) {
+                        localPlaylist.copy(
+                            isPinned = true,
+                            unpinnedSortAt = localPlaylist.updatedAt,
+                            pinnedAt = now,
+                            isSynced = false,
+                        )
+                    } else {
+                        localPlaylist.copy(
+                            isPinned = false,
+                            updatedAt = localPlaylist.unpinnedSortAt ?: localPlaylist.updatedAt,
+                            unpinnedSortAt = null,
+                            pinnedAt = null,
+                            isSynced = false,
+                        )
+                    }
+                    playlistKey = LibraryItemMapper.playlistListKey(updated)
+                    nowPinned = updated.isPinned
+                    playlistDao.upsert(updated)
+                    true
+                }
+                else -> {
+                    val youtubePlaylist = findYoutubePlaylist(playlistId) ?: return@withContext false
+                    val overlay = playlistPinOverlayDao.observeByPlaylist(ownerKey, playlistId).first()
+                    val currentlyPinned = overlay?.isPinned ?: false
+                    val now = System.currentTimeMillis()
+                    nowPinned = !currentlyPinned
+                    playlistKey = playlistId
+                    playlistPinOverlayDao.upsert(
+                        if (!currentlyPinned) {
+                            PlaylistPinOverlayEntity(
+                                playlistId = playlistId,
+                                ownerKey = ownerKey,
+                                isPinned = true,
+                                unpinnedSortAt = youtubePlaylist.updatedAt,
+                                pinnedAt = now,
+                                updatedAt = now,
+                            )
+                        } else {
+                            PlaylistPinOverlayEntity(
+                                playlistId = playlistId,
+                                ownerKey = ownerKey,
+                                isPinned = false,
+                                unpinnedSortAt = overlay?.unpinnedSortAt,
+                                pinnedAt = null,
+                                updatedAt = now,
+                            )
+                        },
+                    )
+                    true
+                }
+            }
+            if (success) {
+                if (localPlaylist != null) {
+                    schedulePlaylistUpload()
+                }
+                playlistKey?.let { key ->
+                    moveDisplayOrderOnPinToggle(ownerKey, key, nowPinned)
+                }
+            }
+            success
         }
+
+    fun observePlaylistDisplayOrder(ownerKey: String): Flow<List<PlaylistDisplayOrderEntity>> =
+        playlistDisplayOrderDao.observeByOwner(ownerKey)
+
+    suspend fun seedDisplayOrderFromCurrent(
+        ownerKey: String,
+        items: List<LibraryItem.Playlist>,
+    ) = withContext(Dispatchers.IO) {
+        val entities = buildList {
+            items.filter { it.isPinned }.forEachIndexed { index, item ->
+                add(
+                    PlaylistDisplayOrderEntity(
+                        ownerKey = ownerKey,
+                        playlistKey = item.id,
+                        pinGroup = true,
+                        position = index,
+                    ),
+                )
+            }
+            items.filter { !it.isPinned }.forEachIndexed { index, item ->
+                add(
+                    PlaylistDisplayOrderEntity(
+                        ownerKey = ownerKey,
+                        playlistKey = item.id,
+                        pinGroup = false,
+                        position = index,
+                    ),
+                )
+            }
+        }
+        playlistDisplayOrderDao.upsertAll(entities)
+    }
+
+    suspend fun reorderPlaylistInGroup(
+        ownerKey: String,
+        pinGroup: Boolean,
+        fromPosition: Int,
+        toPosition: Int,
+    ) = withContext(Dispatchers.IO) {
+        val group = playlistDisplayOrderDao.getAllByOwner(ownerKey)
+            .filter { it.pinGroup == pinGroup }
+            .sortedBy { it.position }
+            .toMutableList()
+        if (fromPosition !in group.indices || toPosition !in group.indices) return@withContext
+        val moved = group.removeAt(fromPosition)
+        group.add(toPosition, moved)
+        playlistDisplayOrderDao.upsertAll(
+            group.mapIndexed { index, entity -> entity.copy(position = index) },
+        )
+    }
+
+    suspend fun moveDisplayOrderOnPinToggle(
+        ownerKey: String,
+        playlistKey: String,
+        nowPinned: Boolean,
+    ) = withContext(Dispatchers.IO) {
+        val all = playlistDisplayOrderDao.getAllByOwner(ownerKey)
+        if (all.isEmpty()) return@withContext
+        playlistDisplayOrderDao.deleteByKey(ownerKey, playlistKey)
+        val targetGroup = all.filter { it.pinGroup == nowPinned && it.playlistKey != playlistKey }
+        val newPosition = (targetGroup.maxOfOrNull { it.position } ?: -1) + 1
+        playlistDisplayOrderDao.upsertAll(
+            listOf(
+                PlaylistDisplayOrderEntity(
+                    ownerKey = ownerKey,
+                    playlistKey = playlistKey,
+                    pinGroup = nowPinned,
+                    position = newPosition,
+                ),
+            ),
+        )
+    }
+
+    fun observePlaylistPin(playlistId: String, ownerKey: String): Flow<Boolean> =
+        combine(
+            playlistDao.observeById(playlistId).map { it?.isPinned == true },
+            playlistPinOverlayDao.observeByPlaylist(ownerKey, playlistId).map { it?.isPinned == true },
+        ) { localPinned, overlayPinned -> localPinned || overlayPinned }
+            .distinctUntilChanged()
+
+    fun observeLocalPlaylist(playlistId: String): Flow<PlaylistEntity?> =
+        playlistDao.observeById(playlistId)
 
     suspend fun deleteLocalPlaylist(playlistId: String, ownerKey: String): Boolean =
         withContext(Dispatchers.IO) {
             val playlist = findOwnedLocalCustomPlaylist(playlistId, ownerKey) ?: return@withContext false
             playlistTrackDao.deleteAllByPlaylist(playlistId)
             playlistDao.deleteById(playlistId)
+            authRepository.currentSession()?.let { session ->
+                if (session is UserSession.Authenticated) {
+                    remote?.deletePlaylist(playlistId)
+                }
+            }
             true
         }
 
@@ -410,21 +576,30 @@ class LibraryRepository(
     suspend fun removeTrackFromPlaylist(playlistId: String, trackId: String) =
         withContext(Dispatchers.IO) {
             playlistTrackDao.deleteTrack(playlistId, trackId)
+            playlistDao.markUnsynced(playlistId)
         }
 
     suspend fun createLocalPlaylist(ownerKey: String, name: String): String =
         withContext(Dispatchers.IO) {
+            if (authRepository.currentSession() == null) {
+                authRepository.initialize()
+            }
             ensureSystemPlaylists(ownerKey)
+            val session = authRepository.currentSession()
+            val userId = (session as? UserSession.Authenticated)?.profile?.userId
             val playlistId = UUID.randomUUID().toString()
             playlistDao.upsert(
                 PlaylistEntity(
                     playlistId = playlistId,
                     ownerKey = ownerKey,
+                    userId = userId,
                     name = name,
                     source = DataSource.LOCAL.dbValue,
+                    isSynced = false,
                     updatedAt = System.currentTimeMillis(),
                 ),
             )
+            schedulePlaylistUpload()
             playlistId
         }
 
@@ -442,8 +617,11 @@ class LibraryRepository(
                     playlistId = playlistId,
                     trackId = video.videoId,
                     position = existing.size,
+                    isSynced = false,
                 ),
             )
+            playlistDao.markUnsynced(playlistId)
+            schedulePlaylistUpload()
         }
 
     private suspend fun addTrackToSystemPlaylist(
@@ -465,8 +643,11 @@ class LibraryRepository(
                 playlistId = playlist.playlistId,
                 trackId = video.videoId,
                 position = existing.size,
+                isSynced = false,
             ),
         )
+        playlistDao.markUnsynced(playlist.playlistId)
+        schedulePlaylistUpload()
     }
 
     private suspend fun removeTrackFromSystemPlaylist(
@@ -476,6 +657,8 @@ class LibraryRepository(
     ) = withContext(Dispatchers.IO) {
         val playlist = playlistDao.getSystemPlaylist(ownerKey, systemType) ?: return@withContext
         playlistTrackDao.deleteTrack(playlist.playlistId, trackId)
+        playlistDao.markUnsynced(playlist.playlistId)
+        schedulePlaylistUpload()
     }
 
     private fun buildSongItems(
@@ -552,6 +735,7 @@ class LibraryRepository(
                 ),
             )
         }
+        schedulePlaylistUpload()
     }
 
     suspend fun addToHistory(
@@ -688,8 +872,7 @@ class LibraryRepository(
             }
         }
 
-        syncSystemPlaylistFromRemote(userId, userOwnerKey, PlaylistSystemType.FAVORITES)
-        syncSystemPlaylistFromRemote(userId, userOwnerKey, PlaylistSystemType.WATCH_LATER)
+        syncAllPlaylistsFromRemote(userId, userOwnerKey)
         pullUserTrackMetadataFromRemote(userId, userOwnerKey)
         deduplicateSystemPlaylists(userOwnerKey)
 
@@ -784,7 +967,7 @@ class LibraryRepository(
 
     private fun dedupeLocalPlaylistsForDisplay(playlists: List<PlaylistEntity>): List<PlaylistEntity> {
         val customPlaylists = playlists.filter { it.systemType == null }
-        val systemByType = playlists
+        val systemPlaylists = playlists
             .filter { it.systemType != null }
             .groupBy { it.systemType }
             .mapNotNull { (_, group) ->
@@ -793,13 +976,7 @@ class LibraryRepository(
                         .thenBy { it.updatedAt },
                 )
             }
-            .associateBy { it.systemType!! }
-        return buildList {
-            listOf(PlaylistSystemType.FAVORITES, PlaylistSystemType.WATCH_LATER).forEach { systemType ->
-                systemByType[systemType]?.let(::add)
-            }
-            addAll(customPlaylists.sortedByDescending { it.updatedAt })
-        }
+        return systemPlaylists + customPlaylists
     }
 
     private suspend fun mergePlaylistTracks(fromPlaylistId: String, toPlaylistId: String) {
@@ -840,33 +1017,94 @@ class LibraryRepository(
             playbackHistoryDao.markSynced(history.historyId)
         }
 
-        listOf(PlaylistSystemType.FAVORITES, PlaylistSystemType.WATCH_LATER).forEach { systemType ->
-            val playlist = playlistDao.getSystemPlaylist(userOwnerKey, systemType) ?: return@forEach
-            remoteClient.upsertPlaylist(
-                PlaylistDto(
-                    playlistId = playlist.playlistId,
-                    userId = userId,
-                    name = playlist.name,
-                    coverUrlOrPath = playlist.coverUrlOrPath,
-                    description = playlist.description,
-                    systemType = playlist.systemType,
-                ),
+        val playlistsToSync = buildSet {
+            addAll(playlistDao.getUnsyncedLocalByOwner(userOwnerKey).map { it.playlistId })
+            addAll(
+                playlistTrackDao.getUnsynced()
+                    .mapNotNull { trackRef ->
+                        playlistDao.getById(trackRef.playlistId)?.takeIf { playlist ->
+                            playlist.ownerKey == userOwnerKey && playlist.isLocal()
+                        }?.playlistId
+                    },
             )
-            playlistTrackDao.getAllByPlaylist(playlist.playlistId).forEach { trackRef ->
-                trackDao.getById(trackRef.trackId)?.let { remoteClient.upsertTrack(it) }
-                remoteClient.upsertPlaylistTrack(
-                    PlaylistTrackDto(
-                        playlistId = playlist.playlistId,
-                        trackId = trackRef.trackId,
-                        position = trackRef.position,
-                        createdAt = null,
-                    ),
-                )
+        }
+        playlistsToSync.forEach { playlistId ->
+            playlistDao.getById(playlistId)?.let { playlist ->
+                uploadPlaylistToRemote(remoteClient, userId, playlist)
             }
         }
 
         userTrackMetadataDao.getUnsyncedByOwner(userOwnerKey).forEach { metadata ->
             syncTrackMetadataToRemote(userId, userOwnerKey, metadata)
+        }
+    }
+
+    private suspend fun uploadPlaylistToRemote(
+        remoteClient: SupabaseLibraryRemote,
+        userId: String,
+        playlist: PlaylistEntity,
+    ) {
+        remoteClient.upsertPlaylist(playlist.toPlaylistDto(userId))
+        playlistTrackDao.getAllByPlaylist(playlist.playlistId).forEach { trackRef ->
+            trackDao.getById(trackRef.trackId)?.let { remoteClient.upsertTrack(it) }
+            remoteClient.upsertPlaylistTrack(
+                PlaylistTrackDto(
+                    playlistId = playlist.playlistId,
+                    trackId = trackRef.trackId,
+                    position = trackRef.position,
+                    createdAt = null,
+                ),
+            )
+        }
+        playlistDao.markSynced(playlist.playlistId)
+        playlistTrackDao.markSyncedByPlaylist(playlist.playlistId)
+    }
+
+    private suspend fun syncAllPlaylistsFromRemote(userId: String, userOwnerKey: String) {
+        val remoteClient = remote ?: return
+        remoteClient.fetchAllPlaylists(userId).forEach { remotePlaylist ->
+            mergePlaylistFromRemote(userId, userOwnerKey, remotePlaylist)
+        }
+    }
+
+    private suspend fun mergePlaylistFromRemote(
+        userId: String,
+        userOwnerKey: String,
+        remotePlaylist: PlaylistDto,
+    ) {
+        val remoteClient = remote ?: return
+        val playlistId = remotePlaylist.playlistId
+        val remoteUpdatedAt = remotePlaylist.updatedAtMillis()
+        val localPlaylist = when {
+            remotePlaylist.systemType != null ->
+                playlistDao.getSystemPlaylist(userOwnerKey, remotePlaylist.systemType!!)
+            else -> playlistDao.getById(playlistId)
+        }
+
+        val shouldApplyRemote = localPlaylist == null || remoteUpdatedAt >= localPlaylist.updatedAt
+
+        if (shouldApplyRemote) {
+            playlistDao.upsert(
+                remotePlaylist.toPlaylistEntity(userOwnerKey, userId).copy(
+                    isSynced = true,
+                    updatedAt = remoteUpdatedAt,
+                ),
+            )
+            if (localPlaylist != null && localPlaylist.playlistId != playlistId) {
+                mergePlaylistTracks(localPlaylist.playlistId, playlistId)
+                playlistTrackDao.deleteAllByPlaylist(localPlaylist.playlistId)
+                playlistDao.deleteById(localPlaylist.playlistId)
+            }
+            val remoteTracks = if (remotePlaylist.systemType != null) {
+                remoteClient.pullSystemPlaylistTracks(userId, remotePlaylist.systemType!!)
+            } else {
+                remoteClient.pullPlaylistTracks(playlistId)
+            }
+            val trackIds = remoteTracks.map { it.trackId }.distinct()
+            remoteClient.pullTracksByIds(trackIds).forEach { trackDao.upsert(it) }
+            remoteTracks.forEach { playlistTrackDao.upsert(it.copy(playlistId = playlistId, isSynced = true)) }
+        } else {
+            uploadPlaylistToRemote(remoteClient, userId, localPlaylist!!)
         }
     }
 
@@ -882,43 +1120,6 @@ class LibraryRepository(
                 )
             }
         }
-    }
-
-    private suspend fun syncSystemPlaylistFromRemote(
-        userId: String,
-        userOwnerKey: String,
-        systemType: String,
-    ) {
-        val remoteClient = remote ?: return
-        val remotePlaylist = remoteClient.fetchSystemPlaylist(userId, systemType) ?: return
-        val localPlaylist = playlistDao.getSystemPlaylist(userOwnerKey, systemType)
-        val playlistId = remotePlaylist.playlistId
-
-        playlistDao.upsert(
-            PlaylistEntity(
-                playlistId = playlistId,
-                ownerKey = userOwnerKey,
-                userId = userId,
-                name = remotePlaylist.name,
-                coverUrlOrPath = remotePlaylist.coverUrlOrPath,
-                description = remotePlaylist.description,
-                systemType = remotePlaylist.systemType,
-                source = DataSource.LOCAL.dbValue,
-                isSynced = true,
-                updatedAt = System.currentTimeMillis(),
-            ),
-        )
-
-        if (localPlaylist != null && localPlaylist.playlistId != playlistId) {
-            mergePlaylistTracks(localPlaylist.playlistId, playlistId)
-            playlistTrackDao.deleteAllByPlaylist(localPlaylist.playlistId)
-            playlistDao.deleteById(localPlaylist.playlistId)
-        }
-
-        val remoteTracks = remoteClient.pullSystemPlaylistTracks(userId, systemType)
-        val trackIds = remoteTracks.map { it.trackId }.distinct()
-        remoteClient.pullTracksByIds(trackIds).forEach { trackDao.upsert(it) }
-        remoteTracks.forEach { playlistTrackDao.upsert(it.copy(playlistId = playlistId)) }
     }
 
     private fun LibraryVideoRow.toLibraryVideo() = LibraryVideo(
@@ -959,6 +1160,18 @@ class LibraryRepository(
             ?: playlistDao.getAllByOwner(ownerKey).firstOrNull { it.playlistId == playlistId }?.playlistId
     }
 
+    private suspend fun findOwnedLocalPlaylist(
+        playlistId: String,
+        ownerKey: String,
+    ): PlaylistEntity? {
+        val playlist = playlistDao.getById(playlistId)
+            ?: playlistDao.getAllByOwner(ownerKey).firstOrNull { it.playlistId == playlistId }
+            ?: return null
+        if (playlist.ownerKey != ownerKey || playlist.isYoutube()) return null
+        if (playlist.systemType == PlaylistSystemType.HISTORY) return null
+        return playlist
+    }
+
     private suspend fun findOwnedLocalCustomPlaylist(
         playlistId: String,
         ownerKey: String,
@@ -969,6 +1182,48 @@ class LibraryRepository(
             return null
         }
         return playlist
+    }
+
+    private suspend fun findYoutubePlaylist(playlistId: String): PlaylistEntity? =
+        youtubeRemote.getYoutubePlaylistsFlow().first()
+            .firstOrNull { it.playlistId == playlistId }
+
+    private fun applyPinOverlay(
+        playlists: List<PlaylistEntity>,
+        overlays: List<PlaylistPinOverlayEntity>,
+    ): List<PlaylistEntity> {
+        if (overlays.isEmpty()) return playlists
+        val overlayMap = overlays.associateBy { it.playlistId }
+        return playlists.map { playlist ->
+            overlayMap[playlist.playlistId]?.let { overlay ->
+                val effectiveUpdatedAt = when {
+                    overlay.isPinned -> overlay.pinnedAt ?: playlist.updatedAt
+                    overlay.unpinnedSortAt != null -> overlay.unpinnedSortAt
+                    else -> playlist.updatedAt
+                }
+                playlist.copy(
+                    isPinned = overlay.isPinned,
+                    unpinnedSortAt = overlay.unpinnedSortAt,
+                    pinnedAt = overlay.pinnedAt,
+                    updatedAt = effectiveUpdatedAt,
+                )
+            } ?: playlist
+        }
+    }
+
+    private fun orderPlaylistEntitiesByPin(playlists: List<PlaylistEntity>): List<PlaylistEntity> {
+        val pinned = playlists.filter { it.isPinned }
+            .sortedByDescending { it.pinnedAt ?: it.updatedAt }
+        val unpinned = playlists.filter { !it.isPinned }
+            .sortedByDescending { it.updatedAt }
+        return pinned + unpinned
+    }
+
+    private fun schedulePlaylistUpload() {
+        val session = authRepository.currentSession() as? UserSession.Authenticated ?: return
+        repositoryScope.launch {
+            uploadLocalDataToRemote(session.profile.userId, session.ownerKey)
+        }
     }
 
     companion object {

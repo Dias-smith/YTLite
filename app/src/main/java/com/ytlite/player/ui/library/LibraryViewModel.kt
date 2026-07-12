@@ -11,6 +11,7 @@ import com.ytlite.player.data.auth.UserSession
 import com.ytlite.player.data.model.LibraryFilterChip
 import com.ytlite.player.data.model.LibrarySort
 import com.ytlite.player.data.model.LibraryViewMode
+import com.ytlite.player.data.model.LibraryItem
 import com.ytlite.player.data.repository.LibraryItemMapper
 import com.ytlite.player.data.repository.LibraryRepository
 import com.ytlite.player.data.youtube.YoutubeDiagnostics
@@ -35,6 +36,7 @@ class LibraryViewModel(
     private val selectedFilter = MutableStateFlow(LibraryFilterChip.PLAYLISTS)
     private val sort = MutableStateFlow(LibrarySort.RECENT_ACTIVITY)
     private val viewMode = MutableStateFlow(LibraryViewMode.LIST)
+    private val isPlaylistReorderMode = MutableStateFlow(false)
 
     init {
         viewModelScope.launch { authRepository.initialize() }
@@ -45,15 +47,21 @@ class LibraryViewModel(
         selectedFilter,
         sort,
         viewMode,
-    ) { session, filter, currentSort, mode ->
-        LibraryQuery(session, filter, currentSort, mode)
+        isPlaylistReorderMode,
+    ) { session, filter, currentSort, mode, reorderMode ->
+        LibraryQuery(session, filter, currentSort, mode, reorderMode)
     }.flatMapLatest { query ->
         val session = query.session
             ?: return@flatMapLatest flowOf(LibraryUiState(isLoading = true))
+        val effectiveSort = if (query.reorderMode && query.filter == LibraryFilterChip.PLAYLISTS) {
+            LibrarySort.CUSTOM
+        } else {
+            query.sort
+        }
         libraryRepository.observeLibraryItems(
             ownerKey = session.ownerKey,
             filter = query.filter,
-            sort = query.sort,
+            sort = effectiveSort,
             isAuthenticated = session is UserSession.Authenticated,
         ).map { items ->
             LibraryUiState(
@@ -64,9 +72,10 @@ class LibraryViewModel(
                 viewMode = query.mode,
                 visibleChips = LibraryItemMapper.visibleChips(session),
                 isLoading = false,
+                isPlaylistReorderMode = query.reorderMode,
             )
         }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LibraryUiState())
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LibraryUiState(isLoading = true))
 
     fun refreshIfNeeded() {
         viewModelScope.launch {
@@ -86,6 +95,9 @@ class LibraryViewModel(
     }
 
     fun selectFilter(chip: LibraryFilterChip) {
+        if (chip != LibraryFilterChip.PLAYLISTS) {
+            isPlaylistReorderMode.value = false
+        }
         selectedFilter.value = chip
     }
 
@@ -96,8 +108,48 @@ class LibraryViewModel(
     }
 
     fun toggleViewMode() {
+        if (isPlaylistReorderMode.value) return
         viewMode.update {
             if (it == LibraryViewMode.LIST) LibraryViewMode.GRID else LibraryViewMode.LIST
+        }
+    }
+
+    fun enterPlaylistReorderMode() {
+        viewModelScope.launch {
+            val session = authRepository.currentSession() ?: return@launch
+            val currentItems = uiState.value.items.filterIsInstance<LibraryItem.Playlist>()
+            if (sort.value != LibrarySort.CUSTOM) {
+                libraryRepository.seedDisplayOrderFromCurrent(session.ownerKey, currentItems)
+            }
+            viewMode.value = LibraryViewMode.LIST
+            isPlaylistReorderMode.value = true
+        }
+    }
+
+    fun exitPlaylistReorderMode() {
+        isPlaylistReorderMode.value = false
+        sort.value = LibrarySort.CUSTOM
+    }
+
+    fun reorderPlaylist(fromIndex: Int, toIndex: Int) {
+        viewModelScope.launch {
+            val session = authRepository.currentSession() ?: return@launch
+            val playlists = uiState.value.items.filterIsInstance<LibraryItem.Playlist>()
+            if (fromIndex !in playlists.indices || toIndex !in playlists.indices) return@launch
+            val from = playlists[fromIndex]
+            val to = playlists[toIndex]
+            if (from.isPinned != to.isPinned) return@launch
+            val pinGroup = from.isPinned
+            val groupItems = playlists.filter { it.isPinned == pinGroup }
+            val fromGroupPos = groupItems.indexOfFirst { it.id == from.id }
+            val toGroupPos = groupItems.indexOfFirst { it.id == to.id }
+            if (fromGroupPos < 0 || toGroupPos < 0 || fromGroupPos == toGroupPos) return@launch
+            libraryRepository.reorderPlaylistInGroup(
+                ownerKey = session.ownerKey,
+                pinGroup = pinGroup,
+                fromPosition = fromGroupPos,
+                toPosition = toGroupPos,
+            )
         }
     }
 
@@ -110,6 +162,7 @@ class LibraryViewModel(
 
     fun createPlaylist(name: String) {
         viewModelScope.launch {
+            authRepository.initialize()
             val ownerKey = authRepository.currentSession()?.ownerKey ?: return@launch
             libraryRepository.createLocalPlaylist(ownerKey, name)
         }
@@ -120,6 +173,7 @@ class LibraryViewModel(
         val filter: LibraryFilterChip,
         val sort: LibrarySort,
         val mode: LibraryViewMode,
+        val reorderMode: Boolean,
     )
 
     companion object {

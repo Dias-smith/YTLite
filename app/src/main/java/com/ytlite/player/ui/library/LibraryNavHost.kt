@@ -38,8 +38,15 @@ fun LibraryNavHost(
     val onTrackMoreClick = LocalTrackMoreClick.current
     val onPlaylistMoreClick = LocalPlaylistMoreClick.current
 
-    LaunchedEffect(uiState.session.ownerKey) {
-        viewModel.refreshIfNeeded()
+    LaunchedEffect(uiState.session?.ownerKey) {
+        if (uiState.session != null) {
+            viewModel.refreshIfNeeded()
+        }
+    }
+
+    val session = uiState.session
+    if (session == null) {
+        return
     }
 
     LaunchedEffect(pendingAlbumName) {
@@ -50,7 +57,7 @@ fun LibraryNavHost(
     }
 
     AccountSwitcherSheet(
-        session = uiState.session,
+        session = session,
         visible = showAccountSheet,
         onDismiss = { showAccountSheet = false },
         onAddAccountClick = onSignInClick,
@@ -98,17 +105,20 @@ fun LibraryNavHost(
                 },
                 onPlaylistMoreClick = { playlist ->
                     onPlaylistMoreClick(
-                        PlaylistActionContext.fromLibraryItem(playlist, uiState.session.ownerKey),
+                        PlaylistActionContext.fromLibraryItem(playlist, session.ownerKey),
                     )
                 },
                 onFindMusic = onNavigateHomeTab,
                 onNewPlaylist = { showNewPlaylistDialog = true },
+                onEnterPlaylistReorder = viewModel::enterPlaylistReorderMode,
+                onExitPlaylistReorder = viewModel::exitPlaylistReorderMode,
+                onPlaylistReorder = viewModel::reorderPlaylist,
                 modifier = modifier,
             )
         }
         LibraryDestination.History -> {
             HistoryScreen(
-                ownerKey = uiState.session.ownerKey,
+                ownerKey = session.ownerKey,
                 onBack = { destination = LibraryDestination.Home },
                 onVideoClick = onVideoClick,
                 onSongMoreClick = { video, playlistId, source ->
@@ -123,7 +133,7 @@ fun LibraryNavHost(
             PlaylistDetailScreen(
                 playlistId = current.playlistId,
                 systemType = current.systemType,
-                ownerKey = uiState.session.ownerKey,
+                ownerKey = session.ownerKey,
                 onBack = { destination = LibraryDestination.Home },
                 onVideoClick = onVideoClick,
                 onCloneYoutubePlaylist = { viewModel.cloneYoutubePlaylistToLocal(current.playlistId) },
@@ -141,7 +151,7 @@ fun LibraryNavHost(
         is LibraryDestination.AlbumTracks -> {
             AlbumTracksScreen(
                 albumName = current.albumName,
-                ownerKey = uiState.session.ownerKey,
+                ownerKey = session.ownerKey,
                 onBack = { destination = LibraryDestination.Home },
                 onVideoClick = onVideoClick,
                 modifier = modifier,

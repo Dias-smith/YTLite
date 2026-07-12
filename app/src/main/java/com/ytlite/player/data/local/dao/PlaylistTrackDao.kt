@@ -33,6 +33,9 @@ interface PlaylistTrackDao {
     @Query("DELETE FROM playlist_track_cross_ref WHERE playlistId = :playlistId")
     suspend fun deleteAllByPlaylist(playlistId: String)
 
+    @Query("UPDATE playlist_track_cross_ref SET isSynced = 1 WHERE playlistId = :playlistId")
+    suspend fun markSyncedByPlaylist(playlistId: String)
+
     @Query("DELETE FROM playlist_track_cross_ref WHERE playlistId = :playlistId AND trackId = :trackId")
     suspend fun deleteTrack(playlistId: String, trackId: String)
 

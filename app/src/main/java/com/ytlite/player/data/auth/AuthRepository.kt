@@ -10,6 +10,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 class AuthRepository(
     private val context: Context,
@@ -20,6 +22,7 @@ class AuthRepository(
 
     private val _session = MutableStateFlow<UserSession?>(null)
     val session: Flow<UserSession?> = _session.asStateFlow()
+    private val initializeMutex = Mutex()
 
     var onMergeGuestData: (suspend (guestOwnerKey: String, userId: String, profile: UserProfile) -> Unit)? = null
 
@@ -29,7 +32,7 @@ class AuthRepository(
 
     var onSignedOut: (suspend () -> Unit)? = null
 
-    suspend fun initialize() {
+    suspend fun initialize() = initializeMutex.withLock {
         val guestId = guestSessionStore.ensureGuestId()
         val client = SupabaseClientProvider.get(context)
         val storedUserId = guestSessionStore.supabaseUserIdFlow.first()
@@ -45,7 +48,7 @@ class AuthRepository(
                 )
                 _session.value = authenticated
                 onAuthenticated?.invoke(authenticated.profile)
-                return
+                return@withLock
             }
         }
         _session.value = UserSession.Guest(guestId = guestId)

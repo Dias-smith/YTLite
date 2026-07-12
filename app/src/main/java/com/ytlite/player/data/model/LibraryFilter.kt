@@ -11,6 +11,7 @@ enum class LibraryFilterChip {
 enum class LibrarySort {
     RECENT_ACTIVITY,
     RECENTLY_SAVED,
+    CUSTOM,
 }
 
 enum class LibraryViewMode {

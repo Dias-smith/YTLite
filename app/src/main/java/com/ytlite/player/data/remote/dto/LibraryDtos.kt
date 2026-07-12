@@ -46,6 +46,8 @@ data class PlaylistDto(
     @SerialName("cover_url_or_path") val coverUrlOrPath: String? = null,
     val description: String? = null,
     @SerialName("system_type") val systemType: String? = null,
+    @SerialName("is_pinned") val isPinned: Boolean = false,
+    @SerialName("updated_at") val updatedAt: String? = null,
 )
 
 @Serializable

@@ -7,7 +7,9 @@ import androidx.room.RoomDatabase
 import com.ytlite.player.data.local.dao.ArtistDao
 import com.ytlite.player.data.local.dao.NotInterestedDao
 import com.ytlite.player.data.local.dao.PlaybackHistoryDao
+import com.ytlite.player.data.local.dao.PlaylistDisplayOrderDao
 import com.ytlite.player.data.local.dao.PlaylistDao
+import com.ytlite.player.data.local.dao.PlaylistPinOverlayDao
 import com.ytlite.player.data.local.dao.PlaylistTrackDao
 import com.ytlite.player.data.local.dao.SearchQueryDao
 import com.ytlite.player.data.local.dao.SearchRecentClickDao
@@ -17,7 +19,9 @@ import com.ytlite.player.data.local.dao.UserTrackMetadataDao
 import com.ytlite.player.data.local.entity.ArtistEntity
 import com.ytlite.player.data.local.entity.NotInterestedEntity
 import com.ytlite.player.data.local.entity.PlaybackHistoryEntity
+import com.ytlite.player.data.local.entity.PlaylistDisplayOrderEntity
 import com.ytlite.player.data.local.entity.PlaylistEntity
+import com.ytlite.player.data.local.entity.PlaylistPinOverlayEntity
 import com.ytlite.player.data.local.entity.PlaylistTrackEntity
 import com.ytlite.player.data.local.entity.SearchQueryEntity
 import com.ytlite.player.data.local.entity.SearchRecentClickEntity
@@ -30,6 +34,8 @@ import com.ytlite.player.data.local.entity.UserTrackMetadataEntity
         ArtistEntity::class,
         TrackEntity::class,
         PlaylistEntity::class,
+        PlaylistPinOverlayEntity::class,
+        PlaylistDisplayOrderEntity::class,
         PlaylistTrackEntity::class,
         PlaybackHistoryEntity::class,
         UserTrackLastPlayedEntity::class,
@@ -38,13 +44,15 @@ import com.ytlite.player.data.local.entity.UserTrackMetadataEntity
         NotInterestedEntity::class,
         UserTrackMetadataEntity::class,
     ],
-    version = 7,
+    version = 10,
     exportSchema = false,
 )
 abstract class YTLiteDatabase : RoomDatabase() {
     abstract fun artistDao(): ArtistDao
     abstract fun trackDao(): TrackDao
     abstract fun playlistDao(): PlaylistDao
+    abstract fun playlistPinOverlayDao(): PlaylistPinOverlayDao
+    abstract fun playlistDisplayOrderDao(): PlaylistDisplayOrderDao
     abstract fun playlistTrackDao(): PlaylistTrackDao
     abstract fun playbackHistoryDao(): PlaybackHistoryDao
     abstract fun userTrackLastPlayedDao(): UserTrackLastPlayedDao
@@ -64,7 +72,7 @@ abstract class YTLiteDatabase : RoomDatabase() {
                     YTLiteDatabase::class.java,
                     "ytlite.db",
                 )
-                    .fallbackToDestructiveMigration()
+                    .addMigrations(MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10)
                     .build()
                     .also { instance = it }
             }

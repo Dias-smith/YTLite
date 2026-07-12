@@ -106,6 +106,8 @@
     <string name="library_sort_recent_activity">最近活动</string>
     <string name="library_sort_recently_saved">最近保存</string>
     <string name="library_toggle_view_mode">切换列表或网格视图</string>
+    <string name="library_playlist_reorder">排序</string>
+    <string name="library_playlist_reorder_done">完成</string>
     <string name="library_new_fab">+ 新建</string>
     <string name="library_new_playlist_title">新建播放列表</string>
     <string name="library_new_playlist_hint">播放列表名称</string>

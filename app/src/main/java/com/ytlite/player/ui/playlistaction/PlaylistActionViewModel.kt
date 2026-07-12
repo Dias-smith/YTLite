@@ -35,6 +35,14 @@ class PlaylistActionViewModel(
 
     init {
         viewModelScope.launch {
+            if (!context.isHistoryVirtual) {
+                launch {
+                    libraryRepository.observePlaylistPin(context.playlistId, context.ownerKey)
+                        .collect { isPinned ->
+                            _uiState.update { it.copy(isPinned = isPinned) }
+                        }
+                }
+            }
             if (context.isHistoryVirtual) {
                 val history = libraryRepository.observeAllHistory(context.ownerKey).first()
                 _uiState.update {
@@ -87,9 +95,6 @@ class PlaylistActionViewModel(
                 playlistId = context.playlistId,
                 ownerKey = context.ownerKey,
             )
-            if (success) {
-                _uiState.update { it.copy(isPinned = !it.isPinned) }
-            }
             onDone(success)
         }
     }

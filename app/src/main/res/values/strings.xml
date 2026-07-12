@@ -132,6 +132,8 @@
     <string name="library_sort_recent_activity">Recent activity</string>
     <string name="library_sort_recently_saved">Recently saved</string>
     <string name="library_toggle_view_mode">Toggle list or grid view</string>
+    <string name="library_playlist_reorder">Reorder playlists</string>
+    <string name="library_playlist_reorder_done">Done</string>
     <string name="library_new_fab">+ New</string>
     <string name="library_new_playlist_title">New playlist</string>
     <string name="library_new_playlist_hint">Playlist name</string>

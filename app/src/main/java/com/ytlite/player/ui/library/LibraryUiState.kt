@@ -9,11 +9,12 @@ import com.ytlite.player.data.model.LibraryViewMode
 
 @Immutable
 data class LibraryUiState(
-    val session: UserSession = UserSession.Guest(guestId = ""),
+    val session: UserSession? = null,
     val items: List<LibraryItem> = emptyList(),
     val selectedFilter: LibraryFilterChip = LibraryFilterChip.PLAYLISTS,
     val sort: LibrarySort = LibrarySort.RECENT_ACTIVITY,
     val viewMode: LibraryViewMode = LibraryViewMode.LIST,
     val visibleChips: List<LibraryFilterChip> = emptyList(),
     val isLoading: Boolean = true,
+    val isPlaylistReorderMode: Boolean = false,
 )

@@ -22,8 +22,8 @@ internal object LibraryItemMapper {
             subtitle = subtitle,
             coverUrl = playlist.coverUrlOrPath,
             source = playlist.dataSource,
-            sortKeyActivity = playlist.updatedAt,
-            sortKeySaved = playlist.updatedAt,
+            sortKeyActivity = playlist.sortKeyActivity(),
+            sortKeySaved = playlist.sortKeySaved(),
             systemType = playlist.systemType,
             isPinned = playlist.isPinned,
         )
@@ -110,31 +110,39 @@ internal object LibraryItemMapper {
         when (sort) {
             LibrarySort.RECENT_ACTIVITY -> items.sortedByDescending { it.sortKeyActivity }
             LibrarySort.RECENTLY_SAVED -> items.sortedByDescending { it.sortKeySaved }
+            LibrarySort.CUSTOM -> items.sortedByDescending { it.sortKeyActivity }
         }
-
-    private val pinnedSystemPlaylistTypes = listOf(
-        PlaylistSystemType.FAVORITES,
-        PlaylistSystemType.WATCH_LATER,
-    )
 
     fun orderPlaylistItems(
         items: List<LibraryItem.Playlist>,
         sort: LibrarySort,
+        manualOrder: Map<String, Int> = emptyMap(),
+        includeHistory: Boolean = true,
     ): List<LibraryItem> {
-        val bySystemType = items
-            .filter { it.systemType != null }
-            .associateBy { it.systemType!! }
-        val pinned = buildList {
-            pinnedSystemPlaylistTypes.forEach { systemType ->
-                add(bySystemType[systemType] ?: syntheticSystemPlaylist(systemType))
+        val allItems = buildList {
+            addAll(items)
+            if (includeHistory && items.none { it.systemType == PlaylistSystemType.HISTORY }) {
+                add(historyPlaylistItem())
             }
-            add(historyPlaylistItem())
         }
-        val customPlaylists = items.filter { it.systemType == null }
-        val pinnedCustom = customPlaylists.filter { it.isPinned }
-        val unpinnedCustom = customPlaylists.filter { !it.isPinned }
-        return pinned + sortItems(pinnedCustom, sort) + sortItems(unpinnedCustom, sort)
+        val pinned = sortPlaylists(allItems.filter { it.isPinned }, sort, manualOrder)
+        val unpinned = sortPlaylists(allItems.filter { !it.isPinned }, sort, manualOrder)
+        return pinned + unpinned
     }
+
+    private fun sortPlaylists(
+        items: List<LibraryItem.Playlist>,
+        sort: LibrarySort,
+        manualOrder: Map<String, Int>,
+    ): List<LibraryItem.Playlist> =
+        when (sort) {
+            LibrarySort.CUSTOM -> items.sortedWith(
+                compareBy<LibraryItem.Playlist> { manualOrder[it.id] ?: Int.MAX_VALUE }
+                    .thenByDescending { it.sortKeyActivity },
+            )
+            LibrarySort.RECENT_ACTIVITY -> items.sortedByDescending { it.sortKeyActivity }
+            LibrarySort.RECENTLY_SAVED -> items.sortedByDescending { it.sortKeySaved }
+        }
 
     fun historyPlaylistItem(): LibraryItem.Playlist = LibraryItem.Playlist(
         id = "system:history",
@@ -143,29 +151,10 @@ internal object LibraryItemMapper {
         subtitle = systemPlaylistSubtitle(PlaylistSystemType.HISTORY),
         coverUrl = null,
         source = DataSource.LOCAL,
-        sortKeyActivity = Long.MAX_VALUE,
-        sortKeySaved = Long.MAX_VALUE,
+        sortKeyActivity = 0L,
+        sortKeySaved = 0L,
         systemType = PlaylistSystemType.HISTORY,
     )
-
-    private fun syntheticSystemPlaylist(systemType: String): LibraryItem.Playlist {
-        val id = when (systemType) {
-            PlaylistSystemType.FAVORITES -> "system:favorites"
-            PlaylistSystemType.WATCH_LATER -> "system:watch_later"
-            else -> "system:$systemType"
-        }
-        return LibraryItem.Playlist(
-            id = id,
-            playlistId = id,
-            title = systemPlaylistTitle(systemType),
-            subtitle = systemPlaylistSubtitle(systemType),
-            coverUrl = null,
-            source = DataSource.LOCAL,
-            sortKeyActivity = Long.MAX_VALUE,
-            sortKeySaved = Long.MAX_VALUE,
-            systemType = systemType,
-        )
-    }
 
     private fun systemPlaylistTitle(systemType: String): String = when (systemType) {
         PlaylistSystemType.WATCH_LATER -> "Watch later"
@@ -199,6 +188,8 @@ internal object LibraryItemMapper {
         else -> "Local · Playlist"
     }
 
+    fun playlistListKey(playlist: PlaylistEntity): String = playlist.listKey()
+
     private fun PlaylistEntity.listKey(): String = when (systemType) {
         PlaylistSystemType.FAVORITES -> "system:favorites"
         PlaylistSystemType.WATCH_LATER -> "system:watch_later"
@@ -209,5 +200,14 @@ internal object LibraryItemMapper {
         PlaylistSystemType.WATCH_LATER -> "Watch later"
         PlaylistSystemType.FAVORITES -> "Liked videos"
         else -> name
+    }
+
+    fun PlaylistEntity.sortKeyActivity(): Long = effectiveSortAt()
+
+    fun PlaylistEntity.sortKeySaved(): Long = effectiveSortAt()
+
+    private fun PlaylistEntity.effectiveSortAt(): Long = when {
+        isPinned -> pinnedAt ?: updatedAt
+        else -> updatedAt
     }
 }

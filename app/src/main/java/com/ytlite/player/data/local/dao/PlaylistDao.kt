@@ -38,6 +38,29 @@ interface PlaylistDao {
         localSource: String = DataSource.LOCAL.dbValue,
     ): PlaylistEntity?
 
+    @Query("SELECT * FROM playlists WHERE playlistId = :playlistId LIMIT 1")
+    suspend fun getById(playlistId: String): PlaylistEntity?
+
+    @Query("SELECT * FROM playlists WHERE playlistId = :playlistId LIMIT 1")
+    fun observeById(playlistId: String): Flow<PlaylistEntity?>
+
+    @Query(
+        """
+        SELECT * FROM playlists
+        WHERE ownerKey = :ownerKey AND source = :localSource AND isSynced = 0
+        """,
+    )
+    suspend fun getUnsyncedLocalByOwner(
+        ownerKey: String,
+        localSource: String = DataSource.LOCAL.dbValue,
+    ): List<PlaylistEntity>
+
+    @Query("UPDATE playlists SET isSynced = 1 WHERE playlistId = :playlistId")
+    suspend fun markSynced(playlistId: String)
+
+    @Query("UPDATE playlists SET isSynced = 0 WHERE playlistId = :playlistId")
+    suspend fun markUnsynced(playlistId: String)
+
     @Query("SELECT * FROM playlists WHERE ownerKey = :ownerKey")
     suspend fun getAllByOwner(ownerKey: String): List<PlaylistEntity>
 

@@ -171,9 +171,7 @@ fun PlaylistActionBottomSheet(
                 },
                 enabled = context.canPin,
                 onClick = {
-                    viewModel.togglePin { success ->
-                        if (success) onDismiss()
-                    }
+                    viewModel.togglePin { }
                 },
             )
             ActionMenuRow(

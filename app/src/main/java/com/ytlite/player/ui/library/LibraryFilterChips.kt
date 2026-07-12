@@ -9,10 +9,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.ViewList
+import androidx.compose.material.icons.outlined.Sort
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -29,6 +31,9 @@ fun LibraryFilterChips(
     onChipSelected: (LibraryFilterChip) -> Unit,
     viewMode: LibraryViewMode,
     onToggleViewMode: () -> Unit,
+    isPlaylistReorderMode: Boolean = false,
+    onEnterPlaylistReorder: () -> Unit = {},
+    onExitPlaylistReorder: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -52,15 +57,31 @@ fun LibraryFilterChips(
                 )
             }
         }
-        IconButton(onClick = onToggleViewMode) {
-            Icon(
-                imageVector = if (viewMode == LibraryViewMode.LIST) {
-                    Icons.Default.GridView
-                } else {
-                    Icons.Default.ViewList
-                },
-                contentDescription = stringResource(R.string.library_toggle_view_mode),
-            )
+        if (selectedFilter == LibraryFilterChip.PLAYLISTS) {
+            if (isPlaylistReorderMode) {
+                TextButton(onClick = onExitPlaylistReorder) {
+                    Text(text = stringResource(R.string.library_playlist_reorder_done))
+                }
+            } else {
+                IconButton(onClick = onEnterPlaylistReorder) {
+                    Icon(
+                        imageVector = Icons.Outlined.Sort,
+                        contentDescription = stringResource(R.string.library_playlist_reorder),
+                    )
+                }
+            }
+        }
+        if (!isPlaylistReorderMode) {
+            IconButton(onClick = onToggleViewMode) {
+                Icon(
+                    imageVector = if (viewMode == LibraryViewMode.LIST) {
+                        Icons.Default.GridView
+                    } else {
+                        Icons.Default.ViewList
+                    },
+                    contentDescription = stringResource(R.string.library_toggle_view_mode),
+                )
+            }
         }
     }
 }

@@ -23,6 +23,8 @@ data class PlaylistEntity(
     val source: String = DataSource.LOCAL.dbValue,
     val isSynced: Boolean = false,
     val isPinned: Boolean = false,
+    val unpinnedSortAt: Long? = null,
+    val pinnedAt: Long? = null,
     val updatedAt: Long = System.currentTimeMillis(),
 ) {
     val dataSource: DataSource get() = DataSource.fromDb(source)
