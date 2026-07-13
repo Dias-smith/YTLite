@@ -20,6 +20,8 @@ import com.ytlite.player.ui.navigation.YTLiteNavHost
 import com.ytlite.player.ui.player.handlePlayerPictureInPictureModeChanged
 import com.ytlite.player.ui.player.handlePlayerPictureInPictureUiStateChanged
 import com.ytlite.player.ui.player.applyPlayerPictureInPictureParams
+import com.ytlite.player.ui.player.enterPlayerPictureInPicture
+import com.ytlite.player.ui.player.PlayerPipState
 import com.ytlite.player.ui.theme.YTLiteTheme
 
 class MainActivity : ComponentActivity() {
@@ -48,7 +50,11 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        if (isInPictureInPictureMode) {
+        if (PlayerPipState.consumePendingEnterPictureInPicture()) {
+            window.decorView.post {
+                enterPlayerPictureInPicture()
+            }
+        } else if (isInPictureInPictureMode) {
             applyPlayerPictureInPictureParams()
         }
     }

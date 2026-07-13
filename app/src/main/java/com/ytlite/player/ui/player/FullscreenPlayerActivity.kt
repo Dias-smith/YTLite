@@ -68,7 +68,11 @@ class FullscreenPlayerActivity : ComponentActivity() {
                                 finish()
                             }
                         },
-                        onPictureInPictureClick = { enterPlayerPictureInPicture() },
+                        onPictureInPictureClick = {
+                            PlayerPipState.requestEnterPictureInPictureAfterFullscreenExit()
+                            PlaybackManager.setInlinePlayerSurfaceAttached(true)
+                            finish()
+                        },
                         onSeek = PlaybackManager::seekTo,
                         onTogglePlayPause = PlaybackManager::togglePlayPause,
                         onSkipPrevious = PlaybackManager::skipToPreviousInQueue,
