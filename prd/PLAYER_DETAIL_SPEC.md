@@ -78,12 +78,15 @@ Vertical scrollable layout, four blocks:
 
 **UI:** `LazyColumn` items with stable `videoId` keys; `contentType` for video vs playlist; no comments block.
 
-### 2.4 Queue sheet
+### 2.4 Queue overlay
 
-- Player screen bottom: extended `MiniPlayerBar` (56dp) showing `Next: {title}`
-- Swipe up → full queue `BottomSheet`
+- Global `MiniPlayerBar` (Main) and `PlayerMiniBar` (detail) open the same **fullscreen black Overlay** (`ExpandedPlayerQueueOverlay`)
+- Layout: ~40% player surface (square art, centered controls, red seek bar) + ~60% queue list
+- Queue header: "Play queue" + current track title; Loop / Shuffle / More / Close
+- Like / Dislike under current track (local Favorites / Not Interested)
+- Cast via system share / wireless display settings; CC loads VTT subtitles; Settings sheet for speed + quality
 - Long-press drag reorder → `PlayQueueRepository.reorder()` → `PlaybackManager.syncQueue()`
-- Auto-advance on track end via queue
+- Auto-advance on track end via queue (respects repeat mode)
 
 ---
 
