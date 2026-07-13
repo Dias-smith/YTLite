@@ -39,6 +39,8 @@ import com.ytlite.player.R
 import com.ytlite.player.ui.trackaction.LocalTrackMoreClick
 import com.ytlite.player.ui.trackaction.TrackActionContext
 import com.ytlite.player.data.model.SearchResultItem
+import com.ytlite.player.data.model.VideoItem
+import com.ytlite.player.ui.player.toVideoItem
 import com.ytlite.player.data.model.SearchResultTab
 import com.ytlite.player.ui.library.LibraryImage
 
@@ -53,7 +55,7 @@ fun SearchResultsScreen(
     hasMore: Boolean,
     onTabSelected: (SearchResultTab) -> Unit,
     onLoadMore: () -> Unit,
-    onVideoClick: (String) -> Unit,
+    onVideoClick: (VideoItem) -> Unit,
     onChannelClick: (SearchResultItem.Channel) -> Unit,
     onPlaylistClick: (SearchResultItem.Playlist) -> Unit,
     modifier: Modifier = Modifier,
@@ -139,13 +141,13 @@ fun SearchResultsScreen(
 @Composable
 private fun VideoResultRow(
     item: SearchResultItem.Video,
-    onClick: (String) -> Unit,
+    onClick: (VideoItem) -> Unit,
 ) {
     val onTrackMoreClick = LocalTrackMoreClick.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick(item.videoId) }
+            .clickable { onClick(item.toVideoItem()) }
             .padding(horizontal = 16.dp, vertical = 10.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,

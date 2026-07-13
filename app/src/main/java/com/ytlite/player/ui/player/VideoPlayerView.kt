@@ -1,9 +1,17 @@
 package com.ytlite.player.ui.player
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.media3.common.Player
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
@@ -44,27 +52,45 @@ private fun PlayerSurface(
     if (player == null) return
 
     val stablePlayer = remember(player) { player }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var rebindToken by remember { mutableIntStateOf(0) }
 
-    AndroidView(
-        factory = { context ->
-            PlayerView(context).apply {
-                this.player = stablePlayer
-                this.useController = useController
-                controllerShowTimeoutMs = 3000
-                this.resizeMode = resizeMode
-                setShowBuffering(PlayerView.SHOW_BUFFERING_NEVER)
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                rebindToken++
             }
-        },
-        update = { view ->
-            if (view.player !== stablePlayer) {
-                view.player = stablePlayer
-            }
-            view.useController = useController
-            view.resizeMode = resizeMode
-        },
-        onRelease = { view ->
-            view.player = null
-        },
-        modifier = modifier,
-    )
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    key(rebindToken) {
+        AndroidView(
+            factory = { context ->
+                PlayerView(context).apply {
+                    this.player = stablePlayer
+                    this.useController = useController
+                    controllerShowTimeoutMs = 3000
+                    this.resizeMode = resizeMode
+                    setShowBuffering(PlayerView.SHOW_BUFFERING_NEVER)
+                }
+            },
+            update = { view ->
+                if (view.player !== stablePlayer) {
+                    view.player = stablePlayer
+                }
+                view.useController = useController
+                view.resizeMode = resizeMode
+                view.onResume()
+            },
+            onRelease = { view ->
+                view.onPause()
+                view.player = null
+            },
+            modifier = modifier,
+        )
+    }
 }

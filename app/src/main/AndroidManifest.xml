@@ -23,6 +23,7 @@
             android:name=".MainActivity"
             android:exported="true"
             android:label="@string/app_name"
+            android:screenOrientation="portrait"
             android:supportsPictureInPicture="true"
             android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation"
             android:theme="@style/Theme.YTLite"
@@ -37,6 +38,7 @@
         <activity
             android:name=".ui.player.FullscreenPlayerActivity"
             android:exported="false"
+            android:screenOrientation="sensorLandscape"
             android:supportsPictureInPicture="true"
             android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation"
             android:theme="@style/Theme.YTLite" />
@@ -50,6 +52,16 @@
                 <action android:name="androidx.media3.session.MediaSessionService" />
             </intent-filter>
         </service>
+
+        <receiver
+            android:name=".ui.player.PipActionReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.ytlite.player.pip.PREV" />
+                <action android:name="com.ytlite.player.pip.PLAY_PAUSE" />
+                <action android:name="com.ytlite.player.pip.NEXT" />
+            </intent-filter>
+        </receiver>
 
         <receiver
             android:name="androidx.media3.session.MediaButtonReceiver"

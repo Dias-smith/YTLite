@@ -49,6 +49,13 @@ object PlaybackManager {
     private val _playerState = MutableStateFlow<Player?>(null)
     val playerState: StateFlow<Player?> = _playerState.asStateFlow()
 
+    private val _inlinePlayerSurfaceAttached = MutableStateFlow(true)
+    val inlinePlayerSurfaceAttached: StateFlow<Boolean> = _inlinePlayerSurfaceAttached.asStateFlow()
+
+    fun setInlinePlayerSurfaceAttached(attached: Boolean) {
+        _inlinePlayerSurfaceAttached.value = attached
+    }
+
     private var appContext: Context? = null
     private var controllerFuture: ListenableFuture<MediaController>? = null
     private var controller: MediaController? = null
@@ -187,7 +194,9 @@ object PlaybackManager {
             if (playable.isEmpty()) return@runOnMainThread
             val currentId = _nowPlaying.value?.videoId
             val currentIndex = items.indexOfFirst { it.videoId == currentId }.coerceAtLeast(0)
-            activePlayer.setMediaItems(playable, currentIndex.coerceAtMost(playable.lastIndex), 0L)
+            val safeIndex = currentIndex.coerceAtMost(playable.lastIndex)
+            val startPositionMs = activePlayer.currentPosition.coerceAtLeast(0L)
+            activePlayer.setMediaItems(playable, safeIndex, startPositionMs)
             activePlayer.prepare()
         }
     }
@@ -296,10 +305,31 @@ object PlaybackManager {
         val mediaItems = items.map { it.toMediaItem() }
         val safeIndex = startIndex.coerceIn(0, mediaItems.lastIndex)
         val current = items[safeIndex]
+        val playing = _nowPlaying.value
+        if (
+            playing != null &&
+            playing.videoId == current.videoId &&
+            playing.streamUrl == current.streamUrl &&
+            activePlayer.playbackState != Player.STATE_IDLE &&
+            activePlayer.mediaItemCount > 0
+        ) {
+            _nowPlaying.value = current
+            _playbackEnded.value = false
+            _playbackError.value = null
+            return
+        }
+        val startPositionMs = if (
+            playing?.videoId == current.videoId &&
+            playing.streamUrl == current.streamUrl
+        ) {
+            activePlayer.currentPosition
+        } else {
+            0L
+        }
         _nowPlaying.value = current
         _playbackEnded.value = false
         _playbackError.value = null
-        activePlayer.setMediaItems(mediaItems, safeIndex, 0L)
+        activePlayer.setMediaItems(mediaItems, safeIndex, startPositionMs)
         activePlayer.prepare()
         activePlayer.playbackParameters = activePlayer.playbackParameters.withSpeed(playbackSpeed)
         syncRepeatMode()
@@ -451,8 +481,11 @@ object PlaybackManager {
                         _playbackEnded.value = true
                         _isPlaying.value = false
                     }
-                } else if (playbackState == Player.STATE_READY && player.isPlaying) {
-                    _playbackEnded.value = false
+                } else if (playbackState == Player.STATE_READY) {
+                    if (player.isPlaying) {
+                        _playbackEnded.value = false
+                    }
+                    PlaybackTiming.logPlayerReady()
                 }
                 syncFromPlayer(player)
             }

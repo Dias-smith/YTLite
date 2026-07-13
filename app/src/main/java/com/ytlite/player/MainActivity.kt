@@ -3,6 +3,7 @@ package com.ytlite.player
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -16,6 +17,9 @@ import com.ytlite.player.playback.PlaybackIntents
 import com.ytlite.player.playback.PlaybackManager
 import com.ytlite.player.playback.PlaybackNavigation
 import com.ytlite.player.ui.navigation.YTLiteNavHost
+import com.ytlite.player.ui.player.handlePlayerPictureInPictureModeChanged
+import com.ytlite.player.ui.player.handlePlayerPictureInPictureUiStateChanged
+import com.ytlite.player.ui.player.applyPlayerPictureInPictureParams
 import com.ytlite.player.ui.theme.YTLiteTheme
 
 class MainActivity : ComponentActivity() {
@@ -40,6 +44,26 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         handleOpenPlayerIntent(intent)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (isInPictureInPictureMode) {
+            applyPlayerPictureInPictureParams()
+        }
+    }
+
+    override fun onPictureInPictureModeChanged(
+        isInPictureInPictureMode: Boolean,
+        newConfig: Configuration,
+    ) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+        handlePlayerPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+    }
+
+    override fun onPictureInPictureUiStateChanged(pipState: android.app.PictureInPictureUiState) {
+        super.onPictureInPictureUiStateChanged(pipState)
+        handlePlayerPictureInPictureUiStateChanged(pipState)
     }
 
     private fun handleOpenPlayerIntent(intent: Intent?) {

@@ -22,11 +22,12 @@ import com.ytlite.player.R
 import com.ytlite.player.data.model.SearchResultItem
 import com.ytlite.player.data.model.SearchScreenState
 import com.ytlite.player.data.model.SubscriptionChannel
+import com.ytlite.player.data.model.VideoItem
 import kotlinx.coroutines.launch
 
 @Composable
 fun SearchScreen(
-    onVideoClick: (String) -> Unit,
+    onVideoClick: (VideoItem) -> Unit,
     onChannelClick: (SubscriptionChannel) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: SearchViewModel = viewModel(
@@ -110,9 +111,7 @@ fun SearchScreen(
                     onDiscoveryOpen = viewModel::onDiscoveryOpen,
                     onResultTabSelected = viewModel::onResultTabSelected,
                     onLoadMoreResults = viewModel::loadMoreResults,
-                    onVideoClick = { videoId ->
-                        onVideoClick(videoId)
-                    },
+                    onVideoClick = onVideoClick,
                     onChannelClick = { channel ->
                         onChannelClick(channel)
                     },
@@ -145,7 +144,7 @@ private fun SearchContent(
     onDiscoveryOpen: (com.ytlite.player.data.model.DiscoveryType) -> Unit,
     onResultTabSelected: (com.ytlite.player.data.model.SearchResultTab) -> Unit,
     onLoadMoreResults: () -> Unit,
-    onVideoClick: (String) -> Unit,
+    onVideoClick: (VideoItem) -> Unit,
     onChannelClick: (SubscriptionChannel) -> Unit,
     onResultChannelClick: (SearchResultItem.Channel) -> Unit,
     onPlaylistClick: (SearchResultItem.Playlist) -> Unit,

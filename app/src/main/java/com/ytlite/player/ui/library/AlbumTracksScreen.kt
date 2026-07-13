@@ -35,6 +35,8 @@ import android.app.Application
 import androidx.compose.ui.platform.LocalContext
 import com.ytlite.player.R
 import com.ytlite.player.data.model.LibraryVideo
+import com.ytlite.player.data.model.VideoItem
+import com.ytlite.player.ui.player.toVideoItem
 import com.ytlite.player.ui.trackaction.LocalTrackMoreClick
 import com.ytlite.player.ui.trackaction.TrackActionContext
 
@@ -44,7 +46,7 @@ fun AlbumTracksScreen(
     albumName: String,
     ownerKey: String,
     onBack: () -> Unit,
-    onVideoClick: (String) -> Unit,
+    onVideoClick: (VideoItem) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val application = LocalContext.current.applicationContext as Application
@@ -92,7 +94,7 @@ fun AlbumTracksScreen(
                 items(uiState.tracks, key = { it.videoId }) { video ->
                     AlbumTrackRow(
                         video = video,
-                        onClick = { onVideoClick(video.videoId) },
+                        onClick = { onVideoClick(video.toVideoItem()) },
                         onMoreClick = {
                             onTrackMoreClick(TrackActionContext.fromLibraryVideo(video))
                         },

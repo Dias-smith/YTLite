@@ -14,6 +14,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ytlite.player.data.local.entity.PlaylistSystemType
 import com.ytlite.player.data.model.DataSource
 import com.ytlite.player.data.model.LibraryItem
+import com.ytlite.player.data.model.LibraryVideo
+import com.ytlite.player.data.model.VideoItem
+import com.ytlite.player.ui.player.toVideoItem
 import com.ytlite.player.playback.QueueItem
 import com.ytlite.player.ui.playlistaction.LocalPlaylistMoreClick
 import com.ytlite.player.ui.playlistaction.PlaylistActionContext
@@ -22,7 +25,7 @@ import com.ytlite.player.ui.trackaction.TrackActionContext
 
 @Composable
 fun LibraryNavHost(
-    onVideoClick: (String) -> Unit,
+    onVideoClick: (VideoItem) -> Unit,
     onSignInClick: () -> Unit,
     onSignOutClick: () -> Unit,
     onNavigateHomeTab: () -> Unit,
@@ -100,7 +103,7 @@ fun LibraryNavHost(
                             is LibraryItem.Album -> {
                                 destination = LibraryDestination.AlbumTracks(item.albumName)
                             }
-                            is LibraryItem.Song -> onVideoClick(item.videoId)
+                            is LibraryItem.Song -> onVideoClick(item.toVideoItem())
                             is LibraryItem.Artist -> Unit
                         }
                     }

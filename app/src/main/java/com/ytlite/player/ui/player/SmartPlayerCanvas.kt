@@ -12,25 +12,28 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Audiotrack
 import androidx.compose.material.icons.filled.Fullscreen
+import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PictureInPictureAlt
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
-import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
@@ -46,6 +49,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
@@ -54,11 +58,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.Player
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.ytlite.player.R
-import com.ytlite.player.playback.DeviceRam
 import kotlinx.coroutines.delay
 
 private val OverlayIconBackground = Color.Black.copy(alpha = 0.5f)
@@ -81,21 +85,40 @@ fun SmartPlayerCanvas(
     onSkipPrevious: () -> Unit,
     onSkipNext: () -> Unit,
     modifier: Modifier = Modifier,
+    layout: PlayerCanvasLayout = PlayerCanvasLayout.Inline,
     showPictureInPicture: Boolean = true,
+    attachPlayerSurface: Boolean = true,
     onBack: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val pipAvailable = rememberPictureInPictureAvailable()
-    val resolvedMode = remember(surfaceMode, context) {
-        when (surfaceMode) {
-            PlayerSurfaceMode.Auto -> {
-                if (DeviceRam.isLowRamDevice(context)) PlayerSurfaceMode.AudioPowerSave
-                else PlayerSurfaceMode.Video
-            }
-            else -> surfaceMode
-        }
+    val resolvedMode = when (surfaceMode) {
+        PlayerSurfaceMode.AudioPowerSave -> PlayerSurfaceMode.AudioPowerSave
+        else -> PlayerSurfaceMode.Video
     }
+    val isVideoSurface = resolvedMode == PlayerSurfaceMode.Video
     val primaryColor = MaterialTheme.colorScheme.primary
+
+    val isFullscreen = layout == PlayerCanvasLayout.Fullscreen
+    val isPip = layout == PlayerCanvasLayout.Pip
+    val isInPipMode by PlayerPipState.isInPictureInPictureMode.collectAsStateWithLifecycle()
+    val showCustomOverlay = !isPip && !isInPipMode
+    val useWindowInsets = isFullscreen
+    val topOverlayHeight = if (isFullscreen) 88.dp else 72.dp
+    val bottomOverlayHeight = if (isFullscreen) 88.dp else 72.dp
+    val centerPlayButtonSize = if (isFullscreen || isPip) 56.dp else 56.dp
+    val centerSkipButtonSize = if (isFullscreen || isPip) 44.dp else 44.dp
+    val centerIconSize = if (isFullscreen || isPip) 32.dp else 32.dp
+    val centerPlayIconSize = if (isFullscreen || isPip) 40.dp else 40.dp
+
+    val containerModifier = when (layout) {
+        PlayerCanvasLayout.Inline -> Modifier
+            .fillMaxWidth()
+            .aspectRatio(16f / 9f)
+        PlayerCanvasLayout.Fullscreen,
+        PlayerCanvasLayout.Pip,
+        -> Modifier.fillMaxSize()
+    }
 
     var controlsVisible by remember { mutableStateOf(true) }
     var interactionToken by remember { mutableIntStateOf(0) }
@@ -113,26 +136,31 @@ fun SmartPlayerCanvas(
 
     Box(
         modifier = modifier
-            .fillMaxWidth()
-            .aspectRatio(16f / 9f)
+            .then(containerModifier)
             .background(Color.Black),
     ) {
-        when (resolvedMode) {
-            PlayerSurfaceMode.Video -> {
-                VideoPlayerView(
-                    player = player,
-                    modifier = Modifier.fillMaxSize(),
-                    useController = false,
-                )
-            }
-            else -> {
-                AudioPowerSaveSurface(
-                    thumbnailUrl = thumbnailUrl,
-                    modifier = Modifier.fillMaxSize(),
-                )
-            }
+        if (player != null && attachPlayerSurface) {
+            VideoPlayerView(
+                player = player,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .alpha(if (isVideoSurface) 1f else 0f),
+                useController = false,
+            )
+        } else if (isVideoSurface) {
+            AudioPowerSaveSurface(
+                thumbnailUrl = thumbnailUrl,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
+        if (!isVideoSurface) {
+            AudioPowerSaveSurface(
+                thumbnailUrl = thumbnailUrl,
+                modifier = Modifier.fillMaxSize(),
+            )
         }
 
+        if (showCustomOverlay) {
         if (!controlsVisible) {
             Box(
                 modifier = Modifier
@@ -161,16 +189,24 @@ fun SmartPlayerCanvas(
                     modifier = Modifier
                         .align(Alignment.TopCenter)
                         .fillMaxWidth()
-                        .height(72.dp)
+                        .height(topOverlayHeight)
                         .background(
                             Brush.verticalGradient(
                                 colors = listOf(OverlayGradientEnd, Color.Transparent),
                             ),
-                        )
-                        .padding(horizontal = 4.dp, vertical = 4.dp),
+                        ),
                 ) {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .then(
+                                if (useWindowInsets) {
+                                    Modifier.windowInsetsPadding(WindowInsets.statusBars)
+                                } else {
+                                    Modifier
+                                },
+                            )
+                            .padding(horizontal = 4.dp, vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         if (onBack != null) {
@@ -187,32 +223,12 @@ fun SmartPlayerCanvas(
                                     tint = Color.White,
                                 )
                             }
-                        } else {
+                        } else if (!isFullscreen && !isPip) {
                             Box(modifier = Modifier.size(36.dp))
                         }
                         Box(modifier = Modifier.weight(1f))
                         PlayerOverlayButtonGroup(cornerRadius = 20.dp) {
-                            PlayerOverlayPlainIconButton(
-                                onClick = {
-                                    revealControls()
-                                    val next = when (resolvedMode) {
-                                        PlayerSurfaceMode.Video -> PlayerSurfaceMode.AudioPowerSave
-                                        else -> PlayerSurfaceMode.Video
-                                    }
-                                    onSurfaceModeChange(next)
-                                },
-                            ) {
-                                Icon(
-                                    imageVector = if (resolvedMode == PlayerSurfaceMode.Video) {
-                                        Icons.Filled.Audiotrack
-                                    } else {
-                                        Icons.Filled.Videocam
-                                    },
-                                    contentDescription = stringResource(R.string.player_toggle_surface_mode),
-                                    tint = Color.White,
-                                )
-                            }
-                            if (showPictureInPicture && pipAvailable && resolvedMode == PlayerSurfaceMode.Video) {
+                            if (!isPip && showPictureInPicture && pipAvailable && resolvedMode == PlayerSurfaceMode.Video) {
                                 PlayerOverlayPlainIconButton(
                                     onClick = {
                                         revealControls()
@@ -233,7 +249,11 @@ fun SmartPlayerCanvas(
                                 },
                             ) {
                                 Icon(
-                                    imageVector = Icons.Filled.Fullscreen,
+                                    imageVector = when {
+                                        isFullscreen -> Icons.Filled.FullscreenExit
+                                        isPip -> Icons.Filled.Fullscreen
+                                        else -> Icons.Filled.Fullscreen
+                                    },
                                     contentDescription = stringResource(R.string.player_fullscreen),
                                     tint = Color.White,
                                 )
@@ -244,21 +264,21 @@ fun SmartPlayerCanvas(
 
                 PlayerOverlayButtonGroup(
                     modifier = Modifier.align(Alignment.Center),
-                    cornerRadius = 28.dp,
-                    horizontalPadding = 8.dp,
+                    cornerRadius = if (isFullscreen || isPip) 28.dp else 28.dp,
+                    horizontalPadding = if (isFullscreen || isPip) 8.dp else 8.dp,
                 ) {
                     PlayerOverlayPlainIconButton(
                         onClick = {
                             revealControls()
                             onSkipPrevious()
                         },
-                        size = 44.dp,
+                        size = centerSkipButtonSize,
                     ) {
                         Icon(
                             imageVector = Icons.Filled.SkipPrevious,
                             contentDescription = stringResource(R.string.player_skip_previous),
                             tint = Color.White,
-                            modifier = Modifier.size(32.dp),
+                            modifier = Modifier.size(centerIconSize),
                         )
                     }
                     PlayerOverlayPlainIconButton(
@@ -266,13 +286,13 @@ fun SmartPlayerCanvas(
                             revealControls()
                             onTogglePlayPause()
                         },
-                        size = 56.dp,
+                        size = centerPlayButtonSize,
                     ) {
                         Icon(
                             imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
                             contentDescription = null,
                             tint = Color.White,
-                            modifier = Modifier.size(40.dp),
+                            modifier = Modifier.size(centerPlayIconSize),
                         )
                     }
                     PlayerOverlayPlainIconButton(
@@ -280,13 +300,13 @@ fun SmartPlayerCanvas(
                             revealControls()
                             onSkipNext()
                         },
-                        size = 44.dp,
+                        size = centerSkipButtonSize,
                     ) {
                         Icon(
                             imageVector = Icons.Filled.SkipNext,
                             contentDescription = stringResource(R.string.player_skip_next),
                             tint = Color.White,
-                            modifier = Modifier.size(32.dp),
+                            modifier = Modifier.size(centerIconSize),
                         )
                     }
                 }
@@ -295,17 +315,25 @@ fun SmartPlayerCanvas(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .fillMaxWidth()
-                        .height(72.dp)
+                        .height(bottomOverlayHeight)
                         .background(
                             Brush.verticalGradient(
                                 colors = listOf(Color.Transparent, OverlayGradientEnd),
                             ),
-                        )
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                        ),
                     contentAlignment = Alignment.BottomCenter,
                 ) {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .then(
+                                if (useWindowInsets) {
+                                    Modifier.windowInsetsPadding(WindowInsets.navigationBars)
+                                } else {
+                                    Modifier
+                                },
+                            )
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
@@ -333,6 +361,7 @@ fun SmartPlayerCanvas(
                     }
                 }
             }
+        }
         }
     }
 }

@@ -20,6 +20,8 @@ import com.ytlite.player.data.repository.LibraryRepository
 import com.ytlite.player.playback.NowPlaying
 import com.ytlite.player.playback.PlayQueueRepository
 import com.ytlite.player.playback.PlaybackManager
+import com.ytlite.player.playback.PlaybackPrefetcher
+import com.ytlite.player.playback.PlaybackTiming
 import com.ytlite.player.playback.QueueItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,6 +29,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
 class PlayerViewModel(
@@ -37,18 +40,20 @@ class PlayerViewModel(
     private val jsEngine: JsExtractorEngine,
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(PlayerUiState(isLoading = true))
+    private val _uiState = MutableStateFlow(PlayerUiState())
     val uiState: StateFlow<PlayerUiState> = _uiState.asStateFlow()
 
     private var lastExtractMessage: JSONObject? = null
 
     init {
+        PlaybackTiming.beginSession(videoId)
         jsEngine.preloadAsync()
         val active = PlaybackManager.nowPlaying.value
         if (active?.videoId == videoId) {
             _uiState.update {
                 it.copy(
                     isLoading = false,
+                    isExtracting = false,
                     playback = active.toStubPlayback(),
                     selectedStreamUrl = active.streamUrl,
                     errorMessage = null,
@@ -56,6 +61,26 @@ class PlayerViewModel(
             }
             loadRelatedInBackground()
         } else {
+            val preview = PlayerLaunchPreview.consume(videoId)
+            if (preview != null) {
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        isExtracting = true,
+                        playback = preview.toStubPlayback(),
+                        errorMessage = null,
+                    )
+                }
+            } else {
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        isExtracting = true,
+                        playback = videoPreview(videoId).toStubPlayback(),
+                        errorMessage = null,
+                    )
+                }
+            }
             loadPlayback()
         }
     }
@@ -82,50 +107,54 @@ class PlayerViewModel(
     fun loadPlayback() {
         viewModelScope.launch(Dispatchers.IO) {
             PlaybackManager.clearPlaybackError()
+            val existingPlayback = _uiState.value.playback
             _uiState.update {
                 it.copy(
-                    isLoading = true,
+                    isLoading = false,
+                    isExtracting = true,
                     errorMessage = null,
-                    playback = null,
+                    playback = existingPlayback ?: videoPreview(videoId).toStubPlayback(),
                     selectedStreamUrl = null,
                 )
             }
-            val extractMessage = runCatching {
-                repository.fetchVideoPlaybackRaw(videoId)
-            }.getOrNull()
-            lastExtractMessage = extractMessage
+            runCatching { jsEngine.ensureReady() }
+                .onSuccess { PlaybackTiming.logWebViewReady() }
 
-            when (val result = repository.fetchVideoPlayback(videoId)) {
-                is ExtractionResult.Success -> {
-                    val audioOnly = shouldUseAudioOnly()
-                    val format = PlaybackFormatSelector.selectFormat(result.data.formats, audioOnly)
-                    Log.d(
-                        TAG,
-                        "formats=${result.data.formats.size} selected=" +
-                            "${format?.itag ?: "none"} audioOnly=$audioOnly",
+            val bundle = PlaybackPrefetcher.consumeBundle(videoId)
+                ?: repository.fetchVideoPlaybackBundle(videoId)
+            PlaybackTiming.logExtractComplete()
+            lastExtractMessage = bundle.rawMessage
+
+            val playback = bundle.playback
+            if (playback == null) {
+                _uiState.update {
+                    it.copy(
+                        isExtracting = false,
+                        errorMessage = bundle.errorMessage ?: application.getString(R.string.player_error),
                     )
-                    if (format == null) {
-                        _uiState.update {
-                            it.copy(
-                                playback = result.data,
-                                isLoading = false,
-                                errorMessage = application.getString(R.string.player_format_unavailable),
-                            )
-                        }
-                        return@launch
-                    }
-                    startPlayback(result.data, format)
-                    loadRelated(extractMessage)
                 }
-                is ExtractionResult.Error -> {
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            errorMessage = result.message,
-                        )
-                    }
-                }
+                return@launch
             }
+
+            val audioOnly = shouldUseAudioOnly()
+            val format = PlaybackFormatSelector.selectFormat(playback.formats, audioOnly)
+            Log.d(
+                TAG,
+                "formats=${playback.formats.size} selected=" +
+                    "${format?.itag ?: "none"} audioOnly=$audioOnly",
+            )
+            if (format == null) {
+                _uiState.update {
+                    it.copy(
+                        playback = playback,
+                        isExtracting = false,
+                        errorMessage = application.getString(R.string.player_format_unavailable),
+                    )
+                }
+                return@launch
+            }
+            startPlayback(playback, format)
+            loadRelated(bundle.rawMessage)
         }
     }
 
@@ -162,18 +191,6 @@ class PlayerViewModel(
             related = related.map { it.toQueueItem() },
             maxRelated = QUEUE_PREFILL_COUNT,
         )
-        syncPlayableQueue()
-    }
-
-    private fun syncPlayableQueue() {
-        val queueState = PlayQueueRepository.state.value
-        val playable = queueState.items.mapNotNull { item ->
-            val url = item.streamUrl ?: return@mapNotNull null
-            item.toNowPlaying(url)
-        }
-        if (playable.isEmpty()) return
-        val currentIndex = queueState.currentIndex.coerceAtMost(playable.lastIndex)
-        PlaybackManager.playQueue(playable, currentIndex)
     }
 
     fun toggleDescription() {
@@ -186,22 +203,68 @@ class PlayerViewModel(
     }
 
     fun setSurfaceMode(mode: PlayerSurfaceMode) {
-        val playback = _uiState.value.playback ?: return
         _uiState.update { it.copy(surfaceMode = mode) }
         viewModelScope.launch(Dispatchers.IO) {
-            when (val result = repository.fetchVideoPlayback(videoId)) {
-                is ExtractionResult.Success -> {
-                    val audioOnly = mode == PlayerSurfaceMode.AudioPowerSave ||
-                        (mode == PlayerSurfaceMode.Auto && shouldUseAudioOnly())
-                    val format = PlaybackFormatSelector.selectFormat(result.data.formats, audioOnly)
-                        ?: return@launch
-                    if (format.url != _uiState.value.selectedStreamUrl) {
-                        startPlayback(result.data, format, updateQueue = false)
-                    }
+            val playback = ensurePlaybackWithFormats() ?: return@launch
+            switchStreamForMode(mode, playback)
+        }
+    }
+
+    fun prepareVideoForFullscreen(onReady: (PlayerSurfaceMode) -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            _uiState.update { it.copy(surfaceMode = PlayerSurfaceMode.Video) }
+            val playback = ensurePlaybackWithFormats()
+            if (playback != null) {
+                val format = PlaybackFormatSelector.selectVideoFormat(playback.formats)
+                if (format != null) {
+                    applyStreamSwitch(playback, format)
                 }
-                is ExtractionResult.Error -> Unit
+            }
+            val mode = _uiState.value.surfaceMode
+            withContext(Dispatchers.Main) {
+                onReady(mode)
             }
         }
+    }
+
+    private suspend fun ensurePlaybackWithFormats(): VideoPlayback? {
+        val current = _uiState.value.playback ?: return null
+        if (current.formats.isNotEmpty()) return current
+        return when (val result = repository.fetchVideoPlayback(videoId)) {
+            is ExtractionResult.Success -> {
+                _uiState.update { it.copy(playback = result.data) }
+                result.data
+            }
+            is ExtractionResult.Error -> null
+        }
+    }
+
+    private fun switchStreamForMode(mode: PlayerSurfaceMode, playback: VideoPlayback) {
+        val audioOnly = isAudioOnlyMode(mode)
+        val format = PlaybackFormatSelector.selectFormat(playback.formats, audioOnly) ?: return
+        applyStreamSwitch(playback, format)
+    }
+
+    private fun applyStreamSwitch(playback: VideoPlayback, format: StreamFormat) {
+        if (format.url == _uiState.value.selectedStreamUrl) {
+            _uiState.update { it.copy(playback = playback) }
+            return
+        }
+        val nowPlaying = PlaybackManager.nowPlaying.value
+        if (nowPlaying != null && nowPlaying.videoId == playback.videoId) {
+            PlayQueueRepository.updateStreamUrl(playback.videoId, format.url)
+            PlaybackManager.swapStreamUrl(nowPlaying.copy(streamUrl = format.url))
+        }
+        _uiState.update {
+            it.copy(
+                playback = playback,
+                selectedStreamUrl = format.url,
+            )
+        }
+    }
+
+    private fun isAudioOnlyMode(mode: PlayerSurfaceMode): Boolean {
+        return mode == PlayerSurfaceMode.AudioPowerSave
     }
 
     fun onUpNextClick(item: VideoItem) {
@@ -229,6 +292,7 @@ class PlayerViewModel(
                             playback = result.data,
                             selectedStreamUrl = format.url,
                             isLoading = false,
+                            isExtracting = false,
                             errorMessage = null,
                         )
                     }
@@ -325,6 +389,7 @@ class PlayerViewModel(
             }
         }
         PlaybackManager.play(nowPlaying)
+        PlaybackTiming.logPlayStart()
         viewModelScope.launch(Dispatchers.IO) {
             libraryRepository.addToHistory(nowPlaying)
         }
@@ -332,19 +397,14 @@ class PlayerViewModel(
             it.copy(
                 playback = playback,
                 isLoading = false,
+                isExtracting = false,
                 selectedStreamUrl = format.url,
                 errorMessage = null,
             )
         }
     }
 
-    private fun shouldUseAudioOnly(): Boolean {
-        return when (_uiState.value.surfaceMode) {
-            PlayerSurfaceMode.AudioPowerSave -> true
-            PlayerSurfaceMode.Video -> false
-            PlayerSurfaceMode.Auto -> com.ytlite.player.playback.DeviceRam.isLowRamDevice(application)
-        }
-    }
+    private fun shouldUseAudioOnly(): Boolean = isAudioOnlyMode(_uiState.value.surfaceMode)
 
     private fun NowPlaying.toStubPlayback() = VideoPlayback(
         videoId = videoId,

@@ -48,7 +48,7 @@ fun BrowseVideosScreen(
     onBack: () -> Unit,
     onRefresh: () -> Unit,
     onLoadMore: () -> Unit,
-    onVideoClick: (String) -> Unit,
+    onVideoClick: (VideoItem) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val imageLoader = rememberYTLiteImageLoader()
@@ -127,7 +127,7 @@ fun BrowseVideosScreen(
                             VideoFeedItem(
                                 video = video,
                                 imageLoader = imageLoader,
-                                onClick = { onVideoClick(video.videoId) },
+                                onClick = { onVideoClick(video) },
                             )
                         }
                         if (isLoadingMore) {

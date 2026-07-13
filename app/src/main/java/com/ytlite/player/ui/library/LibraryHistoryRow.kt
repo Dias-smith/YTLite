@@ -31,6 +31,8 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.ytlite.player.R
 import com.ytlite.player.data.model.LibraryVideo
+import com.ytlite.player.data.model.VideoItem
+import com.ytlite.player.ui.player.toVideoItem
 import com.ytlite.player.ui.image.rememberYTLiteImageLoader
 import com.ytlite.player.ui.image.thumbnailRequest
 
@@ -94,7 +96,7 @@ fun LibraryYoutubeHistoryUnavailable(
 @Composable
 fun LibraryHistoryRow(
     videos: List<LibraryVideo>,
-    onVideoClick: (String) -> Unit,
+    onVideoClick: (VideoItem) -> Unit,
     modifier: Modifier = Modifier,
     emptyText: String? = null,
 ) {
@@ -127,7 +129,7 @@ fun LibraryHistoryRow(
                         .fillMaxWidth()
                         .height(112.dp)
                         .clip(RoundedCornerShape(12.dp))
-                        .clickable { onVideoClick(video.videoId) },
+                        .clickable { onVideoClick(video.toVideoItem()) },
                 )
                 Row(
                     modifier = Modifier.padding(top = 8.dp),
@@ -136,7 +138,7 @@ fun LibraryHistoryRow(
                     Column(
                         modifier = Modifier
                             .weight(1f)
-                            .clickable { onVideoClick(video.videoId) },
+                            .clickable { onVideoClick(video.toVideoItem()) },
                     ) {
                         Text(
                             text = video.title,

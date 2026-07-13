@@ -33,6 +33,7 @@ import android.app.Application
 import com.ytlite.player.R
 import com.ytlite.player.data.auth.UserSession
 import com.ytlite.player.data.model.SubscriptionChannel
+import com.ytlite.player.data.model.VideoItem
 import com.ytlite.player.ui.common.SignInPromptScreen
 import com.ytlite.player.ui.common.SubscriptionsIllustration
 import com.ytlite.player.ui.home.VideoFeedItem
@@ -42,7 +43,7 @@ import com.ytlite.player.ui.image.rememberYTLiteImageLoader
 fun SubscriptionsScreen(
     session: UserSession?,
     onSignInClick: () -> Unit,
-    onVideoClick: (String) -> Unit,
+    onVideoClick: (VideoItem) -> Unit,
     onChannelListClick: () -> Unit,
     onChannelClick: (SubscriptionChannel) -> Unit = {},
     modifier: Modifier = Modifier,
@@ -75,7 +76,7 @@ fun SubscriptionsScreen(
 @Composable
 private fun SubscriptionsAuthenticatedContent(
     userId: String,
-    onVideoClick: (String) -> Unit,
+    onVideoClick: (VideoItem) -> Unit,
     onChannelListClick: () -> Unit,
     onChannelClick: (SubscriptionChannel) -> Unit,
     viewModel: SubscriptionsViewModel,
@@ -155,7 +156,7 @@ private fun SubscriptionsAuthenticatedContent(
                             VideoFeedItem(
                                 video = video,
                                 imageLoader = imageLoader,
-                                onClick = { onVideoClick(video.videoId) },
+                                onClick = { onVideoClick(video) },
                             )
                         }
                         if (uiState.isLoadingMore) {

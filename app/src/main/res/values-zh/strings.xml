@@ -41,6 +41,10 @@
     <string name="library_sign_in_title">畅享你喜爱的视频</string>
     <string name="library_sign_in_description">登录后即可访问你点赞或保存的视频</string>
     <string name="player_back">返回</string>
+    <string name="player_play">播放</string>
+    <string name="player_pause">暂停</string>
+    <string name="player_skip_previous">上一首</string>
+    <string name="player_skip_next">下一首</string>
     <string name="player_error">无法播放视频</string>
     <string name="player_like">点赞</string>
     <string name="player_dislike">踩</string>

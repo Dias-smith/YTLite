@@ -55,7 +55,7 @@ fun DiscoverySubPage(
     isLoading: Boolean,
     error: String?,
     onBack: () -> Unit,
-    onVideoClick: (String) -> Unit,
+    onVideoClick: (VideoItem) -> Unit,
     onMoodClick: (BrowseMoodItem) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -107,7 +107,7 @@ fun DiscoverySubPage(
 }
 
 @Composable
-private fun NewReleasesContent(page: BrowsePage, onVideoClick: (String) -> Unit) {
+private fun NewReleasesContent(page: BrowsePage, onVideoClick: (VideoItem) -> Unit) {
     LazyColumn(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -133,14 +133,14 @@ private fun NewReleasesContent(page: BrowsePage, onVideoClick: (String) -> Unit)
 }
 
 @Composable
-private fun ChartsContent(page: BrowsePage, onVideoClick: (String) -> Unit) {
+private fun ChartsContent(page: BrowsePage, onVideoClick: (VideoItem) -> Unit) {
     val imageLoader = rememberYTLiteImageLoader()
     LazyColumn(contentPadding = PaddingValues(vertical = 8.dp)) {
         items(page.rankedVideos, key = { it.videoId }) { video ->
             VideoFeedItem(
                 video = video,
                 imageLoader = imageLoader,
-                onClick = { onVideoClick(video.videoId) },
+                onClick = { onVideoClick(video) },
             )
         }
     }
@@ -192,11 +192,11 @@ private fun MoodsContent(
 }
 
 @Composable
-private fun FeaturedVideoCard(video: VideoItem, onVideoClick: (String) -> Unit) {
+private fun FeaturedVideoCard(video: VideoItem, onVideoClick: (VideoItem) -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onVideoClick(video.videoId) },
+            .clickable { onVideoClick(video) },
     ) {
         Column {
             LibraryImage(
@@ -217,11 +217,11 @@ private fun FeaturedVideoCard(video: VideoItem, onVideoClick: (String) -> Unit) 
 }
 
 @Composable
-private fun ShelfVideoCard(video: VideoItem, onVideoClick: (String) -> Unit) {
+private fun ShelfVideoCard(video: VideoItem, onVideoClick: (VideoItem) -> Unit) {
     Column(
         modifier = Modifier
             .size(width = 160.dp, height = 140.dp)
-            .clickable { onVideoClick(video.videoId) },
+            .clickable { onVideoClick(video) },
     ) {
         LibraryImage(
             model = video.thumbnailUrl,

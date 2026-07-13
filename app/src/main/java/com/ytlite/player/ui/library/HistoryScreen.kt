@@ -36,13 +36,15 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ytlite.player.R
 import com.ytlite.player.data.model.DataSource
 import com.ytlite.player.data.model.LibraryVideo
+import com.ytlite.player.data.model.VideoItem
+import com.ytlite.player.ui.player.toVideoItem
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HistoryScreen(
     ownerKey: String,
     onBack: () -> Unit,
-    onVideoClick: (String) -> Unit,
+    onVideoClick: (VideoItem) -> Unit,
     onSongMoreClick: (LibraryVideo, String?, DataSource) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -100,7 +102,7 @@ fun HistoryScreen(
                     val video = videos[index]
                     HistoryRow(
                         video = video,
-                        onClick = { onVideoClick(video.videoId) },
+                        onClick = { onVideoClick(video.toVideoItem()) },
                         onMoreClick = {
                             onSongMoreClick(video, null, DataSource.LOCAL)
                         },

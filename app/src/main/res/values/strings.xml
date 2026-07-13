@@ -81,6 +81,8 @@
     <string name="player_close_queue">Close queue</string>
     <string name="player_skip_previous">Previous</string>
     <string name="player_skip_next">Next</string>
+    <string name="player_play">Play</string>
+    <string name="player_pause">Pause</string>
     <string name="player_repeat">Repeat</string>
     <string name="player_shuffle">Shuffle</string>
     <string name="player_playback_speed">Playback speed</string>

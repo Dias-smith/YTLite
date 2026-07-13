@@ -41,6 +41,7 @@ import android.app.Application
 import coil.compose.AsyncImage
 import com.ytlite.player.R
 import com.ytlite.player.data.model.SubscriptionChannel
+import com.ytlite.player.data.model.VideoItem
 import com.ytlite.player.ui.home.VideoFeedItem
 import com.ytlite.player.ui.image.rememberYTLiteImageLoader
 import com.ytlite.player.ui.image.thumbnailRequest
@@ -50,7 +51,7 @@ import com.ytlite.player.ui.image.thumbnailRequest
 fun ChannelVideosScreen(
     channel: SubscriptionChannel,
     onBack: () -> Unit,
-    onVideoClick: (String) -> Unit,
+    onVideoClick: (VideoItem) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val application = LocalContext.current.applicationContext as Application
@@ -159,7 +160,7 @@ fun ChannelVideosScreen(
                             VideoFeedItem(
                                 video = video,
                                 imageLoader = imageLoader,
-                                onClick = { onVideoClick(video.videoId) },
+                                onClick = { onVideoClick(video) },
                             )
                         }
                         if (uiState.isLoadingMore) {

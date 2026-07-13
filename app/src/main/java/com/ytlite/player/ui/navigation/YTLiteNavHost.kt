@@ -19,11 +19,15 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.ytlite.player.data.model.SubscriptionChannel
+import com.ytlite.player.data.model.VideoItem
 import com.ytlite.player.ui.main.MainScreen
 import com.ytlite.player.ui.player.PlayerScreen
+import com.ytlite.player.ui.player.PlayerLaunchPreview
+import com.ytlite.player.ui.player.videoPreview
 import com.ytlite.player.ui.player.PlayerViewModel
 import com.ytlite.player.playback.GlobalPlaybackViewModel
 import com.ytlite.player.playback.PlaybackNavigation
+import com.ytlite.player.playback.PlaybackPrefetcher
 import com.ytlite.player.ui.auth.AuthViewModel
 import com.ytlite.player.ui.subscriptions.ChannelVideosScreen
 import com.ytlite.player.ui.playlistaction.PlaylistActionHost
@@ -57,9 +61,21 @@ fun YTLiteNavHost(modifier: Modifier = Modifier) {
             val route = Routes.player(videoId)
             val currentRoute = navController.currentBackStackEntry?.destination?.route
             if (currentRoute != route) {
+                PlaybackPrefetcher.prefetch(videoId)
                 navController.navigate(route) {
                     launchSingleTop = true
                 }
+            }
+        }
+    }
+
+    fun openPlayer(video: VideoItem, launchSingleTop: Boolean = false) {
+        PlayerLaunchPreview.set(video)
+        PlaybackPrefetcher.prefetch(video.videoId)
+        val route = Routes.player(video.videoId)
+        navController.navigate(route) {
+            if (launchSingleTop) {
+                this.launchSingleTop = true
             }
         }
     }
@@ -87,14 +103,10 @@ fun YTLiteNavHost(modifier: Modifier = Modifier) {
             ) {
                 composable(Routes.MAIN) {
                     MainScreen(
-                        onVideoClick = { videoId ->
-                            navController.navigate(Routes.player(videoId))
-                        },
+                        onVideoClick = { video -> openPlayer(video) },
                         globalPlaybackState = globalPlaybackState,
                         onMiniPlayerOpenPlayer = { videoId ->
-                            navController.navigate(Routes.player(videoId)) {
-                                launchSingleTop = true
-                            }
+                            openPlayer(video = videoPreview(videoId), launchSingleTop = true)
                         },
                         onMiniPlayerTogglePlayPause = globalPlaybackViewModel::togglePlayPause,
                         onMiniPlayerSkipNext = globalPlaybackViewModel::skipToNext,
@@ -149,11 +161,9 @@ fun YTLiteNavHost(modifier: Modifier = Modifier) {
                 ChannelVideosScreen(
                     channel = channel,
                     onBack = { playerChannelOverlay = null },
-                    onVideoClick = { videoId ->
+                    onVideoClick = { video ->
                         playerChannelOverlay = null
-                        navController.navigate(Routes.player(videoId)) {
-                            launchSingleTop = true
-                        }
+                        openPlayer(video, launchSingleTop = true)
                     },
                     modifier = Modifier.fillMaxSize(),
                 )

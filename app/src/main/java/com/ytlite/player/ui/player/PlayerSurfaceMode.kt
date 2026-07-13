@@ -5,3 +5,9 @@ enum class PlayerSurfaceMode {
     Video,
     AudioPowerSave,
 }
+
+enum class PlayerCanvasLayout {
+    Inline,
+    Fullscreen,
+    Pip,
+}

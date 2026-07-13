@@ -28,12 +28,13 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ytlite.player.R
+import com.ytlite.player.data.model.VideoItem
 import com.ytlite.player.ui.image.rememberYTLiteImageLoader
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    onVideoClick: (String) -> Unit,
+    onVideoClick: (VideoItem) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: HomeViewModel = viewModel(),
 ) {
@@ -97,7 +98,7 @@ fun HomeScreen(
                             VideoFeedItem(
                                 video = video,
                                 imageLoader = imageLoader,
-                                onClick = { onVideoClick(video.videoId) },
+                                onClick = { onVideoClick(video) },
                             )
                         }
 

@@ -39,7 +39,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ytlite.player.R
-import com.ytlite.player.data.auth.UserSession
+import com.ytlite.player.data.model.VideoItem
 import com.ytlite.player.data.model.SubscriptionChannel
 import com.ytlite.player.playback.GlobalPlaybackUiState
 import com.ytlite.player.playback.QueueItem
@@ -97,7 +97,7 @@ private fun Modifier.mainTabPadding(
 
 @Composable
 fun MainScreen(
-    onVideoClick: (String) -> Unit,
+    onVideoClick: (VideoItem) -> Unit,
     globalPlaybackState: GlobalPlaybackUiState,
     onMiniPlayerOpenPlayer: (String) -> Unit,
     onMiniPlayerTogglePlayPause: () -> Unit,

@@ -1,5 +1,6 @@
 package com.ytlite.player.ui.library
 
+import com.ytlite.player.data.model.VideoItem
 import com.ytlite.player.playback.QueueItem
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -7,7 +8,7 @@ import androidx.compose.ui.Modifier
 
 @Composable
 fun LibraryScreen(
-    onVideoClick: (String) -> Unit,
+    onVideoClick: (VideoItem) -> Unit,
     onSignInClick: () -> Unit,
     onSignOutClick: () -> Unit,
     onNavigateHomeTab: () -> Unit,

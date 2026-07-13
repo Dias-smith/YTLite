@@ -20,6 +20,7 @@ class YTLiteApplication : Application() {
         ExtractionRepository.init(this)
         PlaybackManager.init(this)
         PlaybackManager.ensureConnected()
+        JsExtractorEngine.preloadAsync(this)
         AuthRepository.getInstance(this)
         LibraryRepository.getInstance(this)
         SubscriptionsRepository.getInstance(this)

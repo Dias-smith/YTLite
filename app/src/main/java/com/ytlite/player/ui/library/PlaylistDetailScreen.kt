@@ -68,6 +68,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ytlite.player.R
 import com.ytlite.player.data.local.model.PlaylistTrackDetailRow
 import com.ytlite.player.data.model.DataSource
+import com.ytlite.player.data.model.VideoItem
+import com.ytlite.player.ui.player.videoPreview
 import com.ytlite.player.data.model.PlaylistTrackSort
 import com.ytlite.player.playback.PlayQueueRepository
 import com.ytlite.player.playback.PlaybackManager
@@ -83,7 +85,7 @@ fun PlaylistDetailScreen(
     ownerKey: String,
     systemType: String? = null,
     onBack: () -> Unit,
-    onVideoClick: (String) -> Unit,
+    onVideoClick: (VideoItem) -> Unit,
     onCloneYoutubePlaylist: () -> Unit,
     onSongMoreClick: (PlaylistTrackDetailRow, String, DataSource) -> Unit,
     onPlaylistMoreClick: (com.ytlite.player.ui.playlistaction.PlaylistActionContext) -> Unit,
@@ -264,7 +266,14 @@ fun PlaylistDetailScreen(
                             if (items.isNotEmpty()) {
                                 onPlayPlaylist(items, startIndex, playlist.playlistId)
                             } else {
-                                onVideoClick(track.trackId)
+                                onVideoClick(
+                                    videoPreview(
+                                        videoId = track.trackId,
+                                        title = track.title,
+                                        channelName = track.primaryArtistName.orEmpty(),
+                                        thumbnailUrl = track.thumbnailUrl,
+                                    ),
+                                )
                             }
                         }
                     },

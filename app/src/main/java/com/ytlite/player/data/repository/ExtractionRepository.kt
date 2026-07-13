@@ -17,6 +17,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
+data class VideoPlaybackBundle(
+    val playback: VideoPlayback?,
+    val rawMessage: JSONObject?,
+    val errorMessage: String? = null,
+)
+
 /**
  * Hybrid extraction: Kotlin InnerTube for home feed, JS extractor for playback.
  */
@@ -67,27 +73,52 @@ class ExtractionRepository(
         }
     }
 
-    suspend fun fetchVideoPlayback(
+    suspend fun fetchVideoPlaybackBundle(
         videoId: String,
-    ): ExtractionResult<VideoPlayback> = withContext(Dispatchers.IO) {
+        rawMessage: JSONObject? = null,
+    ): VideoPlaybackBundle = withContext(Dispatchers.IO) {
         if (videoId.isBlank()) {
-            return@withContext ExtractionResult.Error("Video ID is empty")
+            return@withContext VideoPlaybackBundle(
+                playback = null,
+                rawMessage = null,
+                errorMessage = "Video ID is empty",
+            )
         }
         try {
-            val message = jsClient.extractVideo(videoId)
+            val message = rawMessage ?: jsClient.extractVideo(videoId)
             val playback = JsResultMapper.toVideoPlayback(message)
             if (playback != null) {
-                ExtractionResult.Success(playback)
+                VideoPlaybackBundle(
+                    playback = playback,
+                    rawMessage = message,
+                )
             } else {
-                ExtractionResult.Error(
-                    JsResultMapper.playbackErrorMessage(message)
+                VideoPlaybackBundle(
+                    playback = null,
+                    rawMessage = message,
+                    errorMessage = JsResultMapper.playbackErrorMessage(message)
                         ?: "Unable to parse playable mp4 URL from JS extractor",
                 )
             }
         } catch (e: Exception) {
+            VideoPlaybackBundle(
+                playback = null,
+                rawMessage = null,
+                errorMessage = "Failed to load video playback",
+            )
+        }
+    }
+
+    suspend fun fetchVideoPlayback(
+        videoId: String,
+    ): ExtractionResult<VideoPlayback> = withContext(Dispatchers.IO) {
+        val bundle = fetchVideoPlaybackBundle(videoId)
+        val playback = bundle.playback
+        if (playback != null) {
+            ExtractionResult.Success(playback)
+        } else {
             ExtractionResult.Error(
-                message = "Failed to load video playback",
-                cause = e,
+                message = bundle.errorMessage ?: "Failed to load video playback",
             )
         }
     }
