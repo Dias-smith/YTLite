@@ -28,6 +28,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -94,7 +97,71 @@ class PlayerViewModel(
             }
             loadPlayback()
         }
+        observeNowPlayingChanges()
     }
+
+    private fun observeNowPlayingChanges() {
+        viewModelScope.launch {
+            PlaybackManager.nowPlaying
+                .filterNotNull()
+                .map { it.videoId to it }
+                .distinctUntilChanged { old, new -> old.first == new.first }
+                .collect { (_, nowPlaying) ->
+                    val currentId = _uiState.value.playback?.videoId
+                    if (currentId == nowPlaying.videoId) {
+                        if (_uiState.value.selectedStreamUrl != nowPlaying.streamUrl) {
+                            _uiState.update { it.copy(selectedStreamUrl = nowPlaying.streamUrl) }
+                        }
+                        return@collect
+                    }
+                    syncToNowPlaying(nowPlaying)
+                }
+        }
+    }
+
+    private fun syncToNowPlaying(nowPlaying: NowPlaying) {
+        _uiState.update {
+            it.copy(
+                playback = enrichPlaybackStub(nowPlaying),
+                selectedStreamUrl = nowPlaying.streamUrl,
+                isExtracting = false,
+                errorMessage = null,
+            )
+        }
+        loadPlaybackMetadataFor(nowPlaying.videoId)
+    }
+
+    private fun enrichPlaybackStub(nowPlaying: NowPlaying): VideoPlayback {
+        _uiState.value.upNextItems
+            .firstOrNull { it.videoId == nowPlaying.videoId }
+            ?.let { return it.toMetadataPlayback() }
+        PlayQueueRepository.state.value.items
+            .firstOrNull { it.videoId == nowPlaying.videoId }
+            ?.let { item ->
+                return VideoPlayback(
+                    videoId = item.videoId,
+                    title = item.title,
+                    description = "",
+                    channelName = item.channelName,
+                    channelId = "",
+                    formats = emptyList(),
+                    durationSeconds = 0L,
+                    viewCount = 0L,
+                )
+            }
+        return nowPlaying.toStubPlayback()
+    }
+
+    private fun VideoItem.toMetadataPlayback() = VideoPlayback(
+        videoId = videoId,
+        title = title,
+        description = "",
+        channelName = channelName,
+        channelId = channelId.orEmpty(),
+        formats = emptyList(),
+        durationSeconds = 0L,
+        viewCount = 0L,
+    )
 
     fun loadFullMetadataIfNeeded() {
         val current = _uiState.value.playback ?: return
@@ -103,9 +170,15 @@ class PlayerViewModel(
     }
 
     private fun loadPlaybackMetadataInBackground() {
+        val targetVideoId = _uiState.value.playback?.videoId ?: return
+        loadPlaybackMetadataFor(targetVideoId)
+    }
+
+    private fun loadPlaybackMetadataFor(targetVideoId: String) {
         viewModelScope.launch(Dispatchers.IO) {
-            when (val result = repository.fetchVideoPlayback(videoId)) {
+            when (val result = repository.fetchVideoPlayback(targetVideoId)) {
                 is ExtractionResult.Success -> {
+                    if (PlaybackManager.nowPlaying.value?.videoId != targetVideoId) return@launch
                     _uiState.update {
                         it.copy(playback = result.data, errorMessage = null)
                     }
@@ -218,6 +291,7 @@ class PlayerViewModel(
             related = related.map { it.toQueueItem() },
             maxRelated = QUEUE_PREFILL_COUNT,
         )
+        PlaybackManager.syncRepeatMode()
     }
 
     fun toggleDescription() {

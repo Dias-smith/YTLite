@@ -36,19 +36,27 @@ fun PlayerMetadataPanel(
     onSaveToPlaylist: () -> Unit,
     onChannelClick: () -> Unit,
     modifier: Modifier = Modifier,
+    showTitle: Boolean = true,
 ) {
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(
+                start = 16.dp,
+                end = 16.dp,
+                top = if (showTitle) 12.dp else 0.dp,
+                bottom = 12.dp,
+            ),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text(
-            text = playback.title,
-            style = MaterialTheme.typography.titleLarge,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-        )
+        if (showTitle) {
+            Text(
+                text = playback.title,
+                style = MaterialTheme.typography.titleLarge,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
 
         if (playback.viewCount > 0L) {
             Text(

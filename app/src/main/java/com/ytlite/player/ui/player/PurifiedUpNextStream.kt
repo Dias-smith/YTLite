@@ -11,12 +11,17 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.QueueMusic
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.outlined.RepeatOne
+import androidx.compose.material.icons.outlined.Shuffle
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -29,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.ytlite.player.R
+import com.ytlite.player.playback.UpNextPlaybackMode
 import com.ytlite.player.ui.trackaction.TrackActionSource
 import com.ytlite.player.data.model.VideoItem
 import com.ytlite.player.ui.trackaction.LocalTrackMoreClick
@@ -37,6 +43,8 @@ import com.ytlite.player.ui.trackaction.TrackActionContext
 @Composable
 fun PurifiedUpNextItem(
     item: VideoItem,
+    isCurrentlyPlaying: Boolean,
+    isPlaying: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -88,12 +96,24 @@ fun PurifiedUpNextItem(
             }
         }
         Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = item.title,
-                style = MaterialTheme.typography.bodyMedium,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                if (isCurrentlyPlaying) {
+                    NowPlayingEqualizer(
+                        isAnimating = isPlaying,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+                Text(
+                    text = item.title,
+                    style = MaterialTheme.typography.bodyMedium,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false),
+                )
+            }
             if (subtitle.isNotBlank()) {
                 Text(
                     text = subtitle,
@@ -116,11 +136,72 @@ fun PurifiedUpNextItem(
 
 @Composable
 fun PurifiedUpNextHeader(
+    currentMode: UpNextPlaybackMode,
+    onModeSelected: (UpNextPlaybackMode) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Text(
-        text = stringResource(R.string.player_up_next),
-        style = MaterialTheme.typography.titleMedium,
-        modifier = modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-    )
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = stringResource(R.string.player_up_next),
+            style = MaterialTheme.typography.titleMedium,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(0.dp)) {
+            UpNextPlaybackModeButton(
+                selected = currentMode == UpNextPlaybackMode.REPEAT_ONE,
+                onClick = { onModeSelected(UpNextPlaybackMode.REPEAT_ONE) },
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.RepeatOne,
+                    contentDescription = stringResource(R.string.player_mode_repeat_one),
+                )
+            }
+            UpNextPlaybackModeButton(
+                selected = currentMode == UpNextPlaybackMode.SEQUENTIAL,
+                onClick = { onModeSelected(UpNextPlaybackMode.SEQUENTIAL) },
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Outlined.QueueMusic,
+                    contentDescription = stringResource(R.string.player_mode_sequential),
+                )
+            }
+            UpNextPlaybackModeButton(
+                selected = currentMode == UpNextPlaybackMode.SHUFFLE,
+                onClick = { onModeSelected(UpNextPlaybackMode.SHUFFLE) },
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Shuffle,
+                    contentDescription = stringResource(R.string.player_mode_shuffle),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun UpNextPlaybackModeButton(
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    IconButton(
+        onClick = onClick,
+        modifier = modifier.size(40.dp),
+    ) {
+        CompositionLocalProvider(
+            LocalContentColor provides if (selected) {
+                MaterialTheme.colorScheme.primary
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            },
+        ) {
+            content()
+        }
+    }
 }

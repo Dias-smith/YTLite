@@ -36,9 +36,19 @@ object PlayQueueRepository {
         items: List<QueueItem>,
         startIndex: Int = 0,
         sourcePlaylistId: String? = null,
+        preservePlaybackMode: Boolean = false,
     ) {
+        val preserved = _state.value
         if (items.isEmpty()) {
-            _state.value = PlayQueueState()
+            _state.value = if (preservePlaybackMode) {
+                PlayQueueState(
+                    repeatMode = preserved.repeatMode,
+                    shuffleEnabled = preserved.shuffleEnabled,
+                    sourcePlaylistId = preserved.sourcePlaylistId,
+                )
+            } else {
+                PlayQueueState()
+            }
             originalOrder = null
             return
         }
@@ -47,15 +57,20 @@ object PlayQueueRepository {
         _state.value = PlayQueueState(
             items = items,
             currentIndex = safeIndex,
-            sourcePlaylistId = sourcePlaylistId,
+            sourcePlaylistId = sourcePlaylistId ?: preserved.sourcePlaylistId,
+            repeatMode = if (preservePlaybackMode) preserved.repeatMode else QueueRepeatMode.OFF,
+            shuffleEnabled = if (preservePlaybackMode) preserved.shuffleEnabled else false,
         )
     }
 
     fun replaceCurrentAndAppend(current: QueueItem, related: List<QueueItem>, maxRelated: Int = 20) {
+        val mode = _state.value.toUpNextPlaybackMode()
         val tail = related
             .filter { it.videoId != current.videoId }
             .take(maxRelated)
-        setQueue(listOf(current) + tail, startIndex = 0)
+        val items = listOf(current) + tail
+        setQueue(items, startIndex = 0, preservePlaybackMode = true)
+        applyUpNextPlaybackMode(mode)
     }
 
     fun append(items: List<QueueItem>) {
@@ -169,6 +184,28 @@ object PlayQueueRepository {
 
     fun setRepeatMode(mode: QueueRepeatMode) {
         _state.update { it.copy(repeatMode = mode) }
+    }
+
+    fun setShuffleEnabled(enabled: Boolean) {
+        if (_state.value.shuffleEnabled == enabled) return
+        toggleShuffle()
+    }
+
+    fun applyUpNextPlaybackMode(mode: UpNextPlaybackMode) {
+        when (mode) {
+            UpNextPlaybackMode.REPEAT_ONE -> {
+                if (_state.value.shuffleEnabled) setShuffleEnabled(false)
+                setRepeatMode(QueueRepeatMode.ONE)
+            }
+            UpNextPlaybackMode.SEQUENTIAL -> {
+                if (_state.value.shuffleEnabled) setShuffleEnabled(false)
+                setRepeatMode(QueueRepeatMode.ALL)
+            }
+            UpNextPlaybackMode.SHUFFLE -> {
+                setRepeatMode(QueueRepeatMode.OFF)
+                if (!_state.value.shuffleEnabled) setShuffleEnabled(true)
+            }
+        }
     }
 
     fun toggleShuffle(): Boolean {

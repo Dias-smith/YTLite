@@ -85,6 +85,10 @@
     <string name="player_pause">Pause</string>
     <string name="player_repeat">Repeat</string>
     <string name="player_shuffle">Shuffle</string>
+    <string name="player_mode_repeat_one">Repeat one</string>
+    <string name="player_mode_sequential">Play in order</string>
+    <string name="player_mode_shuffle">Shuffle</string>
+    <string name="player_now_playing">Now playing</string>
     <string name="player_playback_speed">Playback speed</string>
     <string name="player_speed_normal">Normal</string>
     <string name="player_quality">Quality</string>

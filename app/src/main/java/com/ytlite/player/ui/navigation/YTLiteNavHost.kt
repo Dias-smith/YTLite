@@ -147,7 +147,10 @@ fun YTLiteNavHost(modifier: Modifier = Modifier) {
                     PlayerScreen(
                         onBack = {
                             globalPlaybackViewModel.onLeavePlayerScreen()
-                            navController.popBackStack()
+                            val currentRoute = navController.currentBackStackEntry?.destination?.route
+                            if (currentRoute?.startsWith("player/") == true) {
+                                navController.popBackStack()
+                            }
                         },
                         onChannelClick = { channel -> playerChannelOverlay = channel },
                         viewModel = playerViewModel,

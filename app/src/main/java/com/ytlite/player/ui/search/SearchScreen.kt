@@ -2,6 +2,7 @@ package com.ytlite.player.ui.search
 
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -59,6 +60,7 @@ fun SearchScreen(
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { innerPadding ->
         when (val state = uiState.screenState) {
@@ -76,7 +78,7 @@ fun SearchScreen(
                     onVideoClick = onVideoClick,
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(innerPadding),
+                        .padding(bottom = innerPadding.calculateBottomPadding()),
                 )
             }
             is SearchScreenState.SubCategory -> {
@@ -90,7 +92,7 @@ fun SearchScreen(
                     onMoodClick = viewModel::openMoodBrowse,
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(innerPadding),
+                        .padding(bottom = innerPadding.calculateBottomPadding()),
                 )
             }
             else -> {
@@ -121,7 +123,7 @@ fun SearchScreen(
                     onPlaylistClick = viewModel::openPlaylistBrowse,
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(innerPadding),
+                        .padding(bottom = innerPadding.calculateBottomPadding()),
                 )
             }
         }

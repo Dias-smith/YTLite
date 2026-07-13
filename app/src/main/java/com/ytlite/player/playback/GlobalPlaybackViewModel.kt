@@ -314,6 +314,11 @@ class GlobalPlaybackViewModel(
         PlayQueueRepository.toggleShuffle()
     }
 
+    fun setUpNextPlaybackMode(mode: UpNextPlaybackMode) {
+        PlayQueueRepository.applyUpNextPlaybackMode(mode)
+        PlaybackManager.syncRepeatMode()
+    }
+
     fun removeFromQueue(videoId: String) {
         val wasCurrent = PlaybackManager.nowPlaying.value?.videoId == videoId
         PlayQueueRepository.removeItem(videoId)

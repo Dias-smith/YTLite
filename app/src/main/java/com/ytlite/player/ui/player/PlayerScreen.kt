@@ -20,6 +20,7 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -33,6 +34,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import android.graphics.Rect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -42,7 +44,9 @@ import com.ytlite.player.data.model.SubscriptionChannel
 import com.ytlite.player.playback.GlobalPlaybackUiState
 import com.ytlite.player.playback.GlobalPlaybackViewModel
 import com.ytlite.player.playback.NowPlaying
+import com.ytlite.player.playback.PlayQueueRepository
 import com.ytlite.player.playback.PlaybackManager
+import com.ytlite.player.playback.toUpNextPlaybackMode
 import com.ytlite.player.ui.library.NewPlaylistDialog
 import com.ytlite.player.ui.library.PlaylistPickerSheet
 import com.ytlite.player.ui.library.PlaylistPickerViewModel
@@ -64,6 +68,7 @@ fun PlayerScreen(
     val playbackError by PlaybackManager.playbackError.collectAsStateWithLifecycle()
     val positionMs by PlaybackManager.positionMs.collectAsStateWithLifecycle()
     val durationMs by PlaybackManager.durationMs.collectAsStateWithLifecycle()
+    val queueState by PlayQueueRepository.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val application = context.applicationContext as Application
     val activity = context as? Activity
@@ -126,136 +131,162 @@ fun PlayerScreen(
                 val thumbnailUrl = playback.let {
                     com.ytlite.player.playback.NowPlaying.thumbnailUrlFor(it.videoId)
                 }
-                LazyColumn(
+                val listState = rememberLazyListState()
+                val swipeToDismissState = rememberPlayerSwipeToDismissState(
+                    listState = listState,
+                    onDismiss = onBack,
+                )
+                Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(innerPadding),
+                        .padding(innerPadding)
+                        .playerSwipeToDismiss(swipeToDismissState, enabled = true),
                 ) {
-                    item(key = "player_surface") {
-                        Column {
-                            if (uiState.selectedStreamUrl != null) {
-                                PlayerSmartCanvas(
-                                    player = sharedPlayer,
-                                    thumbnailUrl = thumbnailUrl,
-                                    uiState = uiState,
-                                    globalPlaybackState = globalPlaybackState,
-                                    attachInlineSurface = attachInlineSurface,
-                                    viewModel = viewModel,
-                                    globalPlaybackViewModel = globalPlaybackViewModel,
-                                    layout = PlayerCanvasLayout.Inline,
-                                    showPictureInPicture = true,
-                                    onBack = onBack,
-                                    onFullscreenClick = {
-                                        viewModel.prepareVideoForFullscreen { surfaceMode ->
-                                            PlaybackManager.setInlinePlayerSurfaceAttached(false)
-                                            context.startActivity(
-                                                FullscreenPlayerActivity.createIntent(
-                                                    context = context,
-                                                    thumbnailUrl = thumbnailUrl,
-                                                    surfaceMode = surfaceMode,
-                                                ),
-                                            )
-                                        }
-                                    },
-                                    onPictureInPictureClick = {
-                                        activity?.enterPlayerPictureInPicture()
-                                    },
-                                    positionMs = positionMs,
-                                    durationMs = durationMs,
-                                    modifier = Modifier.onGloballyPositioned { coordinates ->
-                                        val position = coordinates.positionInWindow()
-                                        val size = coordinates.size
-                                        PlayerPipState.sourceRectHint = Rect(
-                                            position.x.toInt(),
-                                            position.y.toInt(),
-                                            (position.x + size.width).toInt(),
-                                            (position.y + size.height).toInt(),
+                    Column {
+                        if (uiState.selectedStreamUrl != null) {
+                            PlayerSmartCanvas(
+                                player = sharedPlayer,
+                                thumbnailUrl = thumbnailUrl,
+                                uiState = uiState,
+                                globalPlaybackState = globalPlaybackState,
+                                attachInlineSurface = attachInlineSurface,
+                                viewModel = viewModel,
+                                globalPlaybackViewModel = globalPlaybackViewModel,
+                                layout = PlayerCanvasLayout.Inline,
+                                showPictureInPicture = true,
+                                onBack = onBack,
+                                onFullscreenClick = {
+                                    viewModel.prepareVideoForFullscreen { surfaceMode ->
+                                        PlaybackManager.setInlinePlayerSurfaceAttached(false)
+                                        context.startActivity(
+                                            FullscreenPlayerActivity.createIntent(
+                                                context = context,
+                                                thumbnailUrl = thumbnailUrl,
+                                                surfaceMode = surfaceMode,
+                                            ),
                                         )
-                                    },
-                                )
-                                if (playbackError != null) {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .padding(16.dp),
-                                        contentAlignment = Alignment.Center,
-                                    ) {
-                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                            Text(
-                                                text = stringResource(R.string.player_playback_failed),
-                                                style = MaterialTheme.typography.titleSmall,
-                                            )
-                                            Text(
-                                                text = playbackError.orEmpty(),
-                                                style = MaterialTheme.typography.bodySmall,
-                                            )
-                                            Button(onClick = { viewModel.loadPlayback() }) {
-                                                Text(text = stringResource(R.string.home_retry))
-                                            }
+                                    }
+                                },
+                                onPictureInPictureClick = {
+                                    activity?.enterPlayerPictureInPicture()
+                                },
+                                positionMs = positionMs,
+                                durationMs = durationMs,
+                                modifier = Modifier.onGloballyPositioned { coordinates ->
+                                    val position = coordinates.positionInWindow()
+                                    val size = coordinates.size
+                                    PlayerPipState.sourceRectHint = Rect(
+                                        position.x.toInt(),
+                                        position.y.toInt(),
+                                        (position.x + size.width).toInt(),
+                                        (position.y + size.height).toInt(),
+                                    )
+                                },
+                            )
+                            if (playbackError != null) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(16.dp),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Text(
+                                            text = stringResource(R.string.player_playback_failed),
+                                            style = MaterialTheme.typography.titleSmall,
+                                        )
+                                        Text(
+                                            text = playbackError.orEmpty(),
+                                            style = MaterialTheme.typography.bodySmall,
+                                        )
+                                        Button(onClick = { viewModel.loadPlayback() }) {
+                                            Text(text = stringResource(R.string.home_retry))
                                         }
                                     }
                                 }
-                            } else {
-                                PlayerExtractingSurface(
-                                    thumbnailUrl = thumbnailUrl,
-                                    isExtracting = uiState.isExtracting,
-                                    onBack = onBack,
-                                )
                             }
+                        } else {
+                            PlayerExtractingSurface(
+                                thumbnailUrl = thumbnailUrl,
+                                isExtracting = uiState.isExtracting,
+                                onBack = onBack,
+                            )
                         }
-                    }
 
-                    item(key = "metadata") {
-                        PlayerMetadataPanel(
-                            playback = playback,
-                            isLiked = expandedState.isLiked,
-                            isDisliked = expandedState.isDisliked,
-                            onLike = { globalPlaybackViewModel.toggleLike(application) },
-                            onDislike = { globalPlaybackViewModel.toggleDislike(application) },
-                            onShare = { shareVideo(context, playback.videoId) },
-                            onSaveToPlaylist = viewModel::showPlaylistPicker,
-                            onChannelClick = {
-                                if (playback.channelId.isNotBlank()) {
-                                    onChannelClick(
-                                        SubscriptionChannel(
-                                            channelId = playback.channelId,
-                                            title = playback.channelName,
-                                            handle = null,
-                                            avatarUrl = "",
-                                            subscriberCountText = null,
-                                            description = null,
-                                        ),
-                                    )
-                                }
-                            },
+                        Text(
+                            text = playback.title,
+                            style = MaterialTheme.typography.titleLarge,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 12.dp)
+                                .playerSwipeToDismissHeader(swipeToDismissState, enabled = true),
                         )
                     }
 
-                    item(key = "up_next_header") {
-                        PurifiedUpNextHeader()
-                    }
-
-                    if (uiState.upNextLoading) {
-                        item(key = "up_next_loading") {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(24.dp),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                CircularProgressIndicator()
-                            }
-                        }
-                    } else {
-                        items(
-                            items = uiState.upNextItems,
-                            key = { it.videoId },
-                            contentType = { "video" },
-                        ) { item ->
-                            PurifiedUpNextItem(
-                                item = item,
-                                onClick = { viewModel.onUpNextClick(item) },
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        item(key = "metadata") {
+                            PlayerMetadataPanel(
+                                playback = playback,
+                                showTitle = false,
+                                isLiked = expandedState.isLiked,
+                                isDisliked = expandedState.isDisliked,
+                                onLike = { globalPlaybackViewModel.toggleLike(application) },
+                                onDislike = { globalPlaybackViewModel.toggleDislike(application) },
+                                onShare = { shareVideo(context, playback.videoId) },
+                                onSaveToPlaylist = viewModel::showPlaylistPicker,
+                                onChannelClick = {
+                                    if (playback.channelId.isNotBlank()) {
+                                        onChannelClick(
+                                            SubscriptionChannel(
+                                                channelId = playback.channelId,
+                                                title = playback.channelName,
+                                                handle = null,
+                                                avatarUrl = "",
+                                                subscriberCountText = null,
+                                                description = null,
+                                            ),
+                                        )
+                                    }
+                                },
                             )
+                        }
+
+                        item(key = "up_next_header") {
+                            PurifiedUpNextHeader(
+                                currentMode = queueState.toUpNextPlaybackMode(),
+                                onModeSelected = globalPlaybackViewModel::setUpNextPlaybackMode,
+                            )
+                        }
+
+                        if (uiState.upNextLoading) {
+                            item(key = "up_next_loading") {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(24.dp),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    CircularProgressIndicator()
+                                }
+                            }
+                        } else {
+                            items(
+                                items = uiState.upNextItems,
+                                key = { it.videoId },
+                                contentType = { "video" },
+                            ) { item ->
+                                PurifiedUpNextItem(
+                                    item = item,
+                                    isCurrentlyPlaying = globalPlaybackState.nowPlaying?.videoId == item.videoId,
+                                    isPlaying = globalPlaybackState.isPlaying,
+                                    onClick = { viewModel.onUpNextClick(item) },
+                                )
+                            }
                         }
                     }
                 }
