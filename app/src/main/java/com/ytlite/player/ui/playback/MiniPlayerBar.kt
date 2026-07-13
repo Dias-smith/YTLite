@@ -37,7 +37,7 @@ private val ProgressBlue = Color(0xFF3EA6FF)
 @Composable
 fun MiniPlayerBar(
     state: GlobalPlaybackUiState,
-    onExpandQueue: () -> Unit,
+    onOpenPlayer: () -> Unit,
     onTogglePlayPause: () -> Unit,
     onSkipNext: () -> Unit,
     modifier: Modifier = Modifier,
@@ -73,7 +73,7 @@ fun MiniPlayerBar(
             Row(
                 modifier = Modifier
                     .weight(1f)
-                    .clickable(onClick = onExpandQueue),
+                    .clickable(onClick = onOpenPlayer),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 MiniPlayerSurface(
@@ -116,7 +116,7 @@ fun MiniPlayerBar(
                     tint = Color(0xFFAAAAAA),
                 )
             }
-            IconButton(onClick = onExpandQueue) {
+            IconButton(onClick = onOpenPlayer) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.PlaylistPlay,
                     contentDescription = null,

@@ -25,7 +25,7 @@ import com.ytlite.player.ui.player.PlayerViewModel
 import com.ytlite.player.playback.GlobalPlaybackViewModel
 import com.ytlite.player.playback.PlaybackNavigation
 import com.ytlite.player.ui.auth.AuthViewModel
-import com.ytlite.player.ui.playback.ExpandedPlayerQueueOverlay
+import com.ytlite.player.ui.subscriptions.ChannelVideosScreen
 import com.ytlite.player.ui.playlistaction.PlaylistActionHost
 import com.ytlite.player.ui.trackaction.TrackActionHost
 import com.ytlite.player.ui.trackaction.TrackActionNavigation
@@ -46,11 +46,11 @@ fun YTLiteNavHost(modifier: Modifier = Modifier) {
     )
     val authViewModel: AuthViewModel = viewModel(factory = AuthViewModel.factory(application))
     val globalPlaybackState by globalPlaybackViewModel.uiState.collectAsStateWithLifecycle()
-    val expandedState by globalPlaybackViewModel.expandedUiState.collectAsStateWithLifecycle()
 
     var pendingArtistChannel by remember { mutableStateOf<SubscriptionChannel?>(null) }
     var pendingAlbumName by remember { mutableStateOf<String?>(null) }
     var switchToLibraryTab by remember { mutableStateOf(false) }
+    var playerChannelOverlay by remember { mutableStateOf<SubscriptionChannel?>(null) }
 
     LaunchedEffect(navController) {
         PlaybackNavigation.openPlayerRequests.collect { videoId ->
@@ -91,7 +91,11 @@ fun YTLiteNavHost(modifier: Modifier = Modifier) {
                             navController.navigate(Routes.player(videoId))
                         },
                         globalPlaybackState = globalPlaybackState,
-                        onMiniPlayerExpandQueue = globalPlaybackViewModel::setQueueExpanded,
+                        onMiniPlayerOpenPlayer = { videoId ->
+                            navController.navigate(Routes.player(videoId)) {
+                                launchSingleTop = true
+                            }
+                        },
                         onMiniPlayerTogglePlayPause = globalPlaybackViewModel::togglePlayPause,
                         onMiniPlayerSkipNext = globalPlaybackViewModel::skipToNext,
                         onPlayPlaylist = { items, startIndex, sourcePlaylistId ->
@@ -133,6 +137,7 @@ fun YTLiteNavHost(modifier: Modifier = Modifier) {
                             globalPlaybackViewModel.onLeavePlayerScreen()
                             navController.popBackStack()
                         },
+                        onChannelClick = { channel -> playerChannelOverlay = channel },
                         viewModel = playerViewModel,
                         globalPlaybackViewModel = globalPlaybackViewModel,
                         globalPlaybackState = globalPlaybackState,
@@ -140,11 +145,19 @@ fun YTLiteNavHost(modifier: Modifier = Modifier) {
                 }
             }
 
-            ExpandedPlayerQueueOverlay(
-                state = globalPlaybackState,
-                expandedState = expandedState,
-                viewModel = globalPlaybackViewModel,
-            )
+            playerChannelOverlay?.let { channel ->
+                ChannelVideosScreen(
+                    channel = channel,
+                    onBack = { playerChannelOverlay = null },
+                    onVideoClick = { videoId ->
+                        playerChannelOverlay = null
+                        navController.navigate(Routes.player(videoId)) {
+                            launchSingleTop = true
+                        }
+                    },
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
         }
         }
     }

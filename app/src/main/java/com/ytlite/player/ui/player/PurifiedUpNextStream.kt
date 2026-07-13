@@ -1,7 +1,9 @@
 package com.ytlite.player.ui.player
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -18,6 +20,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -39,6 +42,11 @@ fun PurifiedUpNextItem(
 ) {
     val context = LocalContext.current
     val onTrackMoreClick = LocalTrackMoreClick.current
+    val subtitle = listOfNotNull(
+        item.channelName.takeIf { it.isNotBlank() },
+        item.viewCountText?.takeIf { it.isNotBlank() },
+    ).joinToString(separator = " · ")
+
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -47,18 +55,38 @@ fun PurifiedUpNextItem(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        AsyncImage(
-            model = ImageRequest.Builder(context)
-                .data(item.thumbnailUrl)
-                .allowRgb565(true)
-                .crossfade(false)
-                .build(),
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .size(width = 120.dp, height = 68.dp)
-                .clip(RoundedCornerShape(8.dp)),
-        )
+        Box(
+            modifier = Modifier.size(width = 120.dp, height = 68.dp),
+        ) {
+            AsyncImage(
+                model = ImageRequest.Builder(context)
+                    .data(item.thumbnailUrl)
+                    .allowRgb565(true)
+                    .crossfade(false)
+                    .build(),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .size(width = 120.dp, height = 68.dp)
+                    .clip(RoundedCornerShape(8.dp)),
+            )
+            if (!item.durationText.isNullOrBlank()) {
+                Text(
+                    text = item.durationText,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.White,
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(4.dp)
+                        .background(
+                            color = Color.Black.copy(alpha = 0.8f),
+                            shape = RoundedCornerShape(4.dp),
+                        )
+                        .padding(horizontal = 4.dp, vertical = 2.dp),
+                )
+            }
+        }
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = item.title,
@@ -66,13 +94,15 @@ fun PurifiedUpNextItem(
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
-            Text(
-                text = item.channelName,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            if (subtitle.isNotBlank()) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
         IconButton(onClick = {
             onTrackMoreClick(
@@ -90,7 +120,7 @@ fun PurifiedUpNextHeader(
 ) {
     Text(
         text = stringResource(R.string.player_up_next),
-        style = MaterialTheme.typography.titleSmall,
+        style = MaterialTheme.typography.titleMedium,
         modifier = modifier.padding(horizontal = 16.dp, vertical = 8.dp),
     )
 }

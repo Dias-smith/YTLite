@@ -26,6 +26,7 @@ class FullscreenPlayerActivity : ComponentActivity() {
         setContent {
             YTLiteTheme {
                 val player by PlaybackManager.playerState.collectAsStateWithLifecycle()
+                val isPlaying by PlaybackManager.isPlaying.collectAsStateWithLifecycle()
                 val positionMs by PlaybackManager.positionMs.collectAsStateWithLifecycle()
                 val durationMs by PlaybackManager.durationMs.collectAsStateWithLifecycle()
 
@@ -40,10 +41,14 @@ class FullscreenPlayerActivity : ComponentActivity() {
                         surfaceMode = PlayerSurfaceMode.Video,
                         positionMs = positionMs,
                         durationMs = durationMs,
+                        isPlaying = isPlaying,
                         onSurfaceModeChange = { },
                         onFullscreenClick = { finish() },
-                        onCcClick = { },
-                        onSettingsClick = { },
+                        onPictureInPictureClick = { enterPlayerPictureInPicture() },
+                        onSeek = PlaybackManager::seekTo,
+                        onTogglePlayPause = PlaybackManager::togglePlayPause,
+                        onSkipPrevious = PlaybackManager::skipToPreviousInQueue,
+                        onSkipNext = PlaybackManager::skipToNextInQueue,
                         modifier = Modifier.fillMaxSize(),
                     )
                 }

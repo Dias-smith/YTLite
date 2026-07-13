@@ -12,11 +12,12 @@ import androidx.media3.ui.PlayerView
 fun VideoPlayerView(
     player: Player?,
     modifier: Modifier = Modifier,
+    useController: Boolean = true,
 ) {
     PlayerSurface(
         player = player,
         modifier = modifier,
-        useController = true,
+        useController = useController,
     )
 }
 

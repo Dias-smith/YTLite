@@ -1,5 +1,6 @@
 package com.ytlite.player.ui.player
 
+import android.app.Activity
 import android.app.Application
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -7,17 +8,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -28,30 +23,32 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ytlite.player.R
+import com.ytlite.player.data.model.SubscriptionChannel
 import com.ytlite.player.playback.GlobalPlaybackUiState
 import com.ytlite.player.playback.GlobalPlaybackViewModel
 import com.ytlite.player.playback.PlaybackManager
 import com.ytlite.player.ui.library.NewPlaylistDialog
 import com.ytlite.player.ui.library.PlaylistPickerSheet
 import com.ytlite.player.ui.library.PlaylistPickerViewModel
-import com.ytlite.player.ui.playback.PlayerMiniBar
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlayerScreen(
     onBack: () -> Unit,
+    onChannelClick: (SubscriptionChannel) -> Unit,
     viewModel: PlayerViewModel,
     globalPlaybackViewModel: GlobalPlaybackViewModel,
     globalPlaybackState: GlobalPlaybackUiState,
     modifier: Modifier = Modifier,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val expandedState by globalPlaybackViewModel.expandedUiState.collectAsStateWithLifecycle()
     val sharedPlayer by PlaybackManager.playerState.collectAsStateWithLifecycle()
     val playbackError by PlaybackManager.playbackError.collectAsStateWithLifecycle()
     val positionMs by PlaybackManager.positionMs.collectAsStateWithLifecycle()
     val durationMs by PlaybackManager.durationMs.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val application = context.applicationContext as Application
+    val activity = context as? Activity
 
     val playlistPickerViewModel: PlaylistPickerViewModel = viewModel(
         factory = PlaylistPickerViewModel.factory(application),
@@ -60,30 +57,6 @@ fun PlayerScreen(
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
-        topBar = {
-            TopAppBar(
-                title = { },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.player_back),
-                        )
-                    }
-                },
-            )
-        },
-        bottomBar = {
-            if (globalPlaybackState.nowPlaying != null) {
-                PlayerMiniBar(
-                    state = globalPlaybackState,
-                    player = sharedPlayer,
-                    onOpenQueue = { globalPlaybackViewModel.setQueueExpanded(true) },
-                    onTogglePlayPause = globalPlaybackViewModel::togglePlayPause,
-                    onSkipNext = globalPlaybackViewModel::skipToNext,
-                )
-            }
-        },
     ) { innerPadding ->
         when {
             uiState.isLoading -> {
@@ -123,6 +96,7 @@ fun PlayerScreen(
                                     surfaceMode = uiState.surfaceMode,
                                     positionMs = positionMs,
                                     durationMs = durationMs,
+                                    isPlaying = globalPlaybackState.isPlaying,
                                     onSurfaceModeChange = viewModel::setSurfaceMode,
                                     onFullscreenClick = {
                                         context.startActivity(
@@ -133,8 +107,14 @@ fun PlayerScreen(
                                             ),
                                         )
                                     },
-                                    onCcClick = { },
-                                    onSettingsClick = { },
+                                    onPictureInPictureClick = {
+                                        activity?.enterPlayerPictureInPicture()
+                                    },
+                                    onSeek = globalPlaybackViewModel::seekTo,
+                                    onTogglePlayPause = globalPlaybackViewModel::togglePlayPause,
+                                    onSkipPrevious = globalPlaybackViewModel::skipToPrevious,
+                                    onSkipNext = globalPlaybackViewModel::skipToNext,
+                                    onBack = onBack,
                                 )
                                 if (playbackError != null) {
                                     Box(
@@ -172,10 +152,26 @@ fun PlayerScreen(
                     item(key = "metadata") {
                         PlayerMetadataPanel(
                             playback = playback,
-                            isDescriptionExpanded = uiState.isDescriptionExpanded,
-                            onToggleDescription = viewModel::toggleDescription,
+                            isLiked = expandedState.isLiked,
+                            isDisliked = expandedState.isDisliked,
+                            onLike = { globalPlaybackViewModel.toggleLike(application) },
+                            onDislike = { globalPlaybackViewModel.toggleDislike(application) },
                             onShare = { shareVideo(context, playback.videoId) },
                             onSaveToPlaylist = viewModel::showPlaylistPicker,
+                            onChannelClick = {
+                                if (playback.channelId.isNotBlank()) {
+                                    onChannelClick(
+                                        SubscriptionChannel(
+                                            channelId = playback.channelId,
+                                            title = playback.channelName,
+                                            handle = null,
+                                            avatarUrl = "",
+                                            subscriberCountText = null,
+                                            description = null,
+                                        ),
+                                    )
+                                }
+                            },
                         )
                     }
 

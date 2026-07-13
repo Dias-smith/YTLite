@@ -69,6 +69,7 @@
     <string name="player_cc">Subtitles</string>
     <string name="player_settings">Playback settings</string>
     <string name="player_fullscreen">Fullscreen</string>
+    <string name="player_pip">Picture in picture</string>
     <string name="player_lyrics_placeholder">Lyrics coming soon…</string>
     <string name="player_up_next">Up next</string>
     <string name="player_save_playlist">Save</string>

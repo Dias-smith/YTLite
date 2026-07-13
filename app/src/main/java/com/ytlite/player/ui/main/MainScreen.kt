@@ -99,7 +99,7 @@ private fun Modifier.mainTabPadding(
 fun MainScreen(
     onVideoClick: (String) -> Unit,
     globalPlaybackState: GlobalPlaybackUiState,
-    onMiniPlayerExpandQueue: (Boolean) -> Unit,
+    onMiniPlayerOpenPlayer: (String) -> Unit,
     onMiniPlayerTogglePlayPause: () -> Unit,
     onMiniPlayerSkipNext: () -> Unit,
     onPlayPlaylist: (List<QueueItem>, Int, String) -> Unit,
@@ -160,7 +160,9 @@ fun MainScreen(
                 if (globalPlaybackState.showMiniPlayer) {
                     MiniPlayerBar(
                         state = globalPlaybackState,
-                        onExpandQueue = { onMiniPlayerExpandQueue(true) },
+                        onOpenPlayer = {
+                            globalPlaybackState.nowPlaying?.videoId?.let(onMiniPlayerOpenPlayer)
+                        },
                         onTogglePlayPause = onMiniPlayerTogglePlayPause,
                         onSkipNext = onMiniPlayerSkipNext,
                     )

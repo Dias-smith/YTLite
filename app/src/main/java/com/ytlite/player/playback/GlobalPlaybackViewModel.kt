@@ -36,7 +36,6 @@ data class GlobalPlaybackUiState(
     val positionMs: Long = 0,
     val durationMs: Long = 0,
     val showMiniPlayer: Boolean = false,
-    val isQueueExpanded: Boolean = false,
     val queueState: PlayQueueState = PlayQueueState(),
 )
 
@@ -72,7 +71,6 @@ class GlobalPlaybackViewModel(
 ) : ViewModel() {
 
     private val showMiniPlayer = MutableStateFlow(false)
-    private val isQueueExpanded = MutableStateFlow(false)
     private val expandedState = MutableStateFlow(ExpandedPlayerUiState())
 
     val expandedUiState: StateFlow<ExpandedPlayerUiState> = expandedState.asStateFlow()
@@ -90,9 +88,8 @@ class GlobalPlaybackViewModel(
     val uiState: StateFlow<GlobalPlaybackUiState> = combine(
         playbackSnapshot,
         showMiniPlayer,
-        isQueueExpanded,
         PlayQueueRepository.state,
-    ) { snapshot, showMini, expanded, queueState ->
+    ) { snapshot, showMini, queueState ->
         GlobalPlaybackUiState(
             nowPlaying = if (snapshot.ended && !queueState.hasNext && queueState.repeatMode == QueueRepeatMode.OFF) {
                 null
@@ -103,7 +100,6 @@ class GlobalPlaybackViewModel(
             positionMs = snapshot.positionMs,
             durationMs = snapshot.durationMs,
             showMiniPlayer = showMini && snapshot.nowPlaying != null && !snapshot.ended,
-            isQueueExpanded = expanded,
             queueState = queueState,
         )
     }.stateIn(
@@ -214,7 +210,6 @@ class GlobalPlaybackViewModel(
         val advanced = PlayQueueRepository.advanceToNext()
         if (advanced == null) {
             showMiniPlayer.update { false }
-            isQueueExpanded.update { false }
             PlaybackManager.stop()
             PlayQueueRepository.clear()
             return
@@ -231,14 +226,6 @@ class GlobalPlaybackViewModel(
 
     fun onEnterPlayerScreen() {
         showMiniPlayer.update { false }
-    }
-
-    fun setQueueExpanded(expanded: Boolean) {
-        isQueueExpanded.update { expanded }
-    }
-
-    fun toggleQueueExpanded() {
-        isQueueExpanded.update { !it }
     }
 
     fun togglePlayPause() {
@@ -336,7 +323,6 @@ class GlobalPlaybackViewModel(
                 viewModelScope.launch { playQueueItemInternal(next) }
             } else {
                 PlaybackManager.stop()
-                isQueueExpanded.update { false }
             }
         }
     }
