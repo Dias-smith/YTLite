@@ -23,6 +23,7 @@ import com.ytlite.player.playback.PlaybackManager
 import com.ytlite.player.playback.PlaybackPrefetcher
 import com.ytlite.player.playback.PlaybackTiming
 import com.ytlite.player.playback.QueueItem
+import com.ytlite.player.playback.UpNextCache
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -50,6 +51,10 @@ class PlayerViewModel(
         jsEngine.preloadAsync()
         val active = PlaybackManager.nowPlaying.value
         if (active?.videoId == videoId) {
+            val cachedUpNext = UpNextCache.get(videoId)
+            if (cachedUpNext != null) {
+                lastExtractMessage = UpNextCache.getExtractMessage(videoId)
+            }
             _uiState.update {
                 it.copy(
                     isLoading = false,
@@ -57,9 +62,15 @@ class PlayerViewModel(
                     playback = active.toStubPlayback(),
                     selectedStreamUrl = active.streamUrl,
                     errorMessage = null,
+                    upNextItems = cachedUpNext.orEmpty(),
+                    upNextLoading = cachedUpNext == null,
                 )
             }
-            loadRelatedInBackground()
+            if (cachedUpNext != null) {
+                seedQueue(cachedUpNext)
+            } else {
+                loadRelatedInBackground()
+            }
         } else {
             val preview = PlayerLaunchPreview.consume(videoId)
             if (preview != null) {
@@ -159,9 +170,25 @@ class PlayerViewModel(
     }
 
     private suspend fun loadRelated(extractMessage: JSONObject?) {
+        UpNextCache.get(videoId)?.let { cached ->
+            val cachedMessage = UpNextCache.getExtractMessage(videoId) ?: extractMessage
+            lastExtractMessage = cachedMessage
+            _uiState.update {
+                it.copy(
+                    upNextItems = cached,
+                    upNextLoading = false,
+                    lastExtractMessage = cachedMessage,
+                )
+            }
+            seedQueue(cached)
+            return
+        }
+
         _uiState.update { it.copy(upNextLoading = true) }
         when (val result = repository.fetchRelatedVideos(videoId, extractMessage)) {
             is ExtractionResult.Success -> {
+                UpNextCache.put(videoId, result.data, extractMessage)
+                lastExtractMessage = extractMessage
                 _uiState.update {
                     it.copy(
                         upNextItems = result.data,
