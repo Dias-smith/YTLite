@@ -23,6 +23,7 @@
     <string name="home_category_sad">伤心难过</string>
     <string name="home_category_sleep">睡眠</string>
     <string name="placeholder_coming_soon">即将推出</string>
+    <string name="search_hot_keywords">热搜</string>
     <string name="sign_in">登录</string>
     <string name="sign_in_coming_soon">登录功能即将推出</string>
     <string name="subscriptions_sign_in_title">别错过新视频</string>

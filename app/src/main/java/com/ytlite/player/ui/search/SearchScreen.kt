@@ -12,7 +12,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -24,7 +23,6 @@ import com.ytlite.player.data.model.SearchResultItem
 import com.ytlite.player.data.model.SearchScreenState
 import com.ytlite.player.data.model.SubscriptionChannel
 import com.ytlite.player.data.model.VideoItem
-import kotlinx.coroutines.launch
 
 @Composable
 fun SearchScreen(
@@ -37,8 +35,6 @@ fun SearchScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
-    val comingSoon = stringResource(R.string.placeholder_coming_soon)
 
     if (uiState.pendingDeleteRecentId != null) {
         AlertDialog(
@@ -101,16 +97,13 @@ fun SearchScreen(
                     onQueryChange = viewModel::onQueryChange,
                     onClearQuery = viewModel::onClearQuery,
                     onSubmitSearch = { viewModel.onSubmitSearch() },
-                    onVoiceClick = {
-                        scope.launch { snackbarHostState.showSnackbar(comingSoon) }
-                    },
                     onSuggestionClick = viewModel::onSuggestionClick,
                     onHistoryQueryClick = viewModel::onHistoryQueryClick,
                     onRecentClick = viewModel::onRecentClick,
                     onRecentLongPress = viewModel::requestDeleteRecent,
                     onClearRecentClicks = viewModel::clearRecentClicks,
                     onClearQueryHistory = viewModel::clearQueryHistory,
-                    onDiscoveryOpen = viewModel::onDiscoveryOpen,
+                    onHotKeywordClick = viewModel::onSubmitSearch,
                     onResultTabSelected = viewModel::onResultTabSelected,
                     onLoadMoreResults = viewModel::loadMoreResults,
                     onVideoClick = onVideoClick,
@@ -136,14 +129,13 @@ private fun SearchContent(
     onQueryChange: (String) -> Unit,
     onClearQuery: () -> Unit,
     onSubmitSearch: () -> Unit,
-    onVoiceClick: () -> Unit,
     onSuggestionClick: (com.ytlite.player.data.model.SearchSuggestion) -> Unit,
     onHistoryQueryClick: (String) -> Unit,
     onRecentClick: (com.ytlite.player.data.local.entity.SearchRecentClickEntity) -> Unit,
     onRecentLongPress: (String) -> Unit,
     onClearRecentClicks: () -> Unit,
     onClearQueryHistory: () -> Unit,
-    onDiscoveryOpen: (com.ytlite.player.data.model.DiscoveryType) -> Unit,
+    onHotKeywordClick: (String) -> Unit,
     onResultTabSelected: (com.ytlite.player.data.model.SearchResultTab) -> Unit,
     onLoadMoreResults: () -> Unit,
     onVideoClick: (VideoItem) -> Unit,
@@ -158,19 +150,19 @@ private fun SearchContent(
             onQueryChange = onQueryChange,
             onClear = onClearQuery,
             onSubmit = onSubmitSearch,
-            onVoiceClick = onVoiceClick,
         )
         when (uiState.screenState) {
             SearchScreenState.DefaultHub -> {
                 DefaultHubView(
                     recentClicks = uiState.recentClicks,
                     queryHistory = uiState.queryHistory,
+                    hotKeywords = uiState.hotKeywords,
                     onRecentClick = onRecentClick,
                     onRecentLongPress = onRecentLongPress,
                     onClearRecentClicks = onClearRecentClicks,
                     onHistoryQueryClick = onHistoryQueryClick,
                     onClearQueryHistory = onClearQueryHistory,
-                    onDiscoveryOpen = onDiscoveryOpen,
+                    onHotKeywordClick = onHotKeywordClick,
                 )
             }
             is SearchScreenState.Suggestions -> {

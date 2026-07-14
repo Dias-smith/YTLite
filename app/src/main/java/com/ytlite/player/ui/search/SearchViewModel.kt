@@ -37,6 +37,7 @@ data class SearchUiState(
     val screenState: SearchScreenState = SearchScreenState.DefaultHub,
     val queryHistory: List<SearchQueryEntity> = emptyList(),
     val recentClicks: List<SearchRecentClickEntity> = emptyList(),
+    val hotKeywords: List<String> = emptyList(),
     val suggestions: List<SearchSuggestion> = emptyList(),
     val isSuggestionsLoading: Boolean = false,
     val resultItems: List<SearchResultItem> = emptyList(),
@@ -78,6 +79,7 @@ class SearchViewModel(
         .distinctUntilChanged()
 
     init {
+        loadHotKeywords()
         viewModelScope.launch {
             debouncedQuery.collect { query ->
                 val state = mutableState.value.screenState
@@ -95,6 +97,13 @@ class SearchViewModel(
                 }
                 loadSuggestions(query)
             }
+        }
+    }
+
+    fun loadHotKeywords() {
+        viewModelScope.launch {
+            val keywords = repository.fetchHotKeywords()
+            mutableState.update { it.copy(hotKeywords = keywords) }
         }
     }
 
@@ -120,6 +129,7 @@ class SearchViewModel(
         mutableState.value = SearchUiState(
             queryHistory = mutableState.value.queryHistory,
             recentClicks = mutableState.value.recentClicks,
+            hotKeywords = mutableState.value.hotKeywords,
         )
     }
 

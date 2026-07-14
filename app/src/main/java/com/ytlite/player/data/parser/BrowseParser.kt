@@ -168,6 +168,13 @@ object BrowseParser {
     }
 
     private fun extractVideo(node: JSONObject): VideoItem? {
+        node.optJSONObject("lockupViewModel")?.let { lockup ->
+            LockupViewModelParser.parseVideo(lockup)?.let { return it }
+        }
+        node.optJSONObject("richItemRenderer")
+            ?.optJSONObject("content")
+            ?.let { content -> extractVideo(content)?.let { return it } }
+
         for (key in listOf("videoRenderer", "gridVideoRenderer", "compactVideoRenderer")) {
             if (!node.has(key)) continue
             val renderer = node.optJSONObject(key) ?: continue

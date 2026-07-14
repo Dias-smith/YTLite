@@ -8,8 +8,6 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.GraphicEq
-import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -33,7 +31,6 @@ fun SearchBar(
     onQueryChange: (String) -> Unit,
     onClear: () -> Unit,
     onSubmit: () -> Unit,
-    onVoiceClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Surface(
@@ -57,8 +54,13 @@ fun SearchBar(
                 value = query,
                 onValueChange = onQueryChange,
                 modifier = Modifier.weight(1f),
+                textStyle = MaterialTheme.typography.bodyMedium,
                 placeholder = {
-                    Text(stringResource(R.string.search_hint))
+                    Text(
+                        text = stringResource(R.string.search_hint),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 },
                 singleLine = true,
                 colors = TextFieldDefaults.colors(
@@ -75,12 +77,6 @@ fun SearchBar(
                 IconButton(onClick = onClear) {
                     Icon(Icons.Default.Clear, contentDescription = stringResource(R.string.search_clear))
                 }
-            }
-            IconButton(onClick = onVoiceClick, enabled = false) {
-                Icon(Icons.Default.Mic, contentDescription = stringResource(R.string.search_voice))
-            }
-            IconButton(onClick = onVoiceClick, enabled = false) {
-                Icon(Icons.Default.GraphicEq, contentDescription = stringResource(R.string.search_identify))
             }
         }
     }

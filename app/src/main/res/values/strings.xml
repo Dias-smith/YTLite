@@ -254,6 +254,7 @@
     <string name="search_identify">Identify song</string>
     <string name="search_recent_searches">Recent searches</string>
     <string name="search_history">Search history</string>
+    <string name="search_hot_keywords">Trending searches</string>
     <string name="search_clear_all">Clear all</string>
     <string name="search_discovery">Explore</string>
     <string name="search_new_releases">New releases</string>
