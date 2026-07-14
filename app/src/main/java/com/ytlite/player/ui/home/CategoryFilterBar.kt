@@ -14,7 +14,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 
@@ -60,8 +59,8 @@ fun CategoryFilterBar(
                 colors = FilterChipDefaults.filterChipColors(
                     selectedContainerColor = highlight,
                     selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
-                    containerColor = Color(0xFF272727),
-                    labelColor = Color.White,
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    labelColor = MaterialTheme.colorScheme.onSurface,
                 ),
             )
         }
