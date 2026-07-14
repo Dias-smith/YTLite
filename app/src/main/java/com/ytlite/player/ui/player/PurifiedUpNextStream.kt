@@ -7,8 +7,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.QueueMusic
@@ -29,6 +31,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
@@ -134,19 +138,41 @@ fun PurifiedUpNextItem(
 fun PurifiedUpNextHeader(
     currentMode: UpNextPlaybackMode,
     onModeSelected: (UpNextPlaybackMode) -> Unit,
+    selectedTab: PlayerListTab,
+    onTabSelected: (PlayerListTab) -> Unit,
+    showRecommendTab: Boolean,
     modifier: Modifier = Modifier,
 ) {
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(start = 16.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            text = stringResource(R.string.player_up_next),
-            style = MaterialTheme.typography.titleMedium,
-        )
+        if (showRecommendTab) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                UpNextListTab(
+                    label = stringResource(R.string.player_up_next),
+                    selected = selectedTab == PlayerListTab.UpNext,
+                    onClick = { onTabSelected(PlayerListTab.UpNext) },
+                )
+                UpNextListTab(
+                    label = stringResource(R.string.player_recommend),
+                    selected = selectedTab == PlayerListTab.Recommend,
+                    onClick = { onTabSelected(PlayerListTab.Recommend) },
+                )
+            }
+        } else {
+            Text(
+                text = stringResource(R.string.player_up_next),
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(vertical = 8.dp),
+            )
+        }
         Row(horizontalArrangement = Arrangement.spacedBy(0.dp)) {
             UpNextPlaybackModeButton(
                 selected = currentMode == UpNextPlaybackMode.REPEAT_ONE,
@@ -176,6 +202,43 @@ fun PurifiedUpNextHeader(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun UpNextListTab(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val color = if (selected) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    Column(
+        modifier = modifier
+            .clickable(role = Role.Tab, onClick = onClick)
+            .padding(vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+            color = color,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Box(
+            modifier = Modifier
+                .padding(top = 4.dp)
+                .width(28.dp)
+                .height(2.dp)
+                .clip(RoundedCornerShape(1.dp))
+                .background(if (selected) color else Color.Transparent),
+        )
     }
 }
 

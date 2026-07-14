@@ -23,6 +23,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -35,8 +36,8 @@ import android.app.Application
 import androidx.compose.ui.platform.LocalContext
 import com.ytlite.player.R
 import com.ytlite.player.data.model.LibraryVideo
-import com.ytlite.player.data.model.VideoItem
-import com.ytlite.player.ui.player.toVideoItem
+import com.ytlite.player.playback.QueueItem
+import com.ytlite.player.ui.player.toQueueItem
 import com.ytlite.player.ui.trackaction.LocalTrackMoreClick
 import com.ytlite.player.ui.trackaction.TrackActionContext
 
@@ -46,7 +47,7 @@ fun AlbumTracksScreen(
     albumName: String,
     ownerKey: String,
     onBack: () -> Unit,
-    onVideoClick: (VideoItem) -> Unit,
+    onPlayPlaylist: (List<QueueItem>, Int, String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val application = LocalContext.current.applicationContext as Application
@@ -56,6 +57,10 @@ fun AlbumTracksScreen(
     )
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val onTrackMoreClick = LocalTrackMoreClick.current
+    val queueItems = remember(uiState.tracks) {
+        uiState.tracks.map { it.toQueueItem() }
+    }
+    val sourcePlaylistId = "album:$albumName"
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -94,7 +99,13 @@ fun AlbumTracksScreen(
                 items(uiState.tracks, key = { it.videoId }) { video ->
                     AlbumTrackRow(
                         video = video,
-                        onClick = { onVideoClick(video.toVideoItem()) },
+                        onClick = {
+                            val startIndex = queueItems.indexOfFirst { it.videoId == video.videoId }
+                                .coerceAtLeast(0)
+                            if (queueItems.isNotEmpty()) {
+                                onPlayPlaylist(queueItems, startIndex, sourcePlaylistId)
+                            }
+                        },
                         onMoreClick = {
                             onTrackMoreClick(TrackActionContext.fromLibraryVideo(video))
                         },

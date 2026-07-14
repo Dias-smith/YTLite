@@ -23,6 +23,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -36,15 +37,15 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ytlite.player.R
 import com.ytlite.player.data.model.DataSource
 import com.ytlite.player.data.model.LibraryVideo
-import com.ytlite.player.data.model.VideoItem
-import com.ytlite.player.ui.player.toVideoItem
+import com.ytlite.player.playback.QueueItem
+import com.ytlite.player.ui.player.toQueueItem
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HistoryScreen(
     ownerKey: String,
     onBack: () -> Unit,
-    onVideoClick: (VideoItem) -> Unit,
+    onPlayPlaylist: (List<QueueItem>, Int, String) -> Unit,
     onSongMoreClick: (LibraryVideo, String?, DataSource) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -53,6 +54,9 @@ fun HistoryScreen(
         factory = HistoryViewModel.factory(application, ownerKey),
     )
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val flatQueue = remember(uiState.groupedHistory) {
+        uiState.groupedHistory.values.flatten().map { it.toQueueItem() }
+    }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -102,7 +106,13 @@ fun HistoryScreen(
                     val video = videos[index]
                     HistoryRow(
                         video = video,
-                        onClick = { onVideoClick(video.toVideoItem()) },
+                        onClick = {
+                            val startIndex = flatQueue.indexOfFirst { it.videoId == video.videoId }
+                                .coerceAtLeast(0)
+                            if (flatQueue.isNotEmpty()) {
+                                onPlayPlaylist(flatQueue, startIndex, "system:history")
+                            }
+                        },
                         onMoreClick = {
                             onSongMoreClick(video, null, DataSource.LOCAL)
                         },

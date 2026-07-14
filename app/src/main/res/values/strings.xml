@@ -72,6 +72,7 @@
     <string name="player_pip">Picture in picture</string>
     <string name="player_lyrics_placeholder">Lyrics coming soon…</string>
     <string name="player_up_next">Up next</string>
+    <string name="player_recommend">Recommend</string>
     <string name="player_save_playlist">Save</string>
     <string name="player_save_to_playlist">Save to playlist</string>
     <string name="player_download">Download</string>

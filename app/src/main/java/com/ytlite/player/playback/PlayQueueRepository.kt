@@ -37,6 +37,7 @@ object PlayQueueRepository {
         startIndex: Int = 0,
         sourcePlaylistId: String? = null,
         preservePlaybackMode: Boolean = false,
+        clearSourcePlaylist: Boolean = false,
     ) {
         val preserved = _state.value
         if (items.isEmpty()) {
@@ -44,7 +45,7 @@ object PlayQueueRepository {
                 PlayQueueState(
                     repeatMode = preserved.repeatMode,
                     shuffleEnabled = preserved.shuffleEnabled,
-                    sourcePlaylistId = preserved.sourcePlaylistId,
+                    sourcePlaylistId = if (clearSourcePlaylist) null else preserved.sourcePlaylistId,
                 )
             } else {
                 PlayQueueState()
@@ -57,13 +58,25 @@ object PlayQueueRepository {
         _state.value = PlayQueueState(
             items = items,
             currentIndex = safeIndex,
-            sourcePlaylistId = sourcePlaylistId ?: preserved.sourcePlaylistId,
+            sourcePlaylistId = when {
+                clearSourcePlaylist -> null
+                else -> sourcePlaylistId ?: preserved.sourcePlaylistId
+            },
             repeatMode = if (preservePlaybackMode) preserved.repeatMode else QueueRepeatMode.OFF,
             shuffleEnabled = if (preservePlaybackMode) preserved.shuffleEnabled else false,
         )
     }
 
-    fun replaceCurrentAndAppend(current: QueueItem, related: List<QueueItem>, maxRelated: Int = 20) {
+    fun clearSourcePlaylistId() {
+        _state.update { it.copy(sourcePlaylistId = null) }
+    }
+
+    fun replaceCurrentAndAppend(
+        current: QueueItem,
+        related: List<QueueItem>,
+        maxRelated: Int = 20,
+        clearSourcePlaylist: Boolean = false,
+    ) {
         val mode = _state.value.toUpNextPlaybackMode()
         val tail = related
             .filter { it.videoId != current.videoId }
@@ -71,13 +84,22 @@ object PlayQueueRepository {
             .take(maxRelated)
         // Current track is always index 0; recommendations follow.
         val items = listOf(current) + tail
-        setQueue(items, startIndex = 0, preservePlaybackMode = true)
+        setQueue(
+            items = items,
+            startIndex = 0,
+            preservePlaybackMode = true,
+            clearSourcePlaylist = clearSourcePlaylist,
+        )
         applyUpNextPlaybackMode(mode)
         // Re-assert current is first after mode apply (shuffle keeps current at head).
         _state.update { state ->
             val head = state.items.firstOrNull { it.videoId == current.videoId } ?: current
             val rest = state.items.filter { it.videoId != current.videoId }
-            state.copy(items = listOf(head) + rest, currentIndex = 0)
+            state.copy(
+                items = listOf(head) + rest,
+                currentIndex = 0,
+                sourcePlaylistId = if (clearSourcePlaylist) null else state.sourcePlaylistId,
+            )
         }
     }
 

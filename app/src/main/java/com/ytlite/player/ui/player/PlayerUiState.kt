@@ -4,6 +4,11 @@ import androidx.compose.runtime.Immutable
 import com.ytlite.player.data.model.VideoItem
 import com.ytlite.player.data.model.VideoPlayback
 
+enum class PlayerListTab {
+    UpNext,
+    Recommend,
+}
+
 @Immutable
 data class PlayerUiState(
     val playback: VideoPlayback? = null,
@@ -13,8 +18,12 @@ data class PlayerUiState(
     val errorMessage: String? = null,
     val isDescriptionExpanded: Boolean = false,
     val surfaceMode: PlayerSurfaceMode = PlayerSurfaceMode.Video,
+    /** @deprecated Prefer reading PlayQueue for Up next tab; kept for enrich lookups. */
     val upNextItems: List<VideoItem> = emptyList(),
+    val recommendedItems: List<VideoItem> = emptyList(),
+    val recommendLoading: Boolean = false,
     val upNextLoading: Boolean = false,
+    val selectedListTab: PlayerListTab = PlayerListTab.UpNext,
     val isPlaylistPickerVisible: Boolean = false,
     val showNewPlaylistDialog: Boolean = false,
     val lastExtractMessage: org.json.JSONObject? = null,

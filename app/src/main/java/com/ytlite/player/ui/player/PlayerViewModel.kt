@@ -65,13 +65,18 @@ class PlayerViewModel(
                     playback = active.toStubPlayback(),
                     selectedStreamUrl = active.streamUrl,
                     errorMessage = null,
+                    recommendedItems = cachedUpNext.orEmpty(),
+                    recommendLoading = cachedUpNext == null,
                     upNextItems = cachedUpNext.orEmpty(),
                     upNextLoading = cachedUpNext == null,
                 )
             }
-            // Same track reopen: show Up Next in UI only; do not reseat the play queue.
+            // Same track reopen: refresh Recommend only; never reseat a playlist queue.
+            val inPlaylistContext = PlayQueueRepository.state.value.sourcePlaylistId != null
             if (cachedUpNext == null) {
-                loadRelatedInBackground(shouldSeedQueue = false)
+                loadRelatedInBackground(shouldSeedQueue = !inPlaylistContext)
+            } else if (!inPlaylistContext && PlayQueueRepository.state.value.items.size <= 1) {
+                seedQueue(cachedUpNext)
             }
         } else {
             val preview = PlayerLaunchPreview.consume(videoId)
@@ -128,9 +133,13 @@ class PlayerViewModel(
             )
         }
         loadPlaybackMetadataFor(nowPlaying.videoId)
+        loadRelatedForVideo(nowPlaying.videoId, seedQueue = false)
     }
 
     private fun enrichPlaybackStub(nowPlaying: NowPlaying): VideoPlayback {
+        _uiState.value.recommendedItems
+            .firstOrNull { it.videoId == nowPlaying.videoId }
+            ?.let { return it.toMetadataPlayback() }
         _uiState.value.upNextItems
             .firstOrNull { it.videoId == nowPlaying.videoId }
             ?.let { return it.toMetadataPlayback() }
@@ -237,45 +246,76 @@ class PlayerViewModel(
                 return@launch
             }
             startPlayback(playback, format)
-            loadRelated(bundle.rawMessage)
+            val inPlaylistContext = PlayQueueRepository.state.value.sourcePlaylistId != null
+            loadRelated(bundle.rawMessage, shouldSeedQueue = !inPlaylistContext)
         }
     }
 
     private suspend fun loadRelated(extractMessage: JSONObject?, shouldSeedQueue: Boolean = true) {
-        UpNextCache.get(videoId)?.let { cached ->
-            val cachedMessage = UpNextCache.getExtractMessage(videoId) ?: extractMessage
-            lastExtractMessage = cachedMessage
+        val targetVideoId = _uiState.value.playback?.videoId ?: videoId
+        loadRelatedForVideo(targetVideoId, extractMessage, shouldSeedQueue)
+    }
+
+    private fun loadRelatedForVideo(
+        targetVideoId: String,
+        extractMessage: JSONObject? = lastExtractMessage,
+        seedQueue: Boolean = true,
+    ) {
+        viewModelScope.launch(Dispatchers.IO) {
+            loadRelatedForVideoSuspend(targetVideoId, extractMessage, seedQueue)
+        }
+    }
+
+    private suspend fun loadRelatedForVideoSuspend(
+        targetVideoId: String,
+        extractMessage: JSONObject?,
+        shouldSeedQueue: Boolean,
+    ) {
+        val allowSeed = shouldSeedQueue &&
+            PlayQueueRepository.state.value.sourcePlaylistId == null
+
+        UpNextCache.get(targetVideoId)?.let { cached ->
+            val cachedMessage = UpNextCache.getExtractMessage(targetVideoId) ?: extractMessage
+            if (targetVideoId == (_uiState.value.playback?.videoId ?: videoId)) {
+                lastExtractMessage = cachedMessage
+            }
             _uiState.update {
                 it.copy(
+                    recommendedItems = cached,
+                    recommendLoading = false,
                     upNextItems = cached,
                     upNextLoading = false,
                     lastExtractMessage = cachedMessage,
                 )
             }
-            if (shouldSeedQueue) {
+            if (allowSeed) {
                 seedQueue(cached)
             }
             return
         }
 
-        _uiState.update { it.copy(upNextLoading = true) }
-        when (val result = repository.fetchRelatedVideos(videoId, extractMessage)) {
+        _uiState.update { it.copy(recommendLoading = true, upNextLoading = true) }
+        when (val result = repository.fetchRelatedVideos(targetVideoId, extractMessage)) {
             is ExtractionResult.Success -> {
-                UpNextCache.put(videoId, result.data, extractMessage)
-                lastExtractMessage = extractMessage
+                UpNextCache.put(targetVideoId, result.data, extractMessage)
+                if (targetVideoId == (_uiState.value.playback?.videoId ?: videoId)) {
+                    lastExtractMessage = extractMessage
+                }
                 _uiState.update {
                     it.copy(
+                        recommendedItems = result.data,
+                        recommendLoading = false,
                         upNextItems = result.data,
                         upNextLoading = false,
                         lastExtractMessage = extractMessage,
                     )
                 }
-                if (shouldSeedQueue) {
+                if (allowSeed) {
                     seedQueue(result.data)
                 }
             }
             is ExtractionResult.Error -> {
-                _uiState.update { it.copy(upNextLoading = false) }
+                _uiState.update { it.copy(recommendLoading = false, upNextLoading = false) }
             }
         }
     }
@@ -287,6 +327,7 @@ class PlayerViewModel(
     }
 
     private fun seedQueue(related: List<VideoItem>) {
+        if (PlayQueueRepository.state.value.sourcePlaylistId != null) return
         val nowPlaying = PlaybackManager.nowPlaying.value
         val playback = _uiState.value.playback
         val currentItem = when {
@@ -304,8 +345,99 @@ class PlayerViewModel(
             current = currentItem,
             related = related.map { it.toQueueItem() },
             maxRelated = QUEUE_PREFILL_COUNT,
+            clearSourcePlaylist = true,
         )
         PlaybackManager.syncRepeatMode()
+    }
+
+    fun selectListTab(tab: PlayerListTab) {
+        _uiState.update { it.copy(selectedListTab = tab) }
+    }
+
+    fun onQueueItemClick(item: QueueItem) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val index = PlayQueueRepository.state.value.items
+                .indexOfFirst { it.videoId == item.videoId }
+            if (index < 0) return@launch
+            PlayQueueRepository.setCurrentIndex(index)
+            val streamUrl = item.streamUrl
+            if (!streamUrl.isNullOrBlank()) {
+                PlaybackManager.play(item.toNowPlaying(streamUrl))
+                return@launch
+            }
+            when (val result = repository.fetchVideoPlayback(item.videoId)) {
+                is ExtractionResult.Success -> {
+                    val format = PlaybackFormatSelector.selectVideoFormat(result.data.formats)
+                        ?: return@launch
+                    PlayQueueRepository.updateStreamUrl(item.videoId, format.url, format.itag)
+                    val nowPlaying = item.toNowPlaying(format.url).copy(
+                        itag = format.itag,
+                        durationMs = result.data.durationSeconds.takeIf { it > 0L }?.times(1000L),
+                    )
+                    PlaybackManager.play(nowPlaying)
+                    _uiState.update {
+                        it.copy(
+                            playback = result.data,
+                            selectedStreamUrl = format.url,
+                            isLoading = false,
+                            isExtracting = false,
+                            errorMessage = null,
+                        )
+                    }
+                }
+                is ExtractionResult.Error -> Unit
+            }
+        }
+    }
+
+    fun onRecommendClick(item: VideoItem) {
+        viewModelScope.launch(Dispatchers.IO) {
+            when (val result = repository.fetchVideoPlayback(item.videoId)) {
+                is ExtractionResult.Success -> {
+                    val format = PlaybackFormatSelector.selectVideoFormat(result.data.formats)
+                        ?: return@launch
+                    val nowPlaying = NowPlaying(
+                        videoId = item.videoId,
+                        title = item.title,
+                        channelName = item.channelName,
+                        streamUrl = format.url,
+                        thumbnailUrl = item.thumbnailUrl,
+                        itag = format.itag,
+                        durationMs = result.data.durationSeconds.takeIf { it > 0L }?.times(1000L),
+                    )
+                    val currentItem = QueueItem.fromNowPlaying(nowPlaying)
+                    val related = when (val relatedResult = repository.fetchRelatedVideos(item.videoId)) {
+                        is ExtractionResult.Success -> {
+                            UpNextCache.put(item.videoId, relatedResult.data, null)
+                            relatedResult.data
+                        }
+                        is ExtractionResult.Error -> emptyList()
+                    }
+                    PlayQueueRepository.replaceCurrentAndAppend(
+                        current = currentItem,
+                        related = related.map { it.toQueueItem() },
+                        maxRelated = QUEUE_PREFILL_COUNT,
+                        clearSourcePlaylist = true,
+                    )
+                    PlaybackManager.play(nowPlaying)
+                    PlaybackManager.syncRepeatMode()
+                    _uiState.update {
+                        it.copy(
+                            playback = result.data,
+                            selectedStreamUrl = format.url,
+                            isLoading = false,
+                            isExtracting = false,
+                            errorMessage = null,
+                            recommendedItems = related,
+                            recommendLoading = false,
+                            upNextItems = related,
+                            selectedListTab = PlayerListTab.UpNext,
+                        )
+                    }
+                }
+                is ExtractionResult.Error -> Unit
+            }
+        }
     }
 
     fun toggleDescription() {
@@ -383,40 +515,10 @@ class PlayerViewModel(
     }
 
     fun onUpNextClick(item: VideoItem) {
-        viewModelScope.launch(Dispatchers.IO) {
-            when (val result = repository.fetchVideoPlayback(item.videoId)) {
-                is ExtractionResult.Success -> {
-                    val format = PlaybackFormatSelector.selectVideoFormat(result.data.formats)
-                        ?: return@launch
-                    val nowPlaying = NowPlaying(
-                        videoId = item.videoId,
-                        title = item.title,
-                        channelName = item.channelName,
-                        streamUrl = format.url,
-                        thumbnailUrl = item.thumbnailUrl,
-                        itag = format.itag,
-                        durationMs = result.data.durationSeconds.takeIf { it > 0L }?.times(1000L),
-                    )
-                    val queueItem = item.toQueueItem(format.url)
-                    PlayQueueRepository.addToEnd(queueItem)
-                    PlayQueueRepository.setCurrentIndex(
-                        PlayQueueRepository.state.value.items.indexOfFirst { it.videoId == item.videoId }
-                            .coerceAtLeast(0),
-                    )
-                    PlaybackManager.play(nowPlaying)
-                    _uiState.update {
-                        it.copy(
-                            playback = result.data,
-                            selectedStreamUrl = format.url,
-                            isLoading = false,
-                            isExtracting = false,
-                            errorMessage = null,
-                        )
-                    }
-                }
-                is ExtractionResult.Error -> Unit
-            }
-        }
+        val queueItem = PlayQueueRepository.state.value.items
+            .firstOrNull { it.videoId == item.videoId }
+            ?: item.toQueueItem()
+        onQueueItemClick(queueItem)
     }
 
     fun showPlaylistPicker() {

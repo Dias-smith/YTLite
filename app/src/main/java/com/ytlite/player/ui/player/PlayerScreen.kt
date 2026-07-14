@@ -257,35 +257,62 @@ fun PlayerScreen(
                         }
 
                         item(key = "up_next_header") {
+                            val showRecommendTab = queueState.sourcePlaylistId != null
                             PurifiedUpNextHeader(
                                 currentMode = queueState.toUpNextPlaybackMode(),
                                 onModeSelected = globalPlaybackViewModel::setUpNextPlaybackMode,
+                                selectedTab = uiState.selectedListTab,
+                                onTabSelected = viewModel::selectListTab,
+                                showRecommendTab = showRecommendTab,
                             )
                         }
 
-                        if (uiState.upNextLoading) {
-                            item(key = "up_next_loading") {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(24.dp),
-                                    contentAlignment = Alignment.Center,
-                                ) {
-                                    CircularProgressIndicator()
+                        val listTab = if (queueState.sourcePlaylistId != null) {
+                            uiState.selectedListTab
+                        } else {
+                            PlayerListTab.UpNext
+                        }
+                        when (listTab) {
+                            PlayerListTab.UpNext -> {
+                                items(
+                                    items = queueState.items,
+                                    key = { "queue:${it.videoId}" },
+                                    contentType = { "queue" },
+                                ) { item ->
+                                    PurifiedUpNextItem(
+                                        item = item.toVideoItem(),
+                                        isCurrentlyPlaying = globalPlaybackState.nowPlaying?.videoId == item.videoId,
+                                        isPlaying = globalPlaybackState.isPlaying,
+                                        onClick = { viewModel.onQueueItemClick(item) },
+                                    )
                                 }
                             }
-                        } else {
-                            items(
-                                items = uiState.upNextItems,
-                                key = { it.videoId },
-                                contentType = { "video" },
-                            ) { item ->
-                                PurifiedUpNextItem(
-                                    item = item,
-                                    isCurrentlyPlaying = globalPlaybackState.nowPlaying?.videoId == item.videoId,
-                                    isPlaying = globalPlaybackState.isPlaying,
-                                    onClick = { viewModel.onUpNextClick(item) },
-                                )
+                            PlayerListTab.Recommend -> {
+                                if (uiState.recommendLoading) {
+                                    item(key = "recommend_loading") {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(24.dp),
+                                            contentAlignment = Alignment.Center,
+                                        ) {
+                                            CircularProgressIndicator()
+                                        }
+                                    }
+                                } else {
+                                    items(
+                                        items = uiState.recommendedItems,
+                                        key = { "rec:${it.videoId}" },
+                                        contentType = { "recommend" },
+                                    ) { item ->
+                                        PurifiedUpNextItem(
+                                            item = item,
+                                            isCurrentlyPlaying = globalPlaybackState.nowPlaying?.videoId == item.videoId,
+                                            isPlaying = globalPlaybackState.isPlaying,
+                                            onClick = { viewModel.onRecommendClick(item) },
+                                        )
+                                    }
+                                }
                             }
                         }
                     }

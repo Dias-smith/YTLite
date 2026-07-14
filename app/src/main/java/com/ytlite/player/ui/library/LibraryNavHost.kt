@@ -16,7 +16,7 @@ import com.ytlite.player.data.model.DataSource
 import com.ytlite.player.data.model.LibraryItem
 import com.ytlite.player.data.model.LibraryVideo
 import com.ytlite.player.data.model.VideoItem
-import com.ytlite.player.ui.player.toVideoItem
+import com.ytlite.player.ui.player.toQueueItem
 import com.ytlite.player.playback.QueueItem
 import com.ytlite.player.ui.playlistaction.LocalPlaylistMoreClick
 import com.ytlite.player.ui.playlistaction.PlaylistActionContext
@@ -103,7 +103,15 @@ fun LibraryNavHost(
                             is LibraryItem.Album -> {
                                 destination = LibraryDestination.AlbumTracks(item.albumName)
                             }
-                            is LibraryItem.Song -> onVideoClick(item.toVideoItem())
+                            is LibraryItem.Song -> {
+                                val songs = uiState.items.filterIsInstance<LibraryItem.Song>()
+                                val queue = songs.map { it.toQueueItem() }
+                                val startIndex = queue.indexOfFirst { it.videoId == item.videoId }
+                                    .coerceAtLeast(0)
+                                if (queue.isNotEmpty()) {
+                                    onPlayPlaylist(queue, startIndex, "library:songs")
+                                }
+                            }
                             is LibraryItem.Artist -> Unit
                         }
                     }
@@ -128,7 +136,7 @@ fun LibraryNavHost(
             HistoryScreen(
                 ownerKey = session.ownerKey,
                 onBack = { destination = LibraryDestination.Home },
-                onVideoClick = onVideoClick,
+                onPlayPlaylist = onPlayPlaylist,
                 onSongMoreClick = { video, playlistId, source ->
                     onTrackMoreClick(
                         TrackActionContext.fromLibraryVideo(video, playlistId, source),
@@ -163,7 +171,7 @@ fun LibraryNavHost(
                 albumName = current.albumName,
                 ownerKey = session.ownerKey,
                 onBack = { destination = LibraryDestination.Home },
-                onVideoClick = onVideoClick,
+                onPlayPlaylist = onPlayPlaylist,
                 modifier = modifier,
             )
         }
