@@ -5,13 +5,23 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * Parses YouTube's lockupViewModel format (2025+ API) used in browse feeds.
+ * Parses YouTube's lockupViewModel format (2025+ API) used in browse / search feeds.
  */
 object LockupViewModelParser {
 
     private val VIDEO_CONTENT_TYPES = setOf(
         "LOCKUP_CONTENT_TYPE_VIDEO",
         "LOCKUP_CONTENT_TYPE_VIDEO_SHORT",
+    )
+
+    private const val PLAYLIST_CONTENT_TYPE = "LOCKUP_CONTENT_TYPE_PLAYLIST"
+
+    data class PlaylistLockup(
+        val playlistId: String,
+        val title: String,
+        val subtitle: String,
+        val thumbnailUrl: String?,
+        val videoCountText: String?,
     )
 
     fun parseVideo(lockup: JSONObject): VideoItem? {
@@ -43,6 +53,25 @@ object LockupViewModelParser {
         )
     }
 
+    fun parsePlaylist(lockup: JSONObject): PlaylistLockup? {
+        if (lockup.optString("contentType") != PLAYLIST_CONTENT_TYPE) return null
+        val playlistId = lockup.optString("contentId").takeIf { it.isNotBlank() } ?: return null
+        val metadata = lockup.optJSONObject("metadata")?.optJSONObject("lockupMetadataViewModel")
+        val title = metadata?.optJSONObject("title")?.optString("content")?.takeIf { it.isNotBlank() }
+            ?: return null
+        val metaParts = collectMetadataTexts(metadata)
+        val owner = metaParts.firstOrNull { isChannelNameCandidate(it) }.orEmpty()
+        val videoCountText = extractPlaylistBadgeText(lockup)
+            ?: metaParts.firstOrNull { it.contains("video", ignoreCase = true) }
+        return PlaylistLockup(
+            playlistId = playlistId,
+            title = title,
+            subtitle = listOfNotNull(owner.takeIf { it.isNotBlank() }, videoCountText).joinToString(" · "),
+            thumbnailUrl = pickThumbnailUrl(lockup),
+            videoCountText = videoCountText,
+        )
+    }
+
     private fun collectMetadataTexts(metadata: JSONObject?): List<String> {
         if (metadata == null) return emptyList()
         val container = metadata.optJSONObject("metadata")
@@ -69,7 +98,8 @@ object LockupViewModelParser {
         return !isViewCountText(text) &&
             !isPublishedText(text) &&
             !lower.contains("subscriber") &&
-            !lower.contains("subscribers")
+            !lower.contains("subscribers") &&
+            !lower.contains("video")
     }
 
     private fun isViewCountText(text: String): Boolean {
@@ -90,10 +120,17 @@ object LockupViewModelParser {
     }
 
     private fun pickThumbnailUrl(lockup: JSONObject): String? {
-        val sources = lockup.optJSONObject("contentImage")
-            ?.optJSONObject("thumbnailViewModel")
+        val contentImage = lockup.optJSONObject("contentImage") ?: return null
+        val sources = contentImage
+            .optJSONObject("thumbnailViewModel")
             ?.optJSONObject("image")
             ?.optJSONArray("sources")
+            ?: contentImage
+                .optJSONObject("collectionThumbnailViewModel")
+                ?.optJSONObject("primaryThumbnail")
+                ?.optJSONObject("thumbnailViewModel")
+                ?.optJSONObject("image")
+                ?.optJSONArray("sources")
             ?: return null
         return pickLastUrl(sources)
     }
@@ -114,6 +151,29 @@ object LockupViewModelParser {
             val badges = overlays.optJSONObject(overlayIndex)
                 ?.optJSONObject("thumbnailBottomOverlayViewModel")
                 ?.optJSONArray("badges")
+                ?: continue
+            for (badgeIndex in 0 until badges.length()) {
+                val text = badges.optJSONObject(badgeIndex)
+                    ?.optJSONObject("thumbnailBadgeViewModel")
+                    ?.optString("text")
+                    ?.takeIf { it.isNotBlank() }
+                if (text != null) return text
+            }
+        }
+        return null
+    }
+
+    private fun extractPlaylistBadgeText(lockup: JSONObject): String? {
+        val overlays = lockup.optJSONObject("contentImage")
+            ?.optJSONObject("collectionThumbnailViewModel")
+            ?.optJSONObject("primaryThumbnail")
+            ?.optJSONObject("thumbnailViewModel")
+            ?.optJSONArray("overlays")
+            ?: return null
+        for (overlayIndex in 0 until overlays.length()) {
+            val badges = overlays.optJSONObject(overlayIndex)
+                ?.optJSONObject("thumbnailOverlayBadgeViewModel")
+                ?.optJSONArray("thumbnailBadges")
                 ?: continue
             for (badgeIndex in 0 until badges.length()) {
                 val text = badges.optJSONObject(badgeIndex)

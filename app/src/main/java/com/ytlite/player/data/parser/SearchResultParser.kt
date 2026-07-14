@@ -95,6 +95,41 @@ object SearchResultParser {
     }
 
     private fun extractItem(node: JSONObject, tab: SearchResultTab): SearchResultItem? {
+        node.optJSONObject("lockupViewModel")?.let { lockup ->
+            when (lockup.optString("contentType")) {
+                "LOCKUP_CONTENT_TYPE_PLAYLIST" -> {
+                    if (tab == SearchResultTab.VIDEOS || tab == SearchResultTab.CHANNELS) return null
+                    return LockupViewModelParser.parsePlaylist(lockup)?.let { parsed ->
+                        SearchResultItem.Playlist(
+                            id = parsed.playlistId,
+                            playlistId = parsed.playlistId,
+                            title = parsed.title,
+                            subtitle = parsed.subtitle,
+                            thumbnailUrl = parsed.thumbnailUrl,
+                            videoCountText = parsed.videoCountText,
+                        )
+                    }
+                }
+                "LOCKUP_CONTENT_TYPE_VIDEO", "LOCKUP_CONTENT_TYPE_VIDEO_SHORT" -> {
+                    if (tab == SearchResultTab.CHANNELS || tab == SearchResultTab.PLAYLISTS) return null
+                    return LockupViewModelParser.parseVideo(lockup)?.let { video ->
+                        SearchResultItem.Video(
+                            id = video.videoId,
+                            videoId = video.videoId,
+                            title = video.title,
+                            subtitle = listOfNotNull(video.channelName, video.viewCountText)
+                                .joinToString(" · ")
+                                .ifBlank { video.channelName },
+                            thumbnailUrl = video.thumbnailUrl,
+                            channelName = video.channelName,
+                            channelId = video.channelId,
+                            viewCountText = video.viewCountText,
+                        )
+                    }
+                }
+                else -> Unit
+            }
+        }
         for (key in VIDEO_KEYS) {
             if (!node.has(key)) continue
             if (tab == SearchResultTab.CHANNELS || tab == SearchResultTab.PLAYLISTS) continue

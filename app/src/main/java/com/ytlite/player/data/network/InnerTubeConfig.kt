@@ -25,7 +25,8 @@ object InnerTubeConfig {
 
     const val SEARCH_PARAMS_VIDEOS = "EgIQAQ%3D%3D"
     const val SEARCH_PARAMS_CHANNELS = "EgIQAg%3D%3D"
-    const val SEARCH_PARAMS_PLAYLISTS = "EgIQAUAB"
+    /** InnerTube filter type=3 (playlist). Note: EgIQAUAB is videos+extra, not playlists. */
+    const val SEARCH_PARAMS_PLAYLISTS = "EgIQAw%3D%3D"
 
     val BROWSE_URL: String
         get() = "$BASE_URL/youtubei/v1/browse?key=$API_KEY"
