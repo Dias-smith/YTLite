@@ -10,10 +10,13 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -98,6 +101,7 @@ fun SearchScreen(
                     onClearQuery = viewModel::onClearQuery,
                     onSubmitSearch = { viewModel.onSubmitSearch() },
                     onSuggestionClick = viewModel::onSuggestionClick,
+                    onSuggestionFill = viewModel::onSuggestionFill,
                     onHistoryQueryClick = viewModel::onHistoryQueryClick,
                     onRecentClick = viewModel::onRecentClick,
                     onRecentLongPress = viewModel::requestDeleteRecent,
@@ -130,6 +134,7 @@ private fun SearchContent(
     onClearQuery: () -> Unit,
     onSubmitSearch: () -> Unit,
     onSuggestionClick: (com.ytlite.player.data.model.SearchSuggestion) -> Unit,
+    onSuggestionFill: (com.ytlite.player.data.model.SearchSuggestion) -> Unit,
     onHistoryQueryClick: (String) -> Unit,
     onRecentClick: (com.ytlite.player.data.local.entity.SearchRecentClickEntity) -> Unit,
     onRecentLongPress: (String) -> Unit,
@@ -144,12 +149,27 @@ private fun SearchContent(
     onPlaylistClick: (SearchResultItem.Playlist) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val showingResults = uiState.screenState is SearchScreenState.Results
+
+    LaunchedEffect(showingResults) {
+        if (showingResults) {
+            focusManager.clearFocus(force = true)
+            keyboardController?.hide()
+        }
+    }
+
     androidx.compose.foundation.layout.Column(modifier = modifier) {
         SearchBar(
             query = uiState.query,
             onQueryChange = onQueryChange,
             onClear = onClearQuery,
-            onSubmit = onSubmitSearch,
+            onSubmit = {
+                focusManager.clearFocus(force = true)
+                keyboardController?.hide()
+                onSubmitSearch()
+            },
         )
         when (uiState.screenState) {
             SearchScreenState.DefaultHub -> {
@@ -170,6 +190,7 @@ private fun SearchContent(
                     suggestions = uiState.suggestions,
                     isLoading = uiState.isSuggestionsLoading,
                     onSuggestionClick = onSuggestionClick,
+                    onSuggestionFill = onSuggestionFill,
                 )
             }
             is SearchScreenState.Results -> {

@@ -175,10 +175,19 @@ class SearchViewModel(
         }
     }
 
-    fun onHistoryQueryClick(query: String) {
-        mutableState.update {
-            it.copy(query = query, screenState = SearchScreenState.Suggestions(query))
+    fun onSuggestionFill(suggestion: SearchSuggestion) {
+        val text = when (suggestion) {
+            is SearchSuggestion.Query -> suggestion.text
+            is SearchSuggestion.Channel -> suggestion.title
+            is SearchSuggestion.Video -> suggestion.title
         }
+        mutableState.update {
+            it.copy(query = text, screenState = SearchScreenState.Suggestions(text))
+        }
+    }
+
+    fun onHistoryQueryClick(query: String) {
+        onSubmitSearch(query)
     }
 
     fun onRecentClick(entity: SearchRecentClickEntity) {

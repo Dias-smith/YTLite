@@ -41,4 +41,8 @@ object InnerTubeConfig {
 
     val MUSIC_BROWSE_URL: String
         get() = "$MUSIC_BASE_URL/youtubei/v1/browse?key=$MUSIC_API_KEY"
+
+    /** YouTube searchbox autocomplete (query strings, not video results). */
+    const val SUGGEST_QUERIES_BASE_URL =
+        "https://suggestqueries.google.com/complete/search?client=firefox&ds=yt"
 }

@@ -53,13 +53,16 @@ object SearchResultParser {
         return SearchResultPage(items.values.toList(), continuation)
     }
 
-    fun parseSuggestions(response: JSONObject, query: String, historyQueries: List<String>): List<SearchSuggestion> {
+    fun parseQuerySuggestions(
+        query: String,
+        historyQueries: List<String>,
+        remoteSuggestions: List<String>,
+    ): List<SearchSuggestion> {
         val suggestions = LinkedHashMap<String, SearchSuggestion>()
-        val lowerQuery = query.lowercase()
 
         historyQueries
-            .filter { it.contains(query, ignoreCase = true) && it.lowercase() != lowerQuery }
-            .take(3)
+            .filter { it.contains(query, ignoreCase = true) }
+            .take(5)
             .forEach { history ->
                 suggestions["query:$history"] = SearchSuggestion.Query(
                     id = "query:$history",
@@ -68,34 +71,18 @@ object SearchResultParser {
                 )
             }
 
-        val page = parseResults(response, SearchResultTab.ALL)
-        page.items.forEach { item ->
-            when (item) {
-                is SearchResultItem.Video -> {
-                    if (suggestions.size >= 12) return@forEach
-                    suggestions[item.videoId] = SearchSuggestion.Video(
-                        id = item.videoId,
-                        videoId = item.videoId,
-                        title = item.title,
-                        subtitle = item.subtitle,
-                        thumbnailUrl = item.thumbnailUrl,
-                    )
-                }
-                is SearchResultItem.Channel -> {
-                    if (suggestions.size >= 12) return@forEach
-                    suggestions[item.channelId] = SearchSuggestion.Channel(
-                        id = item.channelId,
-                        channelId = item.channelId,
-                        title = item.title,
-                        subtitle = item.subtitle,
-                        avatarUrl = item.thumbnailUrl,
-                    )
-                }
-                is SearchResultItem.Playlist -> Unit
-            }
+        remoteSuggestions.forEach { text ->
+            if (suggestions.size >= 12) return@forEach
+            val key = "query:$text"
+            if (suggestions.containsKey(key)) return@forEach
+            suggestions[key] = SearchSuggestion.Query(
+                id = key,
+                text = text,
+                isFromHistory = false,
+            )
         }
 
-        if (!suggestions.containsKey("query:$query")) {
+        if (query.isNotBlank() && !suggestions.containsKey("query:$query")) {
             suggestions["query:$query"] = SearchSuggestion.Query(
                 id = "query:$query",
                 text = query,
@@ -103,6 +90,7 @@ object SearchResultParser {
             )
         }
 
+        Log.d(TAG, "parseQuerySuggestions q=${query.lowercase()} count=${suggestions.size}")
         return suggestions.values.toList()
     }
 

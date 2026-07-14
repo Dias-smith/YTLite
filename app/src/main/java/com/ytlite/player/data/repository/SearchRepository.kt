@@ -75,8 +75,8 @@ class SearchRepository(
         withContext(Dispatchers.IO) {
             if (query.isBlank()) return@withContext emptyList()
             runCatching {
-                val response = innerTubeApi.search(query)
-                SearchResultParser.parseSuggestions(response, query, historyQueries)
+                val remote = innerTubeApi.fetchSuggestQueries(query)
+                SearchResultParser.parseQuerySuggestions(query, historyQueries, remote)
             }.getOrElse { emptyList() }
         }
 

@@ -148,6 +148,42 @@ class InnerTubeApi(
         )
     }
 
+    /**
+     * YouTube searchbox autocomplete via Google Suggest ([ds=yt]).
+     * Returns related query strings for [query], not video/channel results.
+     */
+    fun fetchSuggestQueries(query: String): List<String> {
+        val encoded = java.net.URLEncoder.encode(query.trim(), Charsets.UTF_8.name())
+        val url = "${InnerTubeConfig.SUGGEST_QUERIES_BASE_URL}&q=$encoded"
+        val result = httpClient.request(
+            url = url,
+            method = "GET",
+            headers = mapOf(
+                "User-Agent" to InnerTubeConfig.USER_AGENT,
+                "Accept" to "application/json",
+            ),
+            body = null,
+        )
+        if (!result.success || result.result.isNullOrBlank()) {
+            YoutubeDiagnostics.e(TAG, "suggest_queries http failed code=${result.errCode} msg=${result.errMsg}")
+            return emptyList()
+        }
+        return parseSuggestQueriesPayload(result.result)
+    }
+
+    private fun parseSuggestQueriesPayload(payload: String): List<String> {
+        return runCatching {
+            val root = org.json.JSONArray(payload)
+            val items = root.optJSONArray(1) ?: return emptyList()
+            buildList {
+                for (index in 0 until items.length()) {
+                    val text = items.optString(index).trim()
+                    if (text.isNotBlank()) add(text)
+                }
+            }
+        }.getOrElse { emptyList() }
+    }
+
     fun fetchWatchNext(videoId: String): JSONObject {
         val body = JSONObject().apply {
             put("context", buildClientContext(InnerTubeConfig.FEED_CLIENT))
