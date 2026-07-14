@@ -1,6 +1,9 @@
 package com.ytlite.player.ui.library
 
 import android.app.Application
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -9,13 +12,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ytlite.player.MainActivity
 import com.ytlite.player.R
 import com.ytlite.player.data.local.entity.PlaylistSystemType
 import com.ytlite.player.data.model.LibraryItem
+import com.ytlite.player.data.model.SubscriptionChannel
 import com.ytlite.player.data.model.VideoItem
+import com.ytlite.player.data.repository.LibraryItemMapper
 import com.ytlite.player.playback.QueueItem
 import com.ytlite.player.ui.player.toQueueItem
 import com.ytlite.player.ui.playlistaction.LocalPlaylistMoreClick
@@ -32,6 +38,7 @@ fun LibraryNavHost(
     onNavigateHomeTab: () -> Unit,
     onPlayPlaylist: (List<QueueItem>, Int, String) -> Unit,
     onTogglePlayPause: () -> Unit,
+    onGoToArtist: (SubscriptionChannel) -> Unit = {},
     pendingAlbumName: String? = null,
     onPendingAlbumConsumed: () -> Unit = {},
     modifier: Modifier = Modifier,
@@ -49,6 +56,7 @@ fun LibraryNavHost(
     var showNewPlaylistDialog by remember { mutableStateOf(false) }
     var showBatchPlaylistPicker by remember { mutableStateOf(false) }
     var showCreatePlaylistForBatch by remember { mutableStateOf(false) }
+    var channelPendingUnsubscribe by remember { mutableStateOf<LibraryItem.Channel?>(null) }
     val onTrackMoreClick = LocalTrackMoreClick.current
     val onPlaylistMoreClick = LocalPlaylistMoreClick.current
     val context = LocalContext.current
@@ -96,6 +104,29 @@ fun LibraryNavHost(
                 viewModel.createPlaylistAndAddSelected(name) {
                     showCreatePlaylistForBatch = false
                     showBatchPlaylistPicker = false
+                }
+            },
+        )
+    }
+
+    channelPendingUnsubscribe?.let { channel ->
+        AlertDialog(
+            onDismissRequest = { channelPendingUnsubscribe = null },
+            title = { Text(text = stringResource(R.string.library_channel_unsubscribe)) },
+            text = { Text(text = stringResource(R.string.library_channel_unsubscribe_confirm)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.unsubscribeChannel(channel.channelId)
+                        channelPendingUnsubscribe = null
+                    },
+                ) {
+                    Text(text = stringResource(R.string.library_channel_unsubscribe))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { channelPendingUnsubscribe = null }) {
+                    Text(text = stringResource(R.string.library_cancel))
                 }
             },
         )
@@ -152,7 +183,20 @@ fun LibraryNavHost(
                                     onPlayPlaylist(queue, startIndex, "library:songs")
                                 }
                             }
-                            is LibraryItem.Artist -> Unit
+                            is LibraryItem.Channel -> {
+                                if (LibraryItemMapper.isBrowsableChannelId(item.channelId)) {
+                                    onGoToArtist(
+                                        SubscriptionChannel(
+                                            channelId = item.channelId,
+                                            title = item.title,
+                                            handle = item.handle,
+                                            avatarUrl = item.coverUrl.orEmpty(),
+                                            subscriberCountText = item.subtitle.takeIf { it.isNotBlank() },
+                                            description = item.description,
+                                        ),
+                                    )
+                                }
+                            }
                         }
                     }
                 },
@@ -168,6 +212,9 @@ fun LibraryNavHost(
                     onPlaylistMoreClick(
                         PlaylistActionContext.fromLibraryItem(playlist, session.ownerKey),
                     )
+                },
+                onChannelMoreClick = { channel ->
+                    channelPendingUnsubscribe = channel
                 },
                 onFindMusic = onNavigateHomeTab,
                 onNewPlaylist = { showNewPlaylistDialog = true },

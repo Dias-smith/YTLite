@@ -1,9 +1,9 @@
 package com.ytlite.player.data.repository
 
 import com.ytlite.player.data.auth.UserSession
-import com.ytlite.player.data.local.entity.ArtistEntity
 import com.ytlite.player.data.local.entity.PlaylistEntity
 import com.ytlite.player.data.local.entity.PlaylistSystemType
+import com.ytlite.player.data.local.entity.UserSubscribedChannelEntity
 import com.ytlite.player.data.local.model.LibraryAlbumRow
 import com.ytlite.player.data.local.model.LibrarySongRow
 import com.ytlite.player.data.model.DataSource
@@ -68,17 +68,32 @@ internal object LibraryItemMapper {
             artistName = video.channelName,
         )
 
-    fun artistItem(artist: ArtistEntity): LibraryItem.Artist =
-        LibraryItem.Artist(
-            id = artist.artistId,
-            artistId = artist.artistId,
-            title = artist.name,
-            subtitle = artist.subscriberCountText.orEmpty(),
-            coverUrl = artist.avatarUrl,
+    fun channelItem(entity: UserSubscribedChannelEntity): LibraryItem.Channel =
+        LibraryItem.Channel(
+            id = entity.channelId,
+            channelId = entity.channelId,
+            title = entity.title,
+            subtitle = entity.subscriberCountText.orEmpty().ifBlank {
+                entity.handle.orEmpty()
+            },
+            coverUrl = entity.avatarUrl,
             source = DataSource.LOCAL,
-            sortKeyActivity = 0L,
-            sortKeySaved = 0L,
+            sortKeyActivity = entity.subscribedAt,
+            sortKeySaved = entity.subscribedAt,
+            handle = entity.handle,
+            description = entity.description,
         )
+
+    /**
+     * Stable key for an artist/channel catalog entry. Prefers YouTube channelId.
+     */
+    fun artistKey(channelId: String?, channelName: String): String {
+        channelId?.takeIf { it.isNotBlank() }?.let { return it.trim() }
+        return "name:${channelName.trim().lowercase()}"
+    }
+
+    fun isBrowsableChannelId(channelId: String): Boolean =
+        channelId.isNotBlank() && !channelId.startsWith("name:")
 
     fun albumItem(row: LibraryAlbumRow): LibraryItem.Album =
         LibraryItem.Album(
@@ -95,13 +110,13 @@ internal object LibraryItemMapper {
     fun mergeLocalMixed(
         playlists: List<LibraryItem.Playlist>,
         songs: List<LibraryItem.Song>,
-        artists: List<LibraryItem.Artist>,
+        channels: List<LibraryItem.Channel>,
         sort: LibrarySort,
     ): List<LibraryItem> {
         val combined = buildList {
             addAll(playlists)
             addAll(songs)
-            addAll(artists)
+            addAll(channels)
         }
         return sortItems(combined, sort)
     }
@@ -191,8 +206,8 @@ internal object LibraryItemMapper {
         buildList {
             add(LibraryFilterChip.PLAYLISTS)
             add(LibraryFilterChip.SONGS)
-            add(LibraryFilterChip.ARTISTS)
-            add(LibraryFilterChip.ALBUMS)
+            add(LibraryFilterChip.CHANNELS)
+            // Albums Chip is intentionally hidden (no album entity; see LIBRARY_UI_SPEC).
             if (session is UserSession.Authenticated) {
                 add(LibraryFilterChip.YOUTUBE)
             }

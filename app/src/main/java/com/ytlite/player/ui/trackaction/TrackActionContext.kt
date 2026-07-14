@@ -44,6 +44,7 @@ data class TrackActionContext(
         publishedTimeText = publishedTimeText,
         album = album,
         year = year,
+        channelId = channelId,
     )
 
     fun toLibraryVideo() = LibraryVideo(
@@ -65,6 +66,7 @@ data class TrackActionContext(
             title = item.title,
             channelName = item.channelName,
             thumbnailUrl = item.thumbnailUrl,
+            channelId = item.channelId,
             durationText = item.durationText,
             viewCountText = item.viewCountText,
             publishedTimeText = item.publishedTimeText,

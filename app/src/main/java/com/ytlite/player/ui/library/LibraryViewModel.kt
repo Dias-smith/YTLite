@@ -200,6 +200,12 @@ class LibraryViewModel(
         pendingSnackbar.value = message
     }
 
+    fun unsubscribeChannel(channelId: String) {
+        viewModelScope.launch {
+            libraryRepository.unsubscribeChannel(channelId)
+        }
+    }
+
     fun selectedSongsAsLibraryVideos(): List<LibraryVideo> {
         val ids = selectedIds.value
         return uiState.value.items

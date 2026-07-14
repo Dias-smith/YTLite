@@ -16,4 +16,16 @@ interface TrackDao {
 
     @Query("SELECT * FROM tracks WHERE trackId IN (:trackIds)")
     suspend fun getByIds(trackIds: List<String>): List<TrackEntity>
+
+    @Query(
+        """
+        SELECT COALESCE(thumbnailHigh, thumbnailMedium, thumbnailLow)
+        FROM tracks
+        WHERE primaryArtistId = :artistId
+          AND COALESCE(thumbnailHigh, thumbnailMedium, thumbnailLow) IS NOT NULL
+          AND TRIM(COALESCE(thumbnailHigh, thumbnailMedium, thumbnailLow)) != ''
+        LIMIT 1
+        """,
+    )
+    suspend fun findThumbnailByArtistId(artistId: String): String?
 }

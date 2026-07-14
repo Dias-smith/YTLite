@@ -31,4 +31,6 @@ data class PlayerUiState(
     /** When non-null, playlist picker saves this batch instead of the current track. */
     val playlistSaveItems: List<LibraryVideo>? = null,
     val lastExtractMessage: org.json.JSONObject? = null,
+    val isChannelSubscribed: Boolean = false,
+    val canSubscribeChannel: Boolean = false,
 )

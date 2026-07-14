@@ -55,6 +55,7 @@
     <string name="player_like">点赞</string>
     <string name="player_dislike">踩</string>
     <string name="player_subscribe">订阅</string>
+    <string name="player_subscribed">已订阅</string>
     <string name="player_share">分享</string>
     <string name="player_cast">投屏</string>
     <string name="player_show_more">展开</string>
@@ -122,7 +123,7 @@
     <string name="library_premium">升级 Premium</string>
     <string name="library_chip_playlists">播放列表</string>
     <string name="library_chip_songs">歌曲</string>
-    <string name="library_chip_artists">艺术家</string>
+    <string name="library_chip_channels">频道</string>
     <string name="library_chip_albums">专辑</string>
     <string name="library_chip_youtube">YouTube</string>
     <string name="library_clear_filter">清除筛选</string>
@@ -163,7 +164,10 @@
     <string name="library_cancel">取消</string>
     <string name="library_empty_songs">库中还没有歌曲</string>
     <string name="library_empty_albums">暂无专辑</string>
+    <string name="library_empty_channels">暂无频道。可在播放页点击订阅。</string>
     <string name="library_empty_default">这里还没有内容</string>
+    <string name="library_channel_unsubscribe">取消订阅</string>
+    <string name="library_channel_unsubscribe_confirm">取消订阅该频道？</string>
     <string name="library_find_music">发现音乐</string>
     <string name="library_song_more">更多选项</string>
     <string name="library_add_song">+ 添加歌曲</string>

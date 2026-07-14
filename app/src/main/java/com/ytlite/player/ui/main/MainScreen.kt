@@ -271,6 +271,7 @@ fun MainScreen(
                     onNavigateHomeTab = { selectedTabName = MainTab.Home.name },
                     onPlayPlaylist = onPlayPlaylist,
                     onTogglePlayPause = onMiniPlayerTogglePlayPause,
+                    onGoToArtist = { channel -> selectedChannel = channel },
                     pendingAlbumName = pendingAlbumName,
                     onPendingAlbumConsumed = onPendingAlbumConsumed,
                     modifier = Modifier

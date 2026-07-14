@@ -260,6 +260,9 @@ fun PlayerScreen(
                                                     )
                                                 }
                                             },
+                                            isSubscribed = uiState.isChannelSubscribed,
+                                            subscribeEnabled = uiState.canSubscribeChannel,
+                                            onSubscribeClick = viewModel::toggleChannelSubscribe,
                                         )
                                     }
 

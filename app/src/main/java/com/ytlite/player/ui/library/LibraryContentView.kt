@@ -23,6 +23,7 @@ fun LibraryContentView(
     onItemClick: (LibraryItem) -> Unit,
     onSongMoreClick: (LibraryItem.Song) -> Unit,
     onPlaylistMoreClick: (LibraryItem.Playlist) -> Unit,
+    onChannelMoreClick: (LibraryItem.Channel) -> Unit = {},
     onFindMusic: () -> Unit,
     isPlaylistReorderMode: Boolean = false,
     onPlaylistOrderCommitted: ((List<LibraryItem.Playlist>) -> Unit)? = null,
@@ -72,6 +73,7 @@ fun LibraryContentView(
                                 isSelectionMode -> null
                                 item is LibraryItem.Song -> { { onSongMoreClick(item) } }
                                 item is LibraryItem.Playlist -> { { onPlaylistMoreClick(item) } }
+                                item is LibraryItem.Channel -> { { onChannelMoreClick(item) } }
                                 else -> null
                             },
                             isSelectionMode = isSelectionMode,
@@ -101,6 +103,7 @@ fun LibraryContentView(
                             isSelectionMode -> null
                             item is LibraryItem.Song -> { { onSongMoreClick(item) } }
                             item is LibraryItem.Playlist -> { { onPlaylistMoreClick(item) } }
+                            item is LibraryItem.Channel -> { { onChannelMoreClick(item) } }
                             else -> null
                         },
                         isSelectionMode = isSelectionMode,

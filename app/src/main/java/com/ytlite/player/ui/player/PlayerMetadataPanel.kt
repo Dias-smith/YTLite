@@ -39,6 +39,9 @@ fun PlayerMetadataPanel(
     onShare: () -> Unit,
     onSaveToPlaylist: () -> Unit,
     onChannelClick: () -> Unit,
+    isSubscribed: Boolean = false,
+    subscribeEnabled: Boolean = false,
+    onSubscribeClick: () -> Unit = {},
     modifier: Modifier = Modifier,
     showTitle: Boolean = true,
 ) {
@@ -111,13 +114,24 @@ fun PlayerMetadataPanel(
                     .clickable(onClick = onChannelClick),
             )
             Surface(
-                onClick = { },
+                onClick = onSubscribeClick,
+                enabled = subscribeEnabled,
                 shape = RoundedCornerShape(50),
-                color = MaterialTheme.colorScheme.onSurface,
-                contentColor = MaterialTheme.colorScheme.surface,
+                color = if (isSubscribed) {
+                    MaterialTheme.colorScheme.surfaceVariant
+                } else {
+                    MaterialTheme.colorScheme.onSurface
+                },
+                contentColor = if (isSubscribed) {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                } else {
+                    MaterialTheme.colorScheme.surface
+                },
             ) {
                 Text(
-                    text = stringResource(R.string.player_subscribe),
+                    text = stringResource(
+                        if (isSubscribed) R.string.player_subscribed else R.string.player_subscribe,
+                    ),
                     style = MaterialTheme.typography.labelMedium,
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                 )

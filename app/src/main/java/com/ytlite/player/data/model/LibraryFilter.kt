@@ -3,7 +3,7 @@ package com.ytlite.player.data.model
 enum class LibraryFilterChip {
     PLAYLISTS,
     SONGS,
-    ARTISTS,
+    CHANNELS,
     ALBUMS,
     YOUTUBE,
 }

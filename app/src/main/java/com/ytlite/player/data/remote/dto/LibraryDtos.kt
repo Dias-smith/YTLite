@@ -86,3 +86,16 @@ data class UserTrackLastPlayedDto(
     @SerialName("last_played_at") val lastPlayedAt: String,
     @SerialName("progress_ms") val progressMs: Long = 0L,
 )
+
+@Serializable
+data class UserSubscribedChannelDto(
+    @SerialName("user_id") val userId: String,
+    @SerialName("channel_id") val channelId: String,
+    val title: String,
+    val handle: String? = null,
+    @SerialName("avatar_url") val avatarUrl: String? = null,
+    @SerialName("subscriber_count_text") val subscriberCountText: String? = null,
+    val description: String? = null,
+    @SerialName("subscribed_at") val subscribedAt: String,
+    @SerialName("updated_at") val updatedAt: String? = null,
+)

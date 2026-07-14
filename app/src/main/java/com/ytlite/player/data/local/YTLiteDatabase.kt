@@ -15,6 +15,7 @@ import com.ytlite.player.data.local.dao.PlaylistTrackDao
 import com.ytlite.player.data.local.dao.SearchQueryDao
 import com.ytlite.player.data.local.dao.SearchRecentClickDao
 import com.ytlite.player.data.local.dao.TrackDao
+import com.ytlite.player.data.local.dao.UserSubscribedChannelDao
 import com.ytlite.player.data.local.dao.UserTrackLastPlayedDao
 import com.ytlite.player.data.local.dao.UserTrackMetadataDao
 import com.ytlite.player.data.local.entity.ArtistEntity
@@ -28,6 +29,7 @@ import com.ytlite.player.data.local.entity.PlaylistTrackEntity
 import com.ytlite.player.data.local.entity.SearchQueryEntity
 import com.ytlite.player.data.local.entity.SearchRecentClickEntity
 import com.ytlite.player.data.local.entity.TrackEntity
+import com.ytlite.player.data.local.entity.UserSubscribedChannelEntity
 import com.ytlite.player.data.local.entity.UserTrackLastPlayedEntity
 import com.ytlite.player.data.local.entity.UserTrackMetadataEntity
 
@@ -45,9 +47,10 @@ import com.ytlite.player.data.local.entity.UserTrackMetadataEntity
         SearchRecentClickEntity::class,
         NotInterestedEntity::class,
         UserTrackMetadataEntity::class,
+        UserSubscribedChannelEntity::class,
         PlaybackCacheEntity::class,
     ],
-    version = 11,
+    version = 12,
     exportSchema = false,
 )
 abstract class YTLiteDatabase : RoomDatabase() {
@@ -63,6 +66,7 @@ abstract class YTLiteDatabase : RoomDatabase() {
     abstract fun searchRecentClickDao(): SearchRecentClickDao
     abstract fun notInterestedDao(): NotInterestedDao
     abstract fun userTrackMetadataDao(): UserTrackMetadataDao
+    abstract fun userSubscribedChannelDao(): UserSubscribedChannelDao
     abstract fun playbackCacheDao(): PlaybackCacheDao
 
     companion object {
@@ -82,6 +86,7 @@ abstract class YTLiteDatabase : RoomDatabase() {
                         MIGRATION_8_9,
                         MIGRATION_9_10,
                         MIGRATION_10_11,
+                        MIGRATION_11_12,
                     )
                     .build()
                     .also { instance = it }

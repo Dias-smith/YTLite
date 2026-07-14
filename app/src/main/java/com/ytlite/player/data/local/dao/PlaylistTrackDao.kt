@@ -127,6 +127,35 @@ interface PlaylistTrackDao {
     @Query(
         """
         SELECT
+            CASE
+                WHEN t.primaryArtistId IS NOT NULL AND TRIM(t.primaryArtistId) != ''
+                THEN TRIM(t.primaryArtistId)
+                ELSE 'name:' || LOWER(TRIM(COALESCE(m.customArtistName, t.primaryArtistName, '')))
+            END AS artistId,
+            TRIM(COALESCE(m.customArtistName, t.primaryArtistName, '')) AS name,
+            MAX(COALESCE(t.thumbnailHigh, t.thumbnailMedium, t.thumbnailLow)) AS avatarUrl,
+            MAX(COALESCE(u.lastPlayedAt, p.createdAt, 0)) AS lastActivityAt,
+            MAX(p.createdAt) AS savedAt
+        FROM playlist_track_cross_ref p
+        INNER JOIN playlists pl ON pl.playlistId = p.playlistId
+        INNER JOIN tracks t ON t.trackId = p.trackId
+        LEFT JOIN user_track_last_played u ON u.trackId = t.trackId AND u.ownerKey = :ownerKey
+        LEFT JOIN user_track_metadata m ON m.ownerKey = :ownerKey AND m.trackId = t.trackId
+        WHERE pl.ownerKey = :ownerKey
+          AND pl.source = :localSource
+          AND TRIM(COALESCE(m.customArtistName, t.primaryArtistName, '')) != ''
+        GROUP BY artistId
+        ORDER BY lastActivityAt DESC
+        """,
+    )
+    fun observeDistinctLocalArtists(
+        ownerKey: String,
+        localSource: String = com.ytlite.player.data.model.DataSource.LOCAL.dbValue,
+    ): Flow<List<com.ytlite.player.data.local.model.LibraryArtistRow>>
+
+    @Query(
+        """
+        SELECT
             t.trackId AS trackId,
             COALESCE(m.customTitle, t.title) AS title,
             COALESCE(m.customArtistName, t.primaryArtistName) AS primaryArtistName,

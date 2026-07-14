@@ -1,6 +1,7 @@
 package com.ytlite.player.ui.library
 
 import com.ytlite.player.data.model.VideoItem
+import com.ytlite.player.data.model.SubscriptionChannel
 import com.ytlite.player.playback.QueueItem
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -14,6 +15,7 @@ fun LibraryScreen(
     onNavigateHomeTab: () -> Unit,
     onPlayPlaylist: (List<QueueItem>, Int, String) -> Unit,
     onTogglePlayPause: () -> Unit,
+    onGoToArtist: (SubscriptionChannel) -> Unit = {},
     pendingAlbumName: String? = null,
     onPendingAlbumConsumed: () -> Unit = {},
     modifier: Modifier = Modifier,
@@ -28,6 +30,7 @@ fun LibraryScreen(
         onNavigateHomeTab = onNavigateHomeTab,
         onPlayPlaylist = onPlayPlaylist,
         onTogglePlayPause = onTogglePlayPause,
+        onGoToArtist = onGoToArtist,
         pendingAlbumName = pendingAlbumName,
         onPendingAlbumConsumed = onPendingAlbumConsumed,
         modifier = modifier,

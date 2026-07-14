@@ -73,3 +73,30 @@ val MIGRATION_10_11 = object : Migration(10, 11) {
         )
     }
 }
+
+val MIGRATION_11_12 = object : Migration(11, 12) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS user_subscribed_channels (
+                ownerKey TEXT NOT NULL,
+                channelId TEXT NOT NULL,
+                title TEXT NOT NULL,
+                handle TEXT,
+                avatarUrl TEXT,
+                subscriberCountText TEXT,
+                description TEXT,
+                subscribedAt INTEGER NOT NULL,
+                isSynced INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY(ownerKey, channelId)
+            )
+            """.trimIndent(),
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS index_user_subscribed_channels_ownerKey ON user_subscribed_channels(ownerKey)",
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS index_user_subscribed_channels_channelId ON user_subscribed_channels(channelId)",
+        )
+    }
+}

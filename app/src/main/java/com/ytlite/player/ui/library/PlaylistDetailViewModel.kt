@@ -132,6 +132,7 @@ class PlaylistDetailViewModel(
                     durationText = track.durationText,
                     album = track.album,
                     year = track.year,
+                    channelId = track.primaryArtistId,
                 )
             }
         }

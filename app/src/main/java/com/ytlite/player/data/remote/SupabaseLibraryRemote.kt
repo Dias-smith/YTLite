@@ -6,6 +6,7 @@ import com.ytlite.player.data.local.entity.PlaybackHistoryEntity
 import com.ytlite.player.data.local.entity.PlaylistEntity
 import com.ytlite.player.data.local.entity.PlaylistTrackEntity
 import com.ytlite.player.data.local.entity.TrackEntity
+import com.ytlite.player.data.local.entity.UserSubscribedChannelEntity
 import com.ytlite.player.data.local.entity.UserTrackLastPlayedEntity
 import com.ytlite.player.data.local.entity.UserTrackMetadataEntity
 import com.ytlite.player.data.remote.dto.ArtistDto
@@ -14,6 +15,7 @@ import com.ytlite.player.data.remote.dto.PlaylistDto
 import com.ytlite.player.data.remote.dto.PlaylistTrackDto
 import com.ytlite.player.data.remote.dto.ProfileDto
 import com.ytlite.player.data.remote.dto.TrackDto
+import com.ytlite.player.data.remote.dto.UserSubscribedChannelDto
 import com.ytlite.player.data.remote.dto.UserTrackLastPlayedDto
 import com.ytlite.player.data.remote.dto.UserTrackMetadataDto
 import io.github.jan.supabase.SupabaseClient
@@ -216,6 +218,34 @@ class SupabaseLibraryRemote(
             }
         }
 
+    suspend fun upsertUserSubscribedChannel(userId: String, entity: UserSubscribedChannelEntity) =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                client.postgrest["user_subscribed_channels"].upsert(entity.toDto(userId))
+            }
+        }
+
+    suspend fun pullUserSubscribedChannels(userId: String): List<UserSubscribedChannelDto> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                client.postgrest["user_subscribed_channels"]
+                    .select { filter { eq("user_id", userId) } }
+                    .decodeList<UserSubscribedChannelDto>()
+            }.getOrDefault(emptyList())
+        }
+
+    suspend fun deleteUserSubscribedChannel(userId: String, channelId: String) =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                client.postgrest["user_subscribed_channels"].delete {
+                    filter {
+                        eq("user_id", userId)
+                        eq("channel_id", channelId)
+                    }
+                }
+            }
+        }
+
     private fun ProfileDto.toUserProfile() = UserProfile(
         userId = id,
         displayName = displayName.ifBlank { "User" },
@@ -292,6 +322,18 @@ class SupabaseLibraryRemote(
         customYear = customYear,
         updatedAt = Instant.ofEpochMilli(updatedAt).toString(),
     )
+
+    private fun UserSubscribedChannelEntity.toDto(userId: String) = UserSubscribedChannelDto(
+        userId = userId,
+        channelId = channelId,
+        title = title,
+        handle = handle,
+        avatarUrl = avatarUrl,
+        subscriberCountText = subscriberCountText,
+        description = description,
+        subscribedAt = Instant.ofEpochMilli(subscribedAt).toString(),
+        updatedAt = Instant.ofEpochMilli(subscribedAt).toString(),
+    )
 }
 
 fun UserTrackMetadataDto.updatedAtMillis(): Long =
@@ -306,5 +348,20 @@ fun UserTrackMetadataDto.toEntity(ownerKey: String) = UserTrackMetadataEntity(
     customAlbum = customAlbum,
     customYear = customYear,
     updatedAt = updatedAtMillis(),
+    isSynced = true,
+)
+
+fun UserSubscribedChannelDto.subscribedAtMillis(): Long =
+    runCatching { Instant.parse(subscribedAt).toEpochMilli() }.getOrDefault(0L)
+
+fun UserSubscribedChannelDto.toEntity(ownerKey: String) = UserSubscribedChannelEntity(
+    ownerKey = ownerKey,
+    channelId = channelId,
+    title = title,
+    handle = handle,
+    avatarUrl = avatarUrl,
+    subscriberCountText = subscriberCountText,
+    description = description,
+    subscribedAt = subscribedAtMillis(),
     isSynced = true,
 )

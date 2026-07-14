@@ -15,6 +15,7 @@ data class QueueItem(
     val album: String? = null,
     val year: String? = null,
     val itag: Int? = null,
+    val channelId: String? = null,
 ) {
     fun subtitleLine(): String = com.ytlite.player.data.repository.LibraryItemMapper.formatSongSubtitle(
         artist = channelName,
@@ -38,6 +39,7 @@ data class QueueItem(
         thumbnailUrl = thumbnailUrl,
         itag = itag,
         durationMs = durationText?.let { parseDurationTextToMs(it) },
+        channelId = channelId,
     )
 
     companion object {
@@ -51,6 +53,7 @@ data class QueueItem(
                 ?.takeIf { it > 0L }
                 ?.let { formatDurationMs(it) },
             itag = nowPlaying.itag,
+            channelId = nowPlaying.channelId,
         )
     }
 }

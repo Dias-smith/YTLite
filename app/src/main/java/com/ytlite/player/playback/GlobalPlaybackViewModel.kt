@@ -240,6 +240,7 @@ class GlobalPlaybackViewModel(
                 thumbnailUrl = current.thumbnailUrl,
                 itag = current.itag,
                 durationMs = durationMs.takeIf { it > 0L },
+                channelId = current.channelId,
             ),
             positionMs = restoredStartPositionMs,
             durationMs = durationMs,

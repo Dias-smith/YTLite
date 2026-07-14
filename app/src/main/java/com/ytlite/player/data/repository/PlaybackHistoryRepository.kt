@@ -32,8 +32,17 @@ class PlaybackHistoryRepository(
         userId: String? = null,
     ) = withContext(Dispatchers.IO) {
         val now = System.currentTimeMillis()
-        if (!channelId.isNullOrBlank() && !channelName.isNullOrBlank()) {
-            artistDao.upsert(ArtistEntity(artistId = channelId, name = channelName))
+        if (!channelName.isNullOrBlank()) {
+            val artistId = LibraryItemMapper.artistKey(
+                channelId = channelId,
+                channelName = channelName,
+            )
+            artistDao.upsert(
+                ArtistEntity(
+                    artistId = artistId,
+                    name = channelName.trim(),
+                ),
+            )
         }
         val existing = trackDao.getById(trackId)
         trackDao.upsert(

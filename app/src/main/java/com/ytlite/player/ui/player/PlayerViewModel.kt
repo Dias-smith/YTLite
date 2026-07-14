@@ -9,6 +9,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.ytlite.player.R
+import com.ytlite.player.data.auth.AuthRepository
 import com.ytlite.player.data.js.JsExtractorEngine
 import com.ytlite.player.data.model.ExtractionResult
 import com.ytlite.player.data.model.LibraryVideo
@@ -17,6 +18,7 @@ import com.ytlite.player.data.model.VideoItem
 import com.ytlite.player.data.model.VideoPlayback
 import com.ytlite.player.data.repository.ExtractionRepository
 import com.ytlite.player.data.repository.LibraryRepository
+import com.ytlite.player.data.repository.LibraryItemMapper
 import com.ytlite.player.playback.NowPlaying
 import com.ytlite.player.playback.PlayQueueRepository
 import com.ytlite.player.playback.PlaybackManager
@@ -33,17 +35,21 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 
 class PlayerViewModel(
     private val videoId: String,
     private val application: Application,
     private val repository: ExtractionRepository = ExtractionRepository.getInstance(),
     private val libraryRepository: LibraryRepository,
+    private val authRepository: AuthRepository = AuthRepository.getInstance(application),
     private val jsEngine: JsExtractorEngine,
 ) : ViewModel() {
 
@@ -74,6 +80,9 @@ class PlayerViewModel(
                     recommendLoading = cachedMusic == null,
                     upNextItems = cachedWww.orEmpty(),
                     upNextLoading = cachedWww == null,
+                    canSubscribeChannel = LibraryItemMapper.isBrowsableChannelId(
+                        active.channelId.orEmpty(),
+                    ),
                 )
             }
             // Same track reopen: refresh Related (Music); seed Up next from www only outside playlist.
@@ -92,6 +101,9 @@ class PlayerViewModel(
                         isExtracting = true,
                         playback = preview.toStubPlayback(),
                         errorMessage = null,
+                        canSubscribeChannel = LibraryItemMapper.isBrowsableChannelId(
+                            preview.channelId.orEmpty(),
+                        ),
                     )
                 }
             } else {
@@ -107,6 +119,54 @@ class PlayerViewModel(
             loadPlayback()
         }
         observeNowPlayingChanges()
+        observeChannelSubscription()
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private fun observeChannelSubscription() {
+        viewModelScope.launch {
+            _uiState
+                .map { state ->
+                    val channelId = state.playback?.channelId.orEmpty()
+                    val canSubscribe = LibraryItemMapper.isBrowsableChannelId(channelId)
+                    channelId to canSubscribe
+                }
+                .distinctUntilChanged()
+                .flatMapLatest { (channelId, canSubscribe) ->
+                    _uiState.update { it.copy(canSubscribeChannel = canSubscribe) }
+                    if (!canSubscribe) {
+                        flowOf(false)
+                    } else {
+                        val session = authRepository.currentSession()
+                            ?: run {
+                                authRepository.initialize()
+                                authRepository.currentSession()
+                            }
+                        val ownerKey = session?.ownerKey
+                        if (ownerKey == null) {
+                            flowOf(false)
+                        } else {
+                            libraryRepository.observeIsSubscribed(ownerKey, channelId)
+                        }
+                    }
+                }
+                .collect { subscribed ->
+                    _uiState.update { it.copy(isChannelSubscribed = subscribed) }
+                }
+        }
+    }
+
+    fun toggleChannelSubscribe() {
+        val playback = _uiState.value.playback ?: return
+        val channelId = playback.channelId
+        if (!LibraryItemMapper.isBrowsableChannelId(channelId)) return
+        viewModelScope.launch(Dispatchers.IO) {
+            libraryRepository.toggleSubscribeChannel(
+                channelId = channelId,
+                title = playback.channelName,
+                avatarUrl = NowPlaying.thumbnailUrlFor(playback.videoId),
+            )
+        }
     }
 
     private fun observeNowPlayingChanges() {
@@ -156,7 +216,7 @@ class PlayerViewModel(
                     title = item.title,
                     description = "",
                     channelName = item.channelName,
-                    channelId = "",
+                    channelId = item.channelId.orEmpty(),
                     formats = emptyList(),
                     durationSeconds = 0L,
                     viewCount = 0L,
@@ -376,6 +436,7 @@ class PlayerViewModel(
                 channelName = playback.channelName,
                 thumbnailUrl = NowPlaying.thumbnailUrlFor(playback.videoId),
                 streamUrl = _uiState.value.selectedStreamUrl,
+                channelId = playback.channelId.takeIf { it.isNotBlank() },
             )
             else -> return
         }
@@ -442,6 +503,7 @@ class PlayerViewModel(
                         thumbnailUrl = item.thumbnailUrl,
                         itag = format.itag,
                         durationMs = result.data.durationSeconds.takeIf { it > 0L }?.times(1000L),
+                        channelId = item.channelId ?: result.data.channelId.takeIf { it.isNotBlank() },
                     )
                     val currentItem = QueueItem.fromNowPlaying(nowPlaying)
                     val related = when (val relatedResult = repository.fetchMusicRelatedVideos(item.videoId)) {
@@ -703,6 +765,7 @@ class PlayerViewModel(
             thumbnailUrl = NowPlaying.thumbnailUrlFor(playback.videoId),
             itag = format.itag,
             durationMs = playback.durationSeconds.takeIf { it > 0L }?.times(1000L),
+            channelId = playback.channelId.takeIf { it.isNotBlank() },
         )
         if (updateQueue) {
             val currentItem = QueueItem.fromNowPlaying(nowPlaying)
@@ -752,7 +815,7 @@ class PlayerViewModel(
         title = title,
         description = "",
         channelName = channelName,
-        channelId = "",
+        channelId = channelId.orEmpty(),
         formats = emptyList(),
         durationSeconds = 0L,
         viewCount = 0L,
@@ -767,12 +830,14 @@ class PlayerViewModel(
         durationText = durationText,
         viewCountText = viewCountText,
         publishedTimeText = publishedTimeText,
+        channelId = channelId,
     )
 
     private fun QueueItem.toLibraryVideo() = LibraryVideo(
         videoId = videoId,
         title = title,
         channelName = channelName,
+        channelId = channelId,
         thumbnailUrl = thumbnailUrl,
         durationText = durationText,
         viewCountText = viewCountText,

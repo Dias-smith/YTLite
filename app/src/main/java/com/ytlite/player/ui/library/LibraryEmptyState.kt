@@ -41,6 +41,7 @@ fun LibraryEmptyState(
             text = when (filter) {
                 LibraryFilterChip.SONGS -> stringResource(R.string.library_empty_songs)
                 LibraryFilterChip.ALBUMS -> stringResource(R.string.library_empty_albums)
+                LibraryFilterChip.CHANNELS -> stringResource(R.string.library_empty_channels)
                 LibraryFilterChip.YOUTUBE -> stringResource(R.string.library_playlists_youtube_empty)
                 else -> stringResource(R.string.library_empty_default)
             },

@@ -60,7 +60,7 @@ fun LibraryFilterChips(
 private fun chipLabel(chip: LibraryFilterChip): String = when (chip) {
     LibraryFilterChip.PLAYLISTS -> stringResource(R.string.library_chip_playlists)
     LibraryFilterChip.SONGS -> stringResource(R.string.library_chip_songs)
-    LibraryFilterChip.ARTISTS -> stringResource(R.string.library_chip_artists)
+    LibraryFilterChip.CHANNELS -> stringResource(R.string.library_chip_channels)
     LibraryFilterChip.ALBUMS -> stringResource(R.string.library_chip_albums)
     LibraryFilterChip.YOUTUBE -> stringResource(R.string.library_chip_youtube)
 }

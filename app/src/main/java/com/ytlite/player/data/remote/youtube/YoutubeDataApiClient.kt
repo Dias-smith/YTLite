@@ -35,6 +35,40 @@ class YoutubeDataApiClient(
     val isConfigured: Boolean
         get() = BuildConfig.YOUTUBE_DATA_API_KEY.isNotBlank()
 
+    /**
+     * Public channels.list by id (API key only). Used for Library Channels avatar enrichment.
+     */
+    fun fetchPublicChannelAvatar(channelId: String): String? {
+        if (!isConfigured || channelId.isBlank()) return null
+        val url = buildString {
+            append(YoutubeDataApiConfig.CHANNELS_LIST_URL)
+            append("?part=snippet")
+            append("&id=$channelId")
+            append("&maxResults=1")
+            append("&key=${BuildConfig.YOUTUBE_DATA_API_KEY}")
+        }
+        return runCatching {
+            val result = httpClient.request(
+                url = url,
+                method = "GET",
+                headers = emptyMap(),
+                body = null,
+            )
+            if (!result.success || result.result.isNullOrBlank()) {
+                logApiFailure("channels.list(public)", result)
+                return null
+            }
+            val items = JSONObject(result.result).optJSONArray("items") ?: return null
+            val snippet = items.optJSONObject(0)?.optJSONObject("snippet") ?: return null
+            val thumbnails = snippet.optJSONObject("thumbnails") ?: return null
+            thumbnails.optJSONObject("high")?.optString("url")?.takeIf { it.isNotBlank() }
+                ?: thumbnails.optJSONObject("medium")?.optString("url")?.takeIf { it.isNotBlank() }
+                ?: thumbnails.optJSONObject("default")?.optString("url")?.takeIf { it.isNotBlank() }
+        }.onFailure { error ->
+            YoutubeDiagnostics.e("DataApi", "channels.list(public) error: ${error.message}", error)
+        }.getOrNull()
+    }
+
     fun listSubscriptions(
         oauthAccessToken: String,
         pageToken: String? = null,

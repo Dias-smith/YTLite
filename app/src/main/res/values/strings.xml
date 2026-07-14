@@ -44,6 +44,7 @@
     <string name="player_like">Like</string>
     <string name="player_dislike">Dislike</string>
     <string name="player_subscribe">Subscribe</string>
+    <string name="player_subscribed">Subscribed</string>
     <string name="player_share">Share</string>
     <string name="player_cast">Cast</string>
     <string name="player_show_more">Show more</string>
@@ -142,7 +143,7 @@
     <string name="library_premium">Get Premium</string>
     <string name="library_chip_playlists">Playlists</string>
     <string name="library_chip_songs">Songs</string>
-    <string name="library_chip_artists">Artists</string>
+    <string name="library_chip_channels">Channels</string>
     <string name="library_chip_albums">Albums</string>
     <string name="library_chip_youtube">YouTube</string>
     <string name="library_clear_filter">Clear filter</string>
@@ -183,7 +184,10 @@
     <string name="library_cancel">Cancel</string>
     <string name="library_empty_songs">No songs in your library yet</string>
     <string name="library_empty_albums">No albums yet</string>
+    <string name="library_empty_channels">No channels yet. Subscribe from the player.</string>
     <string name="library_empty_default">Nothing here yet</string>
+    <string name="library_channel_unsubscribe">Unsubscribe</string>
+    <string name="library_channel_unsubscribe_confirm">Unsubscribe from this channel?</string>
     <string name="library_find_music">Find music</string>
     <string name="library_song_more">More options</string>
     <string name="library_add_song">+ Add a song</string>

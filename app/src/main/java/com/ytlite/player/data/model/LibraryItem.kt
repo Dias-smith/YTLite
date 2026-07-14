@@ -55,7 +55,7 @@ sealed interface LibraryItem {
     ) : LibraryItem
 
     @Immutable
-    data class Artist(
+    data class Channel(
         override val id: String,
         override val title: String,
         override val subtitle: String,
@@ -63,6 +63,8 @@ sealed interface LibraryItem {
         override val source: DataSource,
         override val sortKeyActivity: Long,
         override val sortKeySaved: Long,
-        val artistId: String = id,
+        val channelId: String = id,
+        val handle: String? = null,
+        val description: String? = null,
     ) : LibraryItem
 }

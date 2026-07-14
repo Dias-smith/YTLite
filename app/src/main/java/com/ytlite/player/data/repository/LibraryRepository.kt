@@ -7,11 +7,13 @@ import com.ytlite.player.data.auth.SupabaseClientProvider
 import com.ytlite.player.data.auth.UserProfile
 import com.ytlite.player.data.auth.UserSession
 import com.ytlite.player.data.local.YTLiteDatabase
+import com.ytlite.player.data.local.entity.ArtistEntity
 import com.ytlite.player.data.local.entity.PlaylistEntity
 import com.ytlite.player.data.local.entity.PlaylistDisplayOrderEntity
 import com.ytlite.player.data.local.entity.PlaylistPinOverlayEntity
 import com.ytlite.player.data.local.entity.PlaylistSystemType
 import com.ytlite.player.data.local.entity.PlaylistTrackEntity
+import com.ytlite.player.data.local.entity.UserSubscribedChannelEntity
 import com.ytlite.player.data.local.entity.UserTrackMetadataEntity
 import com.ytlite.player.data.local.model.LibraryVideoRow
 import com.ytlite.player.data.model.DataSource
@@ -29,6 +31,8 @@ import com.ytlite.player.data.remote.toEntity
 import com.ytlite.player.data.remote.toPlaylistDto
 import com.ytlite.player.data.remote.toPlaylistEntity
 import com.ytlite.player.data.remote.updatedAtMillis
+import com.ytlite.player.data.remote.subscribedAtMillis
+import com.ytlite.player.data.remote.youtube.YoutubeDataApiClient
 import com.ytlite.player.data.remote.youtube.YoutubeRemoteDataSource
 import com.ytlite.player.data.youtube.YoutubeDiagnostics
 import com.ytlite.player.playback.NowPlaying
@@ -44,10 +48,12 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 
 class LibraryRepository(
     context: Context,
@@ -66,6 +72,7 @@ class LibraryRepository(
     private val userTrackLastPlayedDao = database.userTrackLastPlayedDao()
     private val notInterestedDao = database.notInterestedDao()
     private val userTrackMetadataDao = database.userTrackMetadataDao()
+    private val userSubscribedChannelDao = database.userSubscribedChannelDao()
 
     private val remote: SupabaseLibraryRemote? =
         SupabaseClientProvider.get(appContext)?.let { SupabaseLibraryRemote(it) }
@@ -150,17 +157,16 @@ class LibraryRepository(
         null -> combine(
             playlistDao.observeLocalByOwner(ownerKey).map { dedupeLocalPlaylistsForDisplay(it) },
             playlistTrackDao.observeLocalSongs(ownerKey),
-            artistDao.observeAll(),
+            observeChannelItems(ownerKey, sort),
             observeHistory(ownerKey, limit = 50),
             playlistTrackDao.observeTrackCountsByOwner(ownerKey),
-        ) { playlists, songs, artists, history, trackCounts ->
+        ) { playlists, songs, channels, history, trackCounts ->
             val countMap = trackCounts.associate { it.playlistId to it.trackCount }
             val playlistItems = playlists.map {
                 LibraryItemMapper.playlistItem(it, playlistSubtitleWithCount(it, countMap))
             }
             val songItems = buildSongItems(songs, history)
-            val artistItems = artists.map { LibraryItemMapper.artistItem(it) }
-            LibraryItemMapper.mergeLocalMixed(playlistItems, songItems, artistItems, sort)
+            LibraryItemMapper.mergeLocalMixed(playlistItems, songItems, channels, sort)
         }
         LibraryFilterChip.PLAYLISTS -> combine(
             playlistDao.observeLocalByOwner(ownerKey).map { dedupeLocalPlaylistsForDisplay(it) },
@@ -192,9 +198,7 @@ class LibraryRepository(
         ) { songs, history ->
             LibraryItemMapper.sortItems(buildSongItems(songs, history), sort)
         }
-        LibraryFilterChip.ARTISTS -> artistDao.observeAll().map { artists ->
-            LibraryItemMapper.sortItems(artists.map { LibraryItemMapper.artistItem(it) }, sort)
-        }
+        LibraryFilterChip.CHANNELS -> observeChannelItems(ownerKey, sort)
         LibraryFilterChip.ALBUMS -> userTrackMetadataDao.observeDistinctAlbums(ownerKey).map { albums ->
             LibraryItemMapper.sortItems(
                 albums.map { LibraryItemMapper.albumItem(it) },
@@ -220,6 +224,166 @@ class LibraryRepository(
             }
         }
     }.flowOn(Dispatchers.Default)
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private fun observeChannelItems(
+        ownerKey: String,
+        sort: LibrarySort,
+    ): Flow<List<LibraryItem.Channel>> =
+        userSubscribedChannelDao.observeByOwner(ownerKey).mapLatest { entities ->
+            val items = entities.map { entity ->
+                val cover = resolveChannelAvatarUrl(
+                    channelId = entity.channelId,
+                    hintUrl = entity.avatarUrl,
+                    allowNetwork = entity.avatarUrl.isNullOrBlank(),
+                )
+                if (!cover.isNullOrBlank() && cover != entity.avatarUrl) {
+                    userSubscribedChannelDao.upsert(
+                        entity.copy(avatarUrl = cover, isSynced = false),
+                    )
+                    val artist = artistDao.getById(entity.channelId)
+                    if (artist != null && artist.avatarUrl.isNullOrBlank()) {
+                        artistDao.upsert(artist.copy(avatarUrl = cover))
+                    } else if (artist == null) {
+                        artistDao.upsert(
+                            ArtistEntity(
+                                artistId = entity.channelId,
+                                name = entity.title,
+                                avatarUrl = cover,
+                            ),
+                        )
+                    }
+                }
+                LibraryItemMapper.channelItem(
+                    if (!cover.isNullOrBlank()) entity.copy(avatarUrl = cover) else entity,
+                )
+            }
+            LibraryItemMapper.sortItems(items, sort).filterIsInstance<LibraryItem.Channel>()
+        }
+
+    private suspend fun resolveChannelAvatarUrl(
+        channelId: String,
+        hintUrl: String? = null,
+        allowNetwork: Boolean = false,
+    ): String? {
+        artistDao.getById(channelId)?.avatarUrl?.takeIf { it.isNotBlank() }?.let { return it }
+        if (allowNetwork) {
+            YoutubeDataApiClient().fetchPublicChannelAvatar(channelId)
+                ?.takeIf { it.isNotBlank() }
+                ?.let { return it }
+        }
+        hintUrl?.takeIf { it.isNotBlank() }?.let { return it }
+        return trackDao.findThumbnailByArtistId(channelId)?.takeIf { it.isNotBlank() }
+    }
+
+    fun observeIsSubscribed(ownerKey: String, channelId: String): Flow<Boolean> =
+        if (channelId.isBlank()) {
+            flowOf(false)
+        } else {
+            userSubscribedChannelDao.observeIsSubscribed(ownerKey, channelId)
+        }
+
+    suspend fun subscribeChannel(
+        channelId: String,
+        title: String,
+        handle: String? = null,
+        avatarUrl: String? = null,
+        subscriberCountText: String? = null,
+        description: String? = null,
+    ): Boolean = withContext(Dispatchers.IO) {
+        if (channelId.isBlank() || !LibraryItemMapper.isBrowsableChannelId(channelId)) {
+            return@withContext false
+        }
+        if (authRepository.currentSession() == null) {
+            authRepository.initialize()
+        }
+        val session = authRepository.currentSession() ?: return@withContext false
+        val ownerKey = session.ownerKey
+        val resolvedAvatar = resolveChannelAvatarUrl(
+            channelId = channelId.trim(),
+            hintUrl = avatarUrl,
+            allowNetwork = true,
+        )
+        val now = System.currentTimeMillis()
+        val entity = UserSubscribedChannelEntity(
+            ownerKey = ownerKey,
+            channelId = channelId.trim(),
+            title = title.ifBlank { channelId },
+            handle = handle,
+            avatarUrl = resolvedAvatar,
+            subscriberCountText = subscriberCountText,
+            description = description,
+            subscribedAt = now,
+            isSynced = false,
+        )
+        userSubscribedChannelDao.upsert(entity)
+        artistDao.upsert(
+            ArtistEntity(
+                artistId = entity.channelId,
+                name = entity.title,
+                avatarUrl = resolvedAvatar,
+                subscriberCountText = subscriberCountText,
+                description = description,
+            ),
+        )
+        val userId = (session as? UserSession.Authenticated)?.profile?.userId
+        if (userId != null && remote != null) {
+            remote.upsertArtist(
+                ArtistEntity(
+                    artistId = entity.channelId,
+                    name = entity.title,
+                    avatarUrl = resolvedAvatar,
+                    subscriberCountText = subscriberCountText,
+                    description = description,
+                ),
+            )
+            remote.upsertUserSubscribedChannel(userId, entity)
+            userSubscribedChannelDao.markSynced(ownerKey, entity.channelId)
+        }
+        true
+    }
+
+    suspend fun unsubscribeChannel(channelId: String): Boolean = withContext(Dispatchers.IO) {
+        if (channelId.isBlank()) return@withContext false
+        if (authRepository.currentSession() == null) {
+            authRepository.initialize()
+        }
+        val session = authRepository.currentSession() ?: return@withContext false
+        val ownerKey = session.ownerKey
+        userSubscribedChannelDao.delete(ownerKey, channelId)
+        val userId = (session as? UserSession.Authenticated)?.profile?.userId
+        if (userId != null && remote != null) {
+            remote.deleteUserSubscribedChannel(userId, channelId)
+        }
+        true
+    }
+
+    suspend fun toggleSubscribeChannel(
+        channelId: String,
+        title: String,
+        handle: String? = null,
+        avatarUrl: String? = null,
+        subscriberCountText: String? = null,
+        description: String? = null,
+    ): Boolean {
+        if (authRepository.currentSession() == null) {
+            authRepository.initialize()
+        }
+        val ownerKey = authRepository.currentSession()?.ownerKey ?: return false
+        val existing = userSubscribedChannelDao.get(ownerKey, channelId)
+        return if (existing != null) {
+            unsubscribeChannel(channelId)
+        } else {
+            subscribeChannel(
+                channelId = channelId,
+                title = title,
+                handle = handle,
+                avatarUrl = avatarUrl,
+                subscriberCountText = subscriberCountText,
+                description = description,
+            )
+        }
+    }
 
     private fun songsCountLabel(count: Int): String =
         appContext.getString(R.string.playlist_stats_songs, count)
@@ -259,6 +423,7 @@ class LibraryRepository(
                         thumbnailUrl = video.thumbnailUrl,
                         album = video.album,
                         year = video.year,
+                        channelId = video.channelId,
                     )
                 }
             }
@@ -274,6 +439,7 @@ class LibraryRepository(
                         durationText = track.durationText,
                         album = track.album,
                         year = track.year,
+                        channelId = track.primaryArtistId,
                     )
                 }
             }
@@ -890,6 +1056,7 @@ class LibraryRepository(
                 videoId = nowPlaying.videoId,
                 title = nowPlaying.title,
                 channelName = nowPlaying.channelName,
+                channelId = nowPlaying.channelId,
                 thumbnailUrl = nowPlaying.thumbnailUrl,
             ),
             ownerKey = ownerKey,
@@ -917,6 +1084,7 @@ class LibraryRepository(
         mergeUserHistoryToGuest(userOwnerKey, guestOwnerKey)
         playbackHistoryDao.migrateOwnerKey(userOwnerKey, guestOwnerKey)
         userTrackMetadataDao.migrateOwnerKey(userOwnerKey, guestOwnerKey)
+        userSubscribedChannelDao.migrateOwnerKey(userOwnerKey, guestOwnerKey)
 
         playlistDao.getAllByOwner(userOwnerKey)
             .filter { it.isLocal() && it.systemType == null }
@@ -963,6 +1131,7 @@ class LibraryRepository(
         userTrackLastPlayedDao.migrateOwnerKey(guestOwnerKey, userOwnerKey)
         playbackHistoryDao.migrateOwnerKey(guestOwnerKey, userOwnerKey)
         userTrackMetadataDao.migrateOwnerKey(guestOwnerKey, userOwnerKey)
+        userSubscribedChannelDao.migrateOwnerKey(guestOwnerKey, userOwnerKey)
 
         val guestPlaylists = playlistDao.getAllByOwner(guestOwnerKey)
             .filter { it.systemType == null }
@@ -1001,6 +1170,7 @@ class LibraryRepository(
 
         syncAllPlaylistsFromRemote(userId, userOwnerKey)
         pullUserTrackMetadataFromRemote(userId, userOwnerKey)
+        pullUserSubscribedChannelsFromRemote(userId, userOwnerKey)
         deduplicateSystemPlaylists(userOwnerKey)
 
         remoteClient.fetchProfile(userId)?.let { authRepository.updateAuthenticatedProfile(it) }
@@ -1164,6 +1334,21 @@ class LibraryRepository(
         userTrackMetadataDao.getUnsyncedByOwner(userOwnerKey).forEach { metadata ->
             syncTrackMetadataToRemote(userId, userOwnerKey, metadata)
         }
+
+        userSubscribedChannelDao.getUnsyncedByOwner(userOwnerKey).forEach { channel ->
+            artistDao.getById(channel.channelId)?.let { remoteClient.upsertArtist(it) }
+                ?: remoteClient.upsertArtist(
+                    ArtistEntity(
+                        artistId = channel.channelId,
+                        name = channel.title,
+                        avatarUrl = channel.avatarUrl,
+                        subscriberCountText = channel.subscriberCountText,
+                        description = channel.description,
+                    ),
+                )
+            remoteClient.upsertUserSubscribedChannel(userId, channel)
+            userSubscribedChannelDao.markSynced(userOwnerKey, channel.channelId)
+        }
     }
 
     private suspend fun uploadPlaylistToRemote(
@@ -1244,6 +1429,28 @@ class LibraryRepository(
             if (local == null || remoteUpdatedAt >= local.updatedAt) {
                 userTrackMetadataDao.upsert(
                     dto.toEntity(userOwnerKey).copy(isSynced = true),
+                )
+            }
+        }
+    }
+
+    private suspend fun pullUserSubscribedChannelsFromRemote(userId: String, userOwnerKey: String) {
+        val remoteClient = remote ?: return
+        remoteClient.pullUserSubscribedChannels(userId).forEach { dto ->
+            val local = userSubscribedChannelDao.get(userOwnerKey, dto.channelId)
+            val remoteSubscribedAt = dto.subscribedAtMillis()
+            if (local == null || remoteSubscribedAt >= local.subscribedAt) {
+                userSubscribedChannelDao.upsert(
+                    dto.toEntity(userOwnerKey).copy(isSynced = true),
+                )
+                artistDao.upsert(
+                    ArtistEntity(
+                        artistId = dto.channelId,
+                        name = dto.title,
+                        avatarUrl = dto.avatarUrl,
+                        subscriberCountText = dto.subscriberCountText,
+                        description = dto.description,
+                    ),
                 )
             }
         }

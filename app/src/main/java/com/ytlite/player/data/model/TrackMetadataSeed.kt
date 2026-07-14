@@ -20,5 +20,6 @@ data class TrackMetadataSeed(
         thumbnailUrl = thumbnailUrl,
         album = album,
         year = year,
+        channelId = channelId,
     )
 }
