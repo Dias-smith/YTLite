@@ -1,5 +1,6 @@
 package com.ytlite.player.ui.search
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -265,7 +266,8 @@ private fun ChannelResultRow(
             contentDescription = item.title,
             modifier = Modifier
                 .size(44.dp)
-                .clip(CircleShape),
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.surfaceVariant),
         )
         Column(modifier = Modifier.weight(1f)) {
             Text(

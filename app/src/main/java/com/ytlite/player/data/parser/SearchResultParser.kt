@@ -160,7 +160,7 @@ object SearchResultParser {
             channelId = channelId,
             title = title,
             subtitle = subtitle,
-            thumbnailUrl = pickThumbnailUrl(renderer.optJSONObject("thumbnail")),
+            thumbnailUrl = pickChannelAvatarUrl(renderer),
         )
     }
 
@@ -196,13 +196,35 @@ object SearchResultParser {
         return null
     }
 
+    /**
+     * Channel avatars live under [channelThumbnailSupportedRenderers] for current InnerTube
+     * search responses; older payloads still use top-level [thumbnail].
+     */
+    private fun pickChannelAvatarUrl(renderer: JSONObject): String? {
+        val supported = renderer.optJSONObject("channelThumbnailSupportedRenderers")
+            ?.optJSONObject("channelThumbnailWithLinkRenderer")
+            ?.optJSONObject("thumbnail")
+        return pickThumbnailUrl(supported)
+            ?: pickThumbnailUrl(renderer.optJSONObject("thumbnail"))
+            ?: pickThumbnailUrl(renderer.optJSONObject("avatar"))
+    }
+
     private fun pickThumbnailUrl(thumbnail: JSONObject?): String? {
         val thumbnails = thumbnail?.optJSONArray("thumbnails") ?: return null
         if (thumbnails.length() == 0) return null
-        return thumbnails.optJSONObject(thumbnails.length() - 1)
+        val raw = thumbnails.optJSONObject(thumbnails.length() - 1)
             ?.optString("url")
             ?.takeIf { it.isNotBlank() }
+            ?: return null
+        return normalizeThumbnailUrl(raw)
     }
+
+    private fun normalizeThumbnailUrl(url: String): String =
+        when {
+            url.startsWith("//") -> "https:$url"
+            url.startsWith("http://") -> "https://${url.removePrefix("http://")}"
+            else -> url
+        }
 
     private fun extractText(textObject: JSONObject?): String? {
         if (textObject == null) return null
