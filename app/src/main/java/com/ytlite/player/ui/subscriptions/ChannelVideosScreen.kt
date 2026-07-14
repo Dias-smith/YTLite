@@ -129,6 +129,7 @@ fun ChannelVideosScreen(
                 }
                 uiState.errorMessage != null && uiState.videos.isEmpty() -> {
                     SubscriptionErrorContent(
+                        title = stringResource(R.string.channel_videos_error_title),
                         message = uiState.errorMessage.orEmpty(),
                         onRetry = { viewModel.refresh() },
                         modifier = Modifier.fillMaxSize(),

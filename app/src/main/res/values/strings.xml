@@ -33,7 +33,9 @@
     <string name="subscriptions_sort_most_relevant">Most relevant</string>
     <string name="subscriptions_channels_empty">No subscribed channels</string>
     <string name="channel_videos_empty">No videos on this channel</string>
+    <string name="channel_videos_error_title">Couldn\'t load channel</string>
     <string name="subscriptions_error_title">Couldn\'t load subscriptions</string>
+    <string name="error_channel_videos_load_failed">Couldn\'t load channel videos</string>
     <string name="subscriptions_reauth_required">Sign in again to authorize YouTube data access. Sign out, then sign in with Google and grant YouTube read-only permission.</string>
     <string name="library_sign_in_title">Enjoy your favorite videos</string>
     <string name="library_sign_in_description">Sign in to access videos you liked or saved</string>

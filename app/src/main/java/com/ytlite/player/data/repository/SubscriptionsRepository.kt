@@ -1,14 +1,16 @@
 package com.ytlite.player.data.repository
 
 import android.content.Context
+import com.ytlite.player.R
 import com.ytlite.player.data.auth.AuthRepository
 import com.ytlite.player.data.auth.UserSession
-import com.ytlite.player.R
 import com.ytlite.player.data.model.ChannelPage
 import com.ytlite.player.data.model.ExtractionResult
 import com.ytlite.player.data.model.FeedPage
 import com.ytlite.player.data.model.SubscriptionChannel
+import com.ytlite.player.data.network.InnerTubeApi
 import com.ytlite.player.data.network.YouTubeNetworkException
+import com.ytlite.player.data.parser.BrowseParser
 import com.ytlite.player.data.remote.youtube.YoutubeSubscriptionsDataSource
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -17,6 +19,7 @@ class SubscriptionsRepository(
     context: Context,
     private val authRepository: AuthRepository,
     private val dataSource: YoutubeSubscriptionsDataSource,
+    private val innerTubeApi: InnerTubeApi = InnerTubeApi.getInstance(),
 ) {
     private val appContext = context.applicationContext
 
@@ -72,12 +75,26 @@ class SubscriptionsRepository(
             runChannelRequest { dataSource.fetchChannels(continuation) }
         }
 
+    /**
+     * Channel uploads for ChannelVideosScreen (Search / Subs).
+     * Prefers public InnerTube uploads playlist (no Google sign-in required).
+     */
     suspend fun fetchChannelVideos(
         channel: SubscriptionChannel,
         continuation: String? = null,
     ): ExtractionResult<FeedPage> = withContext(Dispatchers.IO) {
+        val publicPage = runCatching {
+            fetchChannelVideosViaInnerTube(channel, continuation)
+        }.getOrNull()
+        if (publicPage != null) {
+            return@withContext ExtractionResult.Success(publicPage)
+        }
+
+        ensureAuthReady()
         if (authRepository.currentSession() !is UserSession.Authenticated) {
-            return@withContext ExtractionResult.Error(signInRequiredMessage())
+            return@withContext ExtractionResult.Error(
+                appContext.getString(R.string.error_channel_videos_load_failed),
+            )
         }
         if (authRepository.needsYoutubeDataApiReauth()) {
             return@withContext ExtractionResult.Error(youtubeReauthRequiredMessage())
@@ -88,16 +105,41 @@ class SubscriptionsRepository(
                 channelName = channel.title,
                 continuation = continuation,
             )
-            if (page == null || page.videos.isEmpty()) {
-                ExtractionResult.Success(FeedPage(videos = emptyList(), continuation = null))
+            if (page == null) {
+                ExtractionResult.Error(appContext.getString(R.string.error_channel_videos_load_failed))
             } else {
                 ExtractionResult.Success(page)
             }
         } catch (e: YouTubeNetworkException) {
-            ExtractionResult.Error("Network error while loading channel videos", e)
+            ExtractionResult.Error(appContext.getString(R.string.error_channel_videos_load_failed), e)
         } catch (e: Exception) {
-            ExtractionResult.Error("Network error while loading channel videos", e)
+            ExtractionResult.Error(appContext.getString(R.string.error_channel_videos_load_failed), e)
         }
+    }
+
+    private fun fetchChannelVideosViaInnerTube(
+        channel: SubscriptionChannel,
+        continuation: String?,
+    ): FeedPage? {
+        val uploadsPlaylistId = toUploadsPlaylistId(channel.channelId) ?: return null
+        val response = innerTubeApi.browsePlaylistItems(uploadsPlaylistId, continuation)
+        val page = BrowseParser.parseVideoList(response)
+        val videos = page.rankedVideos.map { video ->
+            video.copy(
+                channelId = channel.channelId,
+                channelName = channel.title.ifBlank { video.channelName },
+            )
+        }
+        // Treat empty+no-continuation as hard failure so Data API can still try when signed in.
+        if (videos.isEmpty() && page.continuation.isNullOrBlank() && continuation.isNullOrBlank()) {
+            return null
+        }
+        return FeedPage(videos = videos, continuation = page.continuation)
+    }
+
+    private fun toUploadsPlaylistId(channelId: String): String? {
+        if (!channelId.startsWith("UC") || channelId.length <= 2) return null
+        return "UU" + channelId.substring(2)
     }
 
     private inline fun runFeedRequest(request: () -> FeedPage?): ExtractionResult<FeedPage> {

@@ -260,6 +260,7 @@ internal fun SubscriptionErrorContent(
     message: String,
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
+    title: String = stringResource(R.string.subscriptions_error_title),
 ) {
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
         Column(
@@ -268,7 +269,7 @@ internal fun SubscriptionErrorContent(
             modifier = Modifier.padding(24.dp),
         ) {
             Text(
-                text = stringResource(R.string.subscriptions_error_title),
+                text = title,
                 style = MaterialTheme.typography.titleMedium,
             )
             Text(
