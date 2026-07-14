@@ -23,7 +23,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -57,9 +56,6 @@ fun AlbumTracksScreen(
     )
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val onTrackMoreClick = LocalTrackMoreClick.current
-    val queueItems = remember(uiState.tracks) {
-        uiState.tracks.map { it.toQueueItem() }
-    }
     val sourcePlaylistId = "album:$albumName"
 
     Scaffold(
@@ -100,11 +96,12 @@ fun AlbumTracksScreen(
                     AlbumTrackRow(
                         video = video,
                         onClick = {
+                            val queueItems = uiState.tracks.map { track ->
+                                track.toQueueItem().copy(album = albumName)
+                            }
                             val startIndex = queueItems.indexOfFirst { it.videoId == video.videoId }
                                 .coerceAtLeast(0)
-                            if (queueItems.isNotEmpty()) {
-                                onPlayPlaylist(queueItems, startIndex, sourcePlaylistId)
-                            }
+                            onPlayPlaylist(queueItems, startIndex, sourcePlaylistId)
                         },
                         onMoreClick = {
                             onTrackMoreClick(TrackActionContext.fromLibraryVideo(video))

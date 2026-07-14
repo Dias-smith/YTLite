@@ -708,18 +708,25 @@ class PlayerViewModel(
             val currentItem = QueueItem.fromNowPlaying(nowPlaying)
             val queue = PlayQueueRepository.state.value
             val existingIndex = queue.items.indexOfFirst { it.videoId == playback.videoId }
-            if (existingIndex >= 0) {
-                if (existingIndex != queue.currentIndex) {
-                    PlayQueueRepository.setCurrentIndex(existingIndex)
+            when {
+                existingIndex >= 0 -> {
+                    if (existingIndex != queue.currentIndex) {
+                        PlayQueueRepository.setCurrentIndex(existingIndex)
+                    }
+                    PlayQueueRepository.updateStreamUrl(playback.videoId, format.url, format.itag)
                 }
-                PlayQueueRepository.updateStreamUrl(playback.videoId, format.url, format.itag)
-            } else {
-                // New track opened from detail: keep it at the front before related are seeded.
-                PlayQueueRepository.setQueue(
-                    items = listOf(currentItem),
-                    startIndex = 0,
-                    preservePlaybackMode = true,
-                )
+                // Album/playlist/channel context: never wipe Up next down to a single related seed.
+                queue.sourcePlaylistId != null -> {
+                    PlayQueueRepository.syncCurrentInPlaylistContext(currentItem)
+                }
+                else -> {
+                    // New track opened from detail: keep it at the front before related are seeded.
+                    PlayQueueRepository.setQueue(
+                        items = listOf(currentItem),
+                        startIndex = 0,
+                        preservePlaybackMode = true,
+                    )
+                }
             }
         }
         PlaybackManager.play(nowPlaying)

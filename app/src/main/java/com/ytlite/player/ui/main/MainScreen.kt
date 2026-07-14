@@ -219,6 +219,7 @@ fun MainScreen(
                     channel = selectedChannel!!,
                     onBack = { selectedChannel = null },
                     onVideoClick = onVideoClick,
+                    onPlayPlaylist = onPlayPlaylist,
                     modifier = Modifier
                         .fillMaxSize()
                         .mainTabPadding(innerPadding, applyTopInset = false),
@@ -248,6 +249,7 @@ fun MainScreen(
                 MainTab.Search -> SearchScreen(
                     onVideoClick = onVideoClick,
                     onChannelClick = { channel -> selectedChannel = channel },
+                    onPlayPlaylist = onPlayPlaylist,
                     modifier = Modifier
                         .fillMaxSize()
                         .mainTabPadding(innerPadding, applyTopInset = true),

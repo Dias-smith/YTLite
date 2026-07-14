@@ -42,9 +42,11 @@ import coil.compose.AsyncImage
 import com.ytlite.player.R
 import com.ytlite.player.data.model.SubscriptionChannel
 import com.ytlite.player.data.model.VideoItem
+import com.ytlite.player.playback.QueueItem
 import com.ytlite.player.ui.home.VideoFeedItem
 import com.ytlite.player.ui.image.rememberYTLiteImageLoader
 import com.ytlite.player.ui.image.thumbnailRequest
+import com.ytlite.player.ui.player.toQueueItem
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -52,6 +54,7 @@ fun ChannelVideosScreen(
     channel: SubscriptionChannel,
     onBack: () -> Unit,
     onVideoClick: (VideoItem) -> Unit,
+    onPlayPlaylist: (List<QueueItem>, Int, String) -> Unit = { _, _, _ -> },
     modifier: Modifier = Modifier,
 ) {
     val application = LocalContext.current.applicationContext as Application
@@ -74,6 +77,16 @@ fun ChannelVideosScreen(
     LaunchedEffect(shouldLoadMore, uiState.continuation, uiState.isLoadingMore) {
         if (shouldLoadMore && uiState.continuation != null && !uiState.isLoadingMore) {
             viewModel.loadMore()
+        }
+    }
+
+    fun playFromChannel(video: VideoItem) {
+        val queueItems = uiState.videos.map { it.toQueueItem() }
+        val startIndex = queueItems.indexOfFirst { it.videoId == video.videoId }.coerceAtLeast(0)
+        if (queueItems.isNotEmpty()) {
+            onPlayPlaylist(queueItems, startIndex, "yt_channel:${channel.channelId}")
+        } else {
+            onVideoClick(video)
         }
     }
 
@@ -161,7 +174,7 @@ fun ChannelVideosScreen(
                             VideoFeedItem(
                                 video = video,
                                 imageLoader = imageLoader,
-                                onClick = { onVideoClick(video) },
+                                onClick = { playFromChannel(video) },
                             )
                         }
                         if (uiState.isLoadingMore) {

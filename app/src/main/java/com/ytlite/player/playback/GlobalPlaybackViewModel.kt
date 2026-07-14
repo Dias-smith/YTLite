@@ -12,6 +12,8 @@ import com.ytlite.player.data.preferences.PlaybackPreferences
 import com.ytlite.player.data.repository.CaptionRepository
 import com.ytlite.player.data.repository.ExtractionRepository
 import com.ytlite.player.ui.player.PlaybackFormatSelector
+import com.ytlite.player.ui.player.PlayerLaunchPreview
+import com.ytlite.player.ui.player.toVideoItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -492,6 +494,9 @@ class GlobalPlaybackViewModel(
                 startIndex = safeIndex,
                 sourcePlaylistId = sourcePlaylistId,
             )
+            if (openPlayer) {
+                PlayerLaunchPreview.set(start.toVideoItem())
+            }
             if (PlaybackManager.handleSameTrackClick(start.videoId)) {
                 if (openPlayer) {
                     PlaybackNavigation.requestOpenPlayer(start.videoId)

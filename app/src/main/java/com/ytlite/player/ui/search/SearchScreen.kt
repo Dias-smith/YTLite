@@ -22,15 +22,19 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import android.app.Application
 import com.ytlite.player.R
+import com.ytlite.player.data.model.BrowseVideosKind
 import com.ytlite.player.data.model.SearchResultItem
 import com.ytlite.player.data.model.SearchScreenState
 import com.ytlite.player.data.model.SubscriptionChannel
 import com.ytlite.player.data.model.VideoItem
+import com.ytlite.player.playback.QueueItem
+import com.ytlite.player.ui.player.toQueueItem
 
 @Composable
 fun SearchScreen(
     onVideoClick: (VideoItem) -> Unit,
     onChannelClick: (SubscriptionChannel) -> Unit,
+    onPlayPlaylist: (List<QueueItem>, Int, String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: SearchViewModel = viewModel(
         factory = SearchViewModel.factory(LocalContext.current.applicationContext as Application),
@@ -74,7 +78,20 @@ fun SearchScreen(
                     onBack = viewModel::onBrowseBack,
                     onRefresh = viewModel::refreshBrowse,
                     onLoadMore = viewModel::loadMoreBrowse,
-                    onVideoClick = onVideoClick,
+                    onVideoClick = { video ->
+                        val queueItems = uiState.browseVideos.map { it.toQueueItem() }
+                        val startIndex = queueItems.indexOfFirst { it.videoId == video.videoId }
+                            .coerceAtLeast(0)
+                        if (queueItems.isNotEmpty()) {
+                            val sourceId = when (state.kind) {
+                                BrowseVideosKind.PLAYLIST -> "yt_playlist:${state.browseId}"
+                                BrowseVideosKind.MOOD -> "yt_browse:${state.browseId}"
+                            }
+                            onPlayPlaylist(queueItems, startIndex, sourceId)
+                        } else {
+                            onVideoClick(video)
+                        }
+                    },
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(bottom = innerPadding.calculateBottomPadding()),

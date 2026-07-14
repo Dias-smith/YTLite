@@ -55,11 +55,6 @@ fun HomeScreen(
     val listState = remember(uiState.selectedCategoryId) { LazyListState() }
     val albumBrowse = uiState.albumBrowse
     if (albumBrowse != null) {
-        val queueItems = remember(albumBrowse.tracks, albumBrowse.album.title) {
-            albumBrowse.tracks.map { track ->
-                track.toQueueItem().copy(album = albumBrowse.album.title)
-            }
-        }
         val sourcePlaylistId = "music_album:${albumBrowse.album.browseId}"
         BrowseVideosScreen(
             title = albumBrowse.album.title,
@@ -72,12 +67,13 @@ fun HomeScreen(
             onRefresh = viewModel::refreshAlbumBrowse,
             onLoadMore = {},
             onVideoClick = { video ->
+                val queueItems = albumBrowse.tracks.map { track ->
+                    track.toQueueItem().copy(album = albumBrowse.album.title)
+                }
                 val startIndex = queueItems.indexOfFirst { it.videoId == video.videoId }
                     .coerceAtLeast(0)
                 if (queueItems.isNotEmpty()) {
                     onPlayPlaylist(queueItems, startIndex, sourcePlaylistId)
-                } else {
-                    onVideoClick(video)
                 }
             },
             applyStatusBarInsets = true,

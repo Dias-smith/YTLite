@@ -179,6 +179,14 @@ fun YTLiteNavHost(modifier: Modifier = Modifier) {
                         playerChannelOverlay = null
                         openPlayer(video, launchSingleTop = true)
                     },
+                    onPlayPlaylist = { items, startIndex, sourcePlaylistId ->
+                        playerChannelOverlay = null
+                        globalPlaybackViewModel.playPlaylist(
+                            items = items,
+                            startIndex = startIndex,
+                            sourcePlaylistId = sourcePlaylistId,
+                        )
+                    },
                     modifier = Modifier.fillMaxSize(),
                 )
             }

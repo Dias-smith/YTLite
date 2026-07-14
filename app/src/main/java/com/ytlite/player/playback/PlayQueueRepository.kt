@@ -278,6 +278,43 @@ object PlayQueueRepository {
         }
     }
 
+    /**
+     * Keep playlist/album [sourcePlaylistId] queue intact when the now-playing track is
+     * already in the list (update URL / index) or unexpectedly missing (insert without wipe).
+     */
+    fun syncCurrentInPlaylistContext(current: QueueItem) {
+        _state.update { state ->
+            if (state.sourcePlaylistId == null) return@update state
+            val existingIndex = state.items.indexOfFirst { it.videoId == current.videoId }
+            if (existingIndex >= 0) {
+                val updated = state.items.toMutableList()
+                val previous = updated[existingIndex]
+                updated[existingIndex] = previous.copy(
+                    title = current.title.ifBlank { previous.title },
+                    channelName = current.channelName.ifBlank { previous.channelName },
+                    thumbnailUrl = current.thumbnailUrl.ifBlank { previous.thumbnailUrl },
+                    streamUrl = current.streamUrl ?: previous.streamUrl,
+                    itag = current.itag ?: previous.itag,
+                    durationText = current.durationText ?: previous.durationText,
+                )
+                originalOrder = originalOrder?.map { item ->
+                    if (item.videoId == current.videoId) updated[existingIndex] else item
+                }
+                state.copy(items = updated, currentIndex = existingIndex)
+            } else if (state.items.isEmpty()) {
+                originalOrder = listOf(current)
+                state.copy(items = listOf(current), currentIndex = 0)
+            } else {
+                val insertAt = (state.currentIndex + 1).coerceIn(0, state.items.size)
+                val updated = state.items.toMutableList().apply { add(insertAt, current) }
+                originalOrder = (originalOrder ?: state.items).toMutableList().apply {
+                    add(insertAt.coerceAtMost(size), current)
+                }
+                state.copy(items = updated, currentIndex = insertAt)
+            }
+        }
+    }
+
     fun cycleRepeatMode(): QueueRepeatMode {
         var next = QueueRepeatMode.OFF
         _state.update { state ->
