@@ -17,18 +17,24 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.ytlite.player.R
-import com.ytlite.player.data.local.entity.PlaylistEntity
+import com.ytlite.player.data.local.entity.PlaylistSystemType
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlaylistPickerSheet(
-    playlists: List<PlaylistEntity>,
+    playlists: List<PlaylistPickerOption>,
     onDismiss: () -> Unit,
     onPlaylistSelected: (String) -> Unit,
     onCreatePlaylist: () -> Unit,
     subtitle: String? = null,
+    trackCount: Int? = null,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val title = if (trackCount != null && trackCount > 0) {
+        stringResource(R.string.player_save_to_playlist_count, trackCount)
+    } else {
+        stringResource(R.string.player_save_to_playlist)
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -40,11 +46,11 @@ fun PlaylistPickerSheet(
                 .padding(bottom = 24.dp),
         ) {
             Text(
-                text = stringResource(R.string.player_save_to_playlist),
+                text = title,
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
             )
-            if (!subtitle.isNullOrBlank()) {
+            if (!subtitle.isNullOrBlank() && trackCount == null) {
                 Text(
                     text = subtitle,
                     style = MaterialTheme.typography.bodySmall,
@@ -58,6 +64,7 @@ fun PlaylistPickerSheet(
                     Text(
                         text = stringResource(R.string.library_new_playlist_title),
                         style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable(onClick = onCreatePlaylist)
@@ -66,7 +73,7 @@ fun PlaylistPickerSheet(
                 }
                 items(playlists, key = { it.playlistId }) { playlist ->
                     Text(
-                        text = playlist.name,
+                        text = playlistPickerDisplayName(playlist),
                         style = MaterialTheme.typography.bodyLarge,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -77,4 +84,11 @@ fun PlaylistPickerSheet(
             }
         }
     }
+}
+
+@Composable
+private fun playlistPickerDisplayName(playlist: PlaylistPickerOption): String = when (playlist.systemType) {
+    PlaylistSystemType.WATCH_LATER -> stringResource(R.string.library_watch_later)
+    PlaylistSystemType.FAVORITES -> stringResource(R.string.library_liked_videos)
+    else -> playlist.name
 }

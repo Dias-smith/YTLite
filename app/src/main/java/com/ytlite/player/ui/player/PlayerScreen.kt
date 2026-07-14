@@ -363,14 +363,10 @@ fun PlayerScreen(
     val libraryVideo = viewModel.libraryVideo()
     val saveBatch = uiState.playlistSaveItems
     if (uiState.isPlaylistPickerVisible && (saveBatch != null || libraryVideo != null)) {
-        val subtitle = if (saveBatch != null) {
-            stringResource(R.string.player_save_list_count, saveBatch.size)
-        } else {
-            libraryVideo?.title
-        }
         PlaylistPickerSheet(
             playlists = playlistPickerState.playlists,
-            subtitle = subtitle,
+            trackCount = saveBatch?.size,
+            subtitle = if (saveBatch == null) libraryVideo?.title else null,
             onDismiss = viewModel::dismissPlaylistPicker,
             onPlaylistSelected = viewModel::saveToPlaylist,
             onCreatePlaylist = viewModel::showNewPlaylistDialog,

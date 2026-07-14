@@ -80,6 +80,7 @@
     <string name="player_list_multi_select">Multi-select</string>
     <string name="player_save_playlist">Save</string>
     <string name="player_save_to_playlist">Save to playlist</string>
+    <string name="player_save_to_playlist_count">Save to playlist (%1$d tracks)</string>
     <string name="player_save_list_to_playlist">Save list to playlist</string>
     <string name="player_save_list_count">%1$d tracks</string>
     <string name="player_download">Download</string>

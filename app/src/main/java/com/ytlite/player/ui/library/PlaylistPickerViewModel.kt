@@ -8,7 +8,11 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.ytlite.player.data.auth.AuthRepository
-import com.ytlite.player.data.local.entity.PlaylistEntity
+import com.ytlite.player.data.auth.UserSession
+import com.ytlite.player.data.local.entity.PlaylistSystemType
+import com.ytlite.player.data.model.LibraryFilterChip
+import com.ytlite.player.data.model.LibraryItem
+import com.ytlite.player.data.model.LibrarySort
 import com.ytlite.player.data.model.LibraryVideo
 import com.ytlite.player.data.repository.LibraryRepository
 import kotlinx.coroutines.flow.SharingStarted
@@ -20,8 +24,15 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 @Immutable
+data class PlaylistPickerOption(
+    val playlistId: String,
+    val systemType: String? = null,
+    val name: String = "",
+)
+
+@Immutable
 data class PlaylistPickerUiState(
-    val playlists: List<PlaylistEntity> = emptyList(),
+    val playlists: List<PlaylistPickerOption> = emptyList(),
 )
 
 class PlaylistPickerViewModel(
@@ -33,9 +44,24 @@ class PlaylistPickerViewModel(
         .flatMapLatest { session ->
             val ownerKey = session?.ownerKey
                 ?: return@flatMapLatest flowOf(PlaylistPickerUiState())
-            libraryRepository.getUnifiedPlaylists(ownerKey).map { playlists ->
+            val isAuthenticated = session is UserSession.Authenticated
+            libraryRepository.observeLibraryItems(
+                ownerKey = ownerKey,
+                filter = LibraryFilterChip.PLAYLISTS,
+                sort = LibrarySort.RECENT_ACTIVITY,
+                isAuthenticated = isAuthenticated,
+            ).map { items ->
                 PlaylistPickerUiState(
-                    playlists = playlists.filter { it.systemType == null },
+                    playlists = items
+                        .filterIsInstance<LibraryItem.Playlist>()
+                        .filter { it.systemType != PlaylistSystemType.HISTORY }
+                        .map {
+                            PlaylistPickerOption(
+                                playlistId = it.playlistId,
+                                systemType = it.systemType,
+                                name = it.title,
+                            )
+                        },
                 )
             }
         }
