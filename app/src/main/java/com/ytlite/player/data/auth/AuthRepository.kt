@@ -34,6 +34,11 @@ class AuthRepository(
 
     suspend fun initialize() = initializeMutex.withLock {
         val guestId = guestSessionStore.ensureGuestId()
+        runCatching {
+            val cookieStore = com.ytlite.player.data.network.YoutubeCookieSessionStore.getInstance(context)
+            cookieStore.restoreIntoCookieManagerAndJar()
+            com.ytlite.player.data.network.YoutubeCookieJar.syncFromWebView()
+        }
         val client = SupabaseClientProvider.get(context)
         val storedUserId = guestSessionStore.supabaseUserIdFlow.first()
 
@@ -109,6 +114,10 @@ class AuthRepository(
         cachedGoogleAccessToken = null
         guestSessionStore.setGoogleAccessToken(null)
         guestSessionStore.setActiveChannelId(userId, null)
+        runCatching {
+            com.ytlite.player.data.network.YoutubeCookieSessionStore.getInstance(context).clear()
+            com.ytlite.player.data.network.YoutubeCookieJar.clearAll()
+        }
 
         val guestId = guestSessionStore.ensureGuestId()
         val guestOwnerKey = "guest:$guestId"

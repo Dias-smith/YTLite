@@ -17,6 +17,8 @@ object InnerTubeConfig {
 
     const val BROWSE_ID_HOME = "FEwhat_to_watch"
     const val BROWSE_ID_LIBRARY = "FEmy_youtube"
+    /** Signed-in watch history feed (requires YouTube cookies + SAPISIDHASH). */
+    const val BROWSE_ID_HISTORY = "FEhistory"
     const val BROWSE_ID_TRENDING = "FEtrending"
     const val BROWSE_ID_EXPLORE = "FEtopics_base"
     const val BROWSE_ID_CHARTS = "FEmusic_charts"

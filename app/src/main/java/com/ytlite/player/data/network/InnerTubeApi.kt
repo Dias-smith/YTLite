@@ -23,16 +23,31 @@ class InnerTubeApi(
         )
     }
 
+    fun browseHistory(continuation: String? = null): JSONObject {
+        return browse(
+            browseId = InnerTubeConfig.BROWSE_ID_HISTORY,
+            label = "browse_history",
+            continuation = continuation,
+            authenticated = true,
+        )
+    }
+
     fun browsePlaylistItems(
         youtubePlaylistId: String,
         continuation: String? = null,
+        authenticated: Boolean = false,
     ): JSONObject {
         val browseId = if (youtubePlaylistId.startsWith("VL")) {
             youtubePlaylistId
         } else {
             "VL$youtubePlaylistId"
         }
-        return browse(browseId, label = "browse_playlist", continuation = continuation)
+        return browse(
+            browseId = browseId,
+            label = "browse_playlist",
+            continuation = continuation,
+            authenticated = authenticated,
+        )
     }
 
     private fun browse(

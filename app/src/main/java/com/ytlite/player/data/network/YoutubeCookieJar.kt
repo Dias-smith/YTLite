@@ -81,6 +81,32 @@ object YoutubeCookieJar : CookieJar {
         cookies.clear()
     }
 
+    /** Clears in-memory jar and WebView CookieManager (Google / YouTube). */
+    fun clearAll(callback: (() -> Unit)? = null) {
+        cookies.clear()
+        val manager = CookieManager.getInstance()
+        manager.removeAllCookies {
+            manager.flush()
+            callback?.invoke()
+        }
+        // Also wipe common auth hosts in case removeAllCookies is delayed.
+        listOf(
+            "https://www.youtube.com",
+            "https://youtube.com",
+            "https://m.youtube.com",
+            "https://accounts.google.com",
+            "https://google.com",
+        ).forEach { host ->
+            manager.getCookie(host)?.split(";")?.forEach { part ->
+                val name = part.trim().substringBefore("=")
+                if (name.isNotBlank()) {
+                    manager.setCookie(host, "$name=; Max-Age=0; Path=/")
+                }
+            }
+        }
+        manager.flush()
+    }
+
     fun findCookieValue(name: String): String? =
         cookies.firstOrNull { it.name == name }?.value
 

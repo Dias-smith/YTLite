@@ -21,6 +21,8 @@ fun SubscriptionsScreen(
     onPlaylistsViewAll: () -> Unit = {},
     onPlaylistClick: (YoutubePlaylistNav) -> Unit = {},
     onCreatePlaylistClick: () -> Unit = {},
+    onYoutubeWebLoginClick: () -> Unit = {},
+    youtubeCookieSessionEpoch: Int = 0,
     modifier: Modifier = Modifier,
 ) {
     when (session) {
@@ -34,6 +36,8 @@ fun SubscriptionsScreen(
             onChannelClick = onChannelClick,
             onVideoClick = onVideoClick,
             onCreatePlaylistClick = onCreatePlaylistClick,
+            onYoutubeWebLoginClick = onYoutubeWebLoginClick,
+            youtubeCookieSessionEpoch = youtubeCookieSessionEpoch,
             modifier = modifier,
         )
         else -> SignInPromptScreen(

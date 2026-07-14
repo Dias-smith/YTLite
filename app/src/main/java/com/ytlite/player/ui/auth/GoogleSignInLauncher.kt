@@ -3,6 +3,7 @@ package com.ytlite.player.ui.auth
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import com.ytlite.player.BuildConfig
@@ -20,6 +21,7 @@ data class GoogleSignInLauncher(
 @Composable
 fun rememberGoogleSignInLauncher(
     onError: (String) -> Unit,
+    onSuccess: () -> Unit = {},
 ): GoogleSignInLauncher {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -27,6 +29,8 @@ fun rememberGoogleSignInLauncher(
     val googleSignInHelper = rememberGoogleNativeSignInHelper()
     val supabaseNotConfigured = stringResource(R.string.sign_in_supabase_not_configured)
     val googleNotConfigured = stringResource(R.string.sign_in_google_not_configured)
+    val latestOnSuccess = rememberUpdatedState(onSuccess)
+    val latestOnError = rememberUpdatedState(onError)
 
     if (!SupabaseClientProvider.isConfigured) {
         return remember(supabaseNotConfigured) {
@@ -56,9 +60,14 @@ fun rememberGoogleSignInLauncher(
                         .mapCatching { tokens ->
                             authRepository.signInWithGoogleNative(tokens).getOrThrow()
                         }
+                        .onSuccess {
+                            latestOnSuccess.value()
+                        }
                         .onFailure { error ->
                             if (error !is GoogleSignInCancelledException) {
-                                onError(error.message ?: context.getString(R.string.error_sign_in_failed))
+                                latestOnError.value(
+                                    error.message ?: context.getString(R.string.error_sign_in_failed),
+                                )
                             }
                         }
                 }

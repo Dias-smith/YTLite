@@ -45,7 +45,9 @@ import com.ytlite.player.data.model.SubscriptionChannel
 import com.ytlite.player.playback.GlobalPlaybackUiState
 import com.ytlite.player.playback.QueueItem
 import com.ytlite.player.ui.auth.AuthViewModel
+import com.ytlite.player.ui.auth.YoutubeWebLoginScreen
 import com.ytlite.player.ui.auth.rememberGoogleSignInLauncher
+import com.ytlite.player.data.network.YoutubeCookieJar
 import com.ytlite.player.ui.home.HomeScreen
 import com.ytlite.player.ui.library.AccountSwitcherSheet
 import com.ytlite.player.ui.library.LibraryScreen
@@ -124,13 +126,17 @@ fun MainScreen(
     var selectedChannel by remember { mutableStateOf<SubscriptionChannel?>(null) }
     var selectedYoutubePlaylist by remember { mutableStateOf<YoutubePlaylistNav?>(null) }
     var showAccountSwitcher by rememberSaveable { mutableStateOf(false) }
+    var showYoutubeWebLogin by rememberSaveable { mutableStateOf(false) }
+    var youtubeCookieSessionEpoch by rememberSaveable { mutableStateOf(0) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val signInComingSoon = stringResource(R.string.sign_in_coming_soon)
     val youtubePlaylistCreateUnavailable = stringResource(R.string.youtube_you_create_playlist_unavailable)
+    val youtubeWebLoginSuccess = stringResource(R.string.youtube_web_login_success)
 
     val authSession by authViewModel.session.collectAsStateWithLifecycle()
     val isYoutubeAuthed = authSession is UserSession.Authenticated
+    val loginHintEmail = (authSession as? UserSession.Authenticated)?.profile?.email
 
     androidx.compose.runtime.LaunchedEffect(pendingArtistChannel) {
         pendingArtistChannel?.let { channel ->
@@ -150,6 +156,12 @@ fun MainScreen(
         onError = { message ->
             scope.launch { snackbarHostState.showSnackbar(message) }
         },
+        onSuccess = {
+            YoutubeCookieJar.syncFromWebView()
+            if (!YoutubeCookieJar.hasAuthCookies()) {
+                showYoutubeWebLogin = true
+            }
+        },
     )
 
     val onSignInClick: () -> Unit = {
@@ -159,6 +171,20 @@ fun MainScreen(
             val message = googleSignIn.notConfiguredMessage ?: signInComingSoon
             scope.launch { snackbarHostState.showSnackbar(message) }
         }
+    }
+
+    if (showYoutubeWebLogin) {
+        YoutubeWebLoginScreen(
+            loginHintEmail = loginHintEmail,
+            onSuccess = {
+                showYoutubeWebLogin = false
+                youtubeCookieSessionEpoch += 1
+                scope.launch { snackbarHostState.showSnackbar(youtubeWebLoginSuccess) }
+            },
+            onDismiss = { showYoutubeWebLogin = false },
+            modifier = Modifier.fillMaxSize(),
+        )
+        return
     }
 
     authSession?.let { session ->
@@ -323,6 +349,8 @@ fun MainScreen(
                             snackbarHostState.showSnackbar(youtubePlaylistCreateUnavailable)
                         }
                     },
+                    onYoutubeWebLoginClick = { showYoutubeWebLogin = true },
+                    youtubeCookieSessionEpoch = youtubeCookieSessionEpoch,
                     modifier = Modifier
                         .fillMaxSize()
                         .mainTabPadding(innerPadding, applyTopInset = true),
