@@ -39,6 +39,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ytlite.player.R
+import com.ytlite.player.data.auth.UserSession
 import com.ytlite.player.data.model.VideoItem
 import com.ytlite.player.data.model.SubscriptionChannel
 import com.ytlite.player.playback.GlobalPlaybackUiState
@@ -46,6 +47,7 @@ import com.ytlite.player.playback.QueueItem
 import com.ytlite.player.ui.auth.AuthViewModel
 import com.ytlite.player.ui.auth.rememberGoogleSignInLauncher
 import com.ytlite.player.ui.home.HomeScreen
+import com.ytlite.player.ui.library.AccountSwitcherSheet
 import com.ytlite.player.ui.library.LibraryScreen
 import com.ytlite.player.ui.playback.MiniPlayerBar
 import com.ytlite.player.ui.search.SearchScreen
@@ -53,6 +55,9 @@ import com.ytlite.player.ui.shorts.ShortsScreen
 import com.ytlite.player.ui.subscriptions.ChannelVideosScreen
 import com.ytlite.player.ui.subscriptions.SubscriptionChannelsScreen
 import com.ytlite.player.ui.subscriptions.SubscriptionsScreen
+import com.ytlite.player.ui.subscriptions.YoutubePlaylistItemsScreen
+import com.ytlite.player.ui.subscriptions.YoutubePlaylistNav
+import com.ytlite.player.ui.subscriptions.YoutubePlaylistsListScreen
 import kotlinx.coroutines.launch
 
 private enum class MainTab(
@@ -115,13 +120,17 @@ fun MainScreen(
     var selectedTabName by rememberSaveable { mutableStateOf(MainTab.Home.name) }
     val selectedTab = MainTab.entries.find { it.name == selectedTabName } ?: MainTab.Home
     var showSubscriptionChannels by rememberSaveable { mutableStateOf(false) }
+    var showYoutubePlaylists by rememberSaveable { mutableStateOf(false) }
     var selectedChannel by remember { mutableStateOf<SubscriptionChannel?>(null) }
+    var selectedYoutubePlaylist by remember { mutableStateOf<YoutubePlaylistNav?>(null) }
+    var showAccountSwitcher by rememberSaveable { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val signInComingSoon = stringResource(R.string.sign_in_coming_soon)
-    val comingSoon = stringResource(R.string.placeholder_coming_soon)
+    val youtubePlaylistCreateUnavailable = stringResource(R.string.youtube_you_create_playlist_unavailable)
 
     val authSession by authViewModel.session.collectAsStateWithLifecycle()
+    val isYoutubeAuthed = authSession is UserSession.Authenticated
 
     androidx.compose.runtime.LaunchedEffect(pendingArtistChannel) {
         pendingArtistChannel?.let { channel ->
@@ -152,6 +161,22 @@ fun MainScreen(
         }
     }
 
+    authSession?.let { session ->
+        AccountSwitcherSheet(
+            session = session,
+            visible = showAccountSwitcher,
+            onDismiss = { showAccountSwitcher = false },
+            onAddAccountClick = {
+                showAccountSwitcher = false
+                onSignInClick()
+            },
+            onSignOutClick = {
+                showAccountSwitcher = false
+                authViewModel.switchToGuestMode()
+            },
+        )
+    }
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -177,6 +202,11 @@ fun MainScreen(
                     )
                     MainTab.entries.forEach { tab ->
                         val selected = selectedTab == tab
+                        val labelRes = if (tab == MainTab.Subscriptions && isYoutubeAuthed) {
+                            R.string.nav_youtube
+                        } else {
+                            tab.labelRes
+                        }
                         NavigationBarItem(
                             selected = selected,
                             onClick = { selectedTabName = tab.name },
@@ -188,12 +218,12 @@ fun MainScreen(
                                     } else {
                                         tab.unselectedIcon
                                     },
-                                    contentDescription = stringResource(tab.labelRes),
+                                    contentDescription = stringResource(labelRes),
                                 )
                             },
                             label = {
                                 Text(
-                                    text = stringResource(tab.labelRes),
+                                    text = stringResource(labelRes),
                                     style = MaterialTheme.typography.labelSmall.copy(
                                         fontWeight = if (selected) {
                                             FontWeight.Bold
@@ -214,12 +244,37 @@ fun MainScreen(
         },
     ) { innerPadding ->
         when {
+            selectedYoutubePlaylist != null -> {
+                val playlist = selectedYoutubePlaylist!!
+                YoutubePlaylistItemsScreen(
+                    playlistId = playlist.playlistId,
+                    title = playlist.title,
+                    onBack = { selectedYoutubePlaylist = null },
+                    onVideoClick = onVideoClick,
+                    onPlayPlaylist = onPlayPlaylist,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .mainTabPadding(innerPadding, applyTopInset = false),
+                )
+            }
             selectedChannel != null -> {
                 ChannelVideosScreen(
                     channel = selectedChannel!!,
                     onBack = { selectedChannel = null },
                     onVideoClick = onVideoClick,
                     onPlayPlaylist = onPlayPlaylist,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .mainTabPadding(innerPadding, applyTopInset = false),
+                )
+            }
+            showYoutubePlaylists -> {
+                YoutubePlaylistsListScreen(
+                    onBack = { showYoutubePlaylists = false },
+                    onPlaylistClick = { playlist ->
+                        showYoutubePlaylists = false
+                        selectedYoutubePlaylist = playlist
+                    },
                     modifier = Modifier
                         .fillMaxSize()
                         .mainTabPadding(innerPadding, applyTopInset = false),
@@ -260,6 +315,14 @@ fun MainScreen(
                     onVideoClick = onVideoClick,
                     onChannelListClick = { showSubscriptionChannels = true },
                     onChannelClick = { channel -> selectedChannel = channel },
+                    onSwitchAccountClick = { showAccountSwitcher = true },
+                    onPlaylistsViewAll = { showYoutubePlaylists = true },
+                    onPlaylistClick = { playlist -> selectedYoutubePlaylist = playlist },
+                    onCreatePlaylistClick = {
+                        scope.launch {
+                            snackbarHostState.showSnackbar(youtubePlaylistCreateUnavailable)
+                        }
+                    },
                     modifier = Modifier
                         .fillMaxSize()
                         .mainTabPadding(innerPadding, applyTopInset = true),

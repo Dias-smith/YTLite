@@ -536,6 +536,248 @@ class YoutubeDataApiClient(
         )
     }
 
+    /**
+     * playlistItems.list for any playlist (WL / LL / uploads / custom).
+     * Does not filter items by owner channelId.
+     */
+    fun listPlaylistItemsPage(
+        oauthAccessToken: String,
+        playlistId: String,
+        pageToken: String? = null,
+        maxResults: Int = 12,
+    ): FeedPage? {
+        if (!isConfigured || playlistId.isBlank()) return null
+        val url = buildString {
+            append(YoutubeDataApiConfig.PLAYLIST_ITEMS_LIST_URL)
+            append("?part=snippet,contentDetails")
+            append("&playlistId=$playlistId")
+            append("&maxResults=$maxResults")
+            append("&key=${BuildConfig.YOUTUBE_DATA_API_KEY}")
+            if (!pageToken.isNullOrBlank()) {
+                append("&pageToken=$pageToken")
+            }
+        }
+        return runCatching {
+            val result = httpClient.request(
+                url = url,
+                method = "GET",
+                headers = mapOf("Authorization" to "Bearer $oauthAccessToken"),
+                body = null,
+            )
+            if (!result.success || result.result.isNullOrBlank()) {
+                logApiFailure("playlistItems.list", result)
+                return null
+            }
+            parsePlaylistItemsLoose(JSONObject(result.result))
+        }.onFailure { error ->
+            YoutubeDiagnostics.e("DataApi", "playlistItems.list error: ${error.message}", error)
+        }.getOrNull()
+    }
+
+    /**
+     * relatedPlaylists from channels.list mine=true.
+     * Prefers [preferredChannelId] when present among owned channels.
+     */
+    fun fetchMineRelatedPlaylists(
+        oauthAccessToken: String,
+        preferredChannelId: String? = null,
+    ): Map<String, String>? {
+        val channels = fetchChannelsWithRelatedPlaylists(oauthAccessToken) ?: return null
+        val preferred = preferredChannelId
+            ?.takeIf { it.isNotBlank() }
+            ?.let { id -> channels.firstOrNull { it.channelId == id } }
+        return (preferred ?: channels.firstOrNull())?.relatedPlaylists
+    }
+
+    /**
+     * Custom playlists owned by the user (channel playlists), excluding related system playlists.
+     */
+    fun listCustomPlaylistsPreview(
+        oauthAccessToken: String,
+        maxResults: Int = 12,
+        pageToken: String? = null,
+    ): YoutubeYouPlaylistsPage? {
+        if (!isConfigured) return null
+        val channels = fetchChannelsWithRelatedPlaylists(oauthAccessToken)
+        if (channels == null) return null
+        val relatedIds = channels.flatMap { it.relatedPlaylists.values }.toSet()
+        if (channels.isEmpty()) {
+            return listCustomPlaylistsViaMine(
+                oauthAccessToken = oauthAccessToken,
+                maxResults = maxResults,
+                pageToken = pageToken,
+                relatedIds = relatedIds,
+            )
+        }
+        // Preview / first page: aggregate from owned channels (no cross-channel pageToken).
+        if (!pageToken.isNullOrBlank()) {
+            return listCustomPlaylistsViaMine(
+                oauthAccessToken = oauthAccessToken,
+                maxResults = maxResults,
+                pageToken = pageToken,
+                relatedIds = relatedIds,
+            )
+        }
+        val results = linkedMapOf<String, YoutubeYouPlaylistPreview>()
+        for (channel in channels) {
+            val page = fetchPlaylistsByChannelIdRaw(
+                oauthAccessToken = oauthAccessToken,
+                channelId = channel.channelId,
+                pageToken = null,
+                maxResults = maxResults,
+            ) ?: continue
+            page.filter { isCustomPlaylist(it.playlistId, relatedIds) }
+                .forEach { results.putIfAbsent(it.playlistId, it) }
+            if (results.size >= maxResults) break
+        }
+        return YoutubeYouPlaylistsPage(
+            playlists = results.values.take(maxResults),
+            continuation = null,
+        )
+    }
+
+    private fun listCustomPlaylistsViaMine(
+        oauthAccessToken: String,
+        maxResults: Int,
+        pageToken: String?,
+        relatedIds: Set<String>,
+    ): YoutubeYouPlaylistsPage? {
+        val url = buildString {
+            append(YoutubeDataApiConfig.PLAYLISTS_LIST_URL)
+            append("?part=snippet,contentDetails")
+            append("&mine=true")
+            append("&maxResults=$maxResults")
+            append("&key=${BuildConfig.YOUTUBE_DATA_API_KEY}")
+            if (!pageToken.isNullOrBlank()) {
+                append("&pageToken=$pageToken")
+            }
+        }
+        return runCatching {
+            val result = httpClient.request(
+                url = url,
+                method = "GET",
+                headers = mapOf("Authorization" to "Bearer $oauthAccessToken"),
+                body = null,
+            )
+            if (!result.success || result.result.isNullOrBlank()) {
+                logApiFailure("playlists.list mine", result)
+                return null
+            }
+            val json = JSONObject(result.result)
+            YoutubeYouPlaylistsPage(
+                playlists = parseYouPlaylistPreviews(json)
+                    .filter { isCustomPlaylist(it.playlistId, relatedIds) },
+                continuation = json.optString("nextPageToken").takeIf { it.isNotBlank() },
+            )
+        }.getOrNull()
+    }
+
+    private fun isCustomPlaylist(playlistId: String, relatedIds: Set<String>): Boolean {
+        if (playlistId in relatedIds) return false
+        if (resolvePlaylistSystemType(playlistId) != null) return false
+        if (playlistId == "WL" || playlistId == "LL") return false
+        if (playlistId.startsWith("UU") && playlistId.length > 2) return false
+        return true
+    }
+
+    private fun fetchPlaylistsByChannelIdRaw(
+        oauthAccessToken: String,
+        channelId: String,
+        pageToken: String?,
+        maxResults: Int,
+    ): List<YoutubeYouPlaylistPreview>? {
+        val url = buildString {
+            append(YoutubeDataApiConfig.PLAYLISTS_LIST_URL)
+            append("?part=snippet,contentDetails")
+            append("&channelId=$channelId")
+            append("&maxResults=$maxResults")
+            append("&key=${BuildConfig.YOUTUBE_DATA_API_KEY}")
+            if (!pageToken.isNullOrBlank()) {
+                append("&pageToken=$pageToken")
+            }
+        }
+        return runCatching {
+            val result = httpClient.request(
+                url = url,
+                method = "GET",
+                headers = mapOf("Authorization" to "Bearer $oauthAccessToken"),
+                body = null,
+            )
+            if (!result.success || result.result.isNullOrBlank()) {
+                logApiFailure("playlists.list", result)
+                return null
+            }
+            parseYouPlaylistPreviews(JSONObject(result.result))
+        }.getOrNull()
+    }
+
+    private fun parseYouPlaylistPreviews(json: JSONObject): List<YoutubeYouPlaylistPreview> {
+        val items = json.optJSONArray("items") ?: return emptyList()
+        return buildList {
+            for (index in 0 until items.length()) {
+                val item = items.optJSONObject(index) ?: continue
+                val playlistId = item.optString("id").takeIf { it.isNotBlank() } ?: continue
+                val snippet = item.optJSONObject("snippet") ?: continue
+                val title = snippet.optString("title").takeIf { it.isNotBlank() } ?: continue
+                val thumbnails = snippet.optJSONObject("thumbnails")
+                val coverUrl = thumbnails?.optJSONObject("high")?.optString("url")
+                    ?: thumbnails?.optJSONObject("medium")?.optString("url")
+                    ?: thumbnails?.optJSONObject("default")?.optString("url")
+                val itemCount = item.optJSONObject("contentDetails")
+                    ?.optString("itemCount")
+                    ?.toIntOrNull()
+                val privacy = snippet.optString("privacyStatus").takeIf { it.isNotBlank() }
+                add(
+                    YoutubeYouPlaylistPreview(
+                        playlistId = playlistId,
+                        title = title,
+                        thumbnailUrl = coverUrl,
+                        itemCount = itemCount,
+                        privacyStatus = privacy,
+                    ),
+                )
+            }
+        }
+    }
+
+    private fun parsePlaylistItemsLoose(json: JSONObject): FeedPage? {
+        val items = json.optJSONArray("items") ?: return null
+        val videos = buildList {
+            for (index in 0 until items.length()) {
+                val item = items.optJSONObject(index) ?: continue
+                val snippet = item.optJSONObject("snippet") ?: continue
+                val videoId = snippet.optJSONObject("resourceId")
+                    ?.optString("videoId")
+                    ?.takeIf { it.isNotBlank() }
+                    ?: continue
+                val title = snippet.optString("title").takeIf { it.isNotBlank() } ?: continue
+                if (title == "Private video" || title == "Deleted video") continue
+                val itemChannelId = snippet.optString("channelId").takeIf { it.isNotBlank() }
+                val thumbnails = snippet.optJSONObject("thumbnails")
+                val thumbnailUrl = thumbnails?.optJSONObject("high")?.optString("url")
+                    ?: thumbnails?.optJSONObject("medium")?.optString("url")
+                    ?: thumbnails?.optJSONObject("default")?.optString("url")
+                    ?: "https://i.ytimg.com/img/no_thumbnail.jpg"
+                add(
+                    VideoItem(
+                        videoId = videoId,
+                        title = title,
+                        channelName = snippet.optString("channelTitle").orEmpty(),
+                        channelId = itemChannelId,
+                        thumbnailUrl = thumbnailUrl,
+                        durationText = null,
+                        viewCountText = null,
+                        publishedTimeText = snippet.optString("publishedAt").takeIf { it.isNotBlank() },
+                    ),
+                )
+            }
+        }
+        return FeedPage(
+            videos = videos,
+            continuation = json.optString("nextPageToken").takeIf { it.isNotBlank() },
+        )
+    }
+
     private fun listChannelVideosFromUploadsPlaylist(
         oauthAccessToken: String,
         channelId: String,

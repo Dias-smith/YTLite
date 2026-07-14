@@ -17,7 +17,7 @@ import androidx.credentials.exceptions.GetCredentialCancellationException
 import com.google.android.gms.auth.api.identity.AuthorizationRequest
 import com.google.android.gms.auth.api.identity.Identity
 import com.google.android.gms.common.api.Scope
-import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.ytlite.player.BuildConfig
 import com.ytlite.player.R
@@ -41,17 +41,21 @@ class GoogleNativeSignInHelper(
 ) {
     private val credentialManager = CredentialManager.create(activity)
 
+    /**
+     * Explicit Sign-in / Add account flow.
+     *
+     * Uses [GetSignInWithGoogleOption] (button flow) so the account chooser includes
+     * "Use another account" / add Google account. [GetGoogleIdOption] bottomsheet does not.
+     */
     suspend fun signIn(): Result<GoogleNativeSignInTokens> = withContext(Dispatchers.Main) {
         runCatching {
             val rawNonce = UUID.randomUUID().toString()
             val hashedNonce = sha256Hex(rawNonce)
-            val googleIdOption = GetGoogleIdOption.Builder()
-                .setFilterByAuthorizedAccounts(false)
-                .setServerClientId(BuildConfig.GOOGLE_WEB_CLIENT_ID)
+            val signInWithGoogleOption = GetSignInWithGoogleOption.Builder(BuildConfig.GOOGLE_WEB_CLIENT_ID)
                 .setNonce(hashedNonce)
                 .build()
             val credentialRequest = GetCredentialRequest.Builder()
-                .addCredentialOption(googleIdOption)
+                .addCredentialOption(signInWithGoogleOption)
                 .build()
 
             val credentialResponse = try {
