@@ -236,6 +236,7 @@ fun MainScreen(
             else -> when (selectedTab) {
                 MainTab.Home -> HomeScreen(
                     onVideoClick = onVideoClick,
+                    onPlayPlaylist = onPlayPlaylist,
                     contentPadding = innerPadding,
                     modifier = Modifier.fillMaxSize(),
                 )

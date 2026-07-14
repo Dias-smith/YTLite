@@ -30,20 +30,31 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ytlite.player.R
 import com.ytlite.player.data.model.HomeFeedItem
 import com.ytlite.player.data.model.VideoItem
+import com.ytlite.player.playback.QueueItem
 import com.ytlite.player.ui.image.rememberYTLiteImageLoader
+import com.ytlite.player.ui.player.toQueueItem
 import com.ytlite.player.ui.search.BrowseVideosScreen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     onVideoClick: (VideoItem) -> Unit,
+    onPlayPlaylist: (List<QueueItem>, Int, String) -> Unit = { _, _, _ -> },
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(0.dp),
     viewModel: HomeViewModel = viewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    // Keep feed scroll state in composition while album detail is open, so back restores position A.
+    val listState = remember(uiState.selectedCategoryId) { LazyListState() }
     val albumBrowse = uiState.albumBrowse
     if (albumBrowse != null) {
+        val queueItems = remember(albumBrowse.tracks, albumBrowse.album.title) {
+            albumBrowse.tracks.map { track ->
+                track.toQueueItem().copy(album = albumBrowse.album.title)
+            }
+        }
+        val sourcePlaylistId = "music_album:${albumBrowse.album.browseId}"
         BrowseVideosScreen(
             title = albumBrowse.album.title,
             videos = albumBrowse.tracks,
@@ -54,7 +65,15 @@ fun HomeScreen(
             onBack = viewModel::closeAlbumBrowse,
             onRefresh = viewModel::refreshAlbumBrowse,
             onLoadMore = {},
-            onVideoClick = onVideoClick,
+            onVideoClick = { video ->
+                val startIndex = queueItems.indexOfFirst { it.videoId == video.videoId }
+                    .coerceAtLeast(0)
+                if (queueItems.isNotEmpty()) {
+                    onPlayPlaylist(queueItems, startIndex, sourcePlaylistId)
+                } else {
+                    onVideoClick(video)
+                }
+            },
             applyStatusBarInsets = true,
             modifier = modifier
                 .fillMaxSize()
@@ -64,8 +83,6 @@ fun HomeScreen(
     }
 
     val imageLoader = rememberYTLiteImageLoader()
-    // New list state per category so content always starts at the top after switching.
-    val listState = remember(uiState.selectedCategoryId) { LazyListState() }
 
     val shouldLoadMore by remember(listState) {
         derivedStateOf {
