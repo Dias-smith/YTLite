@@ -13,6 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.outlined.PushPin
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -35,11 +36,14 @@ fun LibraryRowItem(
     onMoreClick: (() -> Unit)? = null,
     showDragHandle: Boolean = false,
     dragHandleModifier: Modifier = Modifier,
+    isSelectionMode: Boolean = false,
+    isSelected: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     Row(
         modifier = modifier
             .fillMaxWidth()
+            .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 10.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -52,13 +56,12 @@ fun LibraryRowItem(
                 modifier = dragHandleModifier.size(24.dp),
             )
         }
-        Row(
-            modifier = Modifier
-                .weight(1f)
-                .clickable(onClick = onClick),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
+        if (isSelectionMode) {
+            Checkbox(
+                checked = isSelected,
+                onCheckedChange = { onClick() },
+            )
+        }
         Box {
             LibraryPlaylistThumbnail(
                 item = item,
@@ -109,7 +112,6 @@ fun LibraryRowItem(
                     contentDescription = stringResource(R.string.library_song_more),
                 )
             }
-        }
         }
     }
 }

@@ -17,4 +17,14 @@ data class LibraryUiState(
     val visibleChips: List<LibraryFilterChip> = emptyList(),
     val isLoading: Boolean = true,
     val isPlaylistReorderMode: Boolean = false,
-)
+    val isSelectionMode: Boolean = false,
+    val selectedIds: Set<String> = emptySet(),
+    val pendingSnackbar: String? = null,
+) {
+    val selectedCount: Int get() = selectedIds.size
+
+    companion object {
+        fun supportsMultiSelect(filter: LibraryFilterChip): Boolean =
+            filter == LibraryFilterChip.SONGS || filter == LibraryFilterChip.PLAYLISTS
+    }
+}

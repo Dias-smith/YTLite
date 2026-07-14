@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.PushPin
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -27,6 +28,8 @@ import com.ytlite.player.data.model.LibraryItem
 fun LibraryGridItem(
     item: LibraryItem,
     onClick: () -> Unit,
+    isSelectionMode: Boolean = false,
+    isSelected: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -56,6 +59,15 @@ fun LibraryGridItem(
                         .padding(4.dp)
                         .size(16.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (isSelectionMode) {
+                Checkbox(
+                    checked = isSelected,
+                    onCheckedChange = { onClick() },
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(4.dp),
                 )
             }
         }

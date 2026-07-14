@@ -26,6 +26,8 @@ fun LibraryContentView(
     onFindMusic: () -> Unit,
     isPlaylistReorderMode: Boolean = false,
     onPlaylistOrderCommitted: ((List<LibraryItem.Playlist>) -> Unit)? = null,
+    isSelectionMode: Boolean = false,
+    selectedIds: Set<String> = emptySet(),
     modifier: Modifier = Modifier,
 ) {
     if (items.isEmpty()) {
@@ -61,11 +63,14 @@ fun LibraryContentView(
                         LibraryRowItem(
                             item = item,
                             onClick = { onItemClick(item) },
-                            onMoreClick = when (item) {
-                                is LibraryItem.Song -> { { onSongMoreClick(item) } }
-                                is LibraryItem.Playlist -> { { onPlaylistMoreClick(item) } }
+                            onMoreClick = when {
+                                isSelectionMode -> null
+                                item is LibraryItem.Song -> { { onSongMoreClick(item) } }
+                                item is LibraryItem.Playlist -> { { onPlaylistMoreClick(item) } }
                                 else -> null
                             },
+                            isSelectionMode = isSelectionMode,
+                            isSelected = item.id in selectedIds,
                         )
                     }
                 }
@@ -81,6 +86,8 @@ fun LibraryContentView(
                     LibraryGridItem(
                         item = item,
                         onClick = { onItemClick(item) },
+                        isSelectionMode = isSelectionMode,
+                        isSelected = item.id in selectedIds,
                     )
                 }
             }

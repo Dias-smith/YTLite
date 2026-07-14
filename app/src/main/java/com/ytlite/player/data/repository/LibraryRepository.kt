@@ -459,6 +459,24 @@ class LibraryRepository(
             true
         }
 
+    suspend fun removeTracksFromLocalLibrary(ownerKey: String, trackIds: List<String>) =
+        withContext(Dispatchers.IO) {
+            trackIds.distinct().forEach { trackId ->
+                playlistTrackDao.deleteTrackFromAllLocalPlaylists(ownerKey, trackId)
+            }
+        }
+
+    suspend fun deleteLocalPlaylists(ownerKey: String, playlistIds: List<String>): Int =
+        withContext(Dispatchers.IO) {
+            var deleted = 0
+            playlistIds.distinct().forEach { playlistId ->
+                if (deleteLocalPlaylist(playlistId, ownerKey)) {
+                    deleted++
+                }
+            }
+            deleted
+        }
+
     suspend fun getPlaylistById(
         playlistId: String,
         ownerKey: String,

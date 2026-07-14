@@ -11,15 +11,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.ytlite.player.MainActivity
+import com.ytlite.player.R
 import com.ytlite.player.data.local.entity.PlaylistSystemType
-import com.ytlite.player.data.model.DataSource
 import com.ytlite.player.data.model.LibraryItem
-import com.ytlite.player.data.model.LibraryVideo
 import com.ytlite.player.data.model.VideoItem
-import com.ytlite.player.ui.player.toQueueItem
 import com.ytlite.player.playback.QueueItem
+import com.ytlite.player.ui.player.toQueueItem
 import com.ytlite.player.ui.playlistaction.LocalPlaylistMoreClick
 import com.ytlite.player.ui.playlistaction.PlaylistActionContext
+import com.ytlite.player.ui.settings.SettingsScreen
 import com.ytlite.player.ui.trackaction.LocalTrackMoreClick
 import com.ytlite.player.ui.trackaction.TrackActionContext
 
@@ -36,13 +37,21 @@ fun LibraryNavHost(
     modifier: Modifier = Modifier,
 ) {
     val application = LocalContext.current.applicationContext as Application
+    val activity = LocalContext.current as? MainActivity
     val viewModel: LibraryViewModel = viewModel(factory = LibraryViewModel.factory(application))
+    val playlistPickerViewModel: PlaylistPickerViewModel = viewModel(
+        factory = PlaylistPickerViewModel.factory(application),
+    )
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val pickerState by playlistPickerViewModel.uiState.collectAsStateWithLifecycle()
     var destination by remember { mutableStateOf<LibraryDestination>(LibraryDestination.Home) }
     var showAccountSheet by remember { mutableStateOf(false) }
     var showNewPlaylistDialog by remember { mutableStateOf(false) }
+    var showBatchPlaylistPicker by remember { mutableStateOf(false) }
+    var showCreatePlaylistForBatch by remember { mutableStateOf(false) }
     val onTrackMoreClick = LocalTrackMoreClick.current
     val onPlaylistMoreClick = LocalPlaylistMoreClick.current
+    val context = LocalContext.current
 
     LaunchedEffect(uiState.session?.ownerKey) {
         if (uiState.session != null) {
@@ -80,12 +89,43 @@ fun LibraryNavHost(
         )
     }
 
+    if (showCreatePlaylistForBatch) {
+        NewPlaylistDialog(
+            onDismiss = { showCreatePlaylistForBatch = false },
+            onConfirm = { name ->
+                viewModel.createPlaylistAndAddSelected(name) {
+                    showCreatePlaylistForBatch = false
+                    showBatchPlaylistPicker = false
+                }
+            },
+        )
+    }
+
+    if (showBatchPlaylistPicker) {
+        PlaylistPickerSheet(
+            playlists = pickerState.playlists,
+            onDismiss = { showBatchPlaylistPicker = false },
+            onPlaylistSelected = { playlistId ->
+                viewModel.addSelectedSongsToPlaylist(playlistId) {
+                    showBatchPlaylistPicker = false
+                }
+            },
+            onCreatePlaylist = {
+                showBatchPlaylistPicker = false
+                showCreatePlaylistForBatch = true
+            },
+            trackCount = uiState.selectedCount,
+        )
+    }
+
     when (val current = destination) {
         LibraryDestination.Home -> {
             LibraryHomeScreen(
                 uiState = uiState,
                 onProfileClick = { showAccountSheet = true },
+                onSettingsClick = { destination = LibraryDestination.Settings },
                 onFilterSelected = viewModel::selectFilter,
+                onSetSort = viewModel::setSort,
                 onToggleViewMode = viewModel::toggleViewMode,
                 onItemClick = { item ->
                     if (!uiState.isPlaylistReorderMode) {
@@ -116,6 +156,9 @@ fun LibraryNavHost(
                         }
                     }
                 },
+                onToggleSelection = viewModel::toggleSelection,
+                onEnterSelectionMode = viewModel::enterSelectionMode,
+                onExitSelectionMode = viewModel::exitSelectionMode,
                 onSongMoreClick = { song ->
                     onTrackMoreClick(TrackActionContext.fromLibraryItemSong(song))
                 },
@@ -129,6 +172,17 @@ fun LibraryNavHost(
                 onEnterPlaylistReorder = viewModel::enterPlaylistReorderMode,
                 onExitPlaylistReorder = viewModel::exitPlaylistReorderMode,
                 onPlaylistOrderCommitted = viewModel::commitPlaylistOrder,
+                onBatchAddToPlaylist = { showBatchPlaylistPicker = true },
+                onConfirmDeleteSelected = {
+                    viewModel.deleteSelected { skipped ->
+                        if (skipped) {
+                            viewModel.showSnackbar(
+                                context.getString(R.string.library_batch_delete_skipped),
+                            )
+                        }
+                    }
+                },
+                onSnackbarConsumed = viewModel::clearSnackbar,
                 modifier = modifier,
             )
         }
@@ -172,6 +226,13 @@ fun LibraryNavHost(
                 ownerKey = session.ownerKey,
                 onBack = { destination = LibraryDestination.Home },
                 onPlayPlaylist = onPlayPlaylist,
+                modifier = modifier,
+            )
+        }
+        LibraryDestination.Settings -> {
+            SettingsScreen(
+                onBack = { destination = LibraryDestination.Home },
+                onLanguageChanged = { activity?.recreate() },
                 modifier = modifier,
             )
         }

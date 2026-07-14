@@ -44,6 +44,22 @@ interface PlaylistTrackDao {
 
     @Query(
         """
+        DELETE FROM playlist_track_cross_ref
+        WHERE trackId = :trackId
+          AND playlistId IN (
+            SELECT playlistId FROM playlists
+            WHERE ownerKey = :ownerKey AND source = :localSource
+          )
+        """,
+    )
+    suspend fun deleteTrackFromAllLocalPlaylists(
+        ownerKey: String,
+        trackId: String,
+        localSource: String = com.ytlite.player.data.model.DataSource.LOCAL.dbValue,
+    )
+
+    @Query(
+        """
         SELECT EXISTS(
             SELECT 1 FROM playlist_track_cross_ref p
             INNER JOIN playlists pl ON pl.playlistId = p.playlistId
