@@ -225,10 +225,15 @@ object PlaybackManager {
     fun setRepeatMode(mode: QueueRepeatMode) {
         runOnMainThread {
             val player = getPlayer() ?: return@runOnMainThread
+            // ONLY map ONE to ExoPlayer repeat. OFF/ALL must stay REPEAT_MODE_OFF:
+            // we load a single MediaItem at a time, and queue advance (incl. wrap for ALL)
+            // is handled by GlobalPlaybackViewModel.handlePlaybackEnded + PlayQueueRepository.
+            // Mapping ALL → REPEAT_MODE_ALL would loop the current item and never emit STATE_ENDED.
             player.repeatMode = when (mode) {
-                QueueRepeatMode.OFF -> Player.REPEAT_MODE_OFF
                 QueueRepeatMode.ONE -> Player.REPEAT_MODE_ONE
-                QueueRepeatMode.ALL -> Player.REPEAT_MODE_ALL
+                QueueRepeatMode.OFF,
+                QueueRepeatMode.ALL,
+                -> Player.REPEAT_MODE_OFF
             }
         }
     }
