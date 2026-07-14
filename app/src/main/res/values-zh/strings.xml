@@ -76,6 +76,8 @@
     <string name="player_pip">画中画</string>
     <string name="player_up_next">接下来</string>
     <string name="player_recommend">推荐</string>
+    <string name="player_save_list_to_playlist">保存列表到播放列表</string>
+    <string name="player_save_list_count">%1$d 首</string>
     <string name="playback_notification_channel">播放控制</string>
     <string name="playback_notification_channel_description">后台播放与锁屏控制</string>
     <string name="playback_service_starting">YTLite 播放器</string>

@@ -100,8 +100,8 @@ fun TrackActionHost(
 
     playlistPickerVideo?.let { video ->
         PlaylistPickerSheet(
-            video = video,
             playlists = playlistPickerState.playlists,
+            subtitle = video.title,
             onDismiss = { playlistPickerVideo = null },
             onPlaylistSelected = { playlistId ->
                 playlistPickerViewModel.saveToPlaylist(playlistId, video) {

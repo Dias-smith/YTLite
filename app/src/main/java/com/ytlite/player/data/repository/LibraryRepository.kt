@@ -667,6 +667,41 @@ class LibraryRepository(
             evaluatePlaybackCache(video.videoId)
         }
 
+    suspend fun addTracksToPlaylist(playlistId: String, videos: List<LibraryVideo>) =
+        withContext(Dispatchers.IO) {
+            if (videos.isEmpty()) return@withContext
+            val ownerKey = authRepository.currentSession()?.ownerKey ?: return@withContext
+            val userId = (authRepository.currentSession() as? UserSession.Authenticated)?.profile?.userId
+            val existing = playlistTrackDao.getAllByPlaylist(playlistId)
+            val existingIds = existing.mapTo(HashSet()) { it.trackId }
+            var nextPosition = existing.size
+            var changed = false
+            for (video in videos) {
+                if (video.videoId in existingIds) continue
+                playbackHistoryRepository.depositPlayback(
+                    video = video,
+                    ownerKey = ownerKey,
+                    userId = userId,
+                )
+                playlistTrackDao.upsert(
+                    PlaylistTrackEntity(
+                        playlistId = playlistId,
+                        trackId = video.videoId,
+                        position = nextPosition,
+                        isSynced = false,
+                    ),
+                )
+                existingIds.add(video.videoId)
+                nextPosition += 1
+                changed = true
+                evaluatePlaybackCache(video.videoId, ownerKey)
+            }
+            if (changed) {
+                playlistDao.markUnsynced(playlistId)
+                schedulePlaylistUpload()
+            }
+        }
+
     private suspend fun addTrackToSystemPlaylist(
         ownerKey: String,
         systemType: String,

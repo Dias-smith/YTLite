@@ -1,6 +1,7 @@
 package com.ytlite.player.ui.player
 
 import androidx.compose.runtime.Immutable
+import com.ytlite.player.data.model.LibraryVideo
 import com.ytlite.player.data.model.VideoItem
 import com.ytlite.player.data.model.VideoPlayback
 
@@ -26,5 +27,7 @@ data class PlayerUiState(
     val selectedListTab: PlayerListTab = PlayerListTab.UpNext,
     val isPlaylistPickerVisible: Boolean = false,
     val showNewPlaylistDialog: Boolean = false,
+    /** When non-null, playlist picker saves this batch instead of the current track. */
+    val playlistSaveItems: List<LibraryVideo>? = null,
     val lastExtractMessage: org.json.JSONObject? = null,
 )

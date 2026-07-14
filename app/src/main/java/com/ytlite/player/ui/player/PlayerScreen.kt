@@ -258,12 +258,23 @@ fun PlayerScreen(
 
                         item(key = "up_next_header") {
                             val showRecommendTab = queueState.sourcePlaylistId != null
+                            val listTab = if (showRecommendTab) {
+                                uiState.selectedListTab
+                            } else {
+                                PlayerListTab.UpNext
+                            }
+                            val canSaveList = when (listTab) {
+                                PlayerListTab.UpNext -> queueState.items.isNotEmpty()
+                                PlayerListTab.Recommend -> uiState.recommendedItems.isNotEmpty()
+                            }
                             PurifiedUpNextHeader(
                                 currentMode = queueState.toUpNextPlaybackMode(),
                                 onModeSelected = globalPlaybackViewModel::setUpNextPlaybackMode,
                                 selectedTab = uiState.selectedListTab,
                                 onTabSelected = viewModel::selectListTab,
                                 showRecommendTab = showRecommendTab,
+                                canSaveList = canSaveList,
+                                onSaveListClick = viewModel::showSaveCurrentListPlaylistPicker,
                             )
                         }
 
@@ -323,10 +334,16 @@ fun PlayerScreen(
     }
 
     val libraryVideo = viewModel.libraryVideo()
-    if (uiState.isPlaylistPickerVisible && libraryVideo != null) {
+    val saveBatch = uiState.playlistSaveItems
+    if (uiState.isPlaylistPickerVisible && (saveBatch != null || libraryVideo != null)) {
+        val subtitle = if (saveBatch != null) {
+            stringResource(R.string.player_save_list_count, saveBatch.size)
+        } else {
+            libraryVideo?.title
+        }
         PlaylistPickerSheet(
-            video = libraryVideo,
             playlists = playlistPickerState.playlists,
+            subtitle = subtitle,
             onDismiss = viewModel::dismissPlaylistPicker,
             onPlaylistSelected = viewModel::saveToPlaylist,
             onCreatePlaylist = viewModel::showNewPlaylistDialog,

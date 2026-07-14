@@ -522,11 +522,33 @@ class PlayerViewModel(
     }
 
     fun showPlaylistPicker() {
-        _uiState.update { it.copy(isPlaylistPickerVisible = true) }
+        _uiState.update {
+            it.copy(
+                isPlaylistPickerVisible = true,
+                playlistSaveItems = null,
+            )
+        }
+    }
+
+    fun showSaveCurrentListPlaylistPicker() {
+        val items = currentListAsLibraryVideos()
+        if (items.isEmpty()) return
+        _uiState.update {
+            it.copy(
+                isPlaylistPickerVisible = true,
+                playlistSaveItems = items,
+            )
+        }
     }
 
     fun dismissPlaylistPicker() {
-        _uiState.update { it.copy(isPlaylistPickerVisible = false, showNewPlaylistDialog = false) }
+        _uiState.update {
+            it.copy(
+                isPlaylistPickerVisible = false,
+                showNewPlaylistDialog = false,
+                playlistSaveItems = null,
+            )
+        }
     }
 
     fun showNewPlaylistDialog() {
@@ -538,6 +560,14 @@ class PlayerViewModel(
     }
 
     fun saveToPlaylist(playlistId: String) {
+        val batch = _uiState.value.playlistSaveItems
+        if (batch != null) {
+            viewModelScope.launch {
+                libraryRepository.addTracksToPlaylist(playlistId, batch)
+                dismissPlaylistPicker()
+            }
+            return
+        }
         val playback = _uiState.value.playback ?: return
         viewModelScope.launch {
             libraryRepository.addTrackToPlaylist(
@@ -554,19 +584,25 @@ class PlayerViewModel(
     }
 
     fun createPlaylistAndSave(name: String) {
-        val playback = _uiState.value.playback ?: return
+        if (name.isBlank()) return
+        val batch = _uiState.value.playlistSaveItems
         viewModelScope.launch {
             val ownerKey = libraryRepository.currentOwnerKey() ?: return@launch
             val playlistId = libraryRepository.createLocalPlaylist(ownerKey, name)
-            libraryRepository.addTrackToPlaylist(
-                playlistId = playlistId,
-                video = LibraryVideo(
-                    videoId = playback.videoId,
-                    title = playback.title,
-                    channelName = playback.channelName,
-                    thumbnailUrl = NowPlaying.thumbnailUrlFor(playback.videoId),
-                ),
-            )
+            if (batch != null) {
+                libraryRepository.addTracksToPlaylist(playlistId, batch)
+            } else {
+                val playback = _uiState.value.playback ?: return@launch
+                libraryRepository.addTrackToPlaylist(
+                    playlistId = playlistId,
+                    video = LibraryVideo(
+                        videoId = playback.videoId,
+                        title = playback.title,
+                        channelName = playback.channelName,
+                        thumbnailUrl = NowPlaying.thumbnailUrlFor(playback.videoId),
+                    ),
+                )
+            }
             dismissPlaylistPicker()
         }
     }
@@ -579,6 +615,19 @@ class PlayerViewModel(
             channelName = playback.channelName,
             thumbnailUrl = NowPlaying.thumbnailUrlFor(playback.videoId),
         )
+    }
+
+    private fun currentListAsLibraryVideos(): List<LibraryVideo> {
+        val inPlaylistContext = PlayQueueRepository.state.value.sourcePlaylistId != null
+        val tab = if (inPlaylistContext) {
+            _uiState.value.selectedListTab
+        } else {
+            PlayerListTab.UpNext
+        }
+        return when (tab) {
+            PlayerListTab.UpNext -> PlayQueueRepository.state.value.items.map { it.toLibraryVideo() }
+            PlayerListTab.Recommend -> _uiState.value.recommendedItems.map { it.toLibraryVideo() }
+        }
     }
 
     private fun startPlayback(
@@ -654,6 +703,29 @@ class PlayerViewModel(
         channelName = channelName,
         thumbnailUrl = thumbnailUrl,
         streamUrl = streamUrl,
+        durationText = durationText,
+        viewCountText = viewCountText,
+        publishedTimeText = publishedTimeText,
+    )
+
+    private fun QueueItem.toLibraryVideo() = LibraryVideo(
+        videoId = videoId,
+        title = title,
+        channelName = channelName,
+        thumbnailUrl = thumbnailUrl,
+        durationText = durationText,
+        viewCountText = viewCountText,
+        publishedTimeText = publishedTimeText,
+        album = album,
+        year = year,
+    )
+
+    private fun VideoItem.toLibraryVideo() = LibraryVideo(
+        videoId = videoId,
+        title = title,
+        channelName = channelName,
+        channelId = channelId,
+        thumbnailUrl = thumbnailUrl,
         durationText = durationText,
         viewCountText = viewCountText,
         publishedTimeText = publishedTimeText,

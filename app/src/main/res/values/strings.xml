@@ -75,6 +75,8 @@
     <string name="player_recommend">Recommend</string>
     <string name="player_save_playlist">Save</string>
     <string name="player_save_to_playlist">Save to playlist</string>
+    <string name="player_save_list_to_playlist">Save list to playlist</string>
+    <string name="player_save_list_count">%1$d tracks</string>
     <string name="player_download">Download</string>
     <string name="player_next_label">Next: %1$s</string>
     <string name="player_open_queue">Open queue</string>

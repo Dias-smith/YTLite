@@ -18,16 +18,15 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.ytlite.player.R
 import com.ytlite.player.data.local.entity.PlaylistEntity
-import com.ytlite.player.data.model.LibraryVideo
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlaylistPickerSheet(
-    video: LibraryVideo,
     playlists: List<PlaylistEntity>,
     onDismiss: () -> Unit,
     onPlaylistSelected: (String) -> Unit,
     onCreatePlaylist: () -> Unit,
+    subtitle: String? = null,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
@@ -45,12 +44,14 @@ fun PlaylistPickerSheet(
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
             )
-            Text(
-                text = video.title,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-            )
+            if (!subtitle.isNullOrBlank()) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                )
+            }
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
             LazyColumn {
                 item {

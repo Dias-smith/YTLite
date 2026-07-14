@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.PlaylistAdd
 import androidx.compose.material.icons.automirrored.outlined.QueueMusic
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.outlined.RepeatOne
@@ -141,6 +142,8 @@ fun PurifiedUpNextHeader(
     selectedTab: PlayerListTab,
     onTabSelected: (PlayerListTab) -> Unit,
     showRecommendTab: Boolean,
+    canSaveList: Boolean,
+    onSaveListClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -174,6 +177,21 @@ fun PurifiedUpNextHeader(
             )
         }
         Row(horizontalArrangement = Arrangement.spacedBy(0.dp)) {
+            IconButton(
+                onClick = onSaveListClick,
+                enabled = canSaveList,
+                modifier = Modifier.size(40.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Outlined.PlaylistAdd,
+                    contentDescription = stringResource(R.string.player_save_list_to_playlist),
+                    tint = if (canSaveList) {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    } else {
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                    },
+                )
+            }
             UpNextPlaybackModeButton(
                 selected = currentMode == UpNextPlaybackMode.REPEAT_ONE,
                 onClick = { onModeSelected(UpNextPlaybackMode.REPEAT_ONE) },
