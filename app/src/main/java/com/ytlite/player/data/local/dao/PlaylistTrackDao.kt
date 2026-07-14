@@ -18,6 +18,19 @@ interface PlaylistTrackDao {
     )
     fun observeSystemPlaylistCount(ownerKey: String, systemType: String): Flow<Int>
 
+    @Query(
+        """
+        SELECT
+            p.playlistId AS playlistId,
+            COUNT(*) AS trackCount
+        FROM playlist_track_cross_ref p
+        INNER JOIN playlists pl ON pl.playlistId = p.playlistId
+        WHERE pl.ownerKey = :ownerKey
+        GROUP BY p.playlistId
+        """,
+    )
+    fun observeTrackCountsByOwner(ownerKey: String): Flow<List<com.ytlite.player.data.local.model.PlaylistTrackCountRow>>
+
     @Query("SELECT * FROM playlist_track_cross_ref WHERE playlistId = :playlistId ORDER BY position ASC")
     fun observeTracksInPlaylist(playlistId: String): Flow<List<PlaylistTrackEntity>>
 

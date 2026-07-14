@@ -6,7 +6,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Deselect
 import androidx.compose.material.icons.outlined.PlaylistAdd
+import androidx.compose.material.icons.outlined.SelectAll
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -28,6 +30,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import android.widget.Toast
 import com.ytlite.player.R
 import com.ytlite.player.data.model.LibraryFilterChip
@@ -47,6 +50,8 @@ fun LibraryHomeScreen(
     onToggleSelection: (String) -> Unit,
     onEnterSelectionMode: () -> Unit,
     onExitSelectionMode: () -> Unit,
+    onSelectAll: () -> Unit = {},
+    onDeselectAll: () -> Unit = {},
     onSongMoreClick: (LibraryItem.Song) -> Unit,
     onPlaylistMoreClick: (LibraryItem.Playlist) -> Unit,
     onFindMusic: () -> Unit,
@@ -83,6 +88,9 @@ fun LibraryHomeScreen(
                                 R.string.library_n_selected,
                                 uiState.selectedCount,
                             ),
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Ellipsis,
                         )
                     },
                     navigationIcon = {
@@ -94,6 +102,21 @@ fun LibraryHomeScreen(
                         }
                     },
                     actions = {
+                        IconButton(onClick = onSelectAll) {
+                            Icon(
+                                imageVector = Icons.Outlined.SelectAll,
+                                contentDescription = stringResource(R.string.library_select_all),
+                            )
+                        }
+                        IconButton(
+                            onClick = onDeselectAll,
+                            enabled = uiState.selectedCount > 0,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Deselect,
+                                contentDescription = stringResource(R.string.library_deselect_all),
+                            )
+                        }
                         if (uiState.selectedFilter == LibraryFilterChip.SONGS &&
                             uiState.selectedCount > 0
                         ) {
@@ -139,7 +162,11 @@ fun LibraryHomeScreen(
             }
         },
         floatingActionButton = {
-            if (!uiState.isSelectionMode && !uiState.isPlaylistReorderMode) {
+            if (
+                uiState.selectedFilter == LibraryFilterChip.PLAYLISTS &&
+                !uiState.isSelectionMode &&
+                !uiState.isPlaylistReorderMode
+            ) {
                 FloatingActionButton(onClick = onNewPlaylist) {
                     Text(text = stringResource(R.string.library_new_fab))
                 }

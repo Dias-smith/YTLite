@@ -1,6 +1,7 @@
 package com.ytlite.player.data.repository
 
 import android.content.Context
+import com.ytlite.player.R
 import com.ytlite.player.data.auth.AuthRepository
 import com.ytlite.player.data.auth.SupabaseClientProvider
 import com.ytlite.player.data.auth.UserProfile
@@ -151,9 +152,11 @@ class LibraryRepository(
             playlistTrackDao.observeLocalSongs(ownerKey),
             artistDao.observeAll(),
             observeHistory(ownerKey, limit = 50),
-        ) { playlists, songs, artists, history ->
+            playlistTrackDao.observeTrackCountsByOwner(ownerKey),
+        ) { playlists, songs, artists, history, trackCounts ->
+            val countMap = trackCounts.associate { it.playlistId to it.trackCount }
             val playlistItems = playlists.map {
-                LibraryItemMapper.playlistItem(it, LibraryItemMapper.playlistSubtitle(it))
+                LibraryItemMapper.playlistItem(it, playlistSubtitleWithCount(it, countMap))
             }
             val songItems = buildSongItems(songs, history)
             val artistItems = artists.map { LibraryItemMapper.artistItem(it) }
@@ -162,18 +165,25 @@ class LibraryRepository(
         LibraryFilterChip.PLAYLISTS -> combine(
             playlistDao.observeLocalByOwner(ownerKey).map { dedupeLocalPlaylistsForDisplay(it) },
             playlistDisplayOrderDao.observeByOwner(ownerKey),
-        ) { playlists, displayOrders ->
+            playlistTrackDao.observeTrackCountsByOwner(ownerKey),
+            userTrackLastPlayedDao.observeHistoryCount(ownerKey),
+        ) { playlists, displayOrders, trackCounts, historyCount ->
             val manualOrder = if (sort == LibrarySort.CUSTOM) {
                 displayOrders.associate { it.playlistKey to it.position }
             } else {
                 emptyMap()
             }
+            val countMap = trackCounts.associate { it.playlistId to it.trackCount }
             LibraryItemMapper.orderPlaylistItems(
                 playlists.map {
-                    LibraryItemMapper.playlistItem(it, LibraryItemMapper.playlistSubtitle(it))
+                    LibraryItemMapper.playlistItem(it, playlistSubtitleWithCount(it, countMap))
                 },
                 sort,
                 manualOrder = manualOrder,
+                historySubtitle = LibraryItemMapper.playlistSubtitleWithCount(
+                    "System",
+                    songsCountLabel(historyCount),
+                ),
             )
         }
         LibraryFilterChip.SONGS -> combine(
@@ -197,10 +207,12 @@ class LibraryRepository(
             combine(
                 youtubeRemote.getYoutubePlaylistsFlow(),
                 playlistPinOverlayDao.observeByOwner(ownerKey),
-            ) { playlists, overlays ->
+                playlistTrackDao.observeTrackCountsByOwner(ownerKey),
+            ) { playlists, overlays, trackCounts ->
+                val countMap = trackCounts.associate { it.playlistId to it.trackCount }
                 LibraryItemMapper.orderPlaylistItems(
                     applyPinOverlay(playlists, overlays).map {
-                        LibraryItemMapper.playlistItem(it, LibraryItemMapper.playlistSubtitle(it))
+                        LibraryItemMapper.playlistItem(it, playlistSubtitleWithCount(it, countMap))
                     },
                     sort,
                     includeHistory = false,
@@ -208,6 +220,18 @@ class LibraryRepository(
             }
         }
     }.flowOn(Dispatchers.Default)
+
+    private fun songsCountLabel(count: Int): String =
+        appContext.getString(R.string.playlist_stats_songs, count)
+
+    private fun playlistSubtitleWithCount(
+        playlist: PlaylistEntity,
+        countMap: Map<String, Int>,
+    ): String {
+        val base = LibraryItemMapper.playlistSubtitle(playlist)
+        val count = countMap[playlist.playlistId] ?: 0
+        return LibraryItemMapper.playlistSubtitleWithCount(base, songsCountLabel(count))
+    }
 
     fun observeAllHistory(ownerKey: String): Flow<List<LibraryVideo>> =
         userTrackLastPlayedDao.observeAllHistoryRows(ownerKey).map { rows ->

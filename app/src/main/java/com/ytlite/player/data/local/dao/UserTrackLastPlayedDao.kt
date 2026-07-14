@@ -35,6 +35,9 @@ interface UserTrackLastPlayedDao {
     )
     fun observeHistoryRows(ownerKey: String, limit: Int = 20): Flow<List<LibraryVideoRow>>
 
+    @Query("SELECT COUNT(*) FROM user_track_last_played WHERE ownerKey = :ownerKey")
+    fun observeHistoryCount(ownerKey: String): Flow<Int>
+
     @Query(
         """
         SELECT

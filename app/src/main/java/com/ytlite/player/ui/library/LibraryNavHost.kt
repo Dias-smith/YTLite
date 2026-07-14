@@ -159,6 +159,8 @@ fun LibraryNavHost(
                 onToggleSelection = viewModel::toggleSelection,
                 onEnterSelectionMode = viewModel::enterSelectionMode,
                 onExitSelectionMode = viewModel::exitSelectionMode,
+                onSelectAll = viewModel::selectAllSelectable,
+                onDeselectAll = viewModel::deselectAll,
                 onSongMoreClick = { song ->
                     onTrackMoreClick(TrackActionContext.fromLibraryItemSong(song))
                 },

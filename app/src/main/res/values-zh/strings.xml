@@ -131,6 +131,8 @@
     <string name="library_sort_menu">排序</string>
     <string name="library_item_count">%1$d 项</string>
     <string name="library_n_selected">已选 %1$d 项</string>
+    <string name="library_select_all">全选</string>
+    <string name="library_deselect_all">取消全选</string>
     <string name="library_multi_select">多选</string>
     <string name="library_multi_select_unsupported">当前分类不支持多选</string>
     <string name="library_batch_add_playlist">加入歌单</string>

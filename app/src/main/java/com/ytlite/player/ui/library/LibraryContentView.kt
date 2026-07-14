@@ -60,9 +60,14 @@ fun LibraryContentView(
                     contentPadding = PaddingValues(bottom = 88.dp),
                 ) {
                     items(items = items, key = { it.id }) { item ->
+                        val selectable = LibraryUiState.isSelectable(item)
                         LibraryRowItem(
                             item = item,
-                            onClick = { onItemClick(item) },
+                            onClick = {
+                                if (!isSelectionMode || selectable) {
+                                    onItemClick(item)
+                                }
+                            },
                             onMoreClick = when {
                                 isSelectionMode -> null
                                 item is LibraryItem.Song -> { { onSongMoreClick(item) } }
@@ -71,6 +76,7 @@ fun LibraryContentView(
                             },
                             isSelectionMode = isSelectionMode,
                             isSelected = item.id in selectedIds,
+                            selectionEnabled = selectable,
                         )
                     }
                 }
@@ -83,11 +89,23 @@ fun LibraryContentView(
                 contentPadding = PaddingValues(bottom = 88.dp, start = 8.dp, end = 8.dp),
             ) {
                 items(items = items, key = { it.id }) { item ->
+                    val selectable = LibraryUiState.isSelectable(item)
                     LibraryGridItem(
                         item = item,
-                        onClick = { onItemClick(item) },
+                        onClick = {
+                            if (!isSelectionMode || selectable) {
+                                onItemClick(item)
+                            }
+                        },
+                        onMoreClick = when {
+                            isSelectionMode -> null
+                            item is LibraryItem.Song -> { { onSongMoreClick(item) } }
+                            item is LibraryItem.Playlist -> { { onPlaylistMoreClick(item) } }
+                            else -> null
+                        },
                         isSelectionMode = isSelectionMode,
                         isSelected = item.id in selectedIds,
+                        selectionEnabled = selectable,
                     )
                 }
             }

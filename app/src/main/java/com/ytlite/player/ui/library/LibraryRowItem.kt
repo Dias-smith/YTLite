@@ -38,12 +38,19 @@ fun LibraryRowItem(
     dragHandleModifier: Modifier = Modifier,
     isSelectionMode: Boolean = false,
     isSelected: Boolean = false,
+    selectionEnabled: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .then(
+                if (!isSelectionMode || selectionEnabled) {
+                    Modifier.clickable(onClick = onClick)
+                } else {
+                    Modifier
+                },
+            )
             .padding(horizontal = 16.dp, vertical = 10.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -58,8 +65,9 @@ fun LibraryRowItem(
         }
         if (isSelectionMode) {
             Checkbox(
-                checked = isSelected,
-                onCheckedChange = { onClick() },
+                checked = isSelected && selectionEnabled,
+                onCheckedChange = { if (selectionEnabled) onClick() },
+                enabled = selectionEnabled,
             )
         }
         Box {

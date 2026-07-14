@@ -172,9 +172,24 @@ class LibraryViewModel(
 
     fun toggleSelection(id: String) {
         if (!isSelectionMode.value) return
+        val item = uiState.value.items.firstOrNull { it.id == id } ?: return
+        if (!LibraryUiState.isSelectable(item)) return
         selectedIds.update { current ->
             if (id in current) current - id else current + id
         }
+    }
+
+    fun selectAllSelectable() {
+        if (!isSelectionMode.value) return
+        selectedIds.value = uiState.value.items
+            .filter { LibraryUiState.isSelectable(it) }
+            .map { it.id }
+            .toSet()
+    }
+
+    fun deselectAll() {
+        if (!isSelectionMode.value) return
+        selectedIds.value = emptySet()
     }
 
     fun clearSnackbar() {

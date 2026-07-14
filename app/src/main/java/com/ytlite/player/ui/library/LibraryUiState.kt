@@ -2,6 +2,7 @@ package com.ytlite.player.ui.library
 
 import androidx.compose.runtime.Immutable
 import com.ytlite.player.data.auth.UserSession
+import com.ytlite.player.data.model.DataSource
 import com.ytlite.player.data.model.LibraryFilterChip
 import com.ytlite.player.data.model.LibraryItem
 import com.ytlite.player.data.model.LibrarySort
@@ -26,5 +27,13 @@ data class LibraryUiState(
     companion object {
         fun supportsMultiSelect(filter: LibraryFilterChip): Boolean =
             filter == LibraryFilterChip.SONGS || filter == LibraryFilterChip.PLAYLISTS
+
+        /** System / YouTube playlists cannot be selected for batch delete. */
+        fun isSelectable(item: LibraryItem): Boolean = when (item) {
+            is LibraryItem.Song -> true
+            is LibraryItem.Playlist ->
+                item.systemType == null && item.source == DataSource.LOCAL
+            else -> false
+        }
     }
 }

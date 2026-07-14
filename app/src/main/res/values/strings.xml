@@ -151,6 +151,8 @@
     <string name="library_sort_menu">Sort</string>
     <string name="library_item_count">%1$d items</string>
     <string name="library_n_selected">%1$d selected</string>
+    <string name="library_select_all">Select all</string>
+    <string name="library_deselect_all">Deselect all</string>
     <string name="library_multi_select">Select</string>
     <string name="library_multi_select_unsupported">Multi-select is not available for this category</string>
     <string name="library_batch_add_playlist">Add to playlist</string>

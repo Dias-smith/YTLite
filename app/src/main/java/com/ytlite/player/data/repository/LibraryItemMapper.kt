@@ -118,11 +118,17 @@ internal object LibraryItemMapper {
         sort: LibrarySort,
         manualOrder: Map<String, Int> = emptyMap(),
         includeHistory: Boolean = true,
+        historySubtitle: String? = null,
     ): List<LibraryItem> {
         val allItems = buildList {
             addAll(items)
             if (includeHistory && items.none { it.systemType == PlaylistSystemType.HISTORY }) {
-                add(historyPlaylistItem())
+                add(
+                    historyPlaylistItem(
+                        subtitle = historySubtitle
+                            ?: systemPlaylistSubtitle(PlaylistSystemType.HISTORY),
+                    ),
+                )
             }
         }
         val pinned = sortPlaylists(allItems.filter { it.isPinned }, sort, manualOrder)
@@ -159,17 +165,18 @@ internal object LibraryItemMapper {
         else -> Int.MAX_VALUE
     }
 
-    fun historyPlaylistItem(): LibraryItem.Playlist = LibraryItem.Playlist(
-        id = "system:history",
-        playlistId = "system:history",
-        title = "History",
-        subtitle = systemPlaylistSubtitle(PlaylistSystemType.HISTORY),
-        coverUrl = null,
-        source = DataSource.LOCAL,
-        sortKeyActivity = 0L,
-        sortKeySaved = 0L,
-        systemType = PlaylistSystemType.HISTORY,
-    )
+    fun historyPlaylistItem(subtitle: String = "System"): LibraryItem.Playlist =
+        LibraryItem.Playlist(
+            id = "system:history",
+            playlistId = "system:history",
+            title = "History",
+            subtitle = subtitle,
+            coverUrl = null,
+            source = DataSource.LOCAL,
+            sortKeyActivity = 0L,
+            sortKeySaved = 0L,
+            systemType = PlaylistSystemType.HISTORY,
+        )
 
     private fun systemPlaylistTitle(systemType: String): String = when (systemType) {
         PlaylistSystemType.WATCH_LATER -> "Watch later"
@@ -178,12 +185,7 @@ internal object LibraryItemMapper {
         else -> systemType
     }
 
-    private fun systemPlaylistSubtitle(systemType: String): String = when (systemType) {
-        PlaylistSystemType.FAVORITES -> "System · Liked"
-        PlaylistSystemType.WATCH_LATER -> "System · Watch later"
-        PlaylistSystemType.HISTORY -> "System · History"
-        else -> "System · Playlist"
-    }
+    fun systemPlaylistSubtitle(systemType: String): String = "System"
 
     fun visibleChips(session: UserSession): List<LibraryFilterChip> =
         buildList {
@@ -197,11 +199,13 @@ internal object LibraryItemMapper {
         }
 
     fun playlistSubtitle(playlist: PlaylistEntity): String = when {
-        playlist.systemType == PlaylistSystemType.FAVORITES -> "System · Liked"
-        playlist.systemType == PlaylistSystemType.WATCH_LATER -> "System · Watch later"
-        playlist.isYoutube() -> "YouTube · Read-only"
-        else -> "Local · Playlist"
+        playlist.systemType != null -> "System"
+        playlist.isYoutube() -> "YouTube"
+        else -> "Local"
     }
+
+    fun playlistSubtitleWithCount(baseSubtitle: String, songsLabel: String): String =
+        "$baseSubtitle · $songsLabel"
 
     fun playlistListKey(playlist: PlaylistEntity): String = playlist.listKey()
 
