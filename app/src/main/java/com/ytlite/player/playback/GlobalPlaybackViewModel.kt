@@ -13,11 +13,13 @@ import com.ytlite.player.data.repository.CaptionRepository
 import com.ytlite.player.data.repository.ExtractionRepository
 import com.ytlite.player.ui.player.PlaybackFormatSelector
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
@@ -68,10 +70,13 @@ class GlobalPlaybackViewModel(
     private val playbackPreferences: PlaybackPreferences? = null,
     private val libraryRepository: com.ytlite.player.data.repository.LibraryRepository? = null,
     private val authRepository: com.ytlite.player.data.auth.AuthRepository? = null,
+    private val playbackSessionStore: PlaybackSessionStore? = null,
 ) : ViewModel() {
 
     private val showMiniPlayer = MutableStateFlow(false)
     private val expandedState = MutableStateFlow(ExpandedPlayerUiState())
+    private var restoredStartPositionMs: Long = 0L
+    private var sessionRestoreCompleted = false
 
     val expandedUiState: StateFlow<ExpandedPlayerUiState> = expandedState.asStateFlow()
 
@@ -110,6 +115,11 @@ class GlobalPlaybackViewModel(
 
     init {
         viewModelScope.launch {
+            restorePlaybackSession()
+            sessionRestoreCompleted = true
+        }
+
+        viewModelScope.launch {
             PlaybackManager.playbackEnded.collect { ended ->
                 if (!ended) return@collect
                 handlePlaybackEnded()
@@ -123,6 +133,24 @@ class GlobalPlaybackViewModel(
                 }
                 kotlinx.coroutines.delay(1_000)
             }
+        }
+
+        viewModelScope.launch {
+            @OptIn(FlowPreview::class)
+            combine(
+                PlayQueueRepository.state,
+                PlaybackManager.nowPlaying,
+                PlaybackManager.positionMs,
+                PlaybackManager.durationMs,
+            ) { queue, nowPlaying, positionMs, durationMs ->
+                queue to Triple(nowPlaying, positionMs, durationMs)
+            }
+                .debounce(500)
+                .collect { (queue, triple) ->
+                    if (!sessionRestoreCompleted) return@collect
+                    val (nowPlaying, positionMs, durationMs) = triple
+                    persistPlaybackSession(queue, nowPlaying, positionMs, durationMs)
+                }
         }
 
         playbackPreferences?.let { prefs ->
@@ -180,6 +208,81 @@ class GlobalPlaybackViewModel(
         }
     }
 
+    private suspend fun restorePlaybackSession() {
+        val store = playbackSessionStore ?: return
+        val snapshot = store.load() ?: return
+        val items = snapshot.items.map { it.toQueueItem() }
+        if (items.isEmpty()) return
+        val repeatMode = runCatching { QueueRepeatMode.valueOf(snapshot.repeatMode) }
+            .getOrDefault(QueueRepeatMode.OFF)
+        val originalOrder = snapshot.originalOrder?.map { it.toQueueItem() }
+        PlayQueueRepository.restore(
+            items = items,
+            currentIndex = snapshot.currentIndex,
+            repeatMode = repeatMode,
+            shuffleEnabled = snapshot.shuffleEnabled,
+            sourcePlaylistId = snapshot.sourcePlaylistId,
+            originalOrder = originalOrder,
+        )
+        val current = PlayQueueRepository.state.value.currentItem ?: return
+        restoredStartPositionMs = snapshot.positionMs.coerceAtLeast(0L)
+        val durationMs = snapshot.durationMs.takeIf { it > 0L }
+            ?: current.durationText?.let { parsePersistedDurationMs(it) }
+            ?: 0L
+        PlaybackManager.restoreNowPlaying(
+            item = NowPlaying(
+                videoId = current.videoId,
+                title = current.title,
+                channelName = current.channelName,
+                streamUrl = "",
+                thumbnailUrl = current.thumbnailUrl,
+                itag = current.itag,
+                durationMs = durationMs.takeIf { it > 0L },
+            ),
+            positionMs = restoredStartPositionMs,
+            durationMs = durationMs,
+        )
+        PlaybackManager.syncRepeatMode()
+        showMiniPlayer.value = true
+        Log.d(TAG, "Restored playback session videoId=${current.videoId} items=${items.size}")
+    }
+
+    private suspend fun persistPlaybackSession(
+        queue: PlayQueueState,
+        nowPlaying: NowPlaying?,
+        positionMs: Long,
+        durationMs: Long,
+    ) {
+        val store = playbackSessionStore ?: return
+        if (queue.items.isEmpty() || nowPlaying == null) {
+            store.clear()
+            return
+        }
+        store.save(
+            PlaybackSessionSnapshot(
+                items = queue.items.map { PersistedQueueItem.from(it) },
+                currentIndex = queue.currentIndex.coerceIn(0, queue.items.lastIndex),
+                repeatMode = queue.repeatMode.name,
+                shuffleEnabled = queue.shuffleEnabled,
+                sourcePlaylistId = queue.sourcePlaylistId,
+                originalOrder = PlayQueueRepository.snapshotOriginalOrder()
+                    ?.map { PersistedQueueItem.from(it) },
+                positionMs = positionMs.coerceAtLeast(0L),
+                durationMs = durationMs.coerceAtLeast(0L),
+            ),
+        )
+    }
+
+    private fun parsePersistedDurationMs(text: String): Long? {
+        val parts = text.trim().split(':')
+        if (parts.isEmpty() || parts.any { it.toLongOrNull() == null }) return null
+        var total = 0L
+        for (part in parts) {
+            total = total * 60 + (part.toLongOrNull() ?: return null)
+        }
+        return total * 1000L
+    }
+
     private suspend fun loadPlaybackExtras(videoId: String) {
         when (val result = withContext(Dispatchers.IO) {
             extractionRepository.fetchVideoPlayback(videoId)
@@ -229,10 +332,27 @@ class GlobalPlaybackViewModel(
     }
 
     fun togglePlayPause() {
-        PlaybackManager.togglePlayPause()
+        viewModelScope.launch {
+            val nowPlaying = PlaybackManager.nowPlaying.value ?: return@launch
+            val player = PlaybackManager.getPlayer()
+            val needsResolve = nowPlaying.streamUrl.isBlank() ||
+                player == null ||
+                player.mediaItemCount == 0 ||
+                player.currentMediaItem?.mediaId != nowPlaying.videoId
+            if (needsResolve && !PlaybackManager.isPlaying.value) {
+                val item = PlayQueueRepository.state.value.currentItem
+                    ?: QueueItem.fromNowPlaying(nowPlaying)
+                val startPositionMs = restoredStartPositionMs
+                restoredStartPositionMs = 0L
+                playQueueItemInternal(item, startPositionMs = startPositionMs)
+                return@launch
+            }
+            PlaybackManager.togglePlayPause()
+        }
     }
 
     fun play(nowPlaying: NowPlaying) {
+        restoredStartPositionMs = 0L
         PlaybackManager.play(nowPlaying)
     }
 
@@ -271,10 +391,13 @@ class GlobalPlaybackViewModel(
         }
     }
 
-    private suspend fun playQueueItemInternal(item: QueueItem) {
+    private suspend fun playQueueItemInternal(
+        item: QueueItem,
+        startPositionMs: Long = 0L,
+    ) {
         val streamUrl = item.streamUrl
         if (!streamUrl.isNullOrBlank()) {
-            PlaybackManager.play(item.toNowPlaying(streamUrl))
+            PlaybackManager.play(item.toNowPlaying(streamUrl), startPositionMs)
             PlaybackManager.syncRepeatMode()
             return
         }
@@ -297,6 +420,7 @@ class GlobalPlaybackViewModel(
                         itag = format.itag,
                         durationMs = durationMs,
                     ),
+                    startPositionMs = startPositionMs,
                 )
                 PlaybackManager.syncRepeatMode()
             }
@@ -527,6 +651,7 @@ class GlobalPlaybackViewModel(
                         playbackPreferences = PlaybackPreferences.getInstance(application),
                         libraryRepository = com.ytlite.player.data.repository.LibraryRepository.getInstance(application),
                         authRepository = com.ytlite.player.data.auth.AuthRepository.getInstance(application),
+                        playbackSessionStore = PlaybackSessionStore.getInstance(application),
                     )
                 }
             }

@@ -2,6 +2,8 @@ package com.ytlite.player.ui.web
 
 import android.annotation.SuppressLint
 import android.graphics.Color as AndroidColor
+import android.os.Handler
+import android.os.Looper
 import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
 import android.webkit.WebView
@@ -30,11 +32,45 @@ private class PageScriptsHolder {
 
 /** Named bridge object for [WebView.addJavascriptInterface]. */
 class WebViewJsBridge(
-    private val onPauseAppMusic: () -> Unit,
+    private val onPauseAppMusic: () -> Unit = {},
+    private val onAllowAutoplay: (() -> Unit)? = null,
 ) {
+    private val mainHandler = Handler(Looper.getMainLooper())
+
     @JavascriptInterface
     fun pauseAppMusic() {
-        onPauseAppMusic()
+        mainHandler.post { onPauseAppMusic() }
+    }
+
+    @JavascriptInterface
+    fun allowAutoplay() {
+        mainHandler.post { onAllowAutoplay?.invoke() }
+    }
+}
+
+/** Handle for evaluating JS / tweaking media settings after the WebView is created. */
+class EmbeddedWebViewHandle {
+    @Volatile
+    var webView: WebView? = null
+        internal set
+
+    private val mainHandler = Handler(Looper.getMainLooper())
+
+    private inline fun runOnMain(crossinline block: (WebView) -> Unit) {
+        val target = webView ?: return
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            block(target)
+        } else {
+            mainHandler.post { webView?.let(block) }
+        }
+    }
+
+    fun evaluateJavascript(script: String) {
+        runOnMain { it.evaluateJavascript(script, null) }
+    }
+
+    fun setMediaPlaybackRequiresUserGesture(required: Boolean) {
+        runOnMain { it.settings.mediaPlaybackRequiresUserGesture = required }
     }
 }
 
@@ -47,6 +83,8 @@ fun EmbeddedWebView(
     showLoadingIndicator: Boolean = true,
     jsBridgeName: String? = null,
     jsBridge: Any? = null,
+    handle: EmbeddedWebViewHandle? = null,
+    mediaPlaybackRequiresUserGesture: Boolean = false,
 ) {
     val context = LocalContext.current
     val scriptsHolder = remember { PageScriptsHolder() }
@@ -68,7 +106,7 @@ fun EmbeddedWebView(
             settings.apply {
                 javaScriptEnabled = true
                 domStorageEnabled = true
-                mediaPlaybackRequiresUserGesture = false
+                this.mediaPlaybackRequiresUserGesture = mediaPlaybackRequiresUserGesture
                 loadWithOverviewMode = true
                 useWideViewPort = true
             }
@@ -99,6 +137,8 @@ fun EmbeddedWebView(
                     }
                 }
             }
+        }.also { created ->
+            handle?.webView = created
         }
     }
 
@@ -110,6 +150,7 @@ fun EmbeddedWebView(
 
     DisposableEffect(Unit) {
         onDispose {
+            handle?.webView = null
             webView.stopLoading()
             webView.destroy()
         }

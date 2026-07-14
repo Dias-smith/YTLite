@@ -68,6 +68,7 @@ object PlaybackManager {
     private var servicePlayer: ExoPlayer? = null
     private var playerListener: Player.Listener? = null
     private var pendingPlay: NowPlaying? = null
+    private var pendingStartPositionMs: Long = 0L
     private var pendingQueue: List<NowPlaying>? = null
     private var pendingQueueIndex: Int = 0
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -146,8 +147,34 @@ object PlaybackManager {
 
     fun getPlayer(): Player? = controller ?: servicePlayer
 
-    fun play(item: NowPlaying) {
-        runOnMainThread { requestPlay(item) }
+    fun play(item: NowPlaying, startPositionMs: Long = 0L) {
+        runOnMainThread { requestPlay(item, startPositionMs) }
+    }
+
+    /**
+     * Restore UI state after process death / cold start without starting playback.
+     * Media is prepared on the next [play] / [togglePlayPause] that loads a stream.
+     */
+    fun restoreNowPlaying(
+        item: NowPlaying,
+        positionMs: Long = 0L,
+        durationMs: Long = 0L,
+    ) {
+        runOnMainThread {
+            pendingPlay = null
+            pendingStartPositionMs = 0L
+            pendingQueue = null
+            _nowPlaying.value = item
+            _positionMs.value = positionMs.coerceAtLeast(0L)
+            _durationMs.value = when {
+                durationMs > 0L -> durationMs
+                item.durationMs != null && item.durationMs > 0L -> item.durationMs
+                else -> 0L
+            }
+            _isPlaying.value = false
+            _playbackEnded.value = false
+            _playbackError.value = null
+        }
     }
 
     fun playQueue(items: List<NowPlaying>, startIndex: Int = 0) {
@@ -280,15 +307,16 @@ object PlaybackManager {
     }
 
 
-    private fun requestPlay(item: NowPlaying) {
+    private fun requestPlay(item: NowPlaying, startPositionMs: Long = 0L) {
         ensureConnected()
         val activePlayer = getPlayer()
         if (activePlayer == null) {
             Log.w(TAG, "Player not ready, queueing videoId=${item.videoId}")
             pendingPlay = item
+            pendingStartPositionMs = startPositionMs.coerceAtLeast(0L)
             return
         }
-        playOnPlayer(activePlayer, item)
+        playOnPlayer(activePlayer, item, startPositionMs)
     }
 
     private fun flushPendingPlay() {
@@ -299,6 +327,7 @@ object PlaybackManager {
             pendingQueue = null
             playQueueOnPlayer(activePlayer, queue, pendingQueueIndex)
             pendingPlay = null
+            pendingStartPositionMs = 0L
             return
         }
         val pending = pendingPlay ?: return
@@ -308,8 +337,10 @@ object PlaybackManager {
             return
         }
         Log.d(TAG, "Playing queued videoId=${pending.videoId}")
+        val startPositionMs = pendingStartPositionMs
         pendingPlay = null
-        playOnPlayer(activePlayer, pending)
+        pendingStartPositionMs = 0L
+        playOnPlayer(activePlayer, pending, startPositionMs)
     }
 
     private fun playQueueOnPlayer(activePlayer: Player, items: List<NowPlaying>, startIndex: Int) {
@@ -348,7 +379,11 @@ object PlaybackManager {
         recordCacheablePlay(current)
     }
 
-    private fun playOnPlayer(activePlayer: Player, item: NowPlaying) {
+    private fun playOnPlayer(
+        activePlayer: Player,
+        item: NowPlaying,
+        startPositionMs: Long = 0L,
+    ) {
         val urlHost = runCatching { Uri.parse(item.streamUrl).host }.getOrNull()
         Log.d(
             TAG,
@@ -360,11 +395,15 @@ object PlaybackManager {
         if (
             current?.videoId == item.videoId &&
             current.streamUrl == item.streamUrl &&
-            activePlayer.playbackState != Player.STATE_IDLE
+            activePlayer.playbackState != Player.STATE_IDLE &&
+            activePlayer.mediaItemCount > 0
         ) {
             _nowPlaying.value = item
             _playbackEnded.value = false
             _playbackError.value = null
+            if (startPositionMs > 0L) {
+                activePlayer.seekTo(startPositionMs)
+            }
             if (!activePlayer.isPlaying) {
                 activePlayer.play()
             }
@@ -378,6 +417,9 @@ object PlaybackManager {
         val mediaItem = item.toMediaItem()
         activePlayer.setMediaItem(mediaItem)
         activePlayer.prepare()
+        if (startPositionMs > 0L) {
+            activePlayer.seekTo(startPositionMs)
+        }
         activePlayer.playbackParameters = activePlayer.playbackParameters.withSpeed(playbackSpeed)
         syncRepeatMode()
         activePlayer.playWhenReady = true
@@ -461,6 +503,7 @@ object PlaybackManager {
             activePlayer.stop()
             activePlayer.clearMediaItems()
             pendingPlay = null
+            pendingStartPositionMs = 0L
             _nowPlaying.value = null
             _playbackEnded.value = false
             _playbackError.value = null

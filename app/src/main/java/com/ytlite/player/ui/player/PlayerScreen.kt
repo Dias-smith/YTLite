@@ -276,7 +276,7 @@ fun PlayerScreen(
                                         )
                                     }
 
-                                    item(key = "list_header") {
+                                    stickyHeader(key = "list_header") {
                                         val songCount = when (uiState.selectedListTab) {
                                             PlayerListTab.UpNext -> queueState.items.size
                                             PlayerListTab.Recommend -> uiState.recommendedItems.size
@@ -293,6 +293,9 @@ fun PlayerScreen(
                                             songCount = songCount,
                                             canSaveList = canSaveList,
                                             onSaveListClick = viewModel::showSaveCurrentListPlaylistPicker,
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .background(MaterialTheme.colorScheme.background),
                                         )
                                     }
 

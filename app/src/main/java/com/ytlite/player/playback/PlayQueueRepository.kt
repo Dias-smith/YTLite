@@ -373,8 +373,35 @@ object PlayQueueRepository {
     }
 
     fun clear() {
+        userPinnedVideoIds.clear()
         _state.value = PlayQueueState()
         originalOrder = null
+    }
+
+    fun snapshotOriginalOrder(): List<QueueItem>? = originalOrder
+
+    fun restore(
+        items: List<QueueItem>,
+        currentIndex: Int,
+        repeatMode: QueueRepeatMode,
+        shuffleEnabled: Boolean,
+        sourcePlaylistId: String? = null,
+        originalOrder: List<QueueItem>? = null,
+    ) {
+        if (items.isEmpty()) {
+            clear()
+            return
+        }
+        val safeIndex = currentIndex.coerceIn(0, items.lastIndex)
+        this.originalOrder = originalOrder ?: items
+        userPinnedVideoIds.clear()
+        _state.value = PlayQueueState(
+            items = items,
+            currentIndex = safeIndex,
+            repeatMode = repeatMode,
+            shuffleEnabled = shuffleEnabled,
+            sourcePlaylistId = sourcePlaylistId,
+        )
     }
 
     fun updateItemMetadata(
