@@ -31,6 +31,7 @@ import com.ytlite.player.data.remote.updatedAtMillis
 import com.ytlite.player.data.remote.youtube.YoutubeRemoteDataSource
 import com.ytlite.player.data.youtube.YoutubeDiagnostics
 import com.ytlite.player.playback.NowPlaying
+import com.ytlite.player.playback.PlaybackCacheJanitor
 import com.ytlite.player.playback.PlaybackManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -97,6 +98,23 @@ class LibraryRepository(
                 val ownerKey = authRepository.currentSession()?.ownerKey ?: return@launch
                 playbackHistoryRepository.updateProgress(ownerKey, videoId, progressMs)
             }
+        }
+        PlaybackManager.onCacheablePlay = { videoId, cacheKey, itag ->
+            repositoryScope.launch {
+                PlaybackCacheJanitor.recordPlay(
+                    context = appContext,
+                    videoId = videoId,
+                    cacheKey = cacheKey,
+                    itag = itag,
+                    ownerKey = authRepository.currentSession()?.ownerKey,
+                )
+            }
+        }
+        repositoryScope.launch {
+            PlaybackCacheJanitor.purgeExpired(
+                context = appContext,
+                ownerKey = authRepository.currentSession()?.ownerKey,
+            )
         }
     }
 
@@ -600,6 +618,7 @@ class LibraryRepository(
         withContext(Dispatchers.IO) {
             playlistTrackDao.deleteTrack(playlistId, trackId)
             playlistDao.markUnsynced(playlistId)
+            evaluatePlaybackCache(trackId)
         }
 
     suspend fun createLocalPlaylist(ownerKey: String, name: String): String =
@@ -645,6 +664,7 @@ class LibraryRepository(
             )
             playlistDao.markUnsynced(playlistId)
             schedulePlaylistUpload()
+            evaluatePlaybackCache(video.videoId)
         }
 
     private suspend fun addTrackToSystemPlaylist(
@@ -671,6 +691,7 @@ class LibraryRepository(
         )
         playlistDao.markUnsynced(playlist.playlistId)
         schedulePlaylistUpload()
+        evaluatePlaybackCache(video.videoId, ownerKey)
     }
 
     private suspend fun removeTrackFromSystemPlaylist(
@@ -682,6 +703,12 @@ class LibraryRepository(
         playlistTrackDao.deleteTrack(playlist.playlistId, trackId)
         playlistDao.markUnsynced(playlist.playlistId)
         schedulePlaylistUpload()
+        evaluatePlaybackCache(trackId, ownerKey)
+    }
+
+    private suspend fun evaluatePlaybackCache(trackId: String, ownerKey: String? = null) {
+        val key = ownerKey ?: authRepository.currentSession()?.ownerKey ?: return
+        PlaybackCacheJanitor.evaluateTrack(appContext, key, trackId)
     }
 
     private fun buildSongItems(

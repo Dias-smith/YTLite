@@ -47,6 +47,17 @@ interface PlaylistTrackDao {
         SELECT EXISTS(
             SELECT 1 FROM playlist_track_cross_ref p
             INNER JOIN playlists pl ON pl.playlistId = p.playlistId
+            WHERE pl.ownerKey = :ownerKey AND p.trackId = :trackId
+        )
+        """,
+    )
+    suspend fun isTrackInAnyPlaylist(ownerKey: String, trackId: String): Boolean
+
+    @Query(
+        """
+        SELECT EXISTS(
+            SELECT 1 FROM playlist_track_cross_ref p
+            INNER JOIN playlists pl ON pl.playlistId = p.playlistId
             WHERE pl.ownerKey = :ownerKey AND pl.systemType = :systemType AND p.trackId = :trackId
         )
         """,

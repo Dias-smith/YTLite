@@ -289,8 +289,15 @@ class GlobalPlaybackViewModel(
                     return
                 }
                 applyPlaybackExtras(result.data)
-                PlayQueueRepository.updateStreamUrl(item.videoId, format.url)
-                PlaybackManager.play(item.toNowPlaying(format.url))
+                PlayQueueRepository.updateStreamUrl(item.videoId, format.url, format.itag)
+                val durationMs = result.data.durationSeconds.takeIf { it > 0L }?.times(1000L)
+                    ?: item.toNowPlaying(format.url).durationMs
+                PlaybackManager.play(
+                    item.toNowPlaying(format.url).copy(
+                        itag = format.itag,
+                        durationMs = durationMs,
+                    ),
+                )
                 PlaybackManager.syncRepeatMode()
             }
             is ExtractionResult.Error -> {

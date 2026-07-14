@@ -6,6 +6,7 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import com.ytlite.player.data.local.dao.ArtistDao
 import com.ytlite.player.data.local.dao.NotInterestedDao
+import com.ytlite.player.data.local.dao.PlaybackCacheDao
 import com.ytlite.player.data.local.dao.PlaybackHistoryDao
 import com.ytlite.player.data.local.dao.PlaylistDisplayOrderDao
 import com.ytlite.player.data.local.dao.PlaylistDao
@@ -18,6 +19,7 @@ import com.ytlite.player.data.local.dao.UserTrackLastPlayedDao
 import com.ytlite.player.data.local.dao.UserTrackMetadataDao
 import com.ytlite.player.data.local.entity.ArtistEntity
 import com.ytlite.player.data.local.entity.NotInterestedEntity
+import com.ytlite.player.data.local.entity.PlaybackCacheEntity
 import com.ytlite.player.data.local.entity.PlaybackHistoryEntity
 import com.ytlite.player.data.local.entity.PlaylistDisplayOrderEntity
 import com.ytlite.player.data.local.entity.PlaylistEntity
@@ -43,8 +45,9 @@ import com.ytlite.player.data.local.entity.UserTrackMetadataEntity
         SearchRecentClickEntity::class,
         NotInterestedEntity::class,
         UserTrackMetadataEntity::class,
+        PlaybackCacheEntity::class,
     ],
-    version = 10,
+    version = 11,
     exportSchema = false,
 )
 abstract class YTLiteDatabase : RoomDatabase() {
@@ -60,6 +63,7 @@ abstract class YTLiteDatabase : RoomDatabase() {
     abstract fun searchRecentClickDao(): SearchRecentClickDao
     abstract fun notInterestedDao(): NotInterestedDao
     abstract fun userTrackMetadataDao(): UserTrackMetadataDao
+    abstract fun playbackCacheDao(): PlaybackCacheDao
 
     companion object {
         @Volatile
@@ -72,7 +76,13 @@ abstract class YTLiteDatabase : RoomDatabase() {
                     YTLiteDatabase::class.java,
                     "ytlite.db",
                 )
-                    .addMigrations(MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10)
+                    .addMigrations(
+                        MIGRATION_6_7,
+                        MIGRATION_7_8,
+                        MIGRATION_8_9,
+                        MIGRATION_9_10,
+                        MIGRATION_10_11,
+                    )
                     .build()
                     .also { instance = it }
             }

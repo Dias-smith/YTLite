@@ -9,6 +9,9 @@ data class NowPlaying(
     val channelName: String,
     val streamUrl: String,
     val thumbnailUrl: String,
+    val itag: Int? = null,
+    /** Known duration before player reports one; null/0 means unknown. */
+    val durationMs: Long? = null,
 ) {
     companion object {
         fun thumbnailUrlFor(videoId: String): String =

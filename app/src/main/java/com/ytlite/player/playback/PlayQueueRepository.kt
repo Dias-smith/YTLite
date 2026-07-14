@@ -157,13 +157,21 @@ object PlayQueueRepository {
         }
     }
 
-    fun updateStreamUrl(videoId: String, streamUrl: String) {
+    fun updateStreamUrl(videoId: String, streamUrl: String, itag: Int? = null) {
         _state.update { state ->
             val updated = state.items.map { item ->
-                if (item.videoId == videoId) item.copy(streamUrl = streamUrl) else item
+                if (item.videoId == videoId) {
+                    item.copy(streamUrl = streamUrl, itag = itag ?: item.itag)
+                } else {
+                    item
+                }
             }
             originalOrder = originalOrder?.map { item ->
-                if (item.videoId == videoId) item.copy(streamUrl = streamUrl) else item
+                if (item.videoId == videoId) {
+                    item.copy(streamUrl = streamUrl, itag = itag ?: item.itag)
+                } else {
+                    item
+                }
             }
             state.copy(items = updated)
         }

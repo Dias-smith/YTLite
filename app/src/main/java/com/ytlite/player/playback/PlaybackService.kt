@@ -15,8 +15,8 @@ import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
@@ -68,17 +68,25 @@ class PlaybackService : MediaSessionService() {
     }
 
     private fun buildPlayer(): ExoPlayer {
-        val dataSourceFactory = DefaultHttpDataSource.Factory()
+        val httpDataSourceFactory = DefaultHttpDataSource.Factory()
             .setUserAgent(InnerTubeConfig.USER_AGENT)
             .setDefaultRequestProperties(
                 mapOf("Referer" to "${InnerTubeConfig.BASE_URL}/"),
             )
+        val cacheDataSourceFactory = CacheDataSource.Factory()
+            .setCache(PlaybackMediaCache.get(this))
+            .setUpstreamDataSourceFactory(httpDataSourceFactory)
+            .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
+        val mediaSourceFactory = ConditionalCacheMediaSourceFactory(
+            httpDataSourceFactory = httpDataSourceFactory,
+            cacheDataSourceFactory = cacheDataSourceFactory,
+        )
         val audioAttributes = AudioAttributes.Builder()
             .setUsage(C.USAGE_MEDIA)
             .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
             .build()
         return ExoPlayer.Builder(this)
-            .setMediaSourceFactory(DefaultMediaSourceFactory(dataSourceFactory))
+            .setMediaSourceFactory(mediaSourceFactory)
             .setWakeMode(C.WAKE_MODE_NETWORK)
             .build()
             .apply {

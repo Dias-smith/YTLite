@@ -380,6 +380,8 @@ class PlayerViewModel(
                         channelName = item.channelName,
                         streamUrl = format.url,
                         thumbnailUrl = item.thumbnailUrl,
+                        itag = format.itag,
+                        durationMs = result.data.durationSeconds.takeIf { it > 0L }?.times(1000L),
                     )
                     val queueItem = item.toQueueItem(format.url)
                     PlayQueueRepository.addToEnd(queueItem)
@@ -480,13 +482,15 @@ class PlayerViewModel(
             channelName = playback.channelName,
             streamUrl = format.url,
             thumbnailUrl = NowPlaying.thumbnailUrlFor(playback.videoId),
+            itag = format.itag,
+            durationMs = playback.durationSeconds.takeIf { it > 0L }?.times(1000L),
         )
         if (updateQueue) {
             val currentItem = QueueItem.fromNowPlaying(nowPlaying)
             if (PlayQueueRepository.state.value.items.isEmpty()) {
                 PlayQueueRepository.setQueue(listOf(currentItem))
             } else {
-                PlayQueueRepository.updateStreamUrl(playback.videoId, format.url)
+            PlayQueueRepository.updateStreamUrl(playback.videoId, format.url, format.itag)
             }
         }
         PlaybackManager.play(nowPlaying)

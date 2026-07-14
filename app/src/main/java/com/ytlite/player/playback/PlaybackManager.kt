@@ -19,14 +19,20 @@ import androidx.media3.session.MediaSession
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.MoreExecutors
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 
 @UnstableApi
 object PlaybackManager {
 
     private const val TAG = "PlaybackManager"
+
+    private val cacheScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private val _nowPlaying = MutableStateFlow<NowPlaying?>(null)
     val nowPlaying: StateFlow<NowPlaying?> = _nowPlaying.asStateFlow()
@@ -334,6 +340,7 @@ object PlaybackManager {
         activePlayer.playbackParameters = activePlayer.playbackParameters.withSpeed(playbackSpeed)
         syncRepeatMode()
         activePlayer.playWhenReady = true
+        recordCacheablePlay(current)
     }
 
     private fun playOnPlayer(activePlayer: Player, item: NowPlaying) {
@@ -369,6 +376,7 @@ object PlaybackManager {
         activePlayer.playbackParameters = activePlayer.playbackParameters.withSpeed(playbackSpeed)
         syncRepeatMode()
         activePlayer.playWhenReady = true
+        recordCacheablePlay(item)
     }
 
     private fun NowPlaying.toMediaItem(): MediaItem {
@@ -382,6 +390,9 @@ object PlaybackManager {
                     .setArtworkUri(Uri.parse(thumbnailUrl))
                     .build(),
             )
+        if (PlaybackCachePolicy.isCacheableDuration(durationMs)) {
+            builder.setCustomCacheKey(PlaybackCachePolicy.cacheKey(videoId, itag))
+        }
         if (subtitlesEnabled) {
             subtitleUri?.let { uri ->
                 builder.setSubtitleConfigurations(
@@ -534,10 +545,45 @@ object PlaybackManager {
 
     var onProgressTick: ((videoId: String, progressMs: Long) -> Unit)? = null
 
+    /** Called when a play is eligible for local media caching. */
+    var onCacheablePlay: ((videoId: String, cacheKey: String, itag: Int?) -> Unit)? = null
+
+    private fun recordCacheablePlay(item: NowPlaying) {
+        if (!PlaybackCachePolicy.isCacheableDuration(item.durationMs)) return
+        val cacheKey = PlaybackCachePolicy.cacheKey(item.videoId, item.itag)
+        onCacheablePlay?.invoke(item.videoId, cacheKey, item.itag)
+    }
+
+    private fun handleDiscoveredDuration(player: Player) {
+        val duration = player.duration
+        if (duration <= 0L) return
+        val current = _nowPlaying.value ?: return
+        if (PlaybackCachePolicy.isCacheableDuration(duration)) {
+            if (current.durationMs == null || current.durationMs <= 0L) {
+                _nowPlaying.value = current.copy(durationMs = duration)
+                recordCacheablePlay(current.copy(durationMs = duration))
+            }
+            return
+        }
+        val context = appContext ?: return
+        val cacheKey = PlaybackCachePolicy.cacheKey(current.videoId, current.itag)
+        Log.d(TAG, "Duration ${duration}ms exceeds cache limit; purging $cacheKey")
+        cacheScope.launch {
+            PlaybackCacheJanitor.purgeVideo(context, current.videoId)
+            PlaybackMediaCache.removeResource(context, cacheKey)
+        }
+        if (current.durationMs != duration) {
+            _nowPlaying.value = current.copy(durationMs = duration)
+        }
+    }
+
     private fun syncFromPlayer(player: Player) {
         _isPlaying.value = player.isPlaying
         _positionMs.value = player.currentPosition.coerceAtLeast(0L)
         _durationMs.value = player.duration.coerceAtLeast(0L)
+        if (player.playbackState == Player.STATE_READY || player.playbackState == Player.STATE_BUFFERING) {
+            handleDiscoveredDuration(player)
+        }
     }
 
     private fun playbackStateName(state: Int): String = when (state) {

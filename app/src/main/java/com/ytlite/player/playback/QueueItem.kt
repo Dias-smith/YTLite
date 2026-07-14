@@ -14,6 +14,7 @@ data class QueueItem(
     val publishedTimeText: String? = null,
     val album: String? = null,
     val year: String? = null,
+    val itag: Int? = null,
 ) {
     fun subtitleLine(): String = com.ytlite.player.data.repository.LibraryItemMapper.formatSongSubtitle(
         artist = channelName,
@@ -35,6 +36,8 @@ data class QueueItem(
         channelName = channelName,
         streamUrl = streamUrl,
         thumbnailUrl = thumbnailUrl,
+        itag = itag,
+        durationMs = durationText?.let { parseDurationTextToMs(it) },
     )
 
     companion object {
@@ -44,6 +47,32 @@ data class QueueItem(
             channelName = nowPlaying.channelName,
             thumbnailUrl = nowPlaying.thumbnailUrl,
             streamUrl = nowPlaying.streamUrl,
+            durationText = nowPlaying.durationMs
+                ?.takeIf { it > 0L }
+                ?.let { formatDurationMs(it) },
+            itag = nowPlaying.itag,
         )
+    }
+}
+
+private fun parseDurationTextToMs(text: String): Long? {
+    val parts = text.trim().split(':')
+    if (parts.isEmpty() || parts.any { it.toLongOrNull() == null }) return null
+    var total = 0L
+    for (part in parts) {
+        total = total * 60 + (part.toLongOrNull() ?: return null)
+    }
+    return total * 1000L
+}
+
+private fun formatDurationMs(durationMs: Long): String {
+    val totalSeconds = (durationMs / 1000L).coerceAtLeast(0L)
+    val hours = totalSeconds / 3600
+    val minutes = (totalSeconds % 3600) / 60
+    val seconds = totalSeconds % 60
+    return if (hours > 0) {
+        "%d:%02d:%02d".format(hours, minutes, seconds)
+    } else {
+        "%d:%02d".format(minutes, seconds)
     }
 }

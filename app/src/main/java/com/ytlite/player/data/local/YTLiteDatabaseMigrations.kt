@@ -57,3 +57,19 @@ val MIGRATION_9_10 = object : Migration(9, 10) {
         )
     }
 }
+
+val MIGRATION_10_11 = object : Migration(10, 11) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS playback_media_cache (
+                videoId TEXT NOT NULL PRIMARY KEY,
+                cacheKey TEXT NOT NULL,
+                itag INTEGER,
+                lastPlayedAt INTEGER NOT NULL,
+                historyOnlySince INTEGER
+            )
+            """.trimIndent(),
+        )
+    }
+}

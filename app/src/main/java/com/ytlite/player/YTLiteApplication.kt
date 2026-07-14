@@ -9,6 +9,7 @@ import com.ytlite.player.data.repository.ExtractionRepository
 import com.ytlite.player.data.repository.LibraryRepository
 import com.ytlite.player.data.repository.SubscriptionsRepository
 import com.ytlite.player.playback.PlaybackManager
+import com.ytlite.player.playback.PlaybackMediaCache
 import com.ytlite.player.ui.image.YTLiteImageLoader
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -22,6 +23,7 @@ class YTLiteApplication : Application(), ImageLoaderFactory {
         super.onCreate()
         ExtractionRepository.init(this)
         PlaybackManager.init(this)
+        PlaybackMediaCache.get(this)
         PlaybackManager.ensureConnected()
         JsExtractorEngine.preloadAsync(this)
         AuthRepository.getInstance(this)
