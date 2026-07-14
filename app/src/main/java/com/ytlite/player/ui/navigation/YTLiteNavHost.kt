@@ -26,6 +26,7 @@ import com.ytlite.player.ui.player.PlayerLaunchPreview
 import com.ytlite.player.ui.player.videoPreview
 import com.ytlite.player.ui.player.PlayerViewModel
 import com.ytlite.player.playback.GlobalPlaybackViewModel
+import com.ytlite.player.playback.PlaybackManager
 import com.ytlite.player.playback.PlaybackNavigation
 import com.ytlite.player.playback.PlaybackPrefetcher
 import com.ytlite.player.ui.auth.AuthViewModel
@@ -61,20 +62,30 @@ fun YTLiteNavHost(modifier: Modifier = Modifier) {
             val route = Routes.player(videoId)
             val currentRoute = navController.currentBackStackEntry?.destination?.route
             if (currentRoute != route) {
-                PlaybackPrefetcher.prefetch(videoId)
+                val sameTrack = PlaybackManager.handleSameTrackClick(videoId)
+                if (!sameTrack) {
+                    PlaybackPrefetcher.prefetch(videoId)
+                }
                 navController.navigate(route) {
                     launchSingleTop = true
                 }
+            } else {
+                PlaybackManager.handleSameTrackClick(videoId)
             }
         }
     }
 
     fun openPlayer(video: VideoItem, launchSingleTop: Boolean = false) {
-        PlayerLaunchPreview.set(video)
-        PlaybackPrefetcher.prefetch(video.videoId)
+        val sameTrack = PlaybackManager.handleSameTrackClick(video.videoId)
         val route = Routes.player(video.videoId)
+        val currentRoute = navController.currentBackStackEntry?.destination?.route
+        if (currentRoute == route) return
+        if (!sameTrack) {
+            PlayerLaunchPreview.set(video)
+            PlaybackPrefetcher.prefetch(video.videoId)
+        }
         navController.navigate(route) {
-            if (launchSingleTop) {
+            if (launchSingleTop || sameTrack) {
                 this.launchSingleTop = true
             }
         }

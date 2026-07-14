@@ -423,6 +423,27 @@ object PlaybackManager {
         }
     }
 
+    fun play() {
+        runOnMainThread {
+            getPlayer()?.play()
+        }
+    }
+
+    /**
+     * If [videoId] is already the current item:
+     * - paused → resume
+     * - playing → no playback change
+     * @return true when the click was handled as same-track (caller should only open player UI).
+     */
+    fun handleSameTrackClick(videoId: String): Boolean {
+        val current = _nowPlaying.value ?: return false
+        if (current.videoId != videoId) return false
+        if (!_isPlaying.value) {
+            play()
+        }
+        return true
+    }
+
     fun pause() {
         runOnMainThread {
             getPlayer()?.pause()

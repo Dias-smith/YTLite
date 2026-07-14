@@ -360,16 +360,24 @@ class GlobalPlaybackViewModel(
         openPlayer: Boolean = true,
     ) {
         if (items.isEmpty()) return
+        val safeIndex = startIndex.coerceIn(0, items.lastIndex)
+        val start = items[safeIndex]
+        if (PlaybackManager.handleSameTrackClick(start.videoId)) {
+            if (openPlayer) {
+                PlaybackNavigation.requestOpenPlayer(start.videoId)
+            }
+            return
+        }
         viewModelScope.launch {
             PlayQueueRepository.setQueue(
                 items = items,
-                startIndex = startIndex,
+                startIndex = safeIndex,
                 sourcePlaylistId = sourcePlaylistId,
             )
-            val start = PlayQueueRepository.state.value.currentItem ?: return@launch
-            playQueueItemInternal(start)
+            val current = PlayQueueRepository.state.value.currentItem ?: return@launch
+            playQueueItemInternal(current)
             if (openPlayer) {
-                PlaybackNavigation.requestOpenPlayer(start.videoId)
+                PlaybackNavigation.requestOpenPlayer(current.videoId)
             }
             showMiniPlayer.update { true }
         }

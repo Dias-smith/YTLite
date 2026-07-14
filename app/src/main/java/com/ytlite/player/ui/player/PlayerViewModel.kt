@@ -69,10 +69,9 @@ class PlayerViewModel(
                     upNextLoading = cachedUpNext == null,
                 )
             }
-            if (cachedUpNext != null) {
-                seedQueue(cachedUpNext)
-            } else {
-                loadRelatedInBackground()
+            // Same track reopen: show Up Next in UI only; do not reseat the play queue.
+            if (cachedUpNext == null) {
+                loadRelatedInBackground(shouldSeedQueue = false)
             }
         } else {
             val preview = PlayerLaunchPreview.consume(videoId)
@@ -242,7 +241,7 @@ class PlayerViewModel(
         }
     }
 
-    private suspend fun loadRelated(extractMessage: JSONObject?) {
+    private suspend fun loadRelated(extractMessage: JSONObject?, shouldSeedQueue: Boolean = true) {
         UpNextCache.get(videoId)?.let { cached ->
             val cachedMessage = UpNextCache.getExtractMessage(videoId) ?: extractMessage
             lastExtractMessage = cachedMessage
@@ -253,7 +252,9 @@ class PlayerViewModel(
                     lastExtractMessage = cachedMessage,
                 )
             }
-            seedQueue(cached)
+            if (shouldSeedQueue) {
+                seedQueue(cached)
+            }
             return
         }
 
@@ -269,7 +270,9 @@ class PlayerViewModel(
                         lastExtractMessage = extractMessage,
                     )
                 }
-                seedQueue(result.data)
+                if (shouldSeedQueue) {
+                    seedQueue(result.data)
+                }
             }
             is ExtractionResult.Error -> {
                 _uiState.update { it.copy(upNextLoading = false) }
@@ -277,9 +280,9 @@ class PlayerViewModel(
         }
     }
 
-    private fun loadRelatedInBackground() {
+    private fun loadRelatedInBackground(shouldSeedQueue: Boolean = true) {
         viewModelScope.launch(Dispatchers.IO) {
-            loadRelated(lastExtractMessage)
+            loadRelated(lastExtractMessage, shouldSeedQueue = shouldSeedQueue)
         }
     }
 
