@@ -67,10 +67,18 @@ object PlayQueueRepository {
         val mode = _state.value.toUpNextPlaybackMode()
         val tail = related
             .filter { it.videoId != current.videoId }
+            .distinctBy { it.videoId }
             .take(maxRelated)
+        // Current track is always index 0; recommendations follow.
         val items = listOf(current) + tail
         setQueue(items, startIndex = 0, preservePlaybackMode = true)
         applyUpNextPlaybackMode(mode)
+        // Re-assert current is first after mode apply (shuffle keeps current at head).
+        _state.update { state ->
+            val head = state.items.firstOrNull { it.videoId == current.videoId } ?: current
+            val rest = state.items.filter { it.videoId != current.videoId }
+            state.copy(items = listOf(head) + rest, currentIndex = 0)
+        }
     }
 
     fun append(items: List<QueueItem>) {

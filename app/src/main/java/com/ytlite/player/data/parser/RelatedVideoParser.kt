@@ -15,6 +15,7 @@ object RelatedVideoParser {
         "videoRenderer",
         "gridVideoRenderer",
         "compactVideoRenderer",
+        "playlistPanelVideoRenderer",
     )
 
     fun parse(response: JSONObject, excludeVideoId: String? = null): List<VideoItem> {
@@ -109,6 +110,30 @@ object RelatedVideoParser {
             ?.optJSONArray("contents")
             ?.let { contents -> addArrayItems(roots, contents) }
 
+        // YouTube Music next / radio queue
+        response.optJSONObject("contents")
+            ?.optJSONObject("singleColumnMusicWatchNextResultsRenderer")
+            ?.optJSONObject("tabbedRenderer")
+            ?.optJSONObject("watchNextTabbedResultsRenderer")
+            ?.optJSONArray("tabs")
+            ?.let { tabs ->
+                for (index in 0 until tabs.length()) {
+                    tabs.optJSONObject(index)
+                        ?.optJSONObject("tabRenderer")
+                        ?.optJSONObject("content")
+                        ?.optJSONObject("musicQueueRenderer")
+                        ?.optJSONObject("content")
+                        ?.optJSONObject("playlistPanelRenderer")
+                        ?.optJSONArray("contents")
+                        ?.let { contents -> addArrayItems(roots, contents) }
+                }
+            }
+
+        response.optJSONObject("contents")
+            ?.optJSONObject("playlistPanelRenderer")
+            ?.optJSONArray("contents")
+            ?.let { contents -> addArrayItems(roots, contents) }
+
         if (roots.isEmpty()) {
             Log.d(TAG, "collectWatchNextRoots: no targeted roots, falling back to full response")
             roots.add(response)
@@ -177,11 +202,18 @@ object RelatedVideoParser {
 
     private fun mapRenderer(renderer: JSONObject): VideoItem? {
         val videoId = renderer.optString("videoId")
+            .ifBlank {
+                renderer.optJSONObject("navigationEndpoint")
+                    ?.optJSONObject("watchEndpoint")
+                    ?.optString("videoId")
+                    .orEmpty()
+            }
         if (videoId.isBlank()) return null
         val title = extractText(renderer.optJSONObject("title"))
         if (title.isBlank()) return null
         val channelName = extractText(renderer.optJSONObject("ownerText"))
             .ifBlank { extractText(renderer.optJSONObject("shortBylineText")) }
+            .ifBlank { extractFirstRunText(renderer.optJSONObject("longBylineText")) }
             .ifBlank { "Unknown" }
         val channelId = renderer.optJSONObject("longBylineText")
             ?.optJSONArray("runs")
@@ -194,6 +226,10 @@ object RelatedVideoParser {
             ?.optJSONArray("thumbnails")
             ?.let { pickThumbnailUrl(it) }
             ?: "https://i.ytimg.com/vi/$videoId/hqdefault.jpg"
+        val viewCountText = extractText(renderer.optJSONObject("shortViewCountText"))
+            .ifBlank { extractText(renderer.optJSONObject("viewCountText")) }
+            .ifBlank { extractViewCountFromByline(renderer.optJSONObject("longBylineText")) }
+            .takeIf { it.isNotBlank() }
         return VideoItem(
             videoId = videoId,
             title = title,
@@ -201,11 +237,23 @@ object RelatedVideoParser {
             channelId = channelId,
             thumbnailUrl = thumbnailUrl,
             durationText = extractText(renderer.optJSONObject("lengthText")).takeIf { it.isNotBlank() },
-            viewCountText = extractText(renderer.optJSONObject("shortViewCountText"))
-                .ifBlank { extractText(renderer.optJSONObject("viewCountText")) }
-                .takeIf { it.isNotBlank() },
+            viewCountText = viewCountText,
             publishedTimeText = extractText(renderer.optJSONObject("publishedTimeText")).takeIf { it.isNotBlank() },
         )
+    }
+
+    private fun extractFirstRunText(textObject: JSONObject?): String {
+        val runs = textObject?.optJSONArray("runs") ?: return ""
+        return runs.optJSONObject(0)?.optString("text").orEmpty().trim()
+    }
+
+    private fun extractViewCountFromByline(textObject: JSONObject?): String {
+        val runs = textObject?.optJSONArray("runs") ?: return ""
+        for (index in 0 until runs.length()) {
+            val text = runs.optJSONObject(index)?.optString("text").orEmpty()
+            if (text.contains("view", ignoreCase = true)) return text.trim()
+        }
+        return ""
     }
 
     private fun extractText(textObject: JSONObject?): String {

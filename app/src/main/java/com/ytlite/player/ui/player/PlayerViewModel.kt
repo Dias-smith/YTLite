@@ -287,8 +287,19 @@ class PlayerViewModel(
     }
 
     private fun seedQueue(related: List<VideoItem>) {
-        val current = PlaybackManager.nowPlaying.value ?: return
-        val currentItem = QueueItem.fromNowPlaying(current)
+        val nowPlaying = PlaybackManager.nowPlaying.value
+        val playback = _uiState.value.playback
+        val currentItem = when {
+            nowPlaying != null -> QueueItem.fromNowPlaying(nowPlaying)
+            playback != null -> QueueItem(
+                videoId = playback.videoId,
+                title = playback.title,
+                channelName = playback.channelName,
+                thumbnailUrl = NowPlaying.thumbnailUrlFor(playback.videoId),
+                streamUrl = _uiState.value.selectedStreamUrl,
+            )
+            else -> return
+        }
         PlayQueueRepository.replaceCurrentAndAppend(
             current = currentItem,
             related = related.map { it.toQueueItem() },
@@ -490,10 +501,20 @@ class PlayerViewModel(
         )
         if (updateQueue) {
             val currentItem = QueueItem.fromNowPlaying(nowPlaying)
-            if (PlayQueueRepository.state.value.items.isEmpty()) {
-                PlayQueueRepository.setQueue(listOf(currentItem))
+            val queue = PlayQueueRepository.state.value
+            val existingIndex = queue.items.indexOfFirst { it.videoId == playback.videoId }
+            if (existingIndex >= 0) {
+                if (existingIndex != queue.currentIndex) {
+                    PlayQueueRepository.setCurrentIndex(existingIndex)
+                }
+                PlayQueueRepository.updateStreamUrl(playback.videoId, format.url, format.itag)
             } else {
-            PlayQueueRepository.updateStreamUrl(playback.videoId, format.url, format.itag)
+                // New track opened from detail: keep it at the front before related are seeded.
+                PlayQueueRepository.setQueue(
+                    items = listOf(currentItem),
+                    startIndex = 0,
+                    preservePlaybackMode = true,
+                )
             }
         }
         PlaybackManager.play(nowPlaying)

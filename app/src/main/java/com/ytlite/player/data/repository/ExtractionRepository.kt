@@ -166,6 +166,20 @@ class ExtractionRepository(
                     return@withContext ExtractionResult.Success(fromJs)
                 }
             }
+
+            // Prefer YouTube Music radio queue (music.youtube.com RDAMVM…).
+            runCatching {
+                val musicResponse = innerTubeApi.fetchMusicRadioNext(videoId)
+                val fromMusic = RelatedVideoParser.parse(musicResponse, excludeVideoId = videoId)
+                Log.d(TAG, "fetchRelatedVideos musicRadio count=${fromMusic.size} videoId=$videoId")
+                fromMusic
+            }.getOrElse { error ->
+                Log.w(TAG, "fetchRelatedVideos musicRadio failed videoId=$videoId", error)
+                emptyList()
+            }.takeIf { it.isNotEmpty() }?.let { fromMusic ->
+                return@withContext ExtractionResult.Success(fromMusic)
+            }
+
             val response = innerTubeApi.fetchWatchNext(videoId)
             val lockupCount = RelatedVideoParser.countLockupViewModels(response)
             Log.d(TAG, "fetchRelatedVideos innertube lockupViewModels=$lockupCount videoId=$videoId")

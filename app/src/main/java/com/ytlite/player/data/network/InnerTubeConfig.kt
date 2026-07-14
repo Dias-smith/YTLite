@@ -2,9 +2,12 @@ package com.ytlite.player.data.network
 
 object InnerTubeConfig {
     const val API_KEY = "AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8"
+    const val MUSIC_API_KEY = "AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30"
     const val BASE_URL = "https://www.youtube.com"
+    const val MUSIC_BASE_URL = "https://music.youtube.com"
 
     val FEED_CLIENT = InnerTubeClientType.WEB
+    val MUSIC_CLIENT = InnerTubeClientType.WEB_REMIX
 
     const val HL = "en"
     const val GL = "US"
@@ -30,4 +33,7 @@ object InnerTubeConfig {
 
     val NEXT_URL: String
         get() = "$BASE_URL/youtubei/v1/next?key=$API_KEY"
+
+    val MUSIC_NEXT_URL: String
+        get() = "$MUSIC_BASE_URL/youtubei/v1/next?key=$MUSIC_API_KEY"
 }

@@ -156,6 +156,27 @@ class InnerTubeApi(
             body = body,
             label = "watch_next",
             client = InnerTubeConfig.FEED_CLIENT,
+            origin = InnerTubeConfig.BASE_URL,
+        )
+    }
+
+    /**
+     * YouTube Music radio queue for [videoId] (`RDAMVM…`), returns ~50 related tracks.
+     */
+    fun fetchMusicRadioNext(videoId: String): JSONObject {
+        val body = JSONObject().apply {
+            put("context", buildClientContext(InnerTubeConfig.MUSIC_CLIENT))
+            put("videoId", videoId)
+            put("playlistId", "RDAMVM$videoId")
+            put("racyCheckOk", true)
+            put("contentCheckOk", true)
+        }
+        return post(
+            url = InnerTubeConfig.MUSIC_NEXT_URL,
+            body = body,
+            label = "music_radio_next",
+            client = InnerTubeConfig.MUSIC_CLIENT,
+            origin = InnerTubeConfig.MUSIC_BASE_URL,
         )
     }
 
@@ -177,12 +198,15 @@ class InnerTubeApi(
         label: String,
         client: InnerTubeClientType,
         authenticated: Boolean = false,
+        origin: String = InnerTubeConfig.BASE_URL,
     ): JSONObject {
         val headers = mutableMapOf(
             "Content-Type" to "application/json",
             "User-Agent" to InnerTubeConfig.USER_AGENT,
             "X-YouTube-Client-Name" to client.clientNameHeader,
             "X-YouTube-Client-Version" to client.clientVersion,
+            "Origin" to origin,
+            "Referer" to "$origin/",
         )
         if (authenticated && YoutubeCookieJar.hasAuthCookies()) {
             headers.putAll(YoutubeAuthHeaders.buildAuthenticatedHeaders())
