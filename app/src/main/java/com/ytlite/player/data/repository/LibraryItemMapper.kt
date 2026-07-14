@@ -202,16 +202,14 @@ internal object LibraryItemMapper {
 
     fun systemPlaylistSubtitle(systemType: String): String = "System"
 
+    @Suppress("UNUSED_PARAMETER")
     fun visibleChips(session: UserSession): List<LibraryFilterChip> =
-        buildList {
-            add(LibraryFilterChip.PLAYLISTS)
-            add(LibraryFilterChip.SONGS)
-            add(LibraryFilterChip.CHANNELS)
-            // Albums Chip is intentionally hidden (no album entity; see LIBRARY_UI_SPEC).
-            if (session is UserSession.Authenticated) {
-                add(LibraryFilterChip.YOUTUBE)
-            }
-        }
+        listOf(
+            LibraryFilterChip.PLAYLISTS,
+            LibraryFilterChip.SONGS,
+            LibraryFilterChip.CHANNELS,
+            // Albums / YouTube chips intentionally hidden for v1.
+        )
 
     fun playlistSubtitle(playlist: PlaylistEntity): String = when {
         playlist.systemType != null -> "System"

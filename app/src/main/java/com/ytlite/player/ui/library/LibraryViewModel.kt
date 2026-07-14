@@ -57,7 +57,13 @@ class LibraryViewModel(
     }.flatMapLatest { query ->
         val session = query.session
             ?: return@flatMapLatest flowOf(LibraryUiState(isLoading = true))
-        val effectiveSort = if (query.reorderMode && query.filter == LibraryFilterChip.PLAYLISTS) {
+        val visibleChips = LibraryItemMapper.visibleChips(session)
+        val filter = if (query.filter in visibleChips) {
+            query.filter
+        } else {
+            LibraryFilterChip.PLAYLISTS
+        }
+        val effectiveSort = if (query.reorderMode && filter == LibraryFilterChip.PLAYLISTS) {
             LibrarySort.CUSTOM
         } else {
             query.sort
@@ -65,7 +71,7 @@ class LibraryViewModel(
         combine(
             libraryRepository.observeLibraryItems(
                 ownerKey = session.ownerKey,
-                filter = query.filter,
+                filter = filter,
                 sort = effectiveSort,
                 isAuthenticated = session is UserSession.Authenticated,
             ),
@@ -76,10 +82,10 @@ class LibraryViewModel(
             LibraryUiState(
                 session = session,
                 items = items,
-                selectedFilter = query.filter,
+                selectedFilter = filter,
                 sort = query.sort,
                 viewMode = query.mode,
-                visibleChips = LibraryItemMapper.visibleChips(session),
+                visibleChips = visibleChips,
                 isLoading = false,
                 isPlaylistReorderMode = query.reorderMode,
                 isSelectionMode = selectionMode,
