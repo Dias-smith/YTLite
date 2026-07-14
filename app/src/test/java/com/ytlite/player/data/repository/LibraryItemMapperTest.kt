@@ -46,7 +46,7 @@ class LibraryItemMapperTest {
         )
 
         assertEquals(
-            listOf("Pinned", "Unpinned", "History"),
+            listOf("Pinned", "History", "Unpinned"),
             ordered.map { (it as LibraryItem.Playlist).title },
         )
     }
@@ -64,7 +64,7 @@ class LibraryItemMapperTest {
         )
 
         assertEquals(
-            listOf("Pinned New", "Pinned Old", "Newer", "Older", "History"),
+            listOf("Pinned New", "Pinned Old", "History", "Newer", "Older"),
             ordered.map { (it as LibraryItem.Playlist).title },
         )
     }
@@ -107,6 +107,33 @@ class LibraryItemMapperTest {
 
         assertEquals(
             listOf("Pinned New", "Pinned Old"),
+            ordered.map { (it as LibraryItem.Playlist).title },
+        )
+    }
+
+    @Test
+    fun orderPlaylistItems_ordersSystemPlaylistsLikedWatchLaterHistoryByDefault() {
+        val watchLater = playlist(
+            id = "watch_later",
+            title = "Watch later",
+            systemType = PlaylistSystemType.WATCH_LATER,
+            sortKey = 300L,
+        )
+        val liked = playlist(
+            id = "liked",
+            title = "Liked videos",
+            systemType = PlaylistSystemType.FAVORITES,
+            sortKey = 100L,
+        )
+        val custom = playlist(id = "custom", title = "Custom", sortKey = 400L)
+
+        val ordered = LibraryItemMapper.orderPlaylistItems(
+            items = listOf(watchLater, liked, custom),
+            sort = LibrarySort.RECENT_ACTIVITY,
+        )
+
+        assertEquals(
+            listOf("Liked videos", "Watch later", "History", "Custom"),
             ordered.map { (it as LibraryItem.Playlist).title },
         )
     }

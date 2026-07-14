@@ -138,11 +138,26 @@ internal object LibraryItemMapper {
         when (sort) {
             LibrarySort.CUSTOM -> items.sortedWith(
                 compareBy<LibraryItem.Playlist> { manualOrder[it.id] ?: Int.MAX_VALUE }
+                    .thenBy { systemPlaylistDefaultOrder(it.systemType) }
                     .thenByDescending { it.sortKeyActivity },
             )
-            LibrarySort.RECENT_ACTIVITY -> items.sortedByDescending { it.sortKeyActivity }
-            LibrarySort.RECENTLY_SAVED -> items.sortedByDescending { it.sortKeySaved }
+            LibrarySort.RECENT_ACTIVITY -> items.sortedWith(
+                compareBy<LibraryItem.Playlist> { systemPlaylistDefaultOrder(it.systemType) }
+                    .thenByDescending { it.sortKeyActivity },
+            )
+            LibrarySort.RECENTLY_SAVED -> items.sortedWith(
+                compareBy<LibraryItem.Playlist> { systemPlaylistDefaultOrder(it.systemType) }
+                    .thenByDescending { it.sortKeySaved },
+            )
         }
+
+    /** Default order for system playlists: Liked → Watch later → History. */
+    private fun systemPlaylistDefaultOrder(systemType: String?): Int = when (systemType) {
+        PlaylistSystemType.FAVORITES -> 0
+        PlaylistSystemType.WATCH_LATER -> 1
+        PlaylistSystemType.HISTORY -> 2
+        else -> Int.MAX_VALUE
+    }
 
     fun historyPlaylistItem(): LibraryItem.Playlist = LibraryItem.Playlist(
         id = "system:history",

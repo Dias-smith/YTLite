@@ -32,9 +32,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
-import coil.request.ImageRequest
 import com.ytlite.player.R
 import com.ytlite.player.playback.UpNextPlaybackMode
+import com.ytlite.player.ui.image.thumbnailRequest
 import com.ytlite.player.ui.trackaction.TrackActionSource
 import com.ytlite.player.data.model.VideoItem
 import com.ytlite.player.ui.trackaction.LocalTrackMoreClick
@@ -67,11 +67,7 @@ fun PurifiedUpNextItem(
             modifier = Modifier.size(width = 120.dp, height = 68.dp),
         ) {
             AsyncImage(
-                model = ImageRequest.Builder(context)
-                    .data(item.thumbnailUrl)
-                    .allowRgb565(true)
-                    .crossfade(false)
-                    .build(),
+                model = thumbnailRequest(context, item.thumbnailUrl),
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier

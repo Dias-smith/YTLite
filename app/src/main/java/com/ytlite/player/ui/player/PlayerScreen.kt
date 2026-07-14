@@ -17,7 +17,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import coil.compose.AsyncImage
-import coil.request.ImageRequest
+import com.ytlite.player.ui.image.thumbnailRequest
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -369,10 +369,7 @@ private fun PlayerExtractingSurface(
             .background(Color.Black),
     ) {
         AsyncImage(
-            model = ImageRequest.Builder(context)
-                .data(thumbnailUrl)
-                .crossfade(true)
-                .build(),
+            model = thumbnailRequest(context, thumbnailUrl),
             contentDescription = null,
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize(),

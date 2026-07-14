@@ -61,8 +61,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.Player
 import coil.compose.AsyncImage
-import coil.request.ImageRequest
 import com.ytlite.player.R
+import com.ytlite.player.ui.image.thumbnailRequest
 import kotlinx.coroutines.delay
 
 private val OverlayIconBackground = Color.Black.copy(alpha = 0.5f)
@@ -489,11 +489,7 @@ private fun AudioPowerSaveSurface(
     val context = LocalContext.current
     Box(modifier = modifier.background(Color.Black)) {
         AsyncImage(
-            model = ImageRequest.Builder(context)
-                .data(thumbnailUrl)
-                .allowRgb565(true)
-                .crossfade(false)
-                .build(),
+            model = thumbnailRequest(context, thumbnailUrl),
             contentDescription = null,
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize(),
