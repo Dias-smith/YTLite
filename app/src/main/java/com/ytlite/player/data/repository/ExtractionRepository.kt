@@ -154,6 +154,16 @@ class ExtractionRepository(
     suspend fun fetchRelatedVideos(
         videoId: String,
         extractMessage: JSONObject? = null,
+    ): ExtractionResult<List<com.ytlite.player.data.model.VideoItem>> =
+        fetchMusicRelatedVideos(videoId).let { music ->
+            if (music is ExtractionResult.Success) music
+            else fetchWwwRelatedVideos(videoId, extractMessage)
+        }
+
+    /** youtube.com watch/next related (for Up next queue outside playlist context). */
+    suspend fun fetchWwwRelatedVideos(
+        videoId: String,
+        extractMessage: JSONObject? = null,
     ): ExtractionResult<List<com.ytlite.player.data.model.VideoItem>> = withContext(Dispatchers.IO) {
         if (videoId.isBlank()) {
             return@withContext ExtractionResult.Error("Video ID is empty")
@@ -161,39 +171,50 @@ class ExtractionRepository(
         try {
             extractMessage?.let { message ->
                 val fromJs = RelatedVideoParser.parseFromJsExtract(message, excludeVideoId = videoId)
-                Log.d(TAG, "fetchRelatedVideos jsPath count=${fromJs.size} videoId=$videoId")
+                Log.d(TAG, "fetchWwwRelatedVideos jsPath count=${fromJs.size} videoId=$videoId")
                 if (fromJs.isNotEmpty()) {
                     return@withContext ExtractionResult.Success(fromJs)
                 }
             }
-
-            // Prefer YouTube Music radio queue (music.youtube.com RDAMVM…).
-            runCatching {
-                val musicResponse = innerTubeApi.fetchMusicRadioNext(videoId)
-                val fromMusic = RelatedVideoParser.parse(musicResponse, excludeVideoId = videoId)
-                Log.d(TAG, "fetchRelatedVideos musicRadio count=${fromMusic.size} videoId=$videoId")
-                fromMusic
-            }.getOrElse { error ->
-                Log.w(TAG, "fetchRelatedVideos musicRadio failed videoId=$videoId", error)
-                emptyList()
-            }.takeIf { it.isNotEmpty() }?.let { fromMusic ->
-                return@withContext ExtractionResult.Success(fromMusic)
-            }
-
             val response = innerTubeApi.fetchWatchNext(videoId)
             val lockupCount = RelatedVideoParser.countLockupViewModels(response)
-            Log.d(TAG, "fetchRelatedVideos innertube lockupViewModels=$lockupCount videoId=$videoId")
+            Log.d(TAG, "fetchWwwRelatedVideos lockupViewModels=$lockupCount videoId=$videoId")
             val related = RelatedVideoParser.parse(response, excludeVideoId = videoId)
-            Log.d(TAG, "fetchRelatedVideos mapped=${related.size} videoId=$videoId")
+            Log.d(TAG, "fetchWwwRelatedVideos mapped=${related.size} videoId=$videoId")
             if (related.isEmpty()) {
                 ExtractionResult.Error("No related videos found")
             } else {
                 ExtractionResult.Success(related)
             }
         } catch (e: Exception) {
-            Log.e(TAG, "fetchRelatedVideos failed videoId=$videoId", e)
+            Log.e(TAG, "fetchWwwRelatedVideos failed videoId=$videoId", e)
             ExtractionResult.Error(
                 message = "Failed to load related videos",
+                cause = e,
+            )
+        }
+    }
+
+    /** music.youtube.com RDAMVM radio (for Related tab). */
+    suspend fun fetchMusicRelatedVideos(
+        videoId: String,
+    ): ExtractionResult<List<com.ytlite.player.data.model.VideoItem>> = withContext(Dispatchers.IO) {
+        if (videoId.isBlank()) {
+            return@withContext ExtractionResult.Error("Video ID is empty")
+        }
+        try {
+            val musicResponse = innerTubeApi.fetchMusicRadioNext(videoId)
+            val fromMusic = RelatedVideoParser.parse(musicResponse, excludeVideoId = videoId)
+            Log.d(TAG, "fetchMusicRelatedVideos count=${fromMusic.size} videoId=$videoId")
+            if (fromMusic.isEmpty()) {
+                ExtractionResult.Error("No music related videos found")
+            } else {
+                ExtractionResult.Success(fromMusic)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "fetchMusicRelatedVideos failed videoId=$videoId", e)
+            ExtractionResult.Error(
+                message = "Failed to load music related videos",
                 cause = e,
             )
         }

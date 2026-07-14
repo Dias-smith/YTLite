@@ -23,8 +23,11 @@ import com.ytlite.player.playback.PlaybackManager
 import com.ytlite.player.playback.PlaybackPrefetcher
 import com.ytlite.player.playback.PlaybackTiming
 import com.ytlite.player.playback.QueueItem
+import com.ytlite.player.playback.RelatedCacheKind
 import com.ytlite.player.playback.UpNextCache
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -54,9 +57,11 @@ class PlayerViewModel(
         jsEngine.preloadAsync()
         val active = PlaybackManager.nowPlaying.value
         if (active?.videoId == videoId) {
-            val cachedUpNext = UpNextCache.get(videoId)
-            if (cachedUpNext != null) {
-                lastExtractMessage = UpNextCache.getExtractMessage(videoId)
+            val cachedWww = UpNextCache.get(videoId, RelatedCacheKind.Www)
+            val cachedMusic = UpNextCache.get(videoId, RelatedCacheKind.Music)
+            if (cachedWww != null || cachedMusic != null) {
+                lastExtractMessage = UpNextCache.getExtractMessage(videoId, RelatedCacheKind.Www)
+                    ?: UpNextCache.getExtractMessage(videoId, RelatedCacheKind.Music)
             }
             _uiState.update {
                 it.copy(
@@ -65,18 +70,18 @@ class PlayerViewModel(
                     playback = active.toStubPlayback(),
                     selectedStreamUrl = active.streamUrl,
                     errorMessage = null,
-                    recommendedItems = cachedUpNext.orEmpty(),
-                    recommendLoading = cachedUpNext == null,
-                    upNextItems = cachedUpNext.orEmpty(),
-                    upNextLoading = cachedUpNext == null,
+                    recommendedItems = cachedMusic.orEmpty(),
+                    recommendLoading = cachedMusic == null,
+                    upNextItems = cachedWww.orEmpty(),
+                    upNextLoading = cachedWww == null,
                 )
             }
-            // Same track reopen: refresh Recommend only; never reseat a playlist queue.
+            // Same track reopen: refresh Related (Music); seed Up next from www only outside playlist.
             val inPlaylistContext = PlayQueueRepository.state.value.sourcePlaylistId != null
-            if (cachedUpNext == null) {
+            if (cachedWww == null || cachedMusic == null) {
                 loadRelatedInBackground(shouldSeedQueue = !inPlaylistContext)
             } else if (!inPlaylistContext && PlayQueueRepository.state.value.items.size <= 1) {
-                seedQueue(cachedUpNext)
+                seedQueue(cachedWww)
             }
         } else {
             val preview = PlayerLaunchPreview.consume(videoId)
@@ -274,48 +279,81 @@ class PlayerViewModel(
         val allowSeed = shouldSeedQueue &&
             PlayQueueRepository.state.value.sourcePlaylistId == null
 
-        UpNextCache.get(targetVideoId)?.let { cached ->
-            val cachedMessage = UpNextCache.getExtractMessage(targetVideoId) ?: extractMessage
+        val cachedWww = UpNextCache.get(targetVideoId, RelatedCacheKind.Www)
+        val cachedMusic = UpNextCache.get(targetVideoId, RelatedCacheKind.Music)
+        if (cachedWww != null || cachedMusic != null) {
+            val cachedMessage = UpNextCache.getExtractMessage(targetVideoId, RelatedCacheKind.Www)
+                ?: UpNextCache.getExtractMessage(targetVideoId, RelatedCacheKind.Music)
+                ?: extractMessage
             if (targetVideoId == (_uiState.value.playback?.videoId ?: videoId)) {
                 lastExtractMessage = cachedMessage
             }
             _uiState.update {
                 it.copy(
-                    recommendedItems = cached,
-                    recommendLoading = false,
-                    upNextItems = cached,
-                    upNextLoading = false,
+                    recommendedItems = cachedMusic.orEmpty().ifEmpty { it.recommendedItems },
+                    recommendLoading = cachedMusic == null,
+                    upNextItems = cachedWww.orEmpty().ifEmpty { it.upNextItems },
+                    upNextLoading = cachedWww == null,
                     lastExtractMessage = cachedMessage,
                 )
             }
-            if (allowSeed) {
-                seedQueue(cached)
+            if (allowSeed && cachedWww != null) {
+                seedQueue(cachedWww)
             }
-            return
+            if (cachedWww != null && cachedMusic != null) {
+                return
+            }
         }
 
-        _uiState.update { it.copy(recommendLoading = true, upNextLoading = true) }
-        when (val result = repository.fetchRelatedVideos(targetVideoId, extractMessage)) {
-            is ExtractionResult.Success -> {
-                UpNextCache.put(targetVideoId, result.data, extractMessage)
-                if (targetVideoId == (_uiState.value.playback?.videoId ?: videoId)) {
-                    lastExtractMessage = extractMessage
-                }
-                _uiState.update {
-                    it.copy(
-                        recommendedItems = result.data,
-                        recommendLoading = false,
-                        upNextItems = result.data,
-                        upNextLoading = false,
-                        lastExtractMessage = extractMessage,
-                    )
-                }
-                if (allowSeed) {
-                    seedQueue(result.data)
+        _uiState.update {
+            it.copy(
+                recommendLoading = cachedMusic == null,
+                upNextLoading = cachedWww == null,
+            )
+        }
+
+        coroutineScope {
+            val wwwDeferred = async {
+                if (cachedWww != null) {
+                    ExtractionResult.Success(cachedWww)
+                } else {
+                    repository.fetchWwwRelatedVideos(targetVideoId, extractMessage)
                 }
             }
-            is ExtractionResult.Error -> {
-                _uiState.update { it.copy(recommendLoading = false, upNextLoading = false) }
+            val musicDeferred = async {
+                if (cachedMusic != null) {
+                    ExtractionResult.Success(cachedMusic)
+                } else {
+                    repository.fetchMusicRelatedVideos(targetVideoId)
+                }
+            }
+            val wwwResult = wwwDeferred.await()
+            val musicResult = musicDeferred.await()
+
+            val wwwItems = (wwwResult as? ExtractionResult.Success)?.data.orEmpty()
+            val musicItems = (musicResult as? ExtractionResult.Success)?.data.orEmpty()
+
+            if (wwwItems.isNotEmpty()) {
+                UpNextCache.put(targetVideoId, wwwItems, extractMessage, RelatedCacheKind.Www)
+            }
+            if (musicItems.isNotEmpty()) {
+                UpNextCache.put(targetVideoId, musicItems, null, RelatedCacheKind.Music)
+            }
+
+            if (targetVideoId == (_uiState.value.playback?.videoId ?: videoId)) {
+                lastExtractMessage = extractMessage
+            }
+            _uiState.update {
+                it.copy(
+                    recommendedItems = musicItems.ifEmpty { it.recommendedItems },
+                    recommendLoading = false,
+                    upNextItems = wwwItems.ifEmpty { it.upNextItems },
+                    upNextLoading = false,
+                    lastExtractMessage = extractMessage,
+                )
+            }
+            if (allowSeed && wwwItems.isNotEmpty()) {
+                seedQueue(wwwItems)
             }
         }
     }
@@ -406,9 +444,14 @@ class PlayerViewModel(
                         durationMs = result.data.durationSeconds.takeIf { it > 0L }?.times(1000L),
                     )
                     val currentItem = QueueItem.fromNowPlaying(nowPlaying)
-                    val related = when (val relatedResult = repository.fetchRelatedVideos(item.videoId)) {
+                    val related = when (val relatedResult = repository.fetchMusicRelatedVideos(item.videoId)) {
                         is ExtractionResult.Success -> {
-                            UpNextCache.put(item.videoId, relatedResult.data, null)
+                            UpNextCache.put(
+                                item.videoId,
+                                relatedResult.data,
+                                null,
+                                RelatedCacheKind.Music,
+                            )
                             relatedResult.data
                         }
                         is ExtractionResult.Error -> emptyList()
@@ -421,6 +464,21 @@ class PlayerViewModel(
                     )
                     PlaybackManager.play(nowPlaying)
                     PlaybackManager.syncRepeatMode()
+                    // Also refresh www related for Up next tab enrich, without reseeding over Music queue.
+                    val wwwRelated = when (
+                        val wwwResult = repository.fetchWwwRelatedVideos(item.videoId)
+                    ) {
+                        is ExtractionResult.Success -> {
+                            UpNextCache.put(
+                                item.videoId,
+                                wwwResult.data,
+                                null,
+                                RelatedCacheKind.Www,
+                            )
+                            wwwResult.data
+                        }
+                        is ExtractionResult.Error -> emptyList()
+                    }
                     _uiState.update {
                         it.copy(
                             playback = result.data,
@@ -430,7 +488,8 @@ class PlayerViewModel(
                             errorMessage = null,
                             recommendedItems = related,
                             recommendLoading = false,
-                            upNextItems = related,
+                            upNextItems = wwwRelated.ifEmpty { related },
+                            upNextLoading = false,
                             selectedListTab = PlayerListTab.UpNext,
                         )
                     }
