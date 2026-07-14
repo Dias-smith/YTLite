@@ -236,9 +236,8 @@ fun MainScreen(
             else -> when (selectedTab) {
                 MainTab.Home -> HomeScreen(
                     onVideoClick = onVideoClick,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .mainTabPadding(innerPadding, applyTopInset = true),
+                    contentPadding = innerPadding,
+                    modifier = Modifier.fillMaxSize(),
                 )
                 MainTab.Shorts -> ShortsScreen(
                     modifier = Modifier

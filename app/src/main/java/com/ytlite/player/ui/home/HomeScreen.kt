@@ -38,6 +38,7 @@ import com.ytlite.player.ui.search.BrowseVideosScreen
 fun HomeScreen(
     onVideoClick: (VideoItem) -> Unit,
     modifier: Modifier = Modifier,
+    contentPadding: PaddingValues = PaddingValues(0.dp),
     viewModel: HomeViewModel = viewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -54,7 +55,10 @@ fun HomeScreen(
             onRefresh = viewModel::refreshAlbumBrowse,
             onLoadMore = {},
             onVideoClick = onVideoClick,
-            modifier = modifier,
+            applyStatusBarInsets = true,
+            modifier = modifier
+                .fillMaxSize()
+                .padding(bottom = contentPadding.calculateBottomPadding()),
         )
         return
     }
@@ -77,7 +81,14 @@ fun HomeScreen(
         }
     }
 
-    Column(modifier = modifier.fillMaxSize()) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(
+                top = contentPadding.calculateTopPadding(),
+                bottom = contentPadding.calculateBottomPadding(),
+            ),
+    ) {
         CategoryFilterBar(
             categories = uiState.categories,
             selectedCategoryId = uiState.selectedCategoryId,
