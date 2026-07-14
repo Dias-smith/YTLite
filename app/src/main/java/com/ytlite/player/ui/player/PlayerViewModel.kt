@@ -618,15 +618,10 @@ class PlayerViewModel(
     }
 
     private fun currentListAsLibraryVideos(): List<LibraryVideo> {
-        val inPlaylistContext = PlayQueueRepository.state.value.sourcePlaylistId != null
-        val tab = if (inPlaylistContext) {
-            _uiState.value.selectedListTab
-        } else {
-            PlayerListTab.UpNext
-        }
-        return when (tab) {
+        return when (_uiState.value.selectedListTab) {
             PlayerListTab.UpNext -> PlayQueueRepository.state.value.items.map { it.toLibraryVideo() }
             PlayerListTab.Recommend -> _uiState.value.recommendedItems.map { it.toLibraryVideo() }
+            PlayerListTab.Lyrics -> emptyList()
         }
     }
 

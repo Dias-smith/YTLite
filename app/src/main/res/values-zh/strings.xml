@@ -46,6 +46,8 @@
     <string name="player_skip_previous">上一首</string>
     <string name="player_skip_next">下一首</string>
     <string name="player_mode_repeat_one">单曲循环</string>
+    <string name="player_mode_repeat_all">列表循环</string>
+    <string name="player_mode_repeat_off">不循环</string>
     <string name="player_mode_sequential">循序播放</string>
     <string name="player_mode_shuffle">随机播放</string>
     <string name="player_now_playing">正在播放</string>
@@ -74,8 +76,14 @@
     <string name="player_view_count">%1$s 次观看</string>
     <string name="player_comments_coming_soon">评论功能即将推出…</string>
     <string name="player_pip">画中画</string>
+    <string name="player_lyrics_placeholder">歌词即将推出…</string>
     <string name="player_up_next">接下来</string>
+    <string name="player_lyrics">歌词</string>
+    <string name="player_related">相关</string>
     <string name="player_recommend">推荐</string>
+    <string name="player_song_count">%1$d 首</string>
+    <string name="player_list_sort">排序</string>
+    <string name="player_list_multi_select">多选</string>
     <string name="player_save_list_to_playlist">保存列表到播放列表</string>
     <string name="player_save_list_count">%1$d 首</string>
     <string name="playback_notification_channel">播放控制</string>

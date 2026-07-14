@@ -2,6 +2,7 @@ package com.ytlite.player.ui.player
 
 import android.app.Activity
 import android.app.Application
+import android.graphics.Rect
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,35 +11,33 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
-import coil.compose.AsyncImage
-import com.ytlite.player.ui.image.thumbnailRequest
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import android.graphics.Rect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
 import com.ytlite.player.R
 import com.ytlite.player.data.model.SubscriptionChannel
 import com.ytlite.player.playback.GlobalPlaybackUiState
@@ -46,10 +45,24 @@ import com.ytlite.player.playback.GlobalPlaybackViewModel
 import com.ytlite.player.playback.NowPlaying
 import com.ytlite.player.playback.PlayQueueRepository
 import com.ytlite.player.playback.PlaybackManager
-import com.ytlite.player.playback.toUpNextPlaybackMode
+import com.ytlite.player.ui.image.thumbnailRequest
 import com.ytlite.player.ui.library.NewPlaylistDialog
 import com.ytlite.player.ui.library.PlaylistPickerSheet
 import com.ytlite.player.ui.library.PlaylistPickerViewModel
+import com.ytlite.player.ui.theme.Orange40
+
+private val PlayerDetailDarkColorScheme = darkColorScheme(
+    primary = Orange40,
+    onPrimary = Color.White,
+    primaryContainer = Color(0xFFCC5500),
+    onPrimaryContainer = Color(0xFFFFDBCC),
+    background = Color(0xFF0D0D0D),
+    onBackground = Color.White,
+    surface = Color(0xFF0D0D0D),
+    onSurface = Color.White,
+    surfaceVariant = Color(0xFF2A2A2A),
+    onSurfaceVariant = Color(0xFFB0B0B0),
+)
 
 @Composable
 fun PlayerScreen(
@@ -113,36 +126,33 @@ fun PlayerScreen(
             )
         }
     } else {
-    Scaffold(
-        modifier = modifier.fillMaxSize(),
-    ) { innerPadding ->
-        when {
-            uiState.errorMessage != null && uiState.playback == null -> {
-                ErrorContent(
-                    message = uiState.errorMessage.orEmpty(),
-                    onRetry = { viewModel.loadPlayback() },
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding),
-                )
-            }
-            uiState.playback != null -> {
-                val playback = requireNotNull(uiState.playback)
-                val thumbnailUrl = playback.let {
-                    com.ytlite.player.playback.NowPlaying.thumbnailUrlFor(it.videoId)
+        Scaffold(
+            modifier = modifier.fillMaxSize(),
+        ) { innerPadding ->
+            when {
+                uiState.errorMessage != null && uiState.playback == null -> {
+                    ErrorContent(
+                        message = uiState.errorMessage.orEmpty(),
+                        onRetry = { viewModel.loadPlayback() },
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(innerPadding),
+                    )
                 }
-                val listState = rememberLazyListState()
-                val swipeToDismissState = rememberPlayerSwipeToDismissState(
-                    listState = listState,
-                    onDismiss = onBack,
-                )
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding)
-                        .playerSwipeToDismiss(swipeToDismissState, enabled = true),
-                ) {
-                    Column {
+                uiState.playback != null -> {
+                    val playback = requireNotNull(uiState.playback)
+                    val thumbnailUrl = NowPlaying.thumbnailUrlFor(playback.videoId)
+                    val listState = rememberLazyListState()
+                    val swipeToDismissState = rememberPlayerSwipeToDismissState(
+                        listState = listState,
+                        onDismiss = onBack,
+                    )
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(innerPadding)
+                            .playerSwipeToDismiss(swipeToDismissState, enabled = true),
+                    ) {
                         if (uiState.selectedStreamUrl != null) {
                             PlayerSmartCanvas(
                                 player = sharedPlayer,
@@ -172,21 +182,23 @@ fun PlayerScreen(
                                 },
                                 positionMs = positionMs,
                                 durationMs = durationMs,
-                                modifier = Modifier.onGloballyPositioned { coordinates ->
-                                    val position = coordinates.positionInWindow()
-                                    val size = coordinates.size
-                                    PlayerPipState.sourceRectHint = Rect(
-                                        position.x.toInt(),
-                                        position.y.toInt(),
-                                        (position.x + size.width).toInt(),
-                                        (position.y + size.height).toInt(),
-                                    )
-                                },
+                                modifier = Modifier
+                                    .playerSwipeToDismissHeader(swipeToDismissState, enabled = true)
+                                    .onGloballyPositioned { coordinates ->
+                                        val position = coordinates.positionInWindow()
+                                        val size = coordinates.size
+                                        PlayerPipState.sourceRectHint = Rect(
+                                            position.x.toInt(),
+                                            position.y.toInt(),
+                                            (position.x + size.width).toInt(),
+                                            (position.y + size.height).toInt(),
+                                        )
+                                    },
                             )
                             if (playbackError != null) {
                                 Box(
                                     modifier = Modifier
-                                        .fillMaxSize()
+                                        .fillMaxWidth()
                                         .padding(16.dp),
                                     contentAlignment = Alignment.Center,
                                 ) {
@@ -213,115 +225,131 @@ fun PlayerScreen(
                             )
                         }
 
-                        Text(
-                            text = playback.title,
-                            style = MaterialTheme.typography.titleLarge,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 12.dp)
-                                .playerSwipeToDismissHeader(swipeToDismissState, enabled = true),
-                        )
-                    }
-
-                    LazyColumn(
-                        state = listState,
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        item(key = "metadata") {
-                            PlayerMetadataPanel(
-                                playback = playback,
-                                showTitle = false,
-                                isLiked = expandedState.isLiked,
-                                isDisliked = expandedState.isDisliked,
-                                onLike = { globalPlaybackViewModel.toggleLike(application) },
-                                onDislike = { globalPlaybackViewModel.toggleDislike(application) },
-                                onShare = { shareVideo(context, playback.videoId) },
-                                onSaveToPlaylist = viewModel::showPlaylistPicker,
-                                onChannelClick = {
-                                    if (playback.channelId.isNotBlank()) {
-                                        onChannelClick(
-                                            SubscriptionChannel(
-                                                channelId = playback.channelId,
-                                                title = playback.channelName,
-                                                handle = null,
-                                                avatarUrl = "",
-                                                subscriberCountText = null,
-                                                description = null,
-                                            ),
+                        MaterialTheme(colorScheme = PlayerDetailDarkColorScheme) {
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxWidth()
+                                    .background(MaterialTheme.colorScheme.background),
+                            ) {
+                                LazyColumn(
+                                    state = listState,
+                                    modifier = Modifier.fillMaxSize(),
+                                ) {
+                                    item(key = "metadata") {
+                                        PlayerMetadataPanel(
+                                            playback = playback,
+                                            showTitle = true,
+                                            isLiked = expandedState.isLiked,
+                                            isDisliked = expandedState.isDisliked,
+                                            onLike = { globalPlaybackViewModel.toggleLike(application) },
+                                            onDislike = { globalPlaybackViewModel.toggleDislike(application) },
+                                            onShare = { shareVideo(context, playback.videoId) },
+                                            onSaveToPlaylist = viewModel::showPlaylistPicker,
+                                            onChannelClick = {
+                                                if (playback.channelId.isNotBlank()) {
+                                                    onChannelClick(
+                                                        SubscriptionChannel(
+                                                            channelId = playback.channelId,
+                                                            title = playback.channelName,
+                                                            handle = null,
+                                                            avatarUrl = "",
+                                                            subscriberCountText = null,
+                                                            description = null,
+                                                        ),
+                                                    )
+                                                }
+                                            },
                                         )
                                     }
-                                },
-                            )
-                        }
 
-                        item(key = "up_next_header") {
-                            val showRecommendTab = queueState.sourcePlaylistId != null
-                            val listTab = if (showRecommendTab) {
-                                uiState.selectedListTab
-                            } else {
-                                PlayerListTab.UpNext
-                            }
-                            val canSaveList = when (listTab) {
-                                PlayerListTab.UpNext -> queueState.items.isNotEmpty()
-                                PlayerListTab.Recommend -> uiState.recommendedItems.isNotEmpty()
-                            }
-                            PurifiedUpNextHeader(
-                                currentMode = queueState.toUpNextPlaybackMode(),
-                                onModeSelected = globalPlaybackViewModel::setUpNextPlaybackMode,
-                                selectedTab = uiState.selectedListTab,
-                                onTabSelected = viewModel::selectListTab,
-                                showRecommendTab = showRecommendTab,
-                                canSaveList = canSaveList,
-                                onSaveListClick = viewModel::showSaveCurrentListPlaylistPicker,
-                            )
-                        }
-
-                        val listTab = if (queueState.sourcePlaylistId != null) {
-                            uiState.selectedListTab
-                        } else {
-                            PlayerListTab.UpNext
-                        }
-                        when (listTab) {
-                            PlayerListTab.UpNext -> {
-                                items(
-                                    items = queueState.items,
-                                    key = { "queue:${it.videoId}" },
-                                    contentType = { "queue" },
-                                ) { item ->
-                                    PurifiedUpNextItem(
-                                        item = item.toVideoItem(),
-                                        isCurrentlyPlaying = globalPlaybackState.nowPlaying?.videoId == item.videoId,
-                                        isPlaying = globalPlaybackState.isPlaying,
-                                        onClick = { viewModel.onQueueItemClick(item) },
-                                    )
-                                }
-                            }
-                            PlayerListTab.Recommend -> {
-                                if (uiState.recommendLoading) {
-                                    item(key = "recommend_loading") {
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(24.dp),
-                                            contentAlignment = Alignment.Center,
-                                        ) {
-                                            CircularProgressIndicator()
-                                        }
-                                    }
-                                } else {
-                                    items(
-                                        items = uiState.recommendedItems,
-                                        key = { "rec:${it.videoId}" },
-                                        contentType = { "recommend" },
-                                    ) { item ->
-                                        PurifiedUpNextItem(
-                                            item = item,
-                                            isCurrentlyPlaying = globalPlaybackState.nowPlaying?.videoId == item.videoId,
+                                    item(key = "transport") {
+                                        PlayerDetailTransportBar(
                                             isPlaying = globalPlaybackState.isPlaying,
-                                            onClick = { viewModel.onRecommendClick(item) },
+                                            shuffleEnabled = queueState.shuffleEnabled,
+                                            repeatMode = queueState.repeatMode,
+                                            onToggleShuffle = globalPlaybackViewModel::toggleShuffle,
+                                            onCycleRepeatMode = globalPlaybackViewModel::cycleRepeatMode,
+                                            onSkipPrevious = globalPlaybackViewModel::skipToPrevious,
+                                            onTogglePlayPause = globalPlaybackViewModel::togglePlayPause,
+                                            onSkipNext = globalPlaybackViewModel::skipToNext,
                                         )
+                                    }
+
+                                    item(key = "list_header") {
+                                        val songCount = when (uiState.selectedListTab) {
+                                            PlayerListTab.UpNext -> queueState.items.size
+                                            PlayerListTab.Recommend -> uiState.recommendedItems.size
+                                            PlayerListTab.Lyrics -> 0
+                                        }
+                                        val canSaveList = when (uiState.selectedListTab) {
+                                            PlayerListTab.UpNext -> queueState.items.isNotEmpty()
+                                            PlayerListTab.Recommend -> uiState.recommendedItems.isNotEmpty()
+                                            PlayerListTab.Lyrics -> false
+                                        }
+                                        PlayerDetailListHeader(
+                                            selectedTab = uiState.selectedListTab,
+                                            onTabSelected = viewModel::selectListTab,
+                                            songCount = songCount,
+                                            canSaveList = canSaveList,
+                                            onSaveListClick = viewModel::showSaveCurrentListPlaylistPicker,
+                                        )
+                                    }
+
+                                    when (uiState.selectedListTab) {
+                                        PlayerListTab.UpNext -> {
+                                            items(
+                                                items = queueState.items,
+                                                key = { "queue:${it.videoId}" },
+                                                contentType = { "queue" },
+                                            ) { item ->
+                                                PurifiedUpNextItem(
+                                                    item = item.toVideoItem(),
+                                                    isCurrentlyPlaying = globalPlaybackState.nowPlaying?.videoId == item.videoId,
+                                                    isPlaying = globalPlaybackState.isPlaying,
+                                                    onClick = { viewModel.onQueueItemClick(item) },
+                                                )
+                                            }
+                                        }
+                                        PlayerListTab.Lyrics -> {
+                                            item(key = "lyrics_placeholder") {
+                                                Text(
+                                                    text = stringResource(R.string.player_lyrics_placeholder),
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    modifier = Modifier.padding(24.dp),
+                                                )
+                                            }
+                                        }
+                                        PlayerListTab.Recommend -> {
+                                            if (uiState.recommendLoading) {
+                                                item(key = "recommend_loading") {
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .fillMaxWidth()
+                                                            .padding(24.dp),
+                                                        contentAlignment = Alignment.Center,
+                                                    ) {
+                                                        CircularProgressIndicator(
+                                                            color = MaterialTheme.colorScheme.primary,
+                                                        )
+                                                    }
+                                                }
+                                            } else {
+                                                items(
+                                                    items = uiState.recommendedItems,
+                                                    key = { "rec:${it.videoId}" },
+                                                    contentType = { "recommend" },
+                                                ) { item ->
+                                                    PurifiedUpNextItem(
+                                                        item = item,
+                                                        isCurrentlyPlaying = globalPlaybackState.nowPlaying?.videoId == item.videoId,
+                                                        isPlaying = globalPlaybackState.isPlaying,
+                                                        onClick = { viewModel.onRecommendClick(item) },
+                                                    )
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -330,7 +358,6 @@ fun PlayerScreen(
                 }
             }
         }
-    }
     }
 
     val libraryVideo = viewModel.libraryVideo()

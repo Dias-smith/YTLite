@@ -11,20 +11,19 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.PlaylistAdd
-import androidx.compose.material.icons.automirrored.outlined.QueueMusic
+import androidx.compose.material.icons.automirrored.outlined.Sort
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.outlined.RepeatOne
-import androidx.compose.material.icons.outlined.Shuffle
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -38,12 +37,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.ytlite.player.R
-import com.ytlite.player.playback.UpNextPlaybackMode
-import com.ytlite.player.ui.image.thumbnailRequest
-import com.ytlite.player.ui.trackaction.TrackActionSource
 import com.ytlite.player.data.model.VideoItem
+import com.ytlite.player.ui.image.thumbnailRequest
 import com.ytlite.player.ui.trackaction.LocalTrackMoreClick
 import com.ytlite.player.ui.trackaction.TrackActionContext
+import com.ytlite.player.ui.trackaction.TrackActionSource
 
 @Composable
 fun PurifiedUpNextItem(
@@ -55,47 +53,36 @@ fun PurifiedUpNextItem(
 ) {
     val context = LocalContext.current
     val onTrackMoreClick = LocalTrackMoreClick.current
-    val subtitle = listOfNotNull(
-        item.channelName.takeIf { it.isNotBlank() },
-        item.viewCountText?.takeIf { it.isNotBlank() },
-    ).joinToString(separator = " · ")
+    val subtitle = item.channelName.takeIf { it.isNotBlank() }.orEmpty()
+    val titleColor = if (isCurrentlyPlaying) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.onSurface
+    }
 
     Row(
         modifier = modifier
             .fillMaxWidth()
+            .then(
+                if (isCurrentlyPlaying) {
+                    Modifier.background(MaterialTheme.colorScheme.primary.copy(alpha = 0.14f))
+                } else {
+                    Modifier
+                },
+            )
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(
-            modifier = Modifier.size(width = 120.dp, height = 68.dp),
-        ) {
-            AsyncImage(
-                model = thumbnailRequest(context, item.thumbnailUrl),
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .size(width = 120.dp, height = 68.dp)
-                    .clip(RoundedCornerShape(8.dp)),
-            )
-            if (!item.durationText.isNullOrBlank()) {
-                Text(
-                    text = item.durationText,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Color.White,
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(4.dp)
-                        .background(
-                            color = Color.Black.copy(alpha = 0.8f),
-                            shape = RoundedCornerShape(4.dp),
-                        )
-                        .padding(horizontal = 4.dp, vertical = 2.dp),
-                )
-            }
-        }
+        AsyncImage(
+            model = thumbnailRequest(context, item.thumbnailUrl),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier
+                .size(56.dp)
+                .clip(RoundedCornerShape(8.dp)),
+        )
         Column(modifier = Modifier.weight(1f)) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -110,7 +97,8 @@ fun PurifiedUpNextItem(
                 Text(
                     text = item.title,
                     style = MaterialTheme.typography.bodyMedium,
-                    maxLines = 2,
+                    color = titleColor,
+                    maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f, fill = false),
                 )
@@ -130,108 +118,119 @@ fun PurifiedUpNextItem(
                 TrackActionContext.fromVideoItem(item, TrackActionSource.PLAYER_UP_NEXT),
             )
         }) {
-            Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.library_song_more))
+            Icon(
+                Icons.Default.MoreVert,
+                contentDescription = stringResource(R.string.library_song_more),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }
 
 @Composable
-fun PurifiedUpNextHeader(
-    currentMode: UpNextPlaybackMode,
-    onModeSelected: (UpNextPlaybackMode) -> Unit,
+fun PlayerDetailListHeader(
     selectedTab: PlayerListTab,
     onTabSelected: (PlayerListTab) -> Unit,
-    showRecommendTab: Boolean,
+    songCount: Int,
     canSaveList: Boolean,
     onSaveListClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(start = 16.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        if (showRecommendTab) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                UpNextListTab(
-                    label = stringResource(R.string.player_up_next),
-                    selected = selectedTab == PlayerListTab.UpNext,
-                    onClick = { onTabSelected(PlayerListTab.UpNext) },
-                )
-                UpNextListTab(
-                    label = stringResource(R.string.player_recommend),
-                    selected = selectedTab == PlayerListTab.Recommend,
-                    onClick = { onTabSelected(PlayerListTab.Recommend) },
-                )
-            }
-        } else {
-            Text(
-                text = stringResource(R.string.player_up_next),
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(vertical = 8.dp),
+    Column(modifier = modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(20.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            DetailListTab(
+                label = stringResource(R.string.player_up_next),
+                selected = selectedTab == PlayerListTab.UpNext,
+                onClick = { onTabSelected(PlayerListTab.UpNext) },
+            )
+            DetailListTab(
+                label = stringResource(R.string.player_lyrics),
+                selected = selectedTab == PlayerListTab.Lyrics,
+                onClick = { onTabSelected(PlayerListTab.Lyrics) },
+            )
+            DetailListTab(
+                label = stringResource(R.string.player_related),
+                selected = selectedTab == PlayerListTab.Recommend,
+                onClick = { onTabSelected(PlayerListTab.Recommend) },
             )
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(0.dp)) {
-            IconButton(
-                onClick = onSaveListClick,
-                enabled = canSaveList,
-                modifier = Modifier.size(40.dp),
+
+        if (selectedTab != PlayerListTab.Lyrics) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 16.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Outlined.PlaylistAdd,
-                    contentDescription = stringResource(R.string.player_save_list_to_playlist),
-                    tint = if (canSaveList) {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    } else {
-                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                    },
+                Text(
+                    text = stringResource(R.string.player_song_count, songCount),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
                 )
-            }
-            UpNextPlaybackModeButton(
-                selected = currentMode == UpNextPlaybackMode.REPEAT_ONE,
-                onClick = { onModeSelected(UpNextPlaybackMode.REPEAT_ONE) },
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.RepeatOne,
-                    contentDescription = stringResource(R.string.player_mode_repeat_one),
-                )
-            }
-            UpNextPlaybackModeButton(
-                selected = currentMode == UpNextPlaybackMode.SEQUENTIAL,
-                onClick = { onModeSelected(UpNextPlaybackMode.SEQUENTIAL) },
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Outlined.QueueMusic,
-                    contentDescription = stringResource(R.string.player_mode_sequential),
-                )
-            }
-            UpNextPlaybackModeButton(
-                selected = currentMode == UpNextPlaybackMode.SHUFFLE,
-                onClick = { onModeSelected(UpNextPlaybackMode.SHUFFLE) },
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.Shuffle,
-                    contentDescription = stringResource(R.string.player_mode_shuffle),
-                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    IconButton(onClick = {}) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Outlined.Sort,
+                            contentDescription = stringResource(R.string.player_list_sort),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    IconButton(onClick = {}) {
+                        Icon(
+                            imageVector = Icons.Filled.Checklist,
+                            contentDescription = stringResource(R.string.player_list_multi_select),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Surface(
+                        onClick = onSaveListClick,
+                        enabled = canSaveList,
+                        shape = CircleShape,
+                        color = if (canSaveList) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.surfaceVariant
+                        },
+                        contentColor = if (canSaveList) {
+                            MaterialTheme.colorScheme.onPrimary
+                        } else {
+                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                        },
+                        modifier = Modifier.size(36.dp),
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Filled.Add,
+                                contentDescription = stringResource(R.string.player_save_list_to_playlist),
+                                modifier = Modifier.size(20.dp),
+                            )
+                        }
+                    }
+                }
             }
         }
     }
 }
 
 @Composable
-private fun UpNextListTab(
+private fun DetailListTab(
     label: String,
     selected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val color = if (selected) {
-        MaterialTheme.colorScheme.primary
+        MaterialTheme.colorScheme.onSurface
     } else {
         MaterialTheme.colorScheme.onSurfaceVariant
     }
@@ -251,34 +250,13 @@ private fun UpNextListTab(
         )
         Box(
             modifier = Modifier
-                .padding(top = 4.dp)
+                .padding(top = 6.dp)
                 .width(28.dp)
                 .height(2.dp)
                 .clip(RoundedCornerShape(1.dp))
-                .background(if (selected) color else Color.Transparent),
+                .background(
+                    if (selected) MaterialTheme.colorScheme.onSurface else Color.Transparent,
+                ),
         )
-    }
-}
-
-@Composable
-private fun UpNextPlaybackModeButton(
-    selected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    content: @Composable () -> Unit,
-) {
-    IconButton(
-        onClick = onClick,
-        modifier = modifier.size(40.dp),
-    ) {
-        CompositionLocalProvider(
-            LocalContentColor provides if (selected) {
-                MaterialTheme.colorScheme.primary
-            } else {
-                MaterialTheme.colorScheme.onSurfaceVariant
-            },
-        ) {
-            content()
-        }
     }
 }

@@ -7,6 +7,7 @@ import com.ytlite.player.data.model.VideoPlayback
 
 enum class PlayerListTab {
     UpNext,
+    Lyrics,
     Recommend,
 }
 
