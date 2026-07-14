@@ -45,6 +45,7 @@ fun CategoryFilterBar(
             key = { it.id },
         ) { category ->
             val selected = category.id == selectedCategoryId
+            val highlight = MaterialTheme.colorScheme.primary
             FilterChip(
                 selected = selected,
                 onClick = { onCategorySelected(category.id) },
@@ -57,8 +58,8 @@ fun CategoryFilterBar(
                 shape = RoundedCornerShape(8.dp),
                 border = null,
                 colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = Color.White,
-                    selectedLabelColor = Color.Black,
+                    selectedContainerColor = highlight,
+                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
                     containerColor = Color(0xFF272727),
                     labelColor = Color.White,
                 ),

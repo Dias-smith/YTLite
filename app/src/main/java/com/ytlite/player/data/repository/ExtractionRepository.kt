@@ -7,13 +7,21 @@ import com.ytlite.player.data.js.JsExtractorEngine
 import com.ytlite.player.data.js.JsResultMapper
 import com.ytlite.player.data.model.ExtractionResult
 import com.ytlite.player.data.model.FeedPage
+import com.ytlite.player.data.model.HomeFeedItem
+import com.ytlite.player.data.model.HomeFeedPage
 import com.ytlite.player.data.model.VideoPlayback
 import com.ytlite.player.data.network.InnerTubeApi
+import com.ytlite.player.data.network.InnerTubeConfig
 import com.ytlite.player.data.network.NetworkConfig
 import com.ytlite.player.data.network.YouTubeNetworkException
 import com.ytlite.player.data.parser.FeedParser
+import com.ytlite.player.data.parser.MusicAlbumRelease
+import com.ytlite.player.data.parser.MusicNewReleasesParser
 import com.ytlite.player.data.parser.RelatedVideoParser
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
@@ -63,13 +71,135 @@ class ExtractionRepository(
         if (continuation.isBlank()) {
             return@withContext ExtractionResult.Error("Continuation token is empty")
         }
+        if (searchQuery == FEED_QUERY_MUSIC_NEW_RELEASES) {
+            return@withContext ExtractionResult.Error(
+                "Use fetchMusicNewReleaseAlbumsFeed for new-release continuation",
+            )
+        }
         runFeedRequest {
-            val page = if (searchQuery != null) {
-                FeedParser.parse(innerTubeApi.searchVideos(searchQuery, continuation))
-            } else {
-                FeedParser.parse(innerTubeApi.searchVideos(NetworkConfig.HOME_SEARCH_QUERY, continuation))
+            val page = when {
+                searchQuery == null ->
+                    FeedParser.parse(innerTubeApi.browseHome(continuation = continuation))
+                else ->
+                    FeedParser.parse(innerTubeApi.searchVideos(searchQuery, continuation))
             }
             page ?: throw YouTubeNetworkException("No videos in continuation response")
+        }
+    }
+
+    /**
+     * YouTube Music [new releases / albums](https://music.youtube.com/new_releases/albums):
+     * Album/EP → album card entry; Single → track item.
+     */
+    suspend fun fetchMusicNewReleaseAlbumsFeed(
+        offset: Int = 0,
+        albumsPerPage: Int = NEW_RELEASE_ALBUMS_PER_PAGE,
+    ): ExtractionResult<HomeFeedPage> = withContext(Dispatchers.IO) {
+        try {
+            val response = innerTubeApi.browseMusic(
+                browseId = InnerTubeConfig.BROWSE_ID_MUSIC_NEW_RELEASES_ALBUMS,
+            )
+            val albums = MusicNewReleasesParser.parseAlbumReleases(response)
+            if (albums.isEmpty()) {
+                return@withContext ExtractionResult.Error("No new-release albums found")
+            }
+            val pageAlbums = albums.drop(offset.coerceAtLeast(0)).take(albumsPerPage)
+            if (pageAlbums.isEmpty()) {
+                return@withContext ExtractionResult.Error("No more new-release albums")
+            }
+            val items = coroutineScope {
+                pageAlbums.map { release ->
+                    async { mapNewReleaseItem(release) }
+                }.awaitAll().filterNotNull()
+            }
+            if (items.isEmpty()) {
+                return@withContext ExtractionResult.Error(
+                    "No recommended videos found. Please try again later.",
+                )
+            }
+            val nextOffset = offset.coerceAtLeast(0) + pageAlbums.size
+            ExtractionResult.Success(
+                HomeFeedPage(
+                    items = items,
+                    continuation = if (nextOffset < albums.size) {
+                        "$NEW_RELEASE_CONTINUATION_PREFIX$nextOffset"
+                    } else {
+                        null
+                    },
+                ),
+            )
+        } catch (e: YouTubeNetworkException) {
+            ExtractionResult.Error(
+                message = "Network error while loading feed",
+                cause = e,
+            )
+        } catch (e: Exception) {
+            ExtractionResult.Error(
+                message = "Network error while loading feed",
+                cause = e,
+            )
+        }
+    }
+
+    suspend fun fetchMusicAlbumTracks(
+        browseId: String,
+        albumTitle: String = "",
+        artistFallback: String = "",
+        thumbnailFallback: String = "",
+    ): ExtractionResult<List<com.ytlite.player.data.model.VideoItem>> =
+        withContext(Dispatchers.IO) {
+            if (browseId.isBlank()) {
+                return@withContext ExtractionResult.Error("Album ID is empty")
+            }
+            try {
+                val response = innerTubeApi.browseMusic(browseId = browseId)
+                val tracks = MusicNewReleasesParser.parseAlbumTracks(
+                    response = response,
+                    albumTitle = albumTitle,
+                    artistFallback = artistFallback,
+                    thumbnailFallback = thumbnailFallback,
+                )
+                if (tracks.isEmpty()) {
+                    ExtractionResult.Error("No album tracks found")
+                } else {
+                    ExtractionResult.Success(tracks)
+                }
+            } catch (e: Exception) {
+                ExtractionResult.Error(
+                    message = "Failed to load album tracks",
+                    cause = e,
+                )
+            }
+        }
+
+    private fun mapNewReleaseItem(release: MusicAlbumRelease): HomeFeedItem? {
+        return if (release.isSingle) {
+            val tracks = runCatching {
+                val albumResponse = innerTubeApi.browseMusic(browseId = release.browseId)
+                MusicNewReleasesParser.parseAlbumTracks(
+                    response = albumResponse,
+                    albumTitle = release.title,
+                    artistFallback = release.artistName,
+                    thumbnailFallback = release.thumbnailUrl,
+                )
+            }.getOrElse { emptyList() }
+            val track = tracks.firstOrNull() ?: return null
+            HomeFeedItem.Track(
+                video = track.copy(
+                    thumbnailUrl = release.thumbnailUrl.ifBlank { track.thumbnailUrl },
+                    channelName = release.artistName.ifBlank { track.channelName },
+                    publishedTimeText = release.releaseType.ifBlank { "Single" },
+                ),
+            )
+        } else {
+            HomeFeedItem.Album(
+                browseId = release.browseId,
+                playlistId = release.playlistId,
+                title = release.title,
+                artistName = release.artistName,
+                thumbnailUrl = release.thumbnailUrl,
+                releaseType = release.releaseType.ifBlank { "Album" },
+            )
         }
     }
 
@@ -222,6 +352,19 @@ class ExtractionRepository(
 
     companion object {
         private const val TAG = "ExtractionRepository"
+
+        /** Sentinel used by Home when loading Music new-release albums. */
+        const val FEED_QUERY_MUSIC_NEW_RELEASES = "__music_new_releases_albums__"
+
+        private const val NEW_RELEASE_ALBUMS_PER_PAGE = 20
+        private const val NEW_RELEASE_CONTINUATION_PREFIX = "nr_albums:"
+
+        fun parseNewReleaseOffset(continuation: String): Int {
+            return continuation
+                .removePrefix(NEW_RELEASE_CONTINUATION_PREFIX)
+                .toIntOrNull()
+                ?: 0
+        }
 
         @Volatile
         private var appContext: Context? = null

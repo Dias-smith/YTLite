@@ -7,8 +7,12 @@ class InnerTubeApi(
     private val httpClient: YouTubeHttpClient = YouTubeHttpClient.getInstance(),
 ) {
 
-    fun browseHome(): JSONObject {
-        return browse(InnerTubeConfig.BROWSE_ID_HOME, label = "browse_home")
+    fun browseHome(continuation: String? = null): JSONObject {
+        return browse(
+            InnerTubeConfig.BROWSE_ID_HOME,
+            label = "browse_home",
+            continuation = continuation,
+        )
     }
 
     fun browseLibraryPlaylists(): JSONObject {
@@ -175,6 +179,34 @@ class InnerTubeApi(
             url = InnerTubeConfig.MUSIC_NEXT_URL,
             body = body,
             label = "music_radio_next",
+            client = InnerTubeConfig.MUSIC_CLIENT,
+            origin = InnerTubeConfig.MUSIC_BASE_URL,
+        )
+    }
+
+    /**
+     * YouTube Music browse (e.g. [FEmusic_new_releases_albums](https://music.youtube.com/new_releases/albums)).
+     */
+    fun browseMusic(
+        browseId: String,
+        params: String? = null,
+        continuation: String? = null,
+    ): JSONObject {
+        val body = JSONObject().apply {
+            put("context", buildClientContext(InnerTubeConfig.MUSIC_CLIENT))
+            if (!continuation.isNullOrBlank()) {
+                put("continuation", continuation)
+            } else {
+                put("browseId", browseId)
+                if (!params.isNullOrBlank()) {
+                    put("params", params)
+                }
+            }
+        }
+        return post(
+            url = InnerTubeConfig.MUSIC_BROWSE_URL,
+            body = body,
+            label = "music_browse",
             client = InnerTubeConfig.MUSIC_CLIENT,
             origin = InnerTubeConfig.MUSIC_BASE_URL,
         )

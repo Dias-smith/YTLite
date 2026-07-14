@@ -2,7 +2,9 @@ package com.ytlite.player.ui.search
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -20,6 +22,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -50,6 +53,11 @@ fun BrowseVideosScreen(
     onLoadMore: () -> Unit,
     onVideoClick: (VideoItem) -> Unit,
     modifier: Modifier = Modifier,
+    /**
+     * When false (default), top bar skips status-bar insets because the parent tab already
+     * padded for them. Set true when this screen owns the top edge under the status bar.
+     */
+    applyStatusBarInsets: Boolean = false,
 ) {
     val imageLoader = rememberYTLiteImageLoader()
     val listState = rememberLazyListState()
@@ -67,10 +75,18 @@ fun BrowseVideosScreen(
         }
     }
 
+    val topBarInsets = if (applyStatusBarInsets) {
+        TopAppBarDefaults.windowInsets
+    } else {
+        WindowInsets(0, 0, 0, 0)
+    }
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             TopAppBar(
+                windowInsets = topBarInsets,
                 title = {
                     Text(
                         text = title,

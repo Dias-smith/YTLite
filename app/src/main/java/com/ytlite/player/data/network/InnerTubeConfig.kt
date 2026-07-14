@@ -20,6 +20,8 @@ object InnerTubeConfig {
     const val BROWSE_ID_TRENDING = "FEtrending"
     const val BROWSE_ID_EXPLORE = "FEtopics_base"
     const val BROWSE_ID_CHARTS = "FEmusic_charts"
+    /** YouTube Music new-release albums ([music.youtube.com/new_releases/albums](https://music.youtube.com/new_releases/albums)). */
+    const val BROWSE_ID_MUSIC_NEW_RELEASES_ALBUMS = "FEmusic_new_releases_albums"
 
     const val SEARCH_PARAMS_VIDEOS = "EgIQAQ%3D%3D"
     const val SEARCH_PARAMS_CHANNELS = "EgIQAg%3D%3D"
@@ -36,4 +38,7 @@ object InnerTubeConfig {
 
     val MUSIC_NEXT_URL: String
         get() = "$MUSIC_BASE_URL/youtubei/v1/next?key=$MUSIC_API_KEY"
+
+    val MUSIC_BROWSE_URL: String
+        get() = "$MUSIC_BASE_URL/youtubei/v1/browse?key=$MUSIC_API_KEY"
 }

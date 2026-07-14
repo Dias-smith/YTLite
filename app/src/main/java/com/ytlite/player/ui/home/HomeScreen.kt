@@ -8,8 +8,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -28,8 +28,10 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ytlite.player.R
+import com.ytlite.player.data.model.HomeFeedItem
 import com.ytlite.player.data.model.VideoItem
 import com.ytlite.player.ui.image.rememberYTLiteImageLoader
+import com.ytlite.player.ui.search.BrowseVideosScreen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -39,10 +41,29 @@ fun HomeScreen(
     viewModel: HomeViewModel = viewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val imageLoader = rememberYTLiteImageLoader()
-    val listState = rememberLazyListState()
+    val albumBrowse = uiState.albumBrowse
+    if (albumBrowse != null) {
+        BrowseVideosScreen(
+            title = albumBrowse.album.title,
+            videos = albumBrowse.tracks,
+            isLoading = albumBrowse.isLoading,
+            isLoadingMore = false,
+            error = albumBrowse.errorMessage,
+            hasMore = false,
+            onBack = viewModel::closeAlbumBrowse,
+            onRefresh = viewModel::refreshAlbumBrowse,
+            onLoadMore = {},
+            onVideoClick = onVideoClick,
+            modifier = modifier,
+        )
+        return
+    }
 
-    val shouldLoadMore by remember {
+    val imageLoader = rememberYTLiteImageLoader()
+    // New list state per category so content always starts at the top after switching.
+    val listState = remember(uiState.selectedCategoryId) { LazyListState() }
+
+    val shouldLoadMore by remember(listState) {
         derivedStateOf {
             val layoutInfo = listState.layoutInfo
             val lastVisible = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
@@ -64,24 +85,24 @@ fun HomeScreen(
         )
 
         PullToRefreshBox(
-            isRefreshing = uiState.isLoading && uiState.videos.isNotEmpty(),
+            isRefreshing = uiState.isLoading && uiState.items.isNotEmpty(),
             onRefresh = { viewModel.refresh() },
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f),
         ) {
             when {
-                uiState.isLoading && uiState.videos.isEmpty() -> {
+                uiState.isLoading && uiState.items.isEmpty() -> {
                     LoadingContent(modifier = Modifier.fillMaxSize())
                 }
-                uiState.errorMessage != null && uiState.videos.isEmpty() -> {
+                uiState.errorMessage != null && uiState.items.isEmpty() -> {
                     ErrorContent(
                         message = uiState.errorMessage.orEmpty(),
                         onRetry = { viewModel.loadFeed() },
                         modifier = Modifier.fillMaxSize(),
                     )
                 }
-                uiState.videos.isEmpty() -> {
+                uiState.items.isEmpty() -> {
                     EmptyContent(modifier = Modifier.fillMaxSize())
                 }
                 else -> {
@@ -92,14 +113,25 @@ fun HomeScreen(
                         modifier = Modifier.fillMaxSize(),
                     ) {
                         items(
-                            items = uiState.videos,
-                            key = { it.videoId },
-                        ) { video ->
-                            VideoFeedItem(
-                                video = video,
-                                imageLoader = imageLoader,
-                                onClick = { onVideoClick(video) },
-                            )
+                            items = uiState.items,
+                            key = { it.id },
+                        ) { item ->
+                            when (item) {
+                                is HomeFeedItem.Track -> {
+                                    VideoFeedItem(
+                                        video = item.video,
+                                        imageLoader = imageLoader,
+                                        onClick = { onVideoClick(item.video) },
+                                    )
+                                }
+                                is HomeFeedItem.Album -> {
+                                    AlbumFeedItem(
+                                        album = item,
+                                        imageLoader = imageLoader,
+                                        onClick = { viewModel.openAlbum(item) },
+                                    )
+                                }
+                            }
                         }
 
                         if (uiState.isLoadingMore) {
