@@ -18,7 +18,7 @@ data class HomeUiState(
     val categories: List<FeedCategory> = HomeCategories.items,
     val selectedCategoryId: String = HomeCategories.defaultId,
     val feedSearchQuery: String? = null,
-    val isLoading: Boolean = false,
+    val isLoading: Boolean = true,
     val isLoadingMore: Boolean = false,
     val errorMessage: String? = null,
     val continuation: String? = null,

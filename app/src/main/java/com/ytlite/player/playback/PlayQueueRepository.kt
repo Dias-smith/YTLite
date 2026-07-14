@@ -32,6 +32,9 @@ object PlayQueueRepository {
 
     private var originalOrder: List<QueueItem>? = null
 
+    /** Tracks explicitly queued by the user (Play next / Add to queue); survive related-seed rebuilds. */
+    private val userPinnedVideoIds = linkedSetOf<String>()
+
     fun setQueue(
         items: List<QueueItem>,
         startIndex: Int = 0,
@@ -41,6 +44,7 @@ object PlayQueueRepository {
     ) {
         val preserved = _state.value
         if (items.isEmpty()) {
+            userPinnedVideoIds.clear()
             _state.value = if (preservePlaybackMode) {
                 PlayQueueState(
                     repeatMode = preserved.repeatMode,
@@ -55,6 +59,10 @@ object PlayQueueRepository {
         }
         val safeIndex = startIndex.coerceIn(0, items.lastIndex)
         originalOrder = items
+        // Full queue replace drops earlier "play next" pins unless the same ids remain.
+        val keptPins = items.map { it.videoId }.filter { it in userPinnedVideoIds }.toSet()
+        userPinnedVideoIds.clear()
+        userPinnedVideoIds.addAll(keptPins)
         _state.value = PlayQueueState(
             items = items,
             currentIndex = safeIndex,
@@ -78,25 +86,45 @@ object PlayQueueRepository {
         clearSourcePlaylist: Boolean = false,
     ) {
         val mode = _state.value.toUpNextPlaybackMode()
+        val previous = _state.value
+        val pinnedAfterCurrent = if (previous.currentItem?.videoId == current.videoId) {
+            previous.items
+                .drop(previous.currentIndex + 1)
+                .filter { it.videoId in userPinnedVideoIds && it.videoId != current.videoId }
+                .distinctBy { it.videoId }
+        } else {
+            previous.items
+                .filter { it.videoId in userPinnedVideoIds && it.videoId != current.videoId }
+                .distinctBy { it.videoId }
+        }
+        val pinnedIds = pinnedAfterCurrent.map { it.videoId }.toSet()
         val tail = related
-            .filter { it.videoId != current.videoId }
+            .filter { it.videoId != current.videoId && it.videoId !in pinnedIds }
             .distinctBy { it.videoId }
             .take(maxRelated)
-        // Current track is always index 0; recommendations follow.
-        val items = listOf(current) + tail
+        // Current → user Play-next/Add-queue pins → auto related.
+        val items = listOf(current) + pinnedAfterCurrent + tail
         setQueue(
             items = items,
             startIndex = 0,
             preservePlaybackMode = true,
             clearSourcePlaylist = clearSourcePlaylist,
         )
+        // setQueue prunes pins to ids still present; re-assert pins we intentionally kept.
+        userPinnedVideoIds.clear()
+        userPinnedVideoIds.addAll(pinnedIds)
         applyUpNextPlaybackMode(mode)
         // Re-assert current is first after mode apply (shuffle keeps current at head).
         _state.update { state ->
             val head = state.items.firstOrNull { it.videoId == current.videoId } ?: current
-            val rest = state.items.filter { it.videoId != current.videoId }
+            val pinned = state.items.filter {
+                it.videoId != current.videoId && it.videoId in userPinnedVideoIds
+            }
+            val rest = state.items.filter {
+                it.videoId != current.videoId && it.videoId !in userPinnedVideoIds
+            }
             state.copy(
-                items = listOf(head) + rest,
+                items = listOf(head) + pinned + rest,
                 currentIndex = 0,
                 sourcePlaylistId = if (clearSourcePlaylist) null else state.sourcePlaylistId,
             )
@@ -105,10 +133,27 @@ object PlayQueueRepository {
 
     fun append(items: List<QueueItem>) {
         if (items.isEmpty()) return
+        items.forEach { userPinnedVideoIds.add(it.videoId) }
         _state.update { state ->
             val existingIds = state.items.map { it.videoId }.toSet()
             val newItems = items.filter { it.videoId !in existingIds }
-            if (newItems.isEmpty()) return@update state
+            if (newItems.isEmpty()) {
+                // Already in queue: move each to end (Add to queue semantics).
+                var mutable = state.items.toMutableList()
+                val currentId = state.currentItem?.videoId
+                for (item in items) {
+                    val idx = mutable.indexOfFirst { it.videoId == item.videoId }
+                    if (idx < 0) continue
+                    if (mutable[idx].videoId == currentId) continue
+                    val removed = mutable.removeAt(idx)
+                    mutable.add(removed)
+                }
+                val newCurrent = currentId?.let { id ->
+                    mutable.indexOfFirst { it.videoId == id }.coerceAtLeast(0)
+                } ?: state.currentIndex.coerceIn(0, mutable.lastIndex.coerceAtLeast(0))
+                originalOrder = mutable.toList()
+                return@update state.copy(items = mutable, currentIndex = newCurrent)
+            }
             val merged = if (state.shuffleEnabled) {
                 insertShuffled(state.items, newItems)
             } else {
@@ -120,16 +165,41 @@ object PlayQueueRepository {
     }
 
     fun insertNext(item: QueueItem) {
+        userPinnedVideoIds.add(item.videoId)
         _state.update { state ->
-            if (state.items.any { it.videoId == item.videoId }) return@update state
-            val insertAt = (state.currentIndex + 1).coerceAtMost(state.items.size)
-            val mutable = state.items.toMutableList()
-            mutable.add(insertAt, item)
-            originalOrder = (originalOrder ?: state.items).toMutableList().apply {
-                val origInsert = (state.currentIndex + 1).coerceAtMost(size)
+            // Already playing this track — nothing to queue after current.
+            if (state.currentItem?.videoId == item.videoId) return@update state
+
+            val without = state.items.filter { it.videoId != item.videoId }.toMutableList()
+            val currentId = state.currentItem?.videoId
+            val currentIndex = when {
+                without.isEmpty() -> 0
+                currentId == null -> 0
+                else -> without.indexOfFirst { it.videoId == currentId }.coerceAtLeast(0)
+            }
+            val insertAt = if (without.isEmpty()) {
+                0
+            } else {
+                (currentIndex + 1).coerceAtMost(without.size)
+            }
+            without.add(insertAt, item)
+            originalOrder = (originalOrder?.filter { it.videoId != item.videoId } ?: state.items.filter {
+                it.videoId != item.videoId
+            }).toMutableList().apply {
+                val origInsert = if (isEmpty()) {
+                    0
+                } else {
+                    val origCurrent = currentId?.let { id -> indexOfFirst { it.videoId == id } }
+                        ?.takeIf { it >= 0 }
+                        ?: currentIndex
+                    (origCurrent + 1).coerceAtMost(size)
+                }
                 add(origInsert, item)
             }
-            state.copy(items = mutable)
+            state.copy(
+                items = without,
+                currentIndex = if (without.size == 1) 0 else currentIndex.coerceIn(0, without.lastIndex),
+            )
         }
     }
 
@@ -139,6 +209,7 @@ object PlayQueueRepository {
 
     fun removeItem(videoId: String): Boolean {
         var removed = false
+        userPinnedVideoIds.remove(videoId)
         _state.update { state ->
             val index = state.items.indexOfFirst { it.videoId == videoId }
             if (index < 0) return@update state

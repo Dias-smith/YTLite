@@ -1,6 +1,7 @@
 package com.ytlite.player.ui.trackaction
 
 import android.app.Application
+import android.widget.Toast
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.compositionLocalOf
@@ -11,6 +12,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.ytlite.player.R
 import com.ytlite.player.data.model.LibraryVideo
 import com.ytlite.player.data.model.SubscriptionChannel
 import com.ytlite.player.ui.library.EditTrackMetadataDialog
@@ -34,6 +36,7 @@ fun TrackActionHost(
     content: @Composable () -> Unit,
 ) {
     val application = LocalContext.current.applicationContext as Application
+    val androidContext = LocalContext.current
     var trackActionContext by remember { mutableStateOf<TrackActionContext?>(null) }
     var editMetadataSeed by remember { mutableStateOf<TrackMetadataSeed?>(null) }
     var lyricsVideoId by remember { mutableStateOf<String?>(null) }
@@ -49,6 +52,10 @@ fun TrackActionHost(
         trackActionContext = context
     }
 
+    fun toast(message: String) {
+        Toast.makeText(androidContext, message, Toast.LENGTH_SHORT).show()
+    }
+
     CompositionLocalProvider(LocalTrackMoreClick provides onTrackMoreClick) {
         content()
     }
@@ -58,8 +65,8 @@ fun TrackActionHost(
             context = context,
             onDismiss = { trackActionContext = null },
             onSaveToLibrary = { playlistPickerVideo = it.toLibraryVideo() },
-            onEditMetadata = { context ->
-                editMetadataSeed = context.toMetadataSeed()
+            onEditMetadata = { trackContext ->
+                editMetadataSeed = trackContext.toMetadataSeed()
             },
             onGoToAlbum = { album -> navigation.onGoToAlbum(album) },
             onGoToArtist = { channelId, channelName ->
@@ -88,6 +95,9 @@ fun TrackActionHost(
             trackId = seed.trackId,
             seed = seed,
             onDismiss = { editMetadataSeed = null },
+            onSaved = {
+                toast(androidContext.getString(R.string.edit_metadata_saved))
+            },
         )
     }
 
@@ -104,8 +114,20 @@ fun TrackActionHost(
             subtitle = video.title,
             onDismiss = { playlistPickerVideo = null },
             onPlaylistSelected = { playlistId ->
+                val playlistName = playlistPickerState.playlists
+                    .firstOrNull { it.playlistId == playlistId }
+                    ?.name
+                    .orEmpty()
                 playlistPickerViewModel.saveToPlaylist(playlistId, video) {
                     playlistPickerVideo = null
+                    toast(
+                        androidContext.getString(
+                            R.string.toast_saved_to_playlist,
+                            playlistName.ifBlank {
+                                androidContext.getString(R.string.track_action_save_to_library)
+                            },
+                        ),
+                    )
                 }
             },
             onCreatePlaylist = { showNewPlaylistDialog = true },
@@ -120,6 +142,7 @@ fun TrackActionHost(
                 playlistPickerViewModel.createAndSave(name, video) {
                     showNewPlaylistDialog = false
                     playlistPickerVideo = null
+                    toast(androidContext.getString(R.string.toast_saved_to_playlist, name))
                 }
             },
         )

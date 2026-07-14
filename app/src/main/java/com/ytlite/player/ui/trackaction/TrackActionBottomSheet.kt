@@ -2,6 +2,7 @@ package com.ytlite.player.ui.trackaction
 
 import android.app.Application
 import android.content.Intent
+import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -69,6 +70,11 @@ fun TrackActionBottomSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val androidContext = LocalContext.current
 
+    fun toast(messageRes: Int) {
+        Toast.makeText(androidContext, androidContext.getString(messageRes), Toast.LENGTH_SHORT)
+            .show()
+    }
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
@@ -123,7 +129,9 @@ fun TrackActionBottomSheet(
                     stringResource(R.string.track_action_like)
                 },
                 onClick = {
+                    val wasLiked = uiState.isLiked
                     viewModel.toggleFavorite()
+                    toast(if (wasLiked) R.string.toast_track_unliked else R.string.toast_track_liked)
                     onDismiss()
                 },
             )
@@ -132,6 +140,7 @@ fun TrackActionBottomSheet(
                 label = stringResource(R.string.library_action_play_next),
                 onClick = {
                     PlayQueueRepository.insertNext(context.toQueueItem())
+                    toast(R.string.toast_play_next)
                     onDismiss()
                 },
             )
@@ -140,6 +149,7 @@ fun TrackActionBottomSheet(
                 label = stringResource(R.string.library_action_add_queue),
                 onClick = {
                     PlayQueueRepository.addToEnd(context.toQueueItem())
+                    toast(R.string.toast_add_to_queue)
                     onDismiss()
                 },
             )
@@ -169,7 +179,10 @@ fun TrackActionBottomSheet(
                     null
                 },
                 onClick = {
-                    context.album?.let { onGoToAlbum(it) }
+                    context.album?.let {
+                        toast(R.string.toast_opening_album)
+                        onGoToAlbum(it)
+                    }
                     onDismiss()
                 },
             )
@@ -185,6 +198,7 @@ fun TrackActionBottomSheet(
                 onClick = {
                     val channelId = context.channelId
                     if (channelId != null) {
+                        toast(R.string.toast_opening_artist)
                         onGoToArtist(channelId, context.channelName)
                     }
                     onDismiss()
@@ -194,6 +208,7 @@ fun TrackActionBottomSheet(
                 icon = Icons.Outlined.Subtitles,
                 label = stringResource(R.string.track_action_view_lyrics),
                 onClick = {
+                    toast(R.string.toast_opening_lyrics)
                     onViewLyrics(context.videoId)
                     onDismiss()
                 },
@@ -210,6 +225,7 @@ fun TrackActionBottomSheet(
                         )
                     }
                     androidContext.startActivity(Intent.createChooser(intent, null))
+                    toast(R.string.toast_share_ready)
                     onDismiss()
                 },
             )
@@ -221,7 +237,15 @@ fun TrackActionBottomSheet(
                     stringResource(R.string.track_action_not_interested)
                 },
                 onClick = {
+                    val wasNotInterested = uiState.isNotInterested
                     viewModel.toggleNotInterested()
+                    toast(
+                        if (wasNotInterested) {
+                            R.string.toast_remove_not_interested
+                        } else {
+                            R.string.toast_not_interested
+                        },
+                    )
                     onDismiss()
                 },
             )
@@ -235,6 +259,7 @@ fun TrackActionBottomSheet(
                     label = stringResource(R.string.player_remove_from_queue),
                     onClick = {
                         onRemoveFromQueue?.invoke()
+                        toast(R.string.toast_removed_from_queue)
                         onDismiss()
                     },
                 )
@@ -245,6 +270,7 @@ fun TrackActionBottomSheet(
                     label = stringResource(R.string.library_action_remove_playlist),
                     onClick = {
                         viewModel.removeFromPlaylist()
+                        toast(R.string.toast_removed_from_playlist)
                         onDismiss()
                     },
                 )
