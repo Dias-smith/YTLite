@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -15,12 +16,17 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -28,24 +34,67 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import com.ytlite.player.R
+import com.ytlite.player.data.model.SearchResultItem
+import com.ytlite.player.data.model.SearchResultTab
+import com.ytlite.player.data.model.VideoItem
+import com.ytlite.player.ui.library.LibraryImage
+import com.ytlite.player.ui.player.toVideoItem
 import com.ytlite.player.ui.trackaction.LocalTrackMoreClick
 import com.ytlite.player.ui.trackaction.TrackActionContext
-import com.ytlite.player.data.model.SearchResultItem
-import com.ytlite.player.data.model.VideoItem
-import com.ytlite.player.ui.player.toVideoItem
-import com.ytlite.player.data.model.SearchResultTab
-import com.ytlite.player.ui.library.LibraryImage
 
 @Composable
 fun SearchResultsScreen(
+    query: String,
+    activeTab: SearchResultTab,
+    items: List<SearchResultItem>,
+    isLoading: Boolean,
+    isLoadingMore: Boolean,
+    error: String?,
+    hasMore: Boolean,
+    onTabSelected: (SearchResultTab) -> Unit,
+    onLoadMore: () -> Unit,
+    onVideoClick: (VideoItem) -> Unit,
+    onChannelClick: (SearchResultItem.Channel) -> Unit,
+    onPlaylistClick: (SearchResultItem.Playlist) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val density = LocalDensity.current
+    // Compact list UI: OEM / accessibility fontScale can inflate list+tabs on devices like vivo.
+    val compactDensity = remember(density.density, density.fontScale) {
+        Density(
+            density = density.density,
+            fontScale = density.fontScale.coerceAtMost(1.05f),
+        )
+    }
+
+    CompositionLocalProvider(LocalDensity provides compactDensity) {
+        SearchResultsContent(
+            query = query,
+            activeTab = activeTab,
+            items = items,
+            isLoading = isLoading,
+            isLoadingMore = isLoadingMore,
+            error = error,
+            hasMore = hasMore,
+            onTabSelected = onTabSelected,
+            onLoadMore = onLoadMore,
+            onVideoClick = onVideoClick,
+            onChannelClick = onChannelClick,
+            onPlaylistClick = onPlaylistClick,
+            modifier = modifier,
+        )
+    }
+}
+
+@Composable
+private fun SearchResultsContent(
     query: String,
     activeTab: SearchResultTab,
     items: List<SearchResultItem>,
@@ -82,12 +131,23 @@ fun SearchResultsScreen(
     }
 
     Column(modifier = modifier.fillMaxSize()) {
-        TabRow(selectedTabIndex = tabs.indexOf(activeTab)) {
+        TabRow(
+            selectedTabIndex = tabs.indexOf(activeTab),
+            modifier = Modifier.height(44.dp),
+        ) {
             tabs.forEach { tab ->
                 Tab(
                     selected = tab == activeTab,
                     onClick = { onTabSelected(tab) },
-                    text = { Text(tabLabels[tab].orEmpty()) },
+                    text = {
+                        Text(
+                            text = tabLabels[tab].orEmpty(),
+                            style = MaterialTheme.typography.labelMedium,
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    },
                 )
             }
         }
@@ -100,12 +160,19 @@ fun SearchResultsScreen(
             }
             error != null && items.isEmpty() -> {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(error, color = MaterialTheme.colorScheme.error)
+                    Text(
+                        text = error,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error,
+                    )
                 }
             }
             items.isEmpty() -> {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(stringResource(R.string.search_no_results, query))
+                    Text(
+                        text = stringResource(R.string.search_no_results, query),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
                 }
             }
             else -> {
@@ -148,7 +215,7 @@ private fun VideoResultRow(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick(item.toVideoItem()) }
-            .padding(horizontal = 16.dp, vertical = 10.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -156,16 +223,21 @@ private fun VideoResultRow(
             model = item.thumbnailUrl,
             contentDescription = item.title,
             modifier = Modifier
-                .size(120.dp, 68.dp)
+                .size(112.dp, 63.dp)
                 .clip(RoundedCornerShape(8.dp)),
         )
         Column(modifier = Modifier.weight(1f)) {
-            Text(item.title, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(
+                text = item.title,
+                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
             Text(
                 text = item.subtitle,
-                style = MaterialTheme.typography.bodySmall,
+                style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 2,
+                maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
         }
@@ -184,7 +256,7 @@ private fun ChannelResultRow(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick(item) }
-            .padding(horizontal = 16.dp, vertical = 10.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -192,16 +264,23 @@ private fun ChannelResultRow(
             model = item.thumbnailUrl,
             contentDescription = item.title,
             modifier = Modifier
-                .size(48.dp)
+                .size(44.dp)
                 .clip(CircleShape),
         )
         Column(modifier = Modifier.weight(1f)) {
-            Text(item.title, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(
+                text = item.title,
+                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
             if (item.subtitle.isNotBlank()) {
                 Text(
                     text = item.subtitle,
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
         }
@@ -217,22 +296,29 @@ private fun PlaylistResultRow(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick(item) }
-            .padding(horizontal = 16.dp, vertical = 10.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         LibraryImage(
             model = item.thumbnailUrl,
             contentDescription = item.title,
             modifier = Modifier
-                .size(120.dp, 68.dp)
+                .size(112.dp, 63.dp)
                 .clip(RoundedCornerShape(8.dp)),
         )
         Column(modifier = Modifier.weight(1f)) {
-            Text(item.title, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(
+                text = item.title,
+                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
             Text(
                 text = item.subtitle,
-                style = MaterialTheme.typography.bodySmall,
+                style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
         }
     }
