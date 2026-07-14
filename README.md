@@ -1,3 +1,1 @@
-r
-
-eadme
+com.ytlite.player
