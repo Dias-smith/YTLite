@@ -1,27 +1,57 @@
 package com.ytlite.player.ui.web
 
 import android.annotation.SuppressLint
-import android.graphics.Color
+import android.graphics.Color as AndroidColor
 import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
+
+private class PageScriptsHolder {
+    @Volatile
+    var scripts: List<String> = emptyList()
+}
 
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
 fun EmbeddedWebView(
     url: String,
     modifier: Modifier = Modifier,
+    pageScripts: List<String> = emptyList(),
+    showLoadingIndicator: Boolean = true,
 ) {
     val context = LocalContext.current
+    val scriptsHolder = remember { PageScriptsHolder() }
+    SideEffect {
+        scriptsHolder.scripts = pageScripts
+    }
+
+    var isLoading by remember(url) { mutableStateOf(true) }
+    val loadingCallback = remember {
+        object {
+            var onLoadingChanged: (Boolean) -> Unit = {}
+        }
+    }
+    loadingCallback.onLoadingChanged = { loading -> isLoading = loading }
+
     val webView = remember {
         WebView(context).apply {
-            setBackgroundColor(Color.BLACK)
+            setBackgroundColor(AndroidColor.BLACK)
             settings.apply {
                 javaScriptEnabled = true
                 domStorageEnabled = true
@@ -29,12 +59,35 @@ fun EmbeddedWebView(
                 loadWithOverviewMode = true
                 useWideViewPort = true
             }
-            webViewClient = WebViewClient()
-            webChromeClient = WebChromeClient()
+            webViewClient = object : WebViewClient() {
+                override fun onPageStarted(view: WebView?, startedUrl: String?, favicon: android.graphics.Bitmap?) {
+                    super.onPageStarted(view, startedUrl, favicon)
+                    loadingCallback.onLoadingChanged(true)
+                }
+
+                override fun onPageFinished(view: WebView?, finishedUrl: String?) {
+                    super.onPageFinished(view, finishedUrl)
+                    val target = view ?: return
+                    scriptsHolder.scripts.forEach { script ->
+                        if (script.isNotBlank()) {
+                            target.evaluateJavascript(script, null)
+                        }
+                    }
+                }
+            }
+            webChromeClient = object : WebChromeClient() {
+                override fun onProgressChanged(view: WebView?, newProgress: Int) {
+                    super.onProgressChanged(view, newProgress)
+                    if (newProgress >= 90) {
+                        loadingCallback.onLoadingChanged(false)
+                    }
+                }
+            }
         }
     }
 
     DisposableEffect(url) {
+        loadingCallback.onLoadingChanged(true)
         webView.loadUrl(url)
         onDispose { }
     }
@@ -46,8 +99,22 @@ fun EmbeddedWebView(
         }
     }
 
-    AndroidView(
-        factory = { webView },
-        modifier = modifier,
-    )
+    Box(modifier = modifier.fillMaxSize()) {
+        AndroidView(
+            factory = { webView },
+            modifier = Modifier.fillMaxSize(),
+        )
+        if (showLoadingIndicator && isLoading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background),
+                contentAlignment = Alignment.Center,
+            ) {
+                CircularProgressIndicator(
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+        }
+    }
 }
