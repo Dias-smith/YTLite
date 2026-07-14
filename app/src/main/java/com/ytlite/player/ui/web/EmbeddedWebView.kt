@@ -2,6 +2,7 @@ package com.ytlite.player.ui.web
 
 import android.annotation.SuppressLint
 import android.graphics.Color as AndroidColor
+import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -27,6 +28,16 @@ private class PageScriptsHolder {
     var scripts: List<String> = emptyList()
 }
 
+/** Named bridge object for [WebView.addJavascriptInterface]. */
+class WebViewJsBridge(
+    private val onPauseAppMusic: () -> Unit,
+) {
+    @JavascriptInterface
+    fun pauseAppMusic() {
+        onPauseAppMusic()
+    }
+}
+
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
 fun EmbeddedWebView(
@@ -34,6 +45,8 @@ fun EmbeddedWebView(
     modifier: Modifier = Modifier,
     pageScripts: List<String> = emptyList(),
     showLoadingIndicator: Boolean = true,
+    jsBridgeName: String? = null,
+    jsBridge: Any? = null,
 ) {
     val context = LocalContext.current
     val scriptsHolder = remember { PageScriptsHolder() }
@@ -58,6 +71,9 @@ fun EmbeddedWebView(
                 mediaPlaybackRequiresUserGesture = false
                 loadWithOverviewMode = true
                 useWideViewPort = true
+            }
+            if (jsBridgeName != null && jsBridge != null) {
+                addJavascriptInterface(jsBridge, jsBridgeName)
             }
             webViewClient = object : WebViewClient() {
                 override fun onPageStarted(view: WebView?, startedUrl: String?, favicon: android.graphics.Bitmap?) {

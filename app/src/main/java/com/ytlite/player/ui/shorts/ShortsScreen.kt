@@ -2,24 +2,24 @@ package com.ytlite.player.ui.shorts
 
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import com.ytlite.player.playback.PlaybackManager
 import com.ytlite.player.ui.web.EmbeddedWebView
+import com.ytlite.player.ui.web.WebViewJsBridge
 
 object ShortsConfig {
     const val URL = "https://www.youtube.com/shorts/"
+    const val JS_BRIDGE_NAME = "YTLiteShorts"
 
     /**
-     * Hide YouTube chrome/controls, lock overlay clicks, and try to unmute autoplay media.
-     * Keeps vertical swipe and player tap (play/pause) working.
-     *
-     * Note: some WebViews still keep muted until a real user gesture; unmute is best-effort.
+     * Hide YouTube chrome/controls, keep Shorts paused until the user taps play.
+     * Vertical swipe still works; after the user starts, player tap toggles play/pause.
      */
     val LOCK_INTERACTION_SCRIPT: String = """
         (function () {
           var CSS_ID = 'ytlite-shorts-lock-css';
+          var PLAY_BTN_ID = 'ytlite-shorts-play-btn';
           var CSS_TEXT = [
             '/* Hide YouTube top chrome */',
             'ytd-masthead,',
@@ -75,10 +75,43 @@ object ShortsConfig {
             '  margin: 0 !important;',
             '  padding: 0 !important;',
             '  overflow: hidden !important;',
+            '}',
+            '#' + PLAY_BTN_ID + ' {',
+            '  position: fixed !important;',
+            '  left: 50% !important;',
+            '  top: 50% !important;',
+            '  transform: translate(-50%, -50%) !important;',
+            '  z-index: 2147483646 !important;',
+            '  width: 72px !important;',
+            '  height: 72px !important;',
+            '  border-radius: 50% !important;',
+            '  border: none !important;',
+            '  background: rgba(0,0,0,0.55) !important;',
+            '  box-shadow: 0 2px 12px rgba(0,0,0,0.35) !important;',
+            '  display: flex !important;',
+            '  align-items: center !important;',
+            '  justify-content: center !important;',
+            '  padding: 0 !important;',
+            '  margin: 0 !important;',
+            '  cursor: pointer !important;',
+            '  pointer-events: auto !important;',
+            '}',
+            '#' + PLAY_BTN_ID + '[hidden] {',
+            '  display: none !important;',
+            '}',
+            '#' + PLAY_BTN_ID + ' svg {',
+            '  width: 34px !important;',
+            '  height: 34px !important;',
+            '  margin-left: 4px !important;',
+            '  fill: #ff6d00 !important;',
+            '  pointer-events: none !important;',
             '}'
           ].join('\n');
 
           window.__ytliteShortsCssText = CSS_TEXT;
+          if (typeof window.__ytliteShortsArmed !== 'boolean') {
+            window.__ytliteShortsArmed = false;
+          }
 
           function hideEl(el) {
             if (!el || !el.style) return;
@@ -133,6 +166,7 @@ object ShortsConfig {
             var nodes = queryDeep(root, 'button, a, [role="button"], yt-button-shape, yt-touch-feedback-shape');
             for (var i = 0; i < nodes.length; i++) {
               var el = nodes[i];
+              if (el.id === PLAY_BTN_ID) continue;
               var aria = '';
               try {
                 aria = (el.getAttribute && (el.getAttribute('aria-label') || '')) || '';
@@ -168,7 +202,6 @@ object ShortsConfig {
             }
           }
 
-          /* Best-effort unmute; some WebViews still require a real user gesture. */
           function unmuteMedia() {
             var videos = queryDeep(document, 'video');
             for (var i = 0; i < videos.length; i++) {
@@ -190,6 +223,112 @@ object ShortsConfig {
             }
           }
 
+          function pauseAllVideos() {
+            var videos = queryDeep(document, 'video');
+            for (var i = 0; i < videos.length; i++) {
+              try {
+                videos[i].pause();
+                videos[i].muted = true;
+              } catch (e) {}
+            }
+            var players = queryDeep(document, '#movie_player, .html5-video-player');
+            for (var p = 0; p < players.length; p++) {
+              var player = players[p];
+              try {
+                if (typeof player.pauseVideo === 'function') player.pauseVideo();
+                if (typeof player.mute === 'function') player.mute();
+              } catch (e2) {}
+            }
+          }
+
+          function playActiveVideo() {
+            var videos = queryDeep(document, 'video');
+            var target = null;
+            for (var i = 0; i < videos.length; i++) {
+              var rect = videos[i].getBoundingClientRect();
+              if (rect.width > 40 && rect.height > 40 &&
+                  rect.top < window.innerHeight && rect.bottom > 0) {
+                target = videos[i];
+                break;
+              }
+            }
+            if (!target && videos.length) target = videos[0];
+            if (target) {
+              try {
+                target.muted = false;
+                var p = target.play();
+                if (p && typeof p.catch === 'function') p.catch(function () {});
+              } catch (e) {}
+            }
+            var players = queryDeep(document, '#movie_player, .html5-video-player');
+            for (var j = 0; j < players.length; j++) {
+              try {
+                if (typeof players[j].playVideo === 'function') players[j].playVideo();
+                if (typeof players[j].unMute === 'function') players[j].unMute();
+              } catch (e2) {}
+            }
+          }
+
+          function isAnyVideoPlaying() {
+            var videos = queryDeep(document, 'video');
+            for (var i = 0; i < videos.length; i++) {
+              try {
+                if (!videos[i].paused && !videos[i].ended) return true;
+              } catch (e) {}
+            }
+            return false;
+          }
+
+          function ensurePlayButton() {
+            var btn = document.getElementById(PLAY_BTN_ID);
+            if (!btn) {
+              btn = document.createElement('button');
+              btn.id = PLAY_BTN_ID;
+              btn.type = 'button';
+              btn.setAttribute('aria-label', 'Play');
+              btn.innerHTML =
+                '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">' +
+                '<path d="M8 5v14l11-7z"/></svg>';
+              btn.addEventListener('click', function (event) {
+                event.preventDefault();
+                event.stopPropagation();
+                startShortsPlayback();
+              }, true);
+              (document.body || document.documentElement).appendChild(btn);
+            }
+            return btn;
+          }
+
+          function setPlayButtonVisible(visible) {
+            var btn = ensurePlayButton();
+            if (visible) {
+              btn.removeAttribute('hidden');
+            } else {
+              btn.setAttribute('hidden', 'true');
+            }
+          }
+
+          function startShortsPlayback() {
+            window.__ytliteShortsArmed = true;
+            try {
+              if (window.YTLiteShorts && typeof window.YTLiteShorts.pauseAppMusic === 'function') {
+                window.YTLiteShorts.pauseAppMusic();
+              }
+            } catch (e) {}
+            unmuteMedia();
+            playActiveVideo();
+            setPlayButtonVisible(false);
+          }
+
+          function syncPlaybackUi() {
+            if (!window.__ytliteShortsArmed) {
+              pauseAllVideos();
+              setPlayButtonVisible(true);
+              return;
+            }
+            setPlayButtonVisible(!isAnyVideoPlaying());
+          }
+
           function applyCss() {
             var el = document.getElementById(CSS_ID);
             if (!el) {
@@ -199,16 +338,21 @@ object ShortsConfig {
             }
             el.textContent = window.__ytliteShortsCssText || CSS_TEXT;
             hideOverlays();
-            unmuteMedia();
+            syncPlaybackUi();
           }
 
           window.__ytliteShortsApply = applyCss;
+          window.__ytliteShortsStart = startShortsPlayback;
           applyCss();
 
           if (window.__ytliteShortsLockInstalled) {
             return;
           }
           window.__ytliteShortsLockInstalled = true;
+
+          function isOurPlayButton(node) {
+            return !!(node && node.closest && node.closest('#' + PLAY_BTN_ID));
+          }
 
           function isPlayerTarget(node) {
             if (!node || !node.closest) return false;
@@ -225,6 +369,7 @@ object ShortsConfig {
 
           function isBlockedControl(node) {
             if (!node || !node.closest) return false;
+            if (isOurPlayButton(node)) return false;
             if (isPlayerTarget(node)) return false;
             return !!(
               node.closest('button') ||
@@ -248,8 +393,18 @@ object ShortsConfig {
           }
 
           function onClickCapture(event) {
+            if (isOurPlayButton(event.target)) return;
+            if (!window.__ytliteShortsArmed && isPlayerTarget(event.target)) {
+              event.preventDefault();
+              event.stopPropagation();
+              if (typeof event.stopImmediatePropagation === 'function') {
+                event.stopImmediatePropagation();
+              }
+              startShortsPlayback();
+              return;
+            }
             if (isPlayerTarget(event.target)) {
-              unmuteMedia();
+              setTimeout(syncPlaybackUi, 0);
               return;
             }
             if (isBlockedControl(event.target)) {
@@ -263,6 +418,16 @@ object ShortsConfig {
 
           document.addEventListener('click', onClickCapture, true);
           document.addEventListener('auxclick', onClickCapture, true);
+
+          document.addEventListener('play', function (event) {
+            if (!window.__ytliteShortsArmed && event.target && event.target.tagName === 'VIDEO') {
+              try { event.target.pause(); } catch (e) {}
+            }
+          }, true);
+
+          document.addEventListener('pause', function () {
+            setTimeout(syncPlaybackUi, 0);
+          }, true);
 
           var applyScheduled = false;
           function scheduleApply() {
@@ -291,22 +456,21 @@ object ShortsConfig {
 fun ShortsScreen(
     modifier: Modifier = Modifier,
 ) {
-    DisposableEffect(Unit) {
-        val pausedForShorts = PlaybackManager.isPlaying.value
-        if (pausedForShorts) {
-            PlaybackManager.pause()
-        }
-        onDispose {
-            if (pausedForShorts) {
-                PlaybackManager.play()
-            }
-        }
+    val jsBridge = remember {
+        WebViewJsBridge(
+            onPauseAppMusic = {
+                if (PlaybackManager.isPlaying.value) {
+                    PlaybackManager.pause()
+                }
+            },
+        )
     }
-
     val scripts = remember { listOf(ShortsConfig.LOCK_INTERACTION_SCRIPT) }
     EmbeddedWebView(
         url = ShortsConfig.URL,
         modifier = modifier.fillMaxSize(),
         pageScripts = scripts,
+        jsBridgeName = ShortsConfig.JS_BRIDGE_NAME,
+        jsBridge = jsBridge,
     )
 }
