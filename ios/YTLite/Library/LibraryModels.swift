@@ -78,6 +78,8 @@ final class LibraryPlaylist {
     var systemType: String?
     var isPinned: Bool
     var isSynced: Bool
+    /// Optional so schema evolves without wiping the store. Falls back to `updatedAt` when sorting.
+    var createdAt: Date?
     var updatedAt: Date
     @Relationship(deleteRule: .cascade, inverse: \LibraryPlaylistEntry.playlist)
     var entries: [LibraryPlaylistEntry]
@@ -90,6 +92,7 @@ final class LibraryPlaylist {
         systemType: String? = nil,
         isPinned: Bool = false,
         isSynced: Bool = false,
+        createdAt: Date? = .now,
         updatedAt: Date = .now,
         entries: [LibraryPlaylistEntry] = []
     ) {
@@ -100,11 +103,15 @@ final class LibraryPlaylist {
         self.systemType = systemType
         self.isPinned = isPinned
         self.isSynced = isSynced
+        self.createdAt = createdAt
         self.updatedAt = updatedAt
         self.entries = entries
     }
 
     var trackCount: Int { entries.count }
+
+    /// Stable sort key: creation time, else last update.
+    var sortCreatedAt: Date { createdAt ?? updatedAt }
 }
 
 /// Mirrors Android `PlaylistTrackEntity` / Supabase `playlist_track_cross_ref`.

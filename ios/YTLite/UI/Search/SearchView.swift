@@ -24,8 +24,11 @@ final class SearchViewModel: ObservableObject {
         self.memory = memory
     }
 
-    func submit(memory: SearchMemoryStore, tab: SearchResultTab? = nil) {
-        let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
+    /// Submit search and go straight to results (never via suggestions).
+    /// Prefer `query:` when tapping history / chips so assigning the text field
+    /// does not briefly flip `phase` to `.suggestions`.
+    func submit(memory: SearchMemoryStore, query overrideQuery: String? = nil, tab: SearchResultTab? = nil) {
+        let q = (overrideQuery ?? query).trimmingCharacters(in: .whitespacesAndNewlines)
         guard !q.isEmpty else { return }
         debounceTask?.cancel()
         suggestTask?.cancel()
@@ -41,6 +44,7 @@ final class SearchViewModel: ObservableObject {
         phase = .results
         activeResultsQuery = q
         suggestions = []
+        isSuggestionsLoading = false
         loadResults(memory: memory, reset: true)
     }
 
@@ -69,10 +73,7 @@ final class SearchViewModel: ObservableObject {
     }
 
     func applySuggestion(_ item: SearchSuggestionItem, memory: SearchMemoryStore) {
-        suppressQuerySideEffects = true
-        query = item.text
-        suppressQuerySideEffects = false
-        submit(memory: memory)
+        submit(memory: memory, query: item.text)
     }
 
     func fillSuggestion(_ item: SearchSuggestionItem) {
@@ -183,19 +184,13 @@ struct SearchView: View {
                     .padding(.bottom, YTLiteLayout.rowVertical)
 
                 Group {
-                    if viewModel.isLoading && viewModel.phase == .results && viewModel.hits.isEmpty {
-                        ProgressView()
-                            .tint(YTLiteColor.accent)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    } else {
-                        switch viewModel.phase {
-                        case .hub:
-                            discoveryContent
-                        case .suggestions:
-                            suggestionsList
-                        case .results:
-                            resultsPane
-                        }
+                    switch viewModel.phase {
+                    case .hub:
+                        discoveryContent
+                    case .suggestions:
+                        suggestionsList
+                    case .results:
+                        resultsPane
                     }
                 }
             }
@@ -236,8 +231,13 @@ struct SearchView: View {
 
     private var resultsPane: some View {
         VStack(spacing: 0) {
+            // Tabs stay mounted across tab switches; only the content below reloads.
             resultTabs
-            if let err = viewModel.errorMessage, viewModel.hits.isEmpty, !viewModel.isLoading {
+            if viewModel.isLoading && viewModel.hits.isEmpty {
+                ProgressView()
+                    .tint(YTLiteColor.accent)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if let err = viewModel.errorMessage, viewModel.hits.isEmpty {
                 Text(err)
                     .font(YTLiteType.body)
                     .foregroundStyle(YTLiteColor.onSurfaceVariant)
@@ -408,23 +408,25 @@ struct SearchView: View {
                 }
 
                 if !memory.recentQueries.isEmpty {
-                    VStack(alignment: .leading, spacing: YTLiteLayout.stackDefault) {
+                    VStack(alignment: .leading, spacing: 0) {
                         SectionHeaderRow(title: "Search history", actionTitle: "Clear all") {
                             memory.clearQueries()
                         }
                         .padding(.horizontal, YTLiteLayout.screenPadding)
+                        .padding(.bottom, YTLiteLayout.stackTight)
 
                         ForEach(memory.recentQueries, id: \.self) { q in
                             HStack(spacing: YTLiteLayout.stackLoose) {
                                 Button {
-                                    viewModel.query = q
-                                    viewModel.submit(memory: memory)
+                                    viewModel.submit(memory: memory, query: q)
                                     searchFocused = false
                                 } label: {
-                                    HStack(spacing: 14) {
+                                    HStack(spacing: 12) {
                                         Image(systemName: "clock.arrow.circlepath")
+                                            .font(.system(size: 16))
                                             .foregroundStyle(YTLiteColor.onSurfaceVariant)
                                         Text(q)
+                                            .font(YTLiteType.body)
                                             .foregroundStyle(YTLiteColor.onSurface)
                                             .lineLimit(1)
                                         Spacer(minLength: 0)
@@ -440,12 +442,13 @@ struct SearchView: View {
                                     Image(systemName: "arrow.up.left")
                                         .font(YTLiteType.meta)
                                         .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                                        .frame(width: 36, height: 36)
+                                        .frame(width: 28, height: 28)
+                                        .contentShape(Rectangle())
                                 }
                                 .buttonStyle(.plain)
                             }
                             .padding(.horizontal, YTLiteLayout.screenPadding)
-                            .padding(.vertical, YTLiteLayout.rowVertical)
+                            .padding(.vertical, 6)
                         }
                     }
                 }
@@ -457,8 +460,7 @@ struct SearchView: View {
                         .padding(.horizontal, YTLiteLayout.screenPadding)
 
                     FlowChips(items: SearchMemoryStore.trendingDefaults) { tag in
-                        viewModel.query = tag
-                        viewModel.submit(memory: memory)
+                        viewModel.submit(memory: memory, query: tag)
                         searchFocused = false
                     }
                     .padding(.horizontal, YTLiteLayout.screenPadding)

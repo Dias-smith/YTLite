@@ -12,8 +12,11 @@ final class TrackActionPresenter: ObservableObject {
     @Published var toastMessage: String?
     /// Bumps when lists should drop not-interested / refresh after mutations.
     @Published private(set) var listEpoch: Int = 0
+    /// Bumps when all menu sheets should close (e.g. after save-to-playlist).
+    @Published private(set) var menuCloseToken: Int = 0
 
     private var toastTask: Task<Void, Never>?
+    private var dismissThenToastTask: Task<Void, Never>?
 
     func present(_ context: TrackActionContext) {
         self.context = context
@@ -34,23 +37,42 @@ final class TrackActionPresenter: ObservableObject {
         showActions = false
     }
 
-    func openPlaylistPicker() {
+    /// Closes rich menu + playlist picker / edit / lyrics overlays.
+    func dismissAllOverlays() {
         showActions = false
+        showPlaylistPicker = false
+        showEditInfo = false
+        showLyrics = false
+    }
+
+    func openPlaylistPicker() {
         showPlaylistPicker = true
     }
 
     func openEditInfo() {
-        showActions = false
         showEditInfo = true
     }
 
     func openLyrics() {
-        showActions = false
         showLyrics = true
     }
 
     func notifyListsChanged() {
         listEpoch += 1
+    }
+
+    /// Dismiss every overlay first, then show toast after the sheet animation.
+    func completePlaylistSave(toast message: String) {
+        dismissAllOverlays()
+        menuCloseToken += 1
+        dismissThenToastTask?.cancel()
+        toastTask?.cancel()
+        toastMessage = nil
+        dismissThenToastTask = Task {
+            try? await Task.sleep(nanoseconds: 380_000_000)
+            guard !Task.isCancelled else { return }
+            showToast(message)
+        }
     }
 
     func showToast(_ message: String) {

@@ -7,34 +7,68 @@ private enum PlayerTab: String, CaseIterable {
     case related = "Related"
 }
 
+private enum PlayerListSort: String, CaseIterable {
+    case original
+    case titleAsc
+    case titleDesc
+    case artistAsc
+
+    var title: String {
+        switch self {
+        case .original: return "Original order"
+        case .titleAsc: return "Title A–Z"
+        case .titleDesc: return "Title Z–A"
+        case .artistAsc: return "Artist A–Z"
+        }
+    }
+}
+
 struct PlayerDetailView: View {
     @EnvironmentObject private var playback: PlaybackController
     @EnvironmentObject private var trackActions: TrackActionPresenter
+    @EnvironmentObject private var appModel: AppModel
     @Environment(\.libraryStore) private var store
     @Environment(\.dismiss) private var dismiss
 
     @State private var showSpeedSheet = false
+    @State private var showSleepTimerSheet = false
     @State private var showAddPlaylist = false
+    @State private var showSaveList = false
     @State private var overlayVisible = true
     @State private var hideTask: Task<Void, Never>?
-    @State private var shuffleOn = false
-    @State private var repeatOn = false
     @State private var tab: PlayerTab = .upNext
     @State private var pipRequestID = 0
     @State private var fullscreenRequestID = 0
     @State private var related: [VideoItem] = []
+    @State private var relatedOriginal: [VideoItem] = []
     @State private var relatedLoading = false
     @State private var relatedError: String?
+    @State private var subscribeToast: String?
+
+    @State private var showSortMenu = false
+    @State private var listSort: PlayerListSort = .original
+    @State private var isSelectionMode = false
+    @State private var selectedIds: Set<String> = []
+    @State private var showBatchAdd = false
+    /// Local rich-menu presentation — must be on this sheet, not Root's TrackActionHost.
+    @State private var playerTrackMenu: TrackActionContext?
 
     private let overlayAutoHideSeconds: UInt64 = 5_000_000_000
 
     var body: some View {
         VStack(spacing: 0) {
             playerCanvas
+            // Title + more stay pinned under the canvas while the rest scrolls (matches player detail UX).
+            pinnedTitleRow
+                .padding(.horizontal, YTLiteLayout.screenPadding)
+                .padding(.top, YTLiteLayout.stackLoose)
+                .padding(.bottom, YTLiteLayout.stackDefault)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(YTLiteColor.surface)
             ScrollView {
                 VStack(alignment: .leading, spacing: YTLiteLayout.screenPadding) {
-                    titleBlock
-                    if let error = playback.lastError {
+                    channelRow
+                    if let error = playback.lastError, !playback.isPlaying {
                         Text(error)
                             .font(YTLiteType.meta)
                             .foregroundStyle(YTLiteColor.danger)
@@ -42,11 +76,15 @@ struct PlayerDetailView: View {
                     actionBar
                     transportControls
                     tabHeader
-                    listToolbar
+                    if isSelectionMode {
+                        selectionToolbar
+                    } else {
+                        listToolbar
+                    }
                     tabContent
                 }
                 .padding(.horizontal, YTLiteLayout.screenPadding)
-                .padding(.top, YTLiteLayout.stackLoose)
+                .padding(.top, YTLiteLayout.stackDefault)
                 .padding(.bottom, 32)
             }
         }
@@ -58,8 +96,43 @@ struct PlayerDetailView: View {
                 .presentationDetents([.medium])
                 .preferredColorScheme(.dark)
         }
+        .sheet(isPresented: $showSleepTimerSheet) {
+            SleepTimerSheet()
+                .environmentObject(playback)
+                .presentationDetents([.medium])
+                .preferredColorScheme(.dark)
+        }
         .sheet(isPresented: $showAddPlaylist) {
-            AddToPlaylistSheet()
+            AddToPlaylistSheet(items: currentTrackItems)
+                .preferredColorScheme(.dark)
+        }
+        .sheet(isPresented: $showSaveList) {
+            AddToPlaylistSheet(items: currentListItems)
+                .preferredColorScheme(.dark)
+        }
+        .sheet(isPresented: $showBatchAdd) {
+            AddToPlaylistSheet(items: selectedListItems) {
+                exitSelectionMode()
+            }
+            .preferredColorScheme(.dark)
+        }
+        .sheet(isPresented: $showSortMenu) {
+            PlayerListSortSheet(selected: listSort) { option in
+                applySort(option)
+            }
+            .preferredColorScheme(.dark)
+            .presentationDetents([.medium, .large])
+        }
+        .sheet(item: $playerTrackMenu, onDismiss: {
+            trackActions.dismissAllOverlays()
+        }) { context in
+            TrackActionSheet(context: context)
+                .environmentObject(trackActions)
+                .environmentObject(playback)
+                .environment(\.libraryStore, store)
+                .presentationDetents([.fraction(0.72), .large])
+                .presentationDragIndicator(.hidden)
+                .presentationContentInteraction(.scrolls)
                 .preferredColorScheme(.dark)
         }
         .onAppear {
@@ -72,14 +145,22 @@ struct PlayerDetailView: View {
         }
         .onChange(of: playback.nowPlaying?.videoId) { _, _ in
             related = []
+            relatedOriginal = []
+            listSort = .original
+            exitSelectionMode()
             if tab == .related {
                 Task { await loadRelated() }
             }
         }
         .onChange(of: tab) { _, newValue in
+            exitSelectionMode()
+            listSort = .original
             if newValue == .related, related.isEmpty {
                 Task { await loadRelated() }
             }
+        }
+        .onChange(of: trackActions.menuCloseToken) { _, _ in
+            playerTrackMenu = nil
         }
     }
 
@@ -175,6 +256,32 @@ struct PlayerDetailView: View {
             }
             Spacer()
             HStack(spacing: 0) {
+                Button {
+                    showSleepTimerSheet = true
+                    bumpOverlayAutoHide()
+                } label: {
+                    Group {
+                        if let remaining = playback.sleepTimerRemaining,
+                           playback.sleepTimerEndsAt != nil
+                        {
+                            Text(SleepTimerOptions.formatRemaining(remaining))
+                                .font(YTLiteType.badge)
+                                .foregroundStyle(YTLiteColor.accent)
+                                .frame(minWidth: 36)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, YTLiteLayout.rowVertical)
+                        } else {
+                            Image(systemName: "moon.zzz")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(YTLiteColor.onSurface)
+                                .frame(width: 36, height: 36)
+                        }
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Sleep timer")
+
                 Button {
                     showSpeedSheet = true
                     bumpOverlayAutoHide()
@@ -285,45 +392,112 @@ struct PlayerDetailView: View {
 
     // MARK: - Metadata
 
-    private var titleBlock: some View {
-        VStack(alignment: .leading, spacing: YTLiteLayout.stackDefault) {
-            HStack(spacing: YTLiteLayout.stackDefault) {
-                Text(playback.nowPlaying?.title ?? "")
-                    .font(YTLiteType.rowTitle)
-                    .foregroundStyle(YTLiteColor.onSurface)
-                    .lineLimit(1)
-                Spacer(minLength: YTLiteLayout.stackDefault)
-                Button {
-                    if let item = playback.nowPlaying {
-                        trackActions.present(
-                            TrackActionContext(
-                                videoId: item.videoId,
-                                title: item.title,
-                                channelName: item.channelName,
-                                thumbnailURL: item.thumbnailURL,
-                                durationText: item.durationText
-                            )
-                        )
-                    }
-                } label: {
-                    Image(systemName: "ellipsis")
-                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                        .frame(width: 32, height: 32)
-                        .contentShape(Rectangle())
+    private var pinnedTitleRow: some View {
+        HStack(spacing: YTLiteLayout.stackDefault) {
+            Text(playback.nowPlaying?.title ?? "")
+                .font(YTLiteType.rowTitle)
+                .foregroundStyle(YTLiteColor.onSurface)
+                .lineLimit(1)
+            Spacer(minLength: YTLiteLayout.stackDefault)
+            Button {
+                if let item = playback.nowPlaying {
+                    openTrackMenu(from: item)
                 }
-                .buttonStyle(.plain)
-            }
-            HStack(spacing: 10) {
-                Text(playback.nowPlaying?.channelName ?? "")
-                    .font(YTLiteType.body)
+            } label: {
+                Image(systemName: "ellipsis")
+                    .font(.system(size: 17, weight: .semibold))
                     .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                    .lineLimit(1)
-                Text("Subscribe")
+                    .frame(width: 36, height: 36)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private var channelRow: some View {
+        HStack(spacing: 10) {
+            channelAvatar
+                .frame(width: 28, height: 28)
+                .clipShape(Circle())
+
+            Text(playback.nowPlaying?.channelName ?? "")
+                .font(YTLiteType.body)
+                .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                .lineLimit(1)
+
+            Spacer(minLength: 8)
+
+            let canSubscribe = playback.nowPlaying?.canSubscribeChannel == true
+            let subscribed = playback.isChannelSubscribed
+            Button {
+                guard canSubscribe else { return }
+                let nowSubscribed = playback.toggleChannelSubscribe()
+                subscribeToast = nowSubscribed ? "Subscribed" : "Unsubscribed"
+            } label: {
+                Text(subscribed ? "Subscribed" : "Subscribe")
                     .font(YTLiteType.badge)
-                    .foregroundStyle(.black)
+                    .foregroundStyle(subscribed ? YTLiteColor.onSurfaceVariant : .black)
                     .padding(.horizontal, YTLiteLayout.stackLoose)
                     .padding(.vertical, 6)
-                    .background(Color.white, in: Capsule())
+                    .background(
+                        subscribed ? YTLiteColor.surfaceVariant : Color.white,
+                        in: Capsule()
+                    )
+                    .opacity(canSubscribe ? 1 : 0.4)
+            }
+            .buttonStyle(.plain)
+            .disabled(!canSubscribe)
+        }
+        .task(id: playback.nowPlaying?.channelId) {
+            await resolveChannelAvatarIfNeeded()
+        }
+        .overlay(alignment: .bottom) {
+            if let subscribeToast {
+                Text(subscribeToast)
+                    .font(YTLiteType.meta.weight(.semibold))
+                    .foregroundStyle(YTLiteColor.onSurface)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .background(YTLiteColor.surfaceElevated, in: Capsule())
+                    .offset(y: 36)
+                    .transition(.opacity)
+                    .task(id: subscribeToast) {
+                        try? await Task.sleep(nanoseconds: 1_400_000_000)
+                        self.subscribeToast = nil
+                    }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var channelAvatar: some View {
+        if let url = playback.nowPlaying?.channelAvatarURL {
+            RemoteImage(url: url)
+        } else {
+            ZStack {
+                YTLiteColor.surfaceVariant
+                Image(systemName: "person.fill")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(YTLiteColor.onSurfaceVariant)
+            }
+        }
+    }
+
+    private func resolveChannelAvatarIfNeeded() async {
+        guard let channelId = playback.nowPlaying?.channelId,
+              ChannelID.isBrowsable(channelId),
+              playback.nowPlaying?.channelAvatarURL == nil
+        else { return }
+        if let cached = store?.subscribedChannel(id: channelId)?.avatarUrl.flatMap(URL.init(string:)) {
+            playback.updateChannelAvatar(cached)
+            return
+        }
+        let apiKey = appModel.config.youtubeDataAPIKey
+        if let url = await ChannelAvatarFetcher.fetch(channelId: channelId, apiKey: apiKey) {
+            playback.updateChannelAvatar(url)
+            if let channel = store?.subscribedChannel(id: channelId) {
+                channel.avatarUrl = url.absoluteString
+                store?.save()
             }
         }
     }
@@ -337,7 +511,13 @@ struct PlayerDetailView: View {
             ) {
                 playback.toggleFavorite()
             }
-            actionItem(title: "Dislike", icon: "hand.thumbsdown") {}
+            actionItem(
+                title: "Dislike",
+                icon: playback.isDisliked ? "hand.thumbsdown.fill" : "hand.thumbsdown",
+                tint: playback.isDisliked ? YTLiteColor.accent : YTLiteColor.onSurface
+            ) {
+                playback.toggleDislike()
+            }
             if let item = playback.nowPlaying {
                 ShareLink(item: item.watchShareURL) {
                     VStack(spacing: 6) {
@@ -378,11 +558,14 @@ struct PlayerDetailView: View {
 
     private var transportControls: some View {
         HStack {
-            Button { shuffleOn.toggle() } label: {
+            Button {
+                playback.toggleShuffle()
+            } label: {
                 Image(systemName: "shuffle")
                     .font(.title3)
-                    .foregroundStyle(shuffleOn ? YTLiteColor.accent : YTLiteColor.onSurface)
+                    .foregroundStyle(playback.shuffleEnabled ? YTLiteColor.accent : YTLiteColor.onSurface)
             }
+            .accessibilityLabel(playback.shuffleEnabled ? "Shuffle on" : "Sequential")
             Spacer()
             Button { playback.playPrevious() } label: {
                 Image(systemName: "backward.fill")
@@ -403,17 +586,33 @@ struct PlayerDetailView: View {
             Button { playback.playNext() } label: {
                 Image(systemName: "forward.fill")
                     .font(.title2)
-                    .foregroundStyle(YTLiteColor.onSurface)
+                    .foregroundStyle(
+                        playback.hasNextInQueue
+                            ? YTLiteColor.onSurface
+                            : YTLiteColor.onSurfaceVariant.opacity(0.45)
+                    )
             }
+            .disabled(!playback.hasNextInQueue)
             Spacer()
-            Button { repeatOn.toggle() } label: {
-                Image(systemName: "repeat")
+            Button {
+                playback.cycleRepeatMode()
+            } label: {
+                Image(systemName: playback.repeatMode.systemImage)
                     .font(.title3)
-                    .foregroundStyle(repeatOn ? YTLiteColor.accent : YTLiteColor.onSurface)
+                    .foregroundStyle(playback.repeatMode.isActive ? YTLiteColor.accent : YTLiteColor.onSurface)
             }
+            .accessibilityLabel(repeatAccessibilityLabel)
         }
         .buttonStyle(.plain)
         .padding(.vertical, YTLiteLayout.stackTight)
+    }
+
+    private var repeatAccessibilityLabel: String {
+        switch playback.repeatMode {
+        case .off: return "Repeat off"
+        case .all: return "Repeat all"
+        case .one: return "Repeat one"
+        }
     }
 
     // MARK: - Tabs
@@ -440,28 +639,148 @@ struct PlayerDetailView: View {
     }
 
     private var listToolbar: some View {
-        HStack(spacing: YTLiteLayout.stackLoose) {
+        HStack(spacing: 10) {
             Text(toolbarTitle)
                 .font(YTLiteType.body)
                 .foregroundStyle(YTLiteColor.onSurfaceVariant)
             Spacer()
-            if tab == .upNext {
-                Image(systemName: "arrow.up.arrow.down")
-                    .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                Image(systemName: "checkmark.circle")
-                    .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                Button {
-                    showAddPlaylist = true
-                } label: {
-                    Image(systemName: "plus")
-                        .font(.body.weight(.bold))
-                        .foregroundStyle(YTLiteColor.onSurface)
-                        .frame(width: 36, height: 36)
-                        .background(YTLiteColor.accent, in: Circle())
+            if tab != .lyrics {
+                toolbarCircleButton(
+                    systemName: "arrow.up.arrow.down",
+                    filledAccent: false,
+                    enabled: !currentListItems.isEmpty
+                ) {
+                    showSortMenu = true
                 }
-                .buttonStyle(.plain)
+                toolbarCircleButton(
+                    systemName: "checkmark.circle",
+                    filledAccent: false,
+                    enabled: !currentListItems.isEmpty
+                ) {
+                    enterSelectionMode()
+                }
+                toolbarCircleButton(
+                    systemName: "plus",
+                    filledAccent: true,
+                    enabled: canSaveList
+                ) {
+                    showSaveList = true
+                }
             }
         }
+    }
+
+    private func toolbarCircleButton(
+        systemName: String,
+        filledAccent: Bool,
+        enabled: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Image(systemName: systemName)
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(
+                    filledAccent
+                        ? (enabled ? YTLiteColor.onSurface : YTLiteColor.onSurface.opacity(0.35))
+                        : (enabled ? YTLiteColor.onSurface : YTLiteColor.onSurface.opacity(0.35))
+                )
+                .frame(width: 36, height: 36)
+                .background(
+                    filledAccent
+                        ? (enabled ? YTLiteColor.accent : YTLiteColor.surfaceVariant)
+                        : YTLiteColor.surfaceVariant,
+                    in: Circle()
+                )
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .disabled(!enabled)
+        .opacity(enabled || filledAccent ? 1 : 0.55)
+    }
+
+    private var selectionToolbar: some View {
+        HStack(spacing: 8) {
+            Button {
+                exitSelectionMode()
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(YTLiteColor.onSurface)
+                    .frame(width: 36, height: 36)
+                    .background(YTLiteColor.surfaceVariant, in: Circle())
+                    .contentShape(Circle())
+            }
+            .buttonStyle(.plain)
+
+            Text("\(selectedIds.count) selected")
+                .font(YTLiteType.body)
+                .foregroundStyle(YTLiteColor.onSurface)
+                .lineLimit(1)
+                .minimumScaleFactor(0.85)
+
+            Spacer(minLength: 8)
+
+            // Match Android Library selection TopAppBar: icon-only actions.
+            Button {
+                selectedIds = Set(currentListItems.map(\.videoId))
+            } label: {
+                Image(systemName: "checklist")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(allSelected ? YTLiteColor.onSurface.opacity(0.35) : YTLiteColor.onSurface)
+                    .frame(width: 36, height: 36)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .disabled(allSelected)
+            .accessibilityLabel("Select all")
+
+            Button {
+                selectedIds.removeAll()
+            } label: {
+                Image(systemName: "checklist.unchecked")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(selectedIds.isEmpty ? YTLiteColor.onSurface.opacity(0.35) : YTLiteColor.onSurface)
+                    .frame(width: 36, height: 36)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .disabled(selectedIds.isEmpty)
+            .accessibilityLabel("Deselect all")
+
+            Button {
+                showBatchAdd = true
+            } label: {
+                Image(systemName: "text.badge.plus")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(selectedIds.isEmpty ? YTLiteColor.onSurface.opacity(0.35) : YTLiteColor.onSurface)
+                    .frame(width: 36, height: 36)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .disabled(selectedIds.isEmpty)
+            .accessibilityLabel("Add to playlist")
+
+            if tab == .upNext {
+                Button {
+                    playback.removeFromQueue(videoIds: selectedIds)
+                    exitSelectionMode()
+                } label: {
+                    Image(systemName: "trash")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(selectedIds.isEmpty ? YTLiteColor.onSurface.opacity(0.35) : YTLiteColor.onSurface)
+                        .frame(width: 36, height: 36)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .disabled(selectedIds.isEmpty)
+                .accessibilityLabel("Remove from queue")
+            }
+        }
+    }
+
+    private var allSelected: Bool {
+        let ids = currentListItems.map(\.videoId)
+        return !ids.isEmpty && ids.allSatisfy { selectedIds.contains($0) }
     }
 
     private var toolbarTitle: String {
@@ -472,19 +791,45 @@ struct PlayerDetailView: View {
         }
     }
 
+    private var canSaveList: Bool { !currentListItems.isEmpty }
+
+    private var currentListItems: [VideoItem] {
+        switch tab {
+        case .upNext: return playback.queue
+        case .related: return related
+        case .lyrics: return []
+        }
+    }
+
+    private var currentTrackItems: [VideoItem] {
+        guard let item = playback.nowPlaying else { return [] }
+        return [
+            VideoItem(
+                videoId: item.videoId,
+                title: item.title,
+                channelName: item.channelName,
+                thumbnailURL: item.thumbnailURL,
+                durationText: item.durationText
+            ),
+        ]
+    }
+
+    private var selectedListItems: [VideoItem] {
+        currentListItems.filter { selectedIds.contains($0.videoId) }
+    }
+
     @ViewBuilder
     private var tabContent: some View {
         switch tab {
         case .upNext:
             ForEach(Array(playback.queue.enumerated()), id: \.element.id) { index, item in
-                Button {
-                    playback.play(items: playback.queue, startAt: index)
-                } label: {
-                    UpNextRow(item: item, isCurrent: index == playback.queueIndex) {
-                        trackActions.present(item: item)
+                listRow(item: item, isCurrent: index == playback.queueIndex) {
+                    if isSelectionMode {
+                        toggleSelection(item.videoId)
+                    } else {
+                        playback.play(items: playback.queue, startAt: index)
                     }
                 }
-                .buttonStyle(.plain)
             }
         case .lyrics:
             LyricsPanel()
@@ -507,33 +852,140 @@ struct PlayerDetailView: View {
                     .padding(.vertical, YTLiteLayout.screenPadding)
             } else {
                 ForEach(Array(related.enumerated()), id: \.element.id) { index, item in
-                    Button {
-                        playback.play(items: related, startAt: index)
-                    } label: {
-                        UpNextRow(item: item, isCurrent: false) {
-                            trackActions.present(item: item)
+                    listRow(item: item, isCurrent: false) {
+                        if isSelectionMode {
+                            toggleSelection(item.videoId)
+                        } else {
+                            playback.play(items: related, startAt: index)
                         }
                     }
-                    .buttonStyle(.plain)
                 }
             }
         }
     }
 
+    private func listRow(item: VideoItem, isCurrent: Bool, action: @escaping () -> Void) -> some View {
+        let selected = selectedIds.contains(item.videoId)
+        return HStack(spacing: YTLiteLayout.stackLoose) {
+            if isSelectionMode {
+                Button(action: action) {
+                    Image(systemName: selected ? "checkmark.circle.fill" : "circle")
+                        .font(.system(size: 20))
+                        .foregroundStyle(selected ? YTLiteColor.accent : YTLiteColor.onSurfaceVariant)
+                        .frame(width: 28, height: 56)
+                }
+                .buttonStyle(.plain)
+            }
+            Button(action: action) {
+                UpNextRowContent(item: item, isCurrent: isCurrent)
+            }
+            .buttonStyle(.plain)
+            if !isSelectionMode {
+                Button {
+                    openTrackMenu(item)
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                        .frame(width: 36, height: 56)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.borderless)
+            }
+        }
+        .padding(.horizontal, YTLiteLayout.stackDefault)
+        .padding(.vertical, YTLiteLayout.rowVertical)
+        .background(
+            isCurrent
+                ? YTLiteColor.accent.opacity(0.14)
+                : Color.clear,
+            in: RoundedRectangle(cornerRadius: YTLiteLayout.thumbRadius)
+        )
+    }
+
+    private func openTrackMenu(from item: NowPlayingItem) {
+        openTrackMenu(
+            VideoItem(
+                videoId: item.videoId,
+                title: item.title,
+                channelName: item.channelName,
+                thumbnailURL: item.thumbnailURL,
+                durationText: item.durationText
+            )
+        )
+    }
+
+    private func openTrackMenu(_ item: VideoItem) {
+        let ctx = TrackActionContext(item: item)
+        trackActions.context = ctx
+        playerTrackMenu = ctx
+    }
+
     private func loadRelated() async {
-        let seed = playback.nowPlaying?.title
-            ?? playback.nowPlaying?.channelName
-            ?? ""
-        guard !seed.isEmpty else { return }
+        guard let videoId = playback.nowPlaying?.videoId, !videoId.isEmpty else { return }
         relatedLoading = true
         relatedError = nil
         defer { relatedLoading = false }
         do {
-            let results = try await InnerTubeClient.searchVideos(query: seed)
-            let filtered = results.filter { $0.videoId != playback.nowPlaying?.videoId }
-            related = store?.filterNotInterested(filtered) ?? filtered
+            let results = try await InnerTubeClient.fetchMusicRelatedVideos(videoId: videoId)
+            let items = store?.filterNotInterested(results) ?? results
+            relatedOriginal = items
+            related = sortedItems(items, by: listSort)
         } catch {
             relatedError = error.localizedDescription
+        }
+    }
+
+    private func enterSelectionMode() {
+        guard tab != .lyrics, !currentListItems.isEmpty else { return }
+        isSelectionMode = true
+        selectedIds = []
+    }
+
+    private func exitSelectionMode() {
+        isSelectionMode = false
+        selectedIds = []
+    }
+
+    private func toggleSelection(_ id: String) {
+        if selectedIds.contains(id) {
+            selectedIds.remove(id)
+        } else {
+            selectedIds.insert(id)
+        }
+    }
+
+    private func applySort(_ sort: PlayerListSort) {
+        listSort = sort
+        switch tab {
+        case .upNext:
+            if sort == .original {
+                // Keep current queue order for Up next "original" (no pre-shuffle snapshot).
+                return
+            }
+            playback.reorderQueue { a, b in compare(a, b, sort: sort) }
+        case .related:
+            related = sortedItems(relatedOriginal, by: sort)
+        case .lyrics:
+            break
+        }
+    }
+
+    private func sortedItems(_ items: [VideoItem], by sort: PlayerListSort) -> [VideoItem] {
+        guard sort != .original else { return items }
+        return items.sorted { compare($0, $1, sort: sort) }
+    }
+
+    private func compare(_ a: VideoItem, _ b: VideoItem, sort: PlayerListSort) -> Bool {
+        switch sort {
+        case .original:
+            return true
+        case .titleAsc:
+            return a.title.localizedCaseInsensitiveCompare(b.title) == .orderedAscending
+        case .titleDesc:
+            return a.title.localizedCaseInsensitiveCompare(b.title) == .orderedDescending
+        case .artistAsc:
+            return a.channelName.localizedCaseInsensitiveCompare(b.channelName) == .orderedAscending
         }
     }
 
@@ -593,10 +1045,9 @@ private struct OrangeProgressBar: View {
     }
 }
 
-private struct UpNextRow: View {
+private struct UpNextRowContent: View {
     let item: VideoItem
     let isCurrent: Bool
-    var onMore: (() -> Void)? = nil
 
     var body: some View {
         HStack(spacing: YTLiteLayout.stackLoose) {
@@ -619,16 +1070,30 @@ private struct UpNextRow: View {
                     .foregroundStyle(YTLiteColor.onSurfaceVariant)
                     .lineLimit(1)
             }
-            Spacer()
-            Button {
-                onMore?()
-            } label: {
-                Image(systemName: "ellipsis")
-                    .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                    .frame(width: 28, height: 28)
-                    .contentShape(Rectangle())
+            Spacer(minLength: 0)
+        }
+        .contentShape(Rectangle())
+    }
+}
+
+private struct UpNextRow: View {
+    let item: VideoItem
+    let isCurrent: Bool
+    var onMore: (() -> Void)? = nil
+
+    var body: some View {
+        HStack(spacing: 0) {
+            UpNextRowContent(item: item, isCurrent: isCurrent)
+            if let onMore {
+                Button(action: onMore) {
+                    Image(systemName: "ellipsis")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                        .frame(width: 36, height: 56)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.borderless)
             }
-            .buttonStyle(.borderless)
         }
         .padding(.horizontal, YTLiteLayout.stackDefault)
         .padding(.vertical, YTLiteLayout.rowVertical)
@@ -684,43 +1149,220 @@ struct SpeedPickerSheet: View {
             .background(YTLiteColor.background)
             .navigationTitle("Playback speed")
             .navigationBarTitleDisplayMode(.inline)
-        }
-    }
-}
-
-struct AddToPlaylistSheet: View {
-    @Environment(\.libraryStore) private var store
-    @EnvironmentObject private var playback: PlaybackController
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        NavigationStack {
-            List(store?.allPlaylists() ?? [], id: \.playlistId) { playlist in
-                Button(playlist.name) {
-                    guard let current = playback.nowPlaying else { return }
-                    store?.add(
-                        item: VideoItem(
-                            videoId: current.videoId,
-                            title: current.title,
-                            channelName: current.channelName,
-                            thumbnailURL: current.thumbnailURL
-                        ),
-                        to: playlist
-                    )
-                    dismiss()
-                }
-                .foregroundStyle(YTLiteColor.onSurface)
-                .listRowBackground(YTLiteColor.surfaceElevated)
-            }
-            .scrollContentBackground(.hidden)
-            .background(YTLiteColor.background)
-            .navigationTitle("Save to playlist")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Close") { dismiss() }
                 }
             }
         }
-        .presentationDetents([.medium])
+    }
+}
+
+struct SleepTimerSheet: View {
+    @EnvironmentObject private var playback: PlaybackController
+    @Environment(\.dismiss) private var dismiss
+
+    private var options: [Int?] { [nil] + SleepTimerOptions.minutesOptions.map { Optional($0) } }
+
+    var body: some View {
+        NavigationStack {
+            List(options, id: \.self) { minutes in
+                Button {
+                    playback.setSleepTimer(minutes: minutes)
+                    dismiss()
+                } label: {
+                    HStack {
+                        Text(SleepTimerOptions.formatLabel(minutes: minutes))
+                            .foregroundStyle(YTLiteColor.onSurface)
+                        Spacer()
+                        if minutes == playback.sleepTimerMinutes {
+                            Image(systemName: "checkmark")
+                                .foregroundStyle(YTLiteColor.accent)
+                        }
+                    }
+                }
+                .listRowBackground(YTLiteColor.surfaceElevated)
+            }
+            .scrollContentBackground(.hidden)
+            .background(YTLiteColor.background)
+            .navigationTitle("Sleep timer")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Close") { dismiss() }
+                }
+            }
+        }
+    }
+}
+
+private struct PlayerListSortSheet: View {
+    let selected: PlayerListSort
+    var onSelect: (PlayerListSort) -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            List {
+                ForEach(PlayerListSort.allCases, id: \.self) { option in
+                    Button {
+                        onSelect(option)
+                        dismiss()
+                    } label: {
+                        HStack {
+                            Text(option.title)
+                                .foregroundStyle(YTLiteColor.onSurface)
+                            Spacer()
+                            if option == selected {
+                                Image(systemName: "checkmark")
+                                    .foregroundStyle(YTLiteColor.accent)
+                            }
+                        }
+                    }
+                    .listRowBackground(YTLiteColor.surfaceElevated)
+                }
+            }
+            .scrollContentBackground(.hidden)
+            .background(YTLiteColor.background)
+            .navigationTitle("Sort by")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Close") { dismiss() }
+                }
+            }
+        }
+    }
+}
+
+struct AddToPlaylistSheet: View {
+    var items: [VideoItem]
+    var onDone: (() -> Void)? = nil
+
+    @Environment(\.libraryStore) private var store
+    @Environment(\.dismiss) private var dismiss
+    @State private var showCreate = false
+    @State private var newName = ""
+
+    private var title: String {
+        items.count > 1 ? "Save \(items.count) songs" : "Save to playlist"
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            header(title: title) { dismiss() }
+
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 0) {
+                    Button {
+                        newName = ""
+                        showCreate = true
+                    } label: {
+                        Label("New playlist", systemImage: "plus")
+                            .font(YTLiteType.body)
+                            .foregroundStyle(YTLiteColor.accent)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, YTLiteLayout.screenPadding)
+                            .padding(.vertical, 14)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+
+                    ForEach(store?.allPlaylists() ?? [], id: \.playlistId) { playlist in
+                        Button {
+                            save(to: playlist)
+                        } label: {
+                            Text(displayName(playlist))
+                                .font(YTLiteType.body)
+                                .foregroundStyle(YTLiteColor.onSurface)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.horizontal, YTLiteLayout.screenPadding)
+                                .padding(.vertical, 14)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(YTLiteColor.surfaceElevated)
+        .sheet(isPresented: $showCreate) {
+            VStack(alignment: .leading, spacing: 16) {
+                header(title: "New playlist") { showCreate = false }
+                TextField("Playlist name", text: $newName)
+                    .textFieldStyle(.plain)
+                    .foregroundStyle(YTLiteColor.onSurface)
+                    .padding(.horizontal, YTLiteLayout.screenPadding)
+                    .padding(.vertical, 12)
+                    .background(YTLiteColor.surfaceVariant, in: RoundedRectangle(cornerRadius: 10))
+                    .padding(.horizontal, YTLiteLayout.screenPadding)
+                Button {
+                    let name = newName.trimmingCharacters(in: .whitespacesAndNewlines)
+                    guard !name.isEmpty, let store else { return }
+                    let playlist = store.createPlaylist(name: name)
+                    showCreate = false
+                    save(to: playlist)
+                } label: {
+                    Text("Create")
+                        .font(YTLiteType.labelEmphasized)
+                        .foregroundStyle(YTLiteColor.onAccent)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(YTLiteColor.accent, in: Capsule())
+                }
+                .disabled(newName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .opacity(newName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.45 : 1)
+                .padding(.horizontal, YTLiteLayout.screenPadding)
+                Spacer()
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .background(YTLiteColor.surfaceElevated)
+            .presentationDetents([.medium])
+            .presentationDragIndicator(.visible)
+            .presentationBackground(YTLiteColor.surfaceElevated)
+            .preferredColorScheme(.dark)
+        }
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
+        .presentationBackground(YTLiteColor.surfaceElevated)
+        .preferredColorScheme(.dark)
+    }
+
+    private func header(title: String, close: @escaping () -> Void) -> some View {
+        HStack {
+            Button("Close", action: close)
+                .font(YTLiteType.body)
+                .foregroundStyle(YTLiteColor.onSurface)
+            Spacer()
+            Text(title)
+                .font(YTLiteType.sectionTitle)
+                .foregroundStyle(YTLiteColor.onSurface)
+            Spacer()
+            Button("Close", action: close)
+                .font(YTLiteType.body)
+                .foregroundStyle(.clear)
+                .accessibilityHidden(true)
+        }
+        .padding(.horizontal, YTLiteLayout.screenPadding)
+        .padding(.top, 18)
+        .padding(.bottom, 10)
+    }
+
+    private func save(to playlist: LibraryPlaylist) {
+        guard let store else { return }
+        for item in items {
+            store.add(item: item, to: playlist)
+        }
+        onDone?()
+        dismiss()
+    }
+
+    private func displayName(_ playlist: LibraryPlaylist) -> String {
+        switch playlist.systemType {
+        case SystemPlaylistType.favorites: return "Liked videos"
+        case SystemPlaylistType.watchLater: return "Watch later"
+        default: return playlist.name
+        }
     }
 }

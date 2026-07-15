@@ -66,13 +66,21 @@ final class ExtractorBridge: NSObject, WKScriptMessageHandler {
         do {
             let response: [String: Any] = try await withThrowingTaskGroup(of: [String: Any].self) { group in
                 group.addTask { @MainActor in
-                    try await withCheckedThrowingContinuation { cont in
-                        self.pendingResults[uid] = cont
-                        let quoted = Self.jsonQuoted(payloadString)
-                        let script =
-                            "(function(){try{return window.extractor.postMessageToJSBridge(\(quoted));}" +
-                            "catch(e){AndroidBridge.onExtractorError(String(e));}})()"
-                        self.webView?.evaluateJavaScript(script, completionHandler: nil)
+                    try await withTaskCancellationHandler {
+                        try await withCheckedThrowingContinuation { (cont: CheckedContinuation<[String: Any], Error>) in
+                            self.pendingResults[uid] = cont
+                            let quoted = Self.jsonQuoted(payloadString)
+                            let script =
+                                "(function(){try{return window.extractor.postMessageToJSBridge(\(quoted));}" +
+                                "catch(e){AndroidBridge.onExtractorError(String(e));}})()"
+                            self.webView?.evaluateJavaScript(script, completionHandler: nil)
+                        }
+                    } onCancel: {
+                        Task { @MainActor in
+                            if let cont = self.pendingResults.removeValue(forKey: uid) {
+                                cont.resume(throwing: CancellationError())
+                            }
+                        }
                     }
                 }
                 group.addTask {

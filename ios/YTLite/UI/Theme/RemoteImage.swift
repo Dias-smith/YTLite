@@ -33,12 +33,32 @@ final class ImageStore: @unchecked Sendable {
         if let mem = memory.object(forKey: url as NSURL) {
             return mem
         }
+        if url.isFileURL {
+            let local = await withCheckedContinuation { (cont: CheckedContinuation<UIImage?, Never>) in
+                ioQueue.async {
+                    cont.resume(returning: UIImage(contentsOfFile: url.path))
+                }
+            }
+            if let local {
+                memory.setObject(local, forKey: url as NSURL, cost: local.approximateCost)
+            }
+            return local
+        }
         if let disk = await loadFromDisk(url: url) {
             memory.setObject(disk, forKey: url as NSURL, cost: disk.approximateCost)
             return disk
         }
         do {
-            let (data, response) = try await session.data(from: url)
+            var request = URLRequest(url: url)
+            request.setValue(
+                "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15",
+                forHTTPHeaderField: "User-Agent"
+            )
+            // yt3.ggpht / googleusercontent occasionally require a YouTube referer.
+            if let host = url.host, host.contains("ggpht.com") || host.contains("googleusercontent.com") {
+                request.setValue("https://www.youtube.com/", forHTTPHeaderField: "Referer")
+            }
+            let (data, response) = try await session.data(for: request)
             guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode),
                   let image = UIImage(data: data)
             else { return nil }

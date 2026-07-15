@@ -23,6 +23,8 @@ struct VideoPlayback: Sendable, Equatable {
     let videoId: String
     let title: String
     let channelName: String
+    /// YouTube channel id (e.g. `UC…`) when extract provides it — Android `channelID`.
+    let channelId: String?
     let durationSeconds: Int
     let formats: [StreamFormat]
     let thumbnailURL: URL?
@@ -115,6 +117,11 @@ enum ExtractResultMapper {
         let channel = stringValue(music["uploader"]).nilIfEmpty
             ?? stringValue(music["channel"]).nilIfEmpty
             ?? ""
+        let channelId = stringValue(music["channelID"]).nilIfEmpty
+            ?? stringValue(music["channelId"]).nilIfEmpty
+            ?? stringValue(music["uploader_id"]).nilIfEmpty
+            ?? channelId(fromUploaderURL: stringValue(music["uploader_url"]).nilIfEmpty
+                ?? stringValue(music["channel_url"]).nilIfEmpty)
         let duration = intValue(music["duration"]) ?? 0
         let thumb = URL(string: "https://i.ytimg.com/vi/\(videoId)/hqdefault.jpg")
         let captions = mapCaptions(music)
@@ -123,11 +130,22 @@ enum ExtractResultMapper {
             videoId: videoId,
             title: title,
             channelName: channel,
+            channelId: channelId,
             durationSeconds: duration,
             formats: formats,
             thumbnailURL: thumb,
             captionTracks: captions
         )
+    }
+
+    private static func channelId(fromUploaderURL urlString: String?) -> String? {
+        guard let urlString, let url = URL(string: urlString) else { return nil }
+        let parts = url.pathComponents.filter { $0 != "/" }
+        if let idx = parts.firstIndex(of: "channel"), parts.indices.contains(idx + 1) {
+            let id = parts[idx + 1]
+            return id.hasPrefix("UC") ? id : nil
+        }
+        return nil
     }
 
     private static func mapCaptions(_ music: [String: Any]) -> [CaptionTrack] {

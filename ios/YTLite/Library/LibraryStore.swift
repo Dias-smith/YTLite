@@ -1,16 +1,20 @@
 import Foundation
 import SwiftData
 import Observation
+import UIKit
 
 @MainActor
 @Observable
 final class LibraryStore {
     private let modelContext: ModelContext
     var onMutate: (() -> Void)?
+    /// Fired after a channel is removed locally so sync can delete the remote row.
+    var onUnsubscribeChannel: ((String) -> Void)?
 
     init(modelContext: ModelContext) {
         self.modelContext = modelContext
         ensureSystemPlaylists()
+        migrateLegacyPlaylistCovers()
     }
 
     func ensureSystemPlaylists() {
@@ -106,17 +110,124 @@ final class LibraryStore {
     }
 
     func allPlaylists() -> [LibraryPlaylist] {
-        let descriptor = FetchDescriptor<LibraryPlaylist>(
-            sortBy: [SortDescriptor(\.updatedAt, order: .reverse)]
-        )
-        return (try? modelContext.fetch(descriptor)) ?? []
+        playlistsInLibraryOrder()
     }
 
-    /// Recent plays for Library Songs (resolved via tracks), mirroring Android last-played list.
+    /// Library tab / Save-to-library picker: Liked → Watch later → custom (oldest → newest).
+    func playlistsInLibraryOrder() -> [LibraryPlaylist] {
+        let all = (try? modelContext.fetch(FetchDescriptor<LibraryPlaylist>())) ?? []
+        let liked = all.first { $0.systemType == SystemPlaylistType.favorites }
+        let watchLater = all.first { $0.systemType == SystemPlaylistType.watchLater }
+        let custom = all
+            .filter { $0.systemType == nil }
+            .sorted { $0.sortCreatedAt < $1.sortCreatedAt }
+        return [liked, watchLater].compactMap { $0 } + custom
+    }
+
+    /// Recent plays (resolved via tracks). Used for History playlist / session restore.
     func historyVideos(limit: Int = 100) -> [VideoItem] {
         lastPlayed(limit: limit).compactMap { row in
             track(id: row.trackId)?.asVideoItem
         }
+    }
+
+    enum LibrarySongSort {
+        case recentActivity
+        case recentlySaved
+        case title
+        case duration
+    }
+
+    /// Library → Songs: union of tracks across all local playlists (deduped), plus history-only plays.
+    /// Aligns with Android `observeLocalSongs` + history merge.
+    func librarySongs(sort: LibrarySongSort = .recentActivity) -> [VideoItem] {
+        struct Acc {
+            var item: VideoItem
+            var activity: Date
+            var saved: Date
+        }
+
+        var byId: [String: Acc] = [:]
+        let playedAtById = Dictionary(
+            lastPlayed(limit: 500).map { ($0.trackId, $0.lastPlayedAt) },
+            uniquingKeysWith: { a, b in max(a, b) }
+        )
+
+        for playlist in allPlaylists() {
+            for entry in playlist.entries {
+                guard let track = entry.track else { continue }
+                let id = track.trackId
+                let item = displayItem(for: track.asVideoItem)
+                let saved = entry.createdAt
+                let activity = max(playedAtById[id] ?? .distantPast, saved)
+                if let prev = byId[id] {
+                    byId[id] = Acc(
+                        item: item,
+                        activity: max(prev.activity, activity),
+                        saved: max(prev.saved, saved)
+                    )
+                } else {
+                    byId[id] = Acc(item: item, activity: activity, saved: saved)
+                }
+            }
+        }
+
+        for video in historyVideos(limit: 200) {
+            let id = video.videoId
+            guard byId[id] == nil else { continue }
+            let at = playedAtById[id] ?? .distantPast
+            byId[id] = Acc(item: displayItem(for: video), activity: at, saved: at)
+        }
+
+        let values = Array(byId.values)
+        switch sort {
+        case .recentActivity:
+            return values.sorted { $0.activity > $1.activity }.map(\.item)
+        case .recentlySaved:
+            return values.sorted { $0.saved > $1.saved }.map(\.item)
+        case .title:
+            return values.sorted {
+                $0.item.title.localizedCaseInsensitiveCompare($1.item.title) == .orderedAscending
+            }.map(\.item)
+        case .duration:
+            return values.sorted {
+                let da = DurationFormat.seconds(from: $0.item.durationText)
+                let db = DurationFormat.seconds(from: $1.item.durationText)
+                if da != db { return da > db }
+                return $0.item.title.localizedCaseInsensitiveCompare($1.item.title) == .orderedAscending
+            }.map(\.item)
+        }
+    }
+
+    /// Remove tracks from every local playlist and clear last-played (Android `removeTracksFromLocalLibrary`).
+    func removeTracksFromLocalLibrary(trackIds: [String]) {
+        let ids = Set(trackIds)
+        guard !ids.isEmpty else { return }
+        for playlist in allPlaylists() {
+            let doomed = playlist.entries.filter { entry in
+                guard let tid = entry.track?.trackId else { return false }
+                return ids.contains(tid)
+            }
+            guard !doomed.isEmpty else { continue }
+            for entry in doomed {
+                modelContext.delete(entry)
+            }
+            for (index, remaining) in playlist.entries.sorted(by: { $0.position < $1.position }).enumerated() {
+                remaining.position = index
+            }
+            playlist.updatedAt = .now
+            playlist.isSynced = false
+        }
+        for id in ids {
+            var descriptor = FetchDescriptor<UserTrackLastPlayed>(
+                predicate: #Predicate { $0.trackId == id }
+            )
+            descriptor.fetchLimit = 1
+            if let row = try? modelContext.fetch(descriptor).first {
+                modelContext.delete(row)
+            }
+        }
+        save()
     }
 
     func playbackHistory(limit: Int = 50) -> [PlaybackHistoryItem] {
@@ -149,6 +260,59 @@ final class LibraryStore {
             sortBy: [SortDescriptor(\.subscribedAt, order: .reverse)]
         )
         return (try? modelContext.fetch(descriptor)) ?? []
+    }
+
+    func isSubscribed(channelId: String) -> Bool {
+        guard ChannelID.isBrowsable(channelId) else { return false }
+        let id = channelId.trimmingCharacters(in: .whitespacesAndNewlines)
+        var descriptor = FetchDescriptor<UserSubscribedChannel>(
+            predicate: #Predicate { $0.channelId == id }
+        )
+        descriptor.fetchLimit = 1
+        return (try? modelContext.fetch(descriptor).first) != nil
+    }
+
+    func subscribedChannel(id channelId: String) -> UserSubscribedChannel? {
+        let id = channelId.trimmingCharacters(in: .whitespacesAndNewlines)
+        var descriptor = FetchDescriptor<UserSubscribedChannel>(
+            predicate: #Predicate { $0.channelId == id }
+        )
+        descriptor.fetchLimit = 1
+        return try? modelContext.fetch(descriptor).first
+    }
+
+    /// Toggle local subscribe — mirrors Android `toggleSubscribeChannel`.
+    /// Returns `true` when subscribed after the call, `false` when unsubscribed / invalid.
+    @discardableResult
+    func toggleSubscribeChannel(
+        channelId: String,
+        title: String,
+        avatarUrl: String? = nil,
+        handle: String? = nil,
+        subscriberCountText: String? = nil,
+        descriptionText: String? = nil
+    ) -> Bool {
+        guard ChannelID.isBrowsable(channelId) else { return false }
+        let id = channelId.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let existing = subscribedChannel(id: id) {
+            modelContext.delete(existing)
+            save()
+            onUnsubscribeChannel?(id)
+            return false
+        }
+        let channel = UserSubscribedChannel(
+            channelId: id,
+            title: title.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty ?? id,
+            handle: handle,
+            avatarUrl: avatarUrl,
+            subscriberCountText: subscriberCountText,
+            descriptionText: descriptionText,
+            subscribedAt: .now,
+            isSynced: false
+        )
+        modelContext.insert(channel)
+        save()
+        return true
     }
 
     func isFavorite(videoId: String) -> Bool {
@@ -207,9 +371,14 @@ final class LibraryStore {
             title: item.title,
             channelName: item.channelName,
             thumbnailURL: item.thumbnailURL,
+            channelAvatarURL: item.channelAvatarURL,
             durationText: DurationFormat.text(seconds: resolvedDuration) ?? item.durationText
         )
-        _ = upsertTrack(from: video, durationSeconds: resolvedDuration)
+        let track = upsertTrack(from: video, durationSeconds: resolvedDuration)
+        if let channelId = item.channelId, ChannelID.isBrowsable(channelId) {
+            track.primaryArtistId = channelId
+            track.primaryArtistName = item.channelName
+        }
 
         let history = PlaybackHistoryItem(
             trackId: item.videoId,
@@ -303,6 +472,70 @@ final class LibraryStore {
     func deletePlaylist(_ playlist: LibraryPlaylist) {
         guard playlist.systemType == nil else { return }
         modelContext.delete(playlist)
+        save()
+    }
+
+    func renamePlaylist(_ playlist: LibraryPlaylist, name: String) {
+        guard playlist.systemType == nil else { return }
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        playlist.name = trimmed
+        playlist.updatedAt = .now
+        playlist.isSynced = false
+        save()
+    }
+
+    /// Set playlist cover to a remote URL or local cover token/path.
+    func updatePlaylistCover(_ playlist: LibraryPlaylist, coverUrlOrPath: String?) {
+        guard playlist.systemType == nil else { return }
+        let previous = playlist.coverUrlOrPath
+        // Never delete the file we are about to keep (same token/path) — that caused
+        // covers to vanish after a second write or duplicate PhotosPicker callback.
+        if let previous, previous != coverUrlOrPath {
+            PlaylistCoverStorage.deleteIfLocal(previous)
+        }
+        playlist.coverUrlOrPath = coverUrlOrPath
+        playlist.updatedAt = .now
+        playlist.isSynced = false
+        save()
+    }
+
+    /// Persist a chosen image as the playlist cover (device-local file).
+    func setPlaylistCoverImage(_ playlist: LibraryPlaylist, image: UIImage) {
+        guard playlist.systemType == nil else { return }
+        guard let token = PlaylistCoverStorage.save(image, playlistId: playlist.playlistId) else { return }
+        updatePlaylistCover(playlist, coverUrlOrPath: token)
+    }
+
+    /// Persist manual track order (Android `reorderPlaylistTracks`).
+    func reorderPlaylistTracks(_ playlist: LibraryPlaylist, orderedTrackIds: [String]) {
+        let byId = Dictionary(
+            uniqueKeysWithValues: playlist.entries.compactMap { entry -> (String, LibraryPlaylistEntry)? in
+                guard let id = entry.track?.trackId else { return nil }
+                return (id, entry)
+            }
+        )
+        for (index, trackId) in orderedTrackIds.enumerated() {
+            guard let entry = byId[trackId] else { continue }
+            entry.position = index
+            entry.isSynced = false
+        }
+        playlist.updatedAt = .now
+        playlist.isSynced = false
+        save()
+    }
+
+    func removeLastPlayed(trackIds: [String]) {
+        guard !trackIds.isEmpty else { return }
+        for id in trackIds {
+            var descriptor = FetchDescriptor<UserTrackLastPlayed>(
+                predicate: #Predicate { $0.trackId == id }
+            )
+            descriptor.fetchLimit = 1
+            if let row = try? modelContext.fetch(descriptor).first {
+                modelContext.delete(row)
+            }
+        }
         save()
     }
 
@@ -427,6 +660,144 @@ final class LibraryStore {
         )
         descriptor.fetchLimit = 1
         return try? modelContext.fetch(descriptor).first
+    }
+
+    private func migrateLegacyPlaylistCovers() {
+        let all = (try? modelContext.fetch(FetchDescriptor<LibraryPlaylist>())) ?? []
+        var changed = false
+        for playlist in all where playlist.systemType == nil {
+            let before = playlist.coverUrlOrPath
+            PlaylistCoverStorage.migrateLegacyIfNeeded(playlist)
+            if playlist.coverUrlOrPath != before { changed = true }
+        }
+        if changed {
+            try? modelContext.save()
+        }
+    }
+}
+
+/// Local playlist cover files under Application Support.
+///
+/// Persisted value is a stable token `localcover:{playlistId}` (not an absolute path),
+/// so covers survive container path changes. Legacy absolute/`file://` paths are still resolved.
+enum PlaylistCoverStorage {
+    private static let tokenPrefix = "localcover:"
+
+    static func token(for playlistId: String) -> String {
+        "\(tokenPrefix)\(playlistId)"
+    }
+
+    static func resolveURL(_ raw: String?) -> URL? {
+        guard let raw, !raw.isEmpty else { return nil }
+        if raw.hasPrefix("http://") || raw.hasPrefix("https://") {
+            return URL(string: raw)
+        }
+        if let playlistId = playlistId(fromLocalToken: raw) {
+            return existingFileURL(for: playlistId)
+        }
+        if raw.hasPrefix("file://"), let url = URL(string: raw) {
+            if FileManager.default.fileExists(atPath: url.path) { return url }
+            return existingFileURL(for: url.deletingPathExtension().lastPathComponent)
+        }
+        if raw.hasPrefix("/") {
+            if FileManager.default.fileExists(atPath: raw) {
+                return URL(fileURLWithPath: raw)
+            }
+            let name = URL(fileURLWithPath: raw).deletingPathExtension().lastPathComponent
+            return existingFileURL(for: name)
+        }
+        return nil
+    }
+
+    static func isLocalPath(_ raw: String) -> Bool {
+        raw.hasPrefix(tokenPrefix) || raw.hasPrefix("/") || raw.hasPrefix("file://")
+    }
+
+    /// Only remote http(s) covers are meaningful for Supabase sync.
+    static func syncableCover(_ raw: String?) -> String? {
+        guard let raw, !raw.isEmpty else { return nil }
+        if raw.hasPrefix("http://") || raw.hasPrefix("https://") { return raw }
+        return nil
+    }
+
+    /// Writes JPEG and returns a stable `localcover:` token (not an absolute path).
+    static func save(_ image: UIImage, playlistId: String) -> String? {
+        guard let data = image.jpegData(compressionQuality: 0.88) else { return nil }
+        let dir = coversDirectory()
+        do {
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            let file = fileURL(for: playlistId)
+            try data.write(to: file, options: .atomic)
+            return token(for: playlistId)
+        } catch {
+            return nil
+        }
+    }
+
+    static func deleteIfLocal(_ raw: String) {
+        guard isLocalPath(raw) else { return }
+        if let playlistId = playlistId(fromLocalToken: raw) {
+            try? FileManager.default.removeItem(at: fileURL(for: playlistId))
+            return
+        }
+        if raw.hasPrefix("file://"), let url = URL(string: raw) {
+            try? FileManager.default.removeItem(at: url)
+            return
+        }
+        if raw.hasPrefix("/") {
+            try? FileManager.default.removeItem(at: URL(fileURLWithPath: raw))
+        }
+    }
+
+    /// Rewrite legacy absolute cover paths to stable tokens when the file still exists.
+    static func migrateLegacyIfNeeded(_ playlist: LibraryPlaylist) {
+        guard let raw = playlist.coverUrlOrPath, !raw.isEmpty else { return }
+        if playlistId(fromLocalToken: raw) != nil { return }
+        guard isLocalPath(raw) else { return }
+        let playlistId = playlist.playlistId
+        let destination = fileURL(for: playlistId)
+        if let url = resolveURL(raw), url.path != destination.path,
+           FileManager.default.fileExists(atPath: url.path) {
+            try? FileManager.default.createDirectory(
+                at: coversDirectory(),
+                withIntermediateDirectories: true
+            )
+            try? FileManager.default.copyItem(at: url, to: destination)
+        }
+        if FileManager.default.fileExists(atPath: destination.path) {
+            playlist.coverUrlOrPath = token(for: playlistId)
+        }
+    }
+
+    private static func playlistId(fromLocalToken raw: String) -> String? {
+        guard raw.hasPrefix(tokenPrefix) else { return nil }
+        let id = String(raw.dropFirst(tokenPrefix.count))
+        return id.isEmpty ? nil : id
+    }
+
+    private static func fileURL(for playlistId: String) -> URL {
+        coversDirectory().appendingPathComponent("\(playlistId).jpg")
+    }
+
+    private static func existingFileURL(for playlistId: String) -> URL? {
+        guard !playlistId.isEmpty else { return nil }
+        let file = fileURL(for: playlistId)
+        return FileManager.default.fileExists(atPath: file.path) ? file : nil
+    }
+
+    private static func coversDirectory() -> URL {
+        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+            ?? FileManager.default.temporaryDirectory
+        return base.appendingPathComponent("playlist_covers", isDirectory: true)
+    }
+}
+
+/// Android `LibraryItemMapper.isBrowsableChannelId` — nonisolated for network helpers.
+enum ChannelID {
+    static func isBrowsable(_ channelId: String?) -> Bool {
+        guard let channelId else { return false }
+        let trimmed = channelId.trimmingCharacters(in: .whitespacesAndNewlines)
+        return !trimmed.isEmpty && !trimmed.hasPrefix("name:")
     }
 }
 

@@ -7,16 +7,18 @@ struct PipPlayerView: UIViewControllerRepresentable {
     let player: AVPlayer
     var pipRequestID: Int = 0
     var fullscreenRequestID: Int = 0
+    /// Android mini uses ZOOM; detail canvas uses fit.
+    var videoGravity: AVLayerVideoGravity = .resizeAspect
 
     func makeUIViewController(context: Context) -> PlayerSurfaceController {
         let controller = PlayerSurfaceController()
-        controller.configure(player: player)
+        controller.configure(player: player, videoGravity: videoGravity)
         context.coordinator.surface = controller
         return controller
     }
 
     func updateUIViewController(_ uiViewController: PlayerSurfaceController, context: Context) {
-        uiViewController.configure(player: player)
+        uiViewController.configure(player: player, videoGravity: videoGravity)
         context.coordinator.surface = uiViewController
         if pipRequestID != context.coordinator.lastPipRequestID {
             context.coordinator.lastPipRequestID = pipRequestID
@@ -57,9 +59,9 @@ final class PlayerSurfaceController: UIViewController, AVPictureInPictureControl
         ])
     }
 
-    func configure(player: AVPlayer) {
+    func configure(player: AVPlayer, videoGravity: AVLayerVideoGravity = .resizeAspect) {
         playerView.playerLayer.player = player
-        playerView.playerLayer.videoGravity = .resizeAspect
+        playerView.playerLayer.videoGravity = videoGravity
         if pipController == nil, AVPictureInPictureController.isPictureInPictureSupported() {
             let pip = AVPictureInPictureController(playerLayer: playerView.playerLayer)
             pip?.delegate = self

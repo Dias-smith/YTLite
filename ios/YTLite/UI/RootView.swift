@@ -11,7 +11,7 @@ struct RootView: View {
     @State private var syncService: LibrarySyncService?
 
     var body: some View {
-        TrackActionHost {
+        TrackActionHost(libraryStore: libraryStore) {
             VStack(spacing: 0) {
                 Group {
                     switch selectedTab {
@@ -38,7 +38,6 @@ struct RootView: View {
             }
             .background(YTLiteColor.background.ignoresSafeArea())
             .preferredColorScheme(.dark)
-            .environment(\.libraryStore, libraryStore)
             .onAppear {
                 if libraryStore == nil {
                     let store = LibraryStore(modelContext: modelContext)
@@ -48,6 +47,9 @@ struct RootView: View {
                     syncService = sync
                     store.onMutate = {
                         Task { await sync.pushAll(store: store) }
+                    }
+                    store.onUnsubscribeChannel = { channelId in
+                        Task { await sync.deleteSubscribedChannel(channelId: channelId) }
                     }
                 }
             }

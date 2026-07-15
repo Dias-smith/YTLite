@@ -24,11 +24,21 @@ final class LibrarySyncService {
         store.save()
     }
 
+    func deleteSubscribedChannel(channelId: String) async {
+        guard let client = auth.supabaseClient(), let userId = auth.userId else { return }
+        _ = try? await client
+            .from("user_subscribed_channels")
+            .delete()
+            .eq("user_id", value: userId)
+            .eq("channel_id", value: channelId)
+            .execute()
+    }
+
     func pushAll(store: LibraryStore) async {
         guard let client = auth.supabaseClient(), let userId = auth.userId else { return }
 
         for playlist in store.allPlaylists() {
-            await upsertPlaylist(client: client, userId: userId, playlist: playlist)
+            let playlistSynced = await upsertPlaylist(client: client, userId: userId, playlist: playlist)
             for entry in playlist.entries {
                 guard let track = entry.track else { continue }
                 await upsertTrack(client: client, track: track)
@@ -41,7 +51,10 @@ final class LibrarySyncService {
                 )
                 entry.isSynced = true
             }
-            playlist.isSynced = true
+            // Keep dirty if a local cover still needs Storage upload.
+            if playlistSynced {
+                playlist.isSynced = true
+            }
         }
 
         for item in store.playbackHistory(limit: 100) where !item.isSynced {
@@ -95,7 +108,7 @@ final class LibrarySyncService {
                 if let system = row.system_type {
                     if let local = store.allPlaylists().first(where: { $0.systemType == system }) {
                         local.name = row.name
-                        local.coverUrlOrPath = row.cover_url_or_path
+                        Self.applyRemoteCover(row.cover_url_or_path, to: local)
                         local.descriptionText = row.description
                         local.isPinned = row.is_pinned ?? local.isPinned
                         local.isSynced = true
@@ -105,7 +118,7 @@ final class LibrarySyncService {
                 }
                 if let existing = store.allPlaylists().first(where: { $0.playlistId == row.playlist_id }) {
                     existing.name = row.name
-                    existing.coverUrlOrPath = row.cover_url_or_path
+                    Self.applyRemoteCover(row.cover_url_or_path, to: existing)
                     existing.descriptionText = row.description
                     existing.isPinned = row.is_pinned ?? existing.isPinned
                     existing.isSynced = true
@@ -301,7 +314,13 @@ final class LibrarySyncService {
         } catch {}
     }
 
-    private func upsertPlaylist(client: SupabaseClient, userId: String, playlist: LibraryPlaylist) async {
+    /// Upserts playlist row. Returns `false` if a local cover still failed to upload (keep dirty).
+    @discardableResult
+    private func upsertPlaylist(
+        client: SupabaseClient,
+        userId: String,
+        playlist: LibraryPlaylist
+    ) async -> Bool {
         struct Payload: Encodable {
             let playlist_id: String
             let user_id: String
@@ -312,18 +331,162 @@ final class LibrarySyncService {
             let is_pinned: Bool
             let updated_at: String
         }
-        _ = try? await client.from("playlists").upsert(
-            Payload(
-                playlist_id: playlist.playlistId,
-                user_id: userId,
-                name: playlist.name,
-                cover_url_or_path: playlist.coverUrlOrPath,
-                description: playlist.descriptionText,
-                system_type: playlist.systemType,
-                is_pinned: playlist.isPinned,
-                updated_at: isoString(from: playlist.updatedAt)
-            )
-        ).execute()
+        struct PayloadWithoutCover: Encodable {
+            let playlist_id: String
+            let user_id: String
+            let name: String
+            let description: String?
+            let system_type: String?
+            let is_pinned: Bool
+            let updated_at: String
+        }
+
+        let raw = playlist.coverUrlOrPath
+        if let syncable = PlaylistCoverStorage.syncableCover(raw) {
+            _ = try? await client.from("playlists").upsert(
+                Payload(
+                    playlist_id: playlist.playlistId,
+                    user_id: userId,
+                    name: playlist.name,
+                    cover_url_or_path: syncable,
+                    description: playlist.descriptionText,
+                    system_type: playlist.systemType,
+                    is_pinned: playlist.isPinned,
+                    updated_at: isoString(from: playlist.updatedAt)
+                )
+            ).execute()
+            return true
+        }
+
+        if raw == nil {
+            await removeRemoteCover(client: client, userId: userId, playlistId: playlist.playlistId)
+            _ = try? await client.from("playlists").upsert(
+                Payload(
+                    playlist_id: playlist.playlistId,
+                    user_id: userId,
+                    name: playlist.name,
+                    cover_url_or_path: nil,
+                    description: playlist.descriptionText,
+                    system_type: playlist.systemType,
+                    is_pinned: playlist.isPinned,
+                    updated_at: isoString(from: playlist.updatedAt)
+                )
+            ).execute()
+            return true
+        }
+
+        // Local file / token — upload to Storage first.
+        if let uploaded = await uploadLocalCover(client: client, userId: userId, playlist: playlist) {
+            playlist.coverUrlOrPath = uploaded
+            _ = try? await client.from("playlists").upsert(
+                Payload(
+                    playlist_id: playlist.playlistId,
+                    user_id: userId,
+                    name: playlist.name,
+                    cover_url_or_path: uploaded,
+                    description: playlist.descriptionText,
+                    system_type: playlist.systemType,
+                    is_pinned: playlist.isPinned,
+                    updated_at: isoString(from: playlist.updatedAt)
+                )
+            ).execute()
+            return true
+        }
+
+        // Upload failed: update other fields without wiping an existing remote cover.
+        struct ExistingRow: Decodable { let playlist_id: String }
+        let existing: [ExistingRow] = (try? await client
+            .from("playlists")
+            .select("playlist_id")
+            .eq("user_id", value: userId)
+            .eq("playlist_id", value: playlist.playlistId)
+            .execute()
+            .value) ?? []
+        if existing.isEmpty {
+            _ = try? await client.from("playlists").upsert(
+                Payload(
+                    playlist_id: playlist.playlistId,
+                    user_id: userId,
+                    name: playlist.name,
+                    cover_url_or_path: nil,
+                    description: playlist.descriptionText,
+                    system_type: playlist.systemType,
+                    is_pinned: playlist.isPinned,
+                    updated_at: isoString(from: playlist.updatedAt)
+                )
+            ).execute()
+        } else {
+            _ = try? await client
+                .from("playlists")
+                .update(
+                    PayloadWithoutCover(
+                        playlist_id: playlist.playlistId,
+                        user_id: userId,
+                        name: playlist.name,
+                        description: playlist.descriptionText,
+                        system_type: playlist.systemType,
+                        is_pinned: playlist.isPinned,
+                        updated_at: isoString(from: playlist.updatedAt)
+                    )
+                )
+                .eq("user_id", value: userId)
+                .eq("playlist_id", value: playlist.playlistId)
+                .execute()
+        }
+        return false
+    }
+
+    private func uploadLocalCover(
+        client: SupabaseClient,
+        userId: String,
+        playlist: LibraryPlaylist
+    ) async -> String? {
+        guard let raw = playlist.coverUrlOrPath,
+              PlaylistCoverStorage.isLocalPath(raw),
+              let fileURL = PlaylistCoverStorage.resolveURL(raw),
+              let data = try? Data(contentsOf: fileURL),
+              !data.isEmpty
+        else {
+            return nil
+        }
+
+        let objectPath = Self.remoteCoverObjectPath(userId: userId, playlistId: playlist.playlistId)
+        do {
+            try await client.storage
+                .from(Self.playlistCoversBucket)
+                .upload(
+                    objectPath,
+                    data: data,
+                    options: FileOptions(
+                        cacheControl: "3600",
+                        contentType: "image/jpeg",
+                        upsert: true
+                    )
+                )
+            let publicURL = try client.storage
+                .from(Self.playlistCoversBucket)
+                .getPublicURL(path: objectPath)
+            return publicURL.absoluteString
+        } catch {
+            return nil
+        }
+    }
+
+    private func removeRemoteCover(
+        client: SupabaseClient,
+        userId: String,
+        playlistId: String
+    ) async {
+        let objectPath = Self.remoteCoverObjectPath(userId: userId, playlistId: playlistId)
+        _ = try? await client.storage
+            .from(Self.playlistCoversBucket)
+            .remove(paths: [objectPath])
+    }
+
+    private static let playlistCoversBucket = "playlist-covers"
+
+    private static func remoteCoverObjectPath(userId: String, playlistId: String) -> String {
+        "\(userId.lowercased())/\(playlistId).jpg"
     }
 
     private func upsertTrack(client: SupabaseClient, track: LibraryTrack) async {
@@ -490,5 +653,17 @@ final class LibrarySyncService {
 
     private func parseDate(_ value: String) -> Date? {
         isoFormatter.date(from: value) ?? isoFallback.date(from: value)
+    }
+
+    /// Keep device-local cover files when remote cover is empty.
+    private static func applyRemoteCover(_ remote: String?, to playlist: LibraryPlaylist) {
+        if let remote, !remote.isEmpty {
+            playlist.coverUrlOrPath = remote
+            return
+        }
+        if let local = playlist.coverUrlOrPath, PlaylistCoverStorage.isLocalPath(local) {
+            return
+        }
+        playlist.coverUrlOrPath = remote
     }
 }

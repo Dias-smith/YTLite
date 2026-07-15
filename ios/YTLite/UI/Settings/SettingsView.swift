@@ -15,11 +15,32 @@ struct SettingsView: View {
                 }
             }
 
-            Section("Playback") {
+            Section {
                 Picker("Speed", selection: $playback.playbackSpeed) {
                     ForEach(PlaybackSpeeds.options, id: \.self) { speed in
                         Text(PlaybackSpeeds.formatLabel(speed)).tag(speed)
                     }
+                }
+
+                Picker("Sleep timer", selection: sleepTimerSelection) {
+                    Text(SleepTimerOptions.formatLabel(minutes: nil)).tag(Optional<Int>.none)
+                    ForEach(SleepTimerOptions.minutesOptions, id: \.self) { minutes in
+                        Text(SleepTimerOptions.formatLabel(minutes: minutes)).tag(Optional(minutes))
+                    }
+                }
+
+                if let remaining = playback.sleepTimerRemaining,
+                   playback.sleepTimerEndsAt != nil
+                {
+                    LabeledContent("Remaining", value: SleepTimerOptions.formatRemaining(remaining))
+                }
+            } header: {
+                Text("Playback")
+            } footer: {
+                if playback.sleepTimerEndsAt != nil {
+                    Text("Playback pauses automatically when the timer ends. Queue and mini player stay.")
+                } else {
+                    Text("Choose a duration to pause playback after that time.")
                 }
             }
 
@@ -35,5 +56,12 @@ struct SettingsView: View {
         .background(YTLiteColor.background)
         .navigationTitle("Settings")
         .preferredColorScheme(.dark)
+    }
+
+    private var sleepTimerSelection: Binding<Int?> {
+        Binding(
+            get: { playback.sleepTimerMinutes },
+            set: { playback.setSleepTimer(minutes: $0) }
+        )
     }
 }

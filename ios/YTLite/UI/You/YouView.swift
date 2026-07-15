@@ -131,15 +131,16 @@ struct YouView: View {
 
                 LazyVStack(spacing: 0) {
                     ForEach(Array(viewModel.trending.enumerated()), id: \.element.id) { index, item in
-                        Button {
-                            playback.play(items: viewModel.trending, startAt: index)
-                            showPlayer = true
-                        } label: {
-                            FeedVideoCard(item: item) {
+                        FeedVideoCard(
+                            item: item,
+                            onTap: {
+                                playback.play(items: viewModel.trending, startAt: index)
+                                showPlayer = true
+                            },
+                            onMore: {
                                 trackActions.present(item: item)
                             }
-                        }
-                        .buttonStyle(.plain)
+                        )
                     }
                 }
 
@@ -364,15 +365,16 @@ struct ChannelVideosView: View {
                 ScrollView {
                     LazyVStack(spacing: 0) {
                         ForEach(Array(videos.enumerated()), id: \.element.id) { index, item in
-                            Button {
-                                playback.play(items: videos, startAt: index)
-                                showPlayer = true
-                            } label: {
-                                FeedVideoCard(item: item) {
+                            FeedVideoCard(
+                                item: item,
+                                onTap: {
+                                    playback.play(items: videos, startAt: index)
+                                    showPlayer = true
+                                },
+                                onMore: {
                                     trackActions.present(item: item)
                                 }
-                            }
-                            .buttonStyle(.plain)
+                            )
                         }
                     }
                 }
@@ -383,18 +385,43 @@ struct ChannelVideosView: View {
         .onChange(of: trackActions.listEpoch) { _, _ in
             videos = store?.filterNotInterested(videos) ?? videos
         }
-        .task {
-            isLoading = true
-            defer { isLoading = false }
-            do {
-                let fetched = try await InnerTubeClient.fetchChannelUploads(channelId: channel.channelId)
-                videos = store?.filterNotInterested(fetched) ?? fetched
-            } catch {
-                errorMessage = error.localizedDescription
-            }
+        .task(id: channel.channelId) {
+            await loadVideos()
         }
         .sheet(isPresented: $showPlayer) {
             NavigationStack { PlayerDetailView().preferredColorScheme(.dark) }
+        }
+    }
+
+    private func loadVideos() async {
+        isLoading = true
+        errorMessage = nil
+        defer { isLoading = false }
+        do {
+            let fetched = try await InnerTubeClient.fetchChannelUploads(channelId: channel.channelId)
+            guard !Task.isCancelled else { return }
+            let labeled = fetched.map { item -> VideoItem in
+                guard item.channelName.isEmpty else { return item }
+                return VideoItem(
+                    videoId: item.videoId,
+                    title: item.title,
+                    channelName: channel.title,
+                    thumbnailURL: item.thumbnailURL,
+                    channelAvatarURL: item.channelAvatarURL ?? channel.thumbnailURL,
+                    durationText: item.durationText,
+                    viewCountText: item.viewCountText,
+                    publishedTimeText: item.publishedTimeText
+                )
+            }
+            videos = store?.filterNotInterested(labeled) ?? labeled
+            if videos.isEmpty {
+                errorMessage = "No uploads found for this channel"
+            }
+        } catch is CancellationError {
+            return
+        } catch {
+            guard !Task.isCancelled else { return }
+            errorMessage = error.localizedDescription
         }
     }
 }
@@ -419,15 +446,16 @@ struct PlaylistVideosBrowserView: View {
                 ScrollView {
                     LazyVStack(spacing: 0) {
                         ForEach(Array(videos.enumerated()), id: \.element.id) { index, item in
-                            Button {
-                                playback.play(items: videos, startAt: index)
-                                showPlayer = true
-                            } label: {
-                                FeedVideoCard(item: item) {
+                            FeedVideoCard(
+                                item: item,
+                                onTap: {
+                                    playback.play(items: videos, startAt: index)
+                                    showPlayer = true
+                                },
+                                onMore: {
                                     trackActions.present(item: item)
                                 }
-                            }
-                            .buttonStyle(.plain)
+                            )
                         }
                     }
                 }

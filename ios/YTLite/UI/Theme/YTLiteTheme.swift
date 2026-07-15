@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 // MARK: - Color (Android-aligned)
 
@@ -16,7 +17,12 @@ enum YTLiteColor {
     /// Feed meta gray matching YouTube card (~#AAAAAA)
     static let feedMeta = Color(red: 0.667, green: 0.667, blue: 0.667)
     static let signInBlue = Color(red: 0.024, green: 0.373, blue: 0.831) // #065FD4
-    static let miniPlayer = Color(red: 0.094, green: 0.094, blue: 0.094) // #181818
+    static let miniPlayer = Color(red: 0.129, green: 0.129, blue: 0.129) // #212121
+    /// Mini player progress fill (Android ProgressBlue)
+    static let miniProgress = Color(red: 0.243, green: 0.651, blue: 1.0) // #3EA6FF
+    static let miniProgressTrack = Color(red: 0.259, green: 0.259, blue: 0.259) // #424242
+    /// Channel meta in mini player (#AAAAAA)
+    static let miniMeta = Color(red: 0.667, green: 0.667, blue: 0.667)
     static let tabBar = Color(red: 0.059, green: 0.059, blue: 0.059)
     static let danger = Color.red
     static let onAccent = Color.black.opacity(0.85)
@@ -73,14 +79,23 @@ enum YTLiteLayout {
     static let searchThumbWidth: CGFloat = 112
     static let searchThumbHeight: CGFloat = 63
     static let feedThumbHeight: CGFloat = 200
+    static let feedThumbHorizontal: CGFloat = 12
+    static let feedThumbRadius: CGFloat = 12
     static let feedAvatar: CGFloat = 36
     static let feedInfoHorizontal: CGFloat = 12
-    static let feedInfoTop: CGFloat = 10
-    static let feedInfoBottom: CGFloat = 12
+    static let feedInfoTop: CGFloat = 12
+    static let feedInfoBottom: CGFloat = 14
     static let feedAvatarTextGap: CGFloat = 12
-    static let feedTitleMetaGap: CGFloat = 4
+    static let feedTitleMetaGap: CGFloat = 8
+    static let feedTitleLineSpacing: CGFloat = 4
     static let feedDurationInset: CGFloat = 8
     static let miniThumb: CGFloat = 40
+    /// Android `MiniPlayerBarHeight`
+    static let miniBarHeight: CGFloat = 56
+    /// Android mini media 16:9 slot (height fills bar → width ≈ 99).
+    static let miniMediaAspect: CGFloat = 16.0 / 9.0
+    static let miniProgressHeight: CGFloat = 2
+    static let miniControlSize: CGFloat = 48
     static let channelAvatar: CGFloat = 56
 }
 
@@ -114,6 +129,9 @@ struct DurationBadge: View {
         Text(text)
             .font(YTLiteType.badge)
             .foregroundStyle(YTLiteColor.onSurface)
+            .monospacedDigit()
+            .lineLimit(1)
+            .fixedSize(horizontal: true, vertical: true)
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
             .background(Color.black.opacity(0.75), in: RoundedRectangle(cornerRadius: 4))
@@ -170,6 +188,7 @@ struct SectionHeaderRow: View {
 
 struct FeedVideoCard: View {
     let item: VideoItem
+    var onTap: (() -> Void)? = nil
     var onMore: (() -> Void)? = nil
 
     var body: some View {
@@ -185,35 +204,48 @@ struct FeedVideoCard: View {
                 }
             }
             .aspectRatio(16 / 9, contentMode: .fit)
-            .frame(maxWidth: .infinity)
-            .clipped()
+            .clipShape(RoundedRectangle(cornerRadius: YTLiteLayout.feedThumbRadius, style: .continuous))
+            .padding(.horizontal, YTLiteLayout.feedThumbHorizontal)
+            .contentShape(Rectangle())
+            .onTapGesture { onTap?() }
 
             HStack(alignment: .top, spacing: YTLiteLayout.feedAvatarTextGap) {
                 feedAvatar
+                    .onTapGesture { onTap?() }
 
-                VStack(alignment: .leading, spacing: YTLiteLayout.feedTitleMetaGap) {
-                    Text(item.title)
-                        .font(YTLiteType.feedTitle)
-                        .foregroundStyle(YTLiteColor.onSurface)
-                        .lineLimit(2)
-                        .multilineTextAlignment(.leading)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                HStack(alignment: .center, spacing: 4) {
+                    VStack(alignment: .leading, spacing: YTLiteLayout.feedTitleMetaGap) {
+                        Text(item.title)
+                            .font(YTLiteType.feedTitle)
+                            .foregroundStyle(YTLiteColor.onSurface)
+                            .lineLimit(2)
+                            .lineSpacing(YTLiteLayout.feedTitleLineSpacing)
+                            .multilineTextAlignment(.leading)
+                            .frame(maxWidth: .infinity, alignment: .leading)
 
-                    Text(item.feedMetaLine)
-                        .font(YTLiteType.feedMeta)
-                        .foregroundStyle(YTLiteColor.feedMeta)
-                        .lineLimit(2)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                        Text(item.feedMetaLine)
+                            .font(YTLiteType.feedMeta)
+                            .foregroundStyle(YTLiteColor.feedMeta)
+                            .lineLimit(2)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
+                    .onTapGesture { onTap?() }
+
+                    Button {
+                        onMore?()
+                    } label: {
+                        Image(systemName: "ellipsis")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                            .rotationEffect(.degrees(90))
+                            .frame(width: 32, height: 32)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.borderless)
+                    .accessibilityLabel("More")
                 }
-
-                Button(action: { onMore?() }) {
-                    Image(systemName: "ellipsis.vertical")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundStyle(YTLiteColor.onSurface)
-                        .frame(width: 36, height: 36, alignment: .top)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.borderless)
             }
             .padding(.horizontal, YTLiteLayout.feedInfoHorizontal)
             .padding(.top, YTLiteLayout.feedInfoTop)
@@ -222,21 +254,52 @@ struct FeedVideoCard: View {
         .background(YTLiteColor.background)
     }
 
-    @ViewBuilder
     private var feedAvatar: some View {
+        FeedChannelAvatar(
+            url: item.channelAvatarURL,
+            channelName: item.channelName,
+            size: YTLiteLayout.feedAvatar
+        )
+    }
+}
+
+/// Channel avatar with letter fallback when URL is missing or image fails to load.
+struct FeedChannelAvatar: View {
+    let url: URL?
+    let channelName: String
+    var size: CGFloat = YTLiteLayout.feedAvatar
+
+    @State private var image: UIImage?
+
+    var body: some View {
         Group {
-            if let url = item.channelAvatarURL {
-                RemoteImage(url: url)
+            if let image {
+                Image(uiImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
             } else {
                 ZStack {
                     YTLiteColor.surfaceVariant
-                    Text(String(item.channelName.prefix(1)).uppercased())
-                        .font(.system(size: 14, weight: .semibold))
+                    Text(String(channelName.prefix(1)).uppercased())
+                        .font(.system(size: size * 0.39, weight: .semibold))
                         .foregroundStyle(YTLiteColor.onSurface)
                 }
             }
         }
-        .frame(width: YTLiteLayout.feedAvatar, height: YTLiteLayout.feedAvatar)
+        .frame(width: size, height: size)
         .clipShape(Circle())
+        .task(id: url?.absoluteString) {
+            await load()
+        }
+    }
+
+    private func load() async {
+        image = nil
+        guard let url else { return }
+        if let mem = ImageStore.shared.memoryHit(url) {
+            image = mem
+            return
+        }
+        image = await ImageStore.shared.image(for: url)
     }
 }

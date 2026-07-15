@@ -2,8 +2,16 @@ import Foundation
 
 enum YouTubeConstants {
     static let apiKey = "AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8"
+    static let musicApiKey = "AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30"
     static let baseURL = "https://www.youtube.com"
+    static let musicBaseURL = "https://music.youtube.com"
     static let searchURL = "\(baseURL)/youtubei/v1/search?key=\(apiKey)"
+    static let musicSearchURL = "\(musicBaseURL)/youtubei/v1/search?key=\(musicApiKey)"
+    static let musicBrowseURL = "\(musicBaseURL)/youtubei/v1/browse?key=\(musicApiKey)"
+    /// YouTube Music `/next` (RDAMVM radio / Related tab).
+    static let musicNextURL = "\(musicBaseURL)/youtubei/v1/next?key=\(musicApiKey)"
+    /// YouTube Music new-release albums shelf.
+    static let musicBrowseIdNewReleaseAlbums = "FEmusic_new_releases_albums"
     static let userAgent =
         "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
     static let hl = "en"
@@ -11,6 +19,12 @@ enum YouTubeConstants {
     static let webClientName = "WEB"
     static let webClientVersion = "2.20260701.01.00"
     static let webClientNameHeader = "1"
+    /// YouTube Music web client (`music.youtube.com`).
+    static let musicClientName = "WEB_REMIX"
+    static let musicClientVersion = "1.20250317.01.00"
+    static let musicClientNameHeader = "67"
+    /// InnerTube songs filter for YouTube Music search.
+    static let musicSearchParamsSongs = "EgWKAQIIAWoKEAMQBBAJEAoQBQ%3D%3D"
     static let preferredVideoItags = [37, 22, 18]
     static let preferredAudioItags = [140, 141, 139]
 }
@@ -20,6 +34,39 @@ struct HttpStringResult: Sendable {
     var body: String
     var errCode: Int
     var errMsg: String
+}
+
+enum ChannelAvatarFetcher {
+    /// YouTube Data API `channels.list` — used when extract/queue has no avatar.
+    static func fetch(channelId: String, apiKey: String) async -> URL? {
+        guard ChannelID.isBrowsable(channelId), !apiKey.isEmpty else { return nil }
+        var comps = URLComponents(string: "https://www.googleapis.com/youtube/v3/channels")
+        comps?.queryItems = [
+            URLQueryItem(name: "part", value: "snippet"),
+            URLQueryItem(name: "id", value: channelId),
+            URLQueryItem(name: "key", value: apiKey),
+        ]
+        guard let url = comps?.url else { return nil }
+        do {
+            let (data, response) = try await URLSession.shared.data(from: url)
+            guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode),
+                  let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let items = json["items"] as? [[String: Any]],
+                  let snippet = items.first?["snippet"] as? [String: Any],
+                  let thumbs = snippet["thumbnails"] as? [String: Any]
+            else { return nil }
+            for key in ["high", "medium", "default"] {
+                if let t = thumbs[key] as? [String: Any],
+                   let s = t["url"] as? String,
+                   let u = URL(string: s) {
+                    return u
+                }
+            }
+            return nil
+        } catch {
+            return nil
+        }
+    }
 }
 
 actor YouTubeHTTPClient {

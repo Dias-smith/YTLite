@@ -6,6 +6,7 @@ struct YTLiteApp: App {
     @StateObject private var playback = PlaybackController()
     @StateObject private var appModel = AppModel()
     @StateObject private var authService: AuthService
+    @Environment(\.scenePhase) private var scenePhase
     private let modelContainer: ModelContainer
 
     init() {
@@ -32,6 +33,11 @@ struct YTLiteApp: App {
                             await authService.refreshSession()
                             appModel.syncAuth(authService)
                         }
+                    }
+                }
+                .onChange(of: scenePhase) { _, phase in
+                    if phase == .background || phase == .inactive {
+                        playback.flushSession()
                     }
                 }
         }

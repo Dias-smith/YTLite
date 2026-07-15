@@ -81,11 +81,26 @@ struct TrackActionSheet: View {
                         }
                     }
                 }
-                .padding(.vertical, YTLiteLayout.stackDefault)
+                .padding(.top, YTLiteLayout.stackDefault)
+                // Extra bottom inset so the last row clears the sheet corner / home indicator.
+                .padding(.bottom, 28)
             }
         }
         .background(YTLiteColor.surfaceElevated)
         .onAppear { refreshState() }
+        .sheet(isPresented: $trackActions.showPlaylistPicker) {
+            PlaylistPickerSheet(item: context.asVideoItem)
+                .environmentObject(trackActions)
+                .environment(\.libraryStore, store)
+        }
+        .sheet(isPresented: $trackActions.showEditInfo) {
+            EditTrackMetadataSheet(context: context)
+                .environmentObject(trackActions)
+                .environment(\.libraryStore, store)
+        }
+        .sheet(isPresented: $trackActions.showLyrics) {
+            TrackLyricsSheet(videoId: context.videoId)
+        }
     }
 
     private var header: some View {
@@ -164,12 +179,12 @@ struct TrackActionSheet: View {
         guard let store else { return }
         if store.isFavorite(videoId: context.videoId) {
             store.toggleFavorite(item: context.asVideoItem)
-            if context.videoId == playback.nowPlaying?.videoId {
-                playback.refreshFavoriteState()
-            }
         }
         let nowBlocked = store.toggleNotInterested(videoId: context.videoId)
         isNotInterested = nowBlocked
+        if context.videoId == playback.nowPlaying?.videoId {
+            playback.refreshFavoriteState()
+        }
         trackActions.showToast(nowBlocked ? "Got it, we'll show fewer videos like this" : "Removed from Not interested")
         trackActions.notifyListsChanged()
         dismiss()

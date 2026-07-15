@@ -1,63 +1,22 @@
 import SwiftUI
 
+/// Bottom mini player — aligned with Android `MiniPlayerBar`.
 struct MiniPlayerBar: View {
     @EnvironmentObject private var playback: PlaybackController
     @State private var showPlayer = false
 
+    private var progress: CGFloat {
+        guard playback.durationSeconds > 0 else { return 0 }
+        return CGFloat(playback.positionSeconds / playback.durationSeconds).clamped(to: 0...1)
+    }
+
     var body: some View {
         if let item = playback.nowPlaying {
-            HStack(spacing: YTLiteLayout.stackLoose) {
-                Button {
-                    showPlayer = true
-                } label: {
-                    HStack(spacing: YTLiteLayout.stackLoose) {
-                        RemoteImage(url: item.thumbnailURL)
-                            .frame(width: YTLiteLayout.miniThumb, height: YTLiteLayout.miniThumb)
-                            .clipShape(RoundedRectangle(cornerRadius: 4))
-
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(item.title)
-                                .font(YTLiteType.rowTitleMedium)
-                                .foregroundStyle(YTLiteColor.onSurface)
-                                .lineLimit(1)
-                            Text(item.channelName)
-                                .font(YTLiteType.meta)
-                                .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                                .lineLimit(1)
-                        }
-                        Spacer(minLength: YTLiteLayout.stackDefault)
-                    }
-                }
-                .buttonStyle(.plain)
-
-                Button {
-                    playback.togglePlayPause()
-                } label: {
-                    Image(systemName: playback.isPlaying ? "pause.fill" : "play.fill")
-                        .font(.body.weight(.semibold))
-                        .foregroundStyle(YTLiteColor.onSurface)
-                        .frame(width: 36, height: 36)
-                }
-                .disabled(playback.isBuffering || playback.player == nil)
-
-                Button {
-                    playback.playNext()
-                } label: {
-                    Image(systemName: "forward.fill")
-                        .font(.body.weight(.semibold))
-                        .foregroundStyle(YTLiteColor.onSurface)
-                        .frame(width: 36, height: 36)
-                }
-                .disabled(playback.queueIndex + 1 >= playback.queue.count)
+            VStack(spacing: 0) {
+                progressBar
+                contentRow(item: item)
             }
-            .padding(.horizontal, YTLiteLayout.stackLoose)
-            .padding(.vertical, YTLiteLayout.rowVertical)
             .background(YTLiteColor.miniPlayer)
-            .overlay(alignment: .top) {
-                Rectangle()
-                    .fill(YTLiteColor.onSurface.opacity(0.08))
-                    .frame(height: 0.5)
-            }
             .sheet(isPresented: $showPlayer) {
                 NavigationStack {
                     PlayerDetailView()
@@ -65,5 +24,101 @@ struct MiniPlayerBar: View {
                 }
             }
         }
+    }
+
+    private var progressBar: some View {
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                Rectangle()
+                    .fill(YTLiteColor.miniProgressTrack)
+                Rectangle()
+                    .fill(YTLiteColor.miniProgress)
+                    .frame(width: geo.size.width * progress)
+            }
+        }
+        .frame(height: YTLiteLayout.miniProgressHeight)
+        .allowsHitTesting(false)
+    }
+
+    private func contentRow(item: NowPlayingItem) -> some View {
+        HStack(spacing: 0) {
+            // Thumbnail + title: opens player (Android weighted clickable Row).
+            Button {
+                showPlayer = true
+            } label: {
+                HStack(spacing: 0) {
+                    mediaSlot(item: item)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(item.title)
+                            .font(YTLiteType.body)
+                            .foregroundStyle(YTLiteColor.onSurface)
+                            .lineLimit(1)
+                        Text(item.channelName)
+                            .font(YTLiteType.meta)
+                            .foregroundStyle(YTLiteColor.miniMeta)
+                            .lineLimit(1)
+                    }
+                    .padding(.leading, 12)
+                    .padding(.trailing, 8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            // Independent controls — do not open player.
+            Button {
+                playback.togglePlayPause()
+            } label: {
+                Image(systemName: playback.isPlaying ? "pause.fill" : "play.fill")
+                    .font(.system(size: 20, weight: .medium))
+                    .foregroundStyle(Color.white)
+                    .frame(width: YTLiteLayout.miniControlSize, height: YTLiteLayout.miniControlSize)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .disabled(playback.isBuffering)
+            .accessibilityLabel(playback.isPlaying ? "Pause" : "Play")
+
+            Button {
+                playback.playNext()
+            } label: {
+                Image(systemName: "forward.fill")
+                    .font(.system(size: 20, weight: .medium))
+                    .foregroundStyle(Color.white)
+                    .frame(width: YTLiteLayout.miniControlSize, height: YTLiteLayout.miniControlSize)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .disabled(!playback.hasNextInQueue)
+            .accessibilityLabel("Next")
+        }
+        .frame(height: YTLiteLayout.miniBarHeight)
+        .padding(.trailing, 4)
+    }
+
+    @ViewBuilder
+    private func mediaSlot(item: NowPlayingItem) -> some View {
+        ZStack {
+            Color.black
+            // Prefer live surface when stream exists and detail sheet is not covering
+            // (AVPlayerLayer can only attach to one view at a time).
+            if !showPlayer, let player = playback.player {
+                PipPlayerView(player: player, videoGravity: .resizeAspectFill)
+                    .allowsHitTesting(false)
+            } else {
+                RemoteImage(url: item.thumbnailURL, contentMode: .fill)
+            }
+        }
+        .frame(height: YTLiteLayout.miniBarHeight)
+        .aspectRatio(YTLiteLayout.miniMediaAspect, contentMode: .fit)
+        .clipped()
+    }
+}
+
+private extension Comparable {
+    func clamped(to range: ClosedRange<Self>) -> Self {
+        min(max(self, range.lowerBound), range.upperBound)
     }
 }

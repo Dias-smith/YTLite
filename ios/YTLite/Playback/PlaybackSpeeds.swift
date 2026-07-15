@@ -13,3 +13,29 @@ enum PlaybackSpeeds {
         return "\(trimmed)x"
     }
 }
+
+/// Queue loop mode — mirrors Android `QueueRepeatMode`.
+enum QueueRepeatMode: String, Codable, CaseIterable, Sendable {
+    case off = "OFF"
+    case all = "ALL"
+    case one = "ONE"
+
+    mutating func cycle() {
+        self = switch self {
+        case .off: .all
+        case .all: .one
+        case .one: .off
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .off, .all: return "repeat"
+        case .one: return "repeat.1"
+        }
+    }
+
+    var isActive: Bool {
+        self != .off
+    }
+}
