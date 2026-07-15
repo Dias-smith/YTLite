@@ -9,6 +9,7 @@ struct TrackActionSheet: View {
 
     @State private var isLiked = false
     @State private var isNotInterested = false
+    @State private var showShareSheet = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -55,13 +56,9 @@ struct TrackActionSheet: View {
                         trackActions.openLyrics()
                     }
 
-                    ShareLink(item: context.watchURL) {
-                        actionRowLabel(systemImage: "square.and.arrow.up", title: "Share")
+                    actionRow(systemImage: "square.and.arrow.up", title: "Share") {
+                        showShareSheet = true
                     }
-                    .simultaneousGesture(TapGesture().onEnded {
-                        trackActions.showToast("Share")
-                        dismiss()
-                    })
 
                     actionRow(
                         systemImage: isNotInterested ? "eye" : "eye.slash",
@@ -88,6 +85,10 @@ struct TrackActionSheet: View {
         }
         .background(YTLiteColor.surfaceElevated)
         .onAppear { refreshState() }
+        .sheet(isPresented: $showShareSheet) {
+            SystemShareSheet(items: [context.watchURL])
+                .ignoresSafeArea()
+        }
         .sheet(isPresented: $trackActions.showPlaylistPicker) {
             PlaylistPickerSheet(item: context.asVideoItem)
                 .environmentObject(trackActions)

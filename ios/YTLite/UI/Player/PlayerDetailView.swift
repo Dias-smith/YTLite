@@ -32,6 +32,8 @@ struct PlayerDetailView: View {
 
     @State private var showSpeedSheet = false
     @State private var showSleepTimerSheet = false
+    @State private var showShareSheet = false
+    @State private var shareURL: URL?
     @State private var showAddPlaylist = false
     @State private var showSaveList = false
     @State private var overlayVisible = true
@@ -101,6 +103,12 @@ struct PlayerDetailView: View {
                 .environmentObject(playback)
                 .presentationDetents([.medium])
                 .preferredColorScheme(.dark)
+        }
+        .sheet(isPresented: $showShareSheet, onDismiss: { shareURL = nil }) {
+            if let shareURL {
+                SystemShareSheet(items: [shareURL])
+                    .ignoresSafeArea()
+            }
         }
         .sheet(isPresented: $showAddPlaylist) {
             AddToPlaylistSheet(items: currentTrackItems)
@@ -518,14 +526,10 @@ struct PlayerDetailView: View {
             ) {
                 playback.toggleDislike()
             }
-            if let item = playback.nowPlaying {
-                ShareLink(item: item.watchShareURL) {
-                    VStack(spacing: 6) {
-                        Image(systemName: "arrowshape.turn.up.right")
-                        Text("Share").font(YTLiteType.iconCaption)
-                    }
-                    .foregroundStyle(YTLiteColor.onSurface)
-                    .frame(maxWidth: .infinity)
+            actionItem(title: "Share", icon: "arrowshape.turn.up.right") {
+                if let item = playback.nowPlaying {
+                    shareURL = item.watchShareURL
+                    showShareSheet = true
                 }
             }
             actionItem(title: "Save", icon: "bookmark") {
@@ -1116,6 +1120,24 @@ private extension NowPlayingItem {
     var watchShareURL: URL {
         URL(string: "https://www.youtube.com/watch?v=\(videoId)")!
     }
+}
+
+/// System share sheet (`UIActivityViewController`) — reliable inside presented sheets
+/// where SwiftUI `ShareLink` often fails to present.
+struct SystemShareSheet: UIViewControllerRepresentable {
+    let items: [Any]
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        let controller = UIActivityViewController(activityItems: items, applicationActivities: nil)
+        // iPad requires a popover anchor; approximate to avoid crash.
+        if let popover = controller.popoverPresentationController {
+            popover.sourceView = UIView()
+            popover.permittedArrowDirections = []
+        }
+        return controller
+    }
+
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
 
 struct SpeedPickerSheet: View {
