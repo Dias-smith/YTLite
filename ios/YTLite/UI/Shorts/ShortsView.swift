@@ -43,13 +43,13 @@ struct ShortsView: View {
             if !unlocked {
                 Color.black.opacity(0.45)
                     .ignoresSafeArea()
-                VStack(spacing: 16) {
+                VStack(spacing: YTLiteLayout.screenPadding) {
                     Text("Shorts")
-                        .font(.title2.weight(.semibold))
-                        .foregroundStyle(.white)
+                        .font(YTLiteType.emptyTitle)
+                        .foregroundStyle(YTLiteColor.onSurface)
                     Text("Tap play to unmute Shorts. App playback will pause.")
-                        .font(.subheadline)
-                        .foregroundStyle(.white.opacity(0.85))
+                        .font(YTLiteType.body)
+                        .foregroundStyle(YTLiteColor.onSurface.opacity(0.85))
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 32)
                     Button {
@@ -60,9 +60,9 @@ struct ShortsView: View {
                     } label: {
                         Image(systemName: "play.fill")
                             .font(.title)
-                            .foregroundStyle(.white)
+                            .foregroundStyle(YTLiteColor.onSurface)
                             .frame(width: 72, height: 72)
-                            .background(Color.orange, in: Circle())
+                            .background(YTLiteColor.accent, in: Circle())
                     }
                     .accessibilityLabel("Play Shorts")
                 }

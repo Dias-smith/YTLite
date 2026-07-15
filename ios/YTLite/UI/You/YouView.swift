@@ -43,12 +43,12 @@ struct YouView: View {
                 .frame(width: 120, height: 100)
 
             Text("Don't miss new videos")
-                .font(.title3.weight(.bold))
-                .foregroundStyle(.white)
+                .font(YTLiteType.emptyTitle)
+                .foregroundStyle(YTLiteColor.onSurface)
                 .multilineTextAlignment(.center)
 
             Text("Sign in to see updates from your favorite YouTube channels")
-                .font(.subheadline)
+                .font(YTLiteType.body)
                 .foregroundStyle(YTLiteColor.onSurfaceVariant)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
@@ -61,19 +61,19 @@ struct YouView: View {
                 }
             } label: {
                 Text(auth.isBusy ? "Signing in…" : "Sign in")
-                    .font(.body.weight(.semibold))
-                    .foregroundStyle(.white)
+                    .font(YTLiteType.labelEmphasized)
+                    .foregroundStyle(YTLiteColor.onSurface)
                     .padding(.horizontal, 28)
-                    .padding(.vertical, 12)
+                    .padding(.vertical, YTLiteLayout.stackLoose)
                     .background(YTLiteColor.signInBlue, in: Capsule())
             }
             .disabled(auth.isBusy || !auth.isConfigured)
-            .padding(.top, 4)
+            .padding(.top, YTLiteLayout.stackTight)
 
             if let err = auth.lastError {
                 Text(err)
-                    .font(.caption)
-                    .foregroundStyle(.red)
+                    .font(YTLiteType.meta)
+                    .foregroundStyle(YTLiteColor.danger)
                     .padding(.horizontal)
             }
             Spacer()
@@ -85,22 +85,25 @@ struct YouView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 Text("Subscriptions")
-                    .font(.largeTitle.bold())
-                    .foregroundStyle(.white)
+                    .font(YTLiteType.pageTitle)
+                    .foregroundStyle(YTLiteColor.onSurface)
                     .padding(.horizontal, YTLiteLayout.screenPadding)
-                    .padding(.top, 8)
+                    .padding(.top, YTLiteLayout.rowVertical)
 
                 if let err = viewModel.errorMessage {
-                    Text(err).font(.caption).foregroundStyle(.red).padding(.horizontal)
+                    Text(err)
+                        .font(YTLiteType.meta)
+                        .foregroundStyle(YTLiteColor.danger)
+                        .padding(.horizontal)
                 }
 
                 if !viewModel.liked.isEmpty {
                     Text("Liked")
-                        .font(.headline)
-                        .foregroundStyle(.white)
+                        .font(YTLiteType.sectionTitle)
+                        .foregroundStyle(YTLiteColor.onSurface)
                         .padding(.horizontal, YTLiteLayout.screenPadding)
                     ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 12) {
+                        HStack(spacing: YTLiteLayout.stackLoose) {
                             ForEach(viewModel.liked) { item in
                                 ShelfCard(title: item.title, subtitle: item.channelName, imageURL: item.thumbnailURL) {
                                     playback.play(items: viewModel.liked, startAt: viewModel.liked.firstIndex(of: item) ?? 0)
@@ -113,11 +116,11 @@ struct YouView: View {
                 }
 
                 Text("Trending music")
-                    .font(.headline)
-                    .foregroundStyle(.white)
+                    .font(YTLiteType.sectionTitle)
+                    .foregroundStyle(YTLiteColor.onSurface)
                     .padding(.horizontal, YTLiteLayout.screenPadding)
 
-                LazyVStack(spacing: 4) {
+                LazyVStack(spacing: YTLiteLayout.stackTight) {
                     ForEach(Array(viewModel.trending.enumerated()), id: \.element.id) { index, item in
                         Button {
                             playback.play(items: viewModel.trending, startAt: index)
@@ -142,7 +145,7 @@ struct YouView: View {
                     }
                 }
                 .padding(.horizontal, YTLiteLayout.screenPadding)
-                .padding(.bottom, 24)
+                .padding(.bottom, YTLiteLayout.sectionGap)
             }
         }
         .refreshable {
@@ -155,12 +158,13 @@ struct YouView: View {
             Image(systemName: icon)
                 .foregroundStyle(YTLiteColor.accent)
             Text(title)
-                .foregroundStyle(.white)
+                .font(YTLiteType.rowTitleMedium)
+                .foregroundStyle(YTLiteColor.onSurface)
             Spacer()
             Image(systemName: "chevron.right")
                 .foregroundStyle(YTLiteColor.onSurfaceVariant)
         }
-        .padding(.vertical, 14)
+        .padding(.vertical, YTLiteLayout.stackLoose)
     }
 }
 
@@ -181,8 +185,8 @@ private struct SubsEmptyGraphic: View {
                 .fill(Color.white.opacity(0.28))
                 .frame(width: 96, height: 60)
             Image(systemName: "play.fill")
-                .font(.title3)
-                .foregroundStyle(Color.white.opacity(0.85))
+                .font(.system(size: 20, weight: .semibold))
+                .foregroundStyle(YTLiteColor.onSurface.opacity(0.85))
         }
     }
 }
@@ -227,14 +231,14 @@ private struct ShelfCard: View {
                     }
                 }
                 .frame(width: 140, height: 80)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .clipShape(RoundedRectangle(cornerRadius: YTLiteLayout.thumbRadius))
                 Text(title)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.white)
+                    .font(YTLiteType.meta.weight(.semibold))
+                    .foregroundStyle(YTLiteColor.onSurface)
                     .lineLimit(2)
                     .frame(width: 140, alignment: .leading)
                 Text(subtitle)
-                    .font(.caption2)
+                    .font(YTLiteType.iconCaption)
                     .foregroundStyle(YTLiteColor.onSurfaceVariant)
                     .lineLimit(1)
                     .frame(width: 140, alignment: .leading)
@@ -254,7 +258,7 @@ struct ChannelSearchView: View {
             NavigationLink {
                 ChannelVideosView(channel: channel)
             } label: {
-                HStack(spacing: 12) {
+                HStack(spacing: YTLiteLayout.stackLoose) {
                     AsyncImage(url: channel.thumbnailURL) { phase in
                         switch phase {
                         case .success(let image): image.resizable().scaledToFill()
@@ -264,8 +268,12 @@ struct ChannelSearchView: View {
                     .frame(width: 48, height: 48)
                     .clipShape(Circle())
                     VStack(alignment: .leading) {
-                        Text(channel.title).font(.subheadline.weight(.semibold)).foregroundStyle(.white)
-                        Text(channel.subtitle).font(.caption).foregroundStyle(YTLiteColor.onSurfaceVariant)
+                        Text(channel.title)
+                            .font(YTLiteType.rowTitle)
+                            .foregroundStyle(YTLiteColor.onSurface)
+                        Text(channel.subtitle)
+                            .font(YTLiteType.meta)
+                            .foregroundStyle(YTLiteColor.onSurfaceVariant)
                     }
                 }
                 .listRowBackground(YTLiteColor.background)
@@ -296,9 +304,13 @@ struct PlaylistSearchView: View {
             NavigationLink {
                 PlaylistVideosBrowserView(playlist: playlist)
             } label: {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(playlist.title).font(.subheadline.weight(.semibold)).foregroundStyle(.white)
-                    Text(playlist.subtitle).font(.caption).foregroundStyle(YTLiteColor.onSurfaceVariant)
+                VStack(alignment: .leading, spacing: YTLiteLayout.stackTight) {
+                    Text(playlist.title)
+                        .font(YTLiteType.rowTitle)
+                        .foregroundStyle(YTLiteColor.onSurface)
+                    Text(playlist.subtitle)
+                        .font(YTLiteType.meta)
+                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
                 }
                 .listRowBackground(YTLiteColor.background)
             }
@@ -334,7 +346,7 @@ struct ChannelVideosView: View {
                 ContentUnavailableView("No videos", systemImage: "play.slash", description: Text(errorMessage ?? ""))
             } else {
                 ScrollView {
-                    LazyVStack(spacing: 4) {
+                    LazyVStack(spacing: YTLiteLayout.stackTight) {
                         ForEach(Array(videos.enumerated()), id: \.element.id) { index, item in
                             Button {
                                 playback.play(items: videos, startAt: index)
@@ -381,7 +393,7 @@ struct PlaylistVideosBrowserView: View {
                 ContentUnavailableView("Empty playlist", systemImage: "list.bullet", description: Text(errorMessage ?? ""))
             } else {
                 ScrollView {
-                    LazyVStack(spacing: 4) {
+                    LazyVStack(spacing: YTLiteLayout.stackTight) {
                         ForEach(Array(videos.enumerated()), id: \.element.id) { index, item in
                             Button {
                                 playback.play(items: videos, startAt: index)

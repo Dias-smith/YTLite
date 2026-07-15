@@ -38,8 +38,8 @@ struct SettingsView: View {
                 LabeledContent("Bundle", value: Bundle.main.bundleIdentifier ?? "—")
                 LabeledContent("Supabase", value: appModel.config.isConfigured ? "Configured" : "Missing secrets")
                 Text("PRD: prd/IOS_MVP_SCOPE.md")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(YTLiteType.meta)
+                    .foregroundStyle(YTLiteColor.onSurfaceVariant)
             }
         }
         .scrollContentBackground(.hidden)

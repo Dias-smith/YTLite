@@ -22,7 +22,7 @@ struct LibraryView: View {
         NavigationStack {
             ZStack(alignment: .bottomTrailing) {
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 16) {
+                    VStack(alignment: .leading, spacing: YTLiteLayout.screenPadding) {
                         header
                         downloadsRow
                         filterChips
@@ -36,14 +36,14 @@ struct LibraryView: View {
                     showNewPlaylist = true
                 } label: {
                     Text("+ New")
-                        .font(.subheadline.weight(.bold))
-                        .foregroundStyle(.white)
+                        .font(YTLiteType.labelEmphasized)
+                        .foregroundStyle(YTLiteColor.onSurface)
                         .padding(.horizontal, 18)
-                        .padding(.vertical, 12)
+                        .padding(.vertical, YTLiteLayout.stackLoose)
                         .background(YTLiteColor.accent, in: Capsule())
                 }
-                .padding(.trailing, 16)
-                .padding(.bottom, 16)
+                .padding(.trailing, YTLiteLayout.screenPadding)
+                .padding(.bottom, YTLiteLayout.screenPadding)
             }
             .background(YTLiteColor.background)
             .navigationBarHidden(true)
@@ -74,8 +74,8 @@ struct LibraryView: View {
     private var header: some View {
         HStack(alignment: .center) {
             Text("Library")
-                .font(.largeTitle.bold())
-                .foregroundStyle(.white)
+                .font(YTLiteType.pageTitle)
+                .foregroundStyle(YTLiteColor.onSurface)
             Spacer()
             if auth.isAuthenticated {
                 Button {
@@ -86,7 +86,7 @@ struct LibraryView: View {
                     }
                 } label: {
                     Image(systemName: "person.crop.circle.fill")
-                        .font(.title2)
+                        .font(.system(size: 22))
                         .foregroundStyle(YTLiteColor.onSurfaceVariant)
                 }
             } else {
@@ -101,7 +101,7 @@ struct LibraryView: View {
                     }
                 } label: {
                     Image(systemName: "person.crop.circle")
-                        .font(.title2)
+                        .font(.system(size: 22))
                         .foregroundStyle(YTLiteColor.onSurfaceVariant)
                 }
             }
@@ -109,25 +109,25 @@ struct LibraryView: View {
                 SettingsView()
             } label: {
                 Image(systemName: "gearshape")
-                    .font(.title3)
+                    .font(.system(size: 20))
                     .foregroundStyle(YTLiteColor.onSurfaceVariant)
             }
         }
         .padding(.horizontal, YTLiteLayout.screenPadding)
-        .padding(.top, 8)
+        .padding(.top, YTLiteLayout.rowVertical)
     }
 
     private var downloadsRow: some View {
         HStack(spacing: 14) {
             Image(systemName: "arrow.down.circle.fill")
-                .font(.title2)
+                .font(.system(size: 22))
                 .foregroundStyle(YTLiteColor.accent)
             VStack(alignment: .leading, spacing: 2) {
                 Text("Downloads")
-                    .font(.body.weight(.semibold))
-                    .foregroundStyle(.white)
+                    .font(YTLiteType.rowTitle)
+                    .foregroundStyle(YTLiteColor.onSurface)
                 Text("Tap to manage downloads")
-                    .font(.caption)
+                    .font(YTLiteType.meta)
                     .foregroundStyle(YTLiteColor.onSurfaceVariant)
             }
             Spacer()
@@ -135,12 +135,12 @@ struct LibraryView: View {
                 .foregroundStyle(YTLiteColor.onSurfaceVariant)
         }
         .padding(14)
-        .background(YTLiteColor.surfaceElevated, in: RoundedRectangle(cornerRadius: 12))
+        .background(YTLiteColor.surfaceElevated, in: RoundedRectangle(cornerRadius: YTLiteLayout.stackLoose))
         .padding(.horizontal, YTLiteLayout.screenPadding)
     }
 
     private var filterChips: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: YTLiteLayout.stackDefault) {
             ForEach(LibraryFilter.allCases, id: \.self) { item in
                 YTLiteChip(title: item.rawValue, selected: filter == item) {
                     filter = item
@@ -154,17 +154,17 @@ struct LibraryView: View {
     private var listControls: some View {
         HStack {
             Text("\(displayItemCount) items")
-                .font(.subheadline)
+                .font(YTLiteType.body)
                 .foregroundStyle(YTLiteColor.onSurfaceVariant)
             Spacer()
             Image(systemName: "arrow.up.arrow.down")
                 .foregroundStyle(YTLiteColor.onSurfaceVariant)
             Image(systemName: "checkmark.circle")
                 .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                .padding(.leading, 12)
+                .padding(.leading, YTLiteLayout.stackLoose)
             Image(systemName: "square.grid.2x2")
                 .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                .padding(.leading, 12)
+                .padding(.leading, YTLiteLayout.stackLoose)
         }
         .padding(.horizontal, YTLiteLayout.screenPadding)
     }
@@ -258,12 +258,12 @@ struct LibraryView: View {
     ) -> some View {
         HStack(spacing: 14) {
             SystemCoverView(cover: cover, url: thumbnailURL)
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: YTLiteLayout.stackTight) {
                 Text(title)
-                    .font(.body.weight(.semibold))
-                    .foregroundStyle(.white)
+                    .font(YTLiteType.rowTitle)
+                    .foregroundStyle(YTLiteColor.onSurface)
                 Text(subtitle)
-                    .font(.caption)
+                    .font(YTLiteType.meta)
                     .foregroundStyle(YTLiteColor.onSurfaceVariant)
             }
             Spacer()
@@ -271,7 +271,7 @@ struct LibraryView: View {
                 .foregroundStyle(YTLiteColor.onSurfaceVariant)
         }
         .padding(.horizontal, YTLiteLayout.screenPadding)
-        .padding(.vertical, 10)
+        .padding(.vertical, YTLiteLayout.rowVertical)
     }
 
     private func reload() {
@@ -322,7 +322,7 @@ private struct SystemCoverView: View {
             }
         }
         .frame(width: 64, height: 64)
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .clipShape(RoundedRectangle(cornerRadius: YTLiteLayout.thumbRadius))
     }
 }
 
@@ -330,7 +330,7 @@ struct LibrarySongRow: View {
     let item: VideoItem
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: YTLiteLayout.stackLoose) {
             ZStack(alignment: .bottomTrailing) {
                 AsyncImage(url: item.thumbnailURL) { phase in
                     switch phase {
@@ -338,22 +338,28 @@ struct LibrarySongRow: View {
                     default: YTLiteColor.surfaceVariant
                     }
                 }
-                .frame(width: 56, height: 56)
+                .frame(width: YTLiteLayout.channelAvatar, height: YTLiteLayout.channelAvatar)
                 .clipShape(RoundedRectangle(cornerRadius: 6))
                 if let d = item.durationText {
                     DurationBadge(text: d).scaleEffect(0.85).padding(2)
                 }
             }
-            VStack(alignment: .leading, spacing: 4) {
-                Text(item.title).font(.subheadline.weight(.semibold)).foregroundStyle(.white).lineLimit(1)
-                Text(item.channelName).font(.caption).foregroundStyle(YTLiteColor.onSurfaceVariant).lineLimit(1)
+            VStack(alignment: .leading, spacing: YTLiteLayout.stackTight) {
+                Text(item.title)
+                    .font(YTLiteType.rowTitle)
+                    .foregroundStyle(YTLiteColor.onSurface)
+                    .lineLimit(1)
+                Text(item.channelName)
+                    .font(YTLiteType.meta)
+                    .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                    .lineLimit(1)
             }
             Spacer()
             Image(systemName: "arrow.down.to.line").foregroundStyle(YTLiteColor.onSurfaceVariant)
             Image(systemName: "ellipsis").foregroundStyle(YTLiteColor.onSurfaceVariant)
         }
         .padding(.horizontal, YTLiteLayout.screenPadding)
-        .padding(.vertical, 8)
+        .padding(.vertical, YTLiteLayout.rowVertical)
     }
 }
 

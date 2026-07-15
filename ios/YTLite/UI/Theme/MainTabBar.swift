@@ -17,7 +17,7 @@ struct MainTabBar: View {
                 Button {
                     selected = tab
                 } label: {
-                    VStack(spacing: 4) {
+                    VStack(spacing: YTLiteLayout.stackTight) {
                         ZStack {
                             if selected == tab {
                                 Capsule()
@@ -26,21 +26,29 @@ struct MainTabBar: View {
                             }
                             Image(systemName: icon)
                                 .font(.system(size: 18, weight: .semibold))
-                                .foregroundStyle(selected == tab ? Color.black.opacity(0.85) : YTLiteColor.onSurfaceVariant)
+                                .foregroundStyle(
+                                    selected == tab
+                                        ? YTLiteColor.onAccent
+                                        : YTLiteColor.onSurfaceVariant
+                                )
                         }
                         .frame(height: 28)
 
                         Text(title)
-                            .font(.caption2.weight(selected == tab ? .semibold : .regular))
-                            .foregroundStyle(selected == tab ? YTLiteColor.accent : YTLiteColor.onSurfaceVariant)
+                            .font(selected == tab ? YTLiteType.tabLabelSelected : YTLiteType.tabLabel)
+                            .foregroundStyle(
+                                selected == tab
+                                    ? YTLiteColor.accent
+                                    : YTLiteColor.onSurfaceVariant
+                            )
                     }
                     .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.plain)
             }
         }
-        .padding(.top, 8)
-        .padding(.bottom, 4)
+        .padding(.top, YTLiteLayout.stackDefault)
+        .padding(.bottom, YTLiteLayout.stackTight)
         .background(YTLiteColor.tabBar)
     }
 }

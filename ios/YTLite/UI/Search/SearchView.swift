@@ -177,8 +177,8 @@ struct SearchView: View {
             VStack(spacing: 0) {
                 searchBar
                     .padding(.horizontal, YTLiteLayout.screenPadding)
-                    .padding(.top, 8)
-                    .padding(.bottom, 8)
+                    .padding(.top, YTLiteLayout.rowVertical)
+                    .padding(.bottom, YTLiteLayout.rowVertical)
 
                 Group {
                     if viewModel.isLoading && viewModel.phase == .results && viewModel.hits.isEmpty {
@@ -214,7 +214,7 @@ struct SearchView: View {
             Image(systemName: "magnifyingglass")
                 .foregroundStyle(YTLiteColor.onSurfaceVariant)
             TextField("Search videos, channels...", text: $viewModel.query)
-                .foregroundStyle(.white)
+                .foregroundStyle(YTLiteColor.onSurface)
                 .focused($searchFocused)
                 .submitLabel(.search)
                 .onSubmit { viewModel.submit(memory: memory) }
@@ -227,8 +227,8 @@ struct SearchView: View {
                 }
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
+        .padding(.horizontal, YTLiteLayout.screenPadding)
+        .padding(.vertical, YTLiteLayout.stackLoose)
         .background(YTLiteColor.surfaceElevated, in: Capsule())
     }
 
@@ -237,7 +237,7 @@ struct SearchView: View {
             resultTabs
             if let err = viewModel.errorMessage, viewModel.hits.isEmpty, !viewModel.isLoading {
                 Text(err)
-                    .font(.subheadline)
+                    .font(YTLiteType.body)
                     .foregroundStyle(YTLiteColor.onSurfaceVariant)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
@@ -252,9 +252,9 @@ struct SearchView: View {
                 Button {
                     viewModel.selectTab(tab, memory: memory)
                 } label: {
-                    VStack(spacing: 8) {
+                    VStack(spacing: YTLiteLayout.stackDefault) {
                         Text(tab.rawValue)
-                            .font(.subheadline.weight(viewModel.selectedTab == tab ? .semibold : .regular))
+                            .font(viewModel.selectedTab == tab ? YTLiteType.labelEmphasized : YTLiteType.label)
                             .foregroundStyle(
                                 viewModel.selectedTab == tab
                                     ? YTLiteColor.accent
@@ -269,8 +269,8 @@ struct SearchView: View {
                 .buttonStyle(.plain)
             }
         }
-        .padding(.horizontal, 8)
-        .padding(.bottom, 4)
+        .padding(.horizontal, YTLiteLayout.stackDefault)
+        .padding(.bottom, YTLiteLayout.stackTight)
     }
 
     private var resultsList: some View {
@@ -305,7 +305,7 @@ struct SearchView: View {
                     }
                 }
             }
-            .padding(.bottom, 16)
+            .padding(.bottom, YTLiteLayout.screenPadding)
         }
         .overlay {
             if viewModel.isLoading && !viewModel.hits.isEmpty {
@@ -320,17 +320,17 @@ struct SearchView: View {
             ScrollView {
                 LazyVStack(spacing: 0) {
                     ForEach(viewModel.suggestions) { item in
-                        HStack(spacing: 12) {
+                        HStack(spacing: YTLiteLayout.stackLoose) {
                             Button {
                                 viewModel.applySuggestion(item, memory: memory)
                                 searchFocused = false
                             } label: {
-                                HStack(spacing: 12) {
+                                HStack(spacing: YTLiteLayout.stackLoose) {
                                     Image(systemName: item.isFromHistory ? "clock.arrow.circlepath" : "magnifyingglass")
                                         .foregroundStyle(YTLiteColor.onSurfaceVariant)
                                         .frame(width: 22)
                                     Text(item.text)
-                                        .foregroundStyle(.white)
+                                        .foregroundStyle(YTLiteColor.onSurface)
                                         .lineLimit(1)
                                     Spacer(minLength: 0)
                                 }
@@ -343,14 +343,14 @@ struct SearchView: View {
                                 searchFocused = true
                             } label: {
                                 Image(systemName: "arrow.up.left")
-                                    .font(.body.weight(.medium))
+                                    .font(YTLiteType.rowTitleMedium)
                                     .foregroundStyle(YTLiteColor.onSurfaceVariant)
                                     .frame(width: 36, height: 36)
                             }
                             .buttonStyle(.plain)
                         }
                         .padding(.horizontal, YTLiteLayout.screenPadding)
-                        .padding(.vertical, 10)
+                        .padding(.vertical, YTLiteLayout.rowVertical)
                     }
                 }
             }
@@ -365,22 +365,22 @@ struct SearchView: View {
 
     private var discoveryContent: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
+            VStack(alignment: .leading, spacing: YTLiteLayout.sectionGap) {
                 if !memory.recentVideos.isEmpty {
-                    VStack(alignment: .leading, spacing: 12) {
+                    VStack(alignment: .leading, spacing: YTLiteLayout.stackLoose) {
                         SectionHeaderRow(title: "Recent searches", actionTitle: "Clear all") {
                             memory.clearRecentVideos()
                         }
                         .padding(.horizontal, YTLiteLayout.screenPadding)
 
                         ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 12) {
+                            HStack(spacing: YTLiteLayout.stackLoose) {
                                 ForEach(memory.recentVideos) { item in
                                     Button {
                                         playback.play(items: [item], startAt: 0)
                                         showPlayer = true
                                     } label: {
-                                        VStack(alignment: .leading, spacing: 8) {
+                                        VStack(alignment: .leading, spacing: YTLiteLayout.stackDefault) {
                                             AsyncImage(url: item.thumbnailURL) { phase in
                                                 switch phase {
                                                 case .success(let image):
@@ -390,10 +390,10 @@ struct SearchView: View {
                                                 }
                                             }
                                             .frame(width: 120, height: 120)
-                                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                                            .clipShape(RoundedRectangle(cornerRadius: YTLiteLayout.thumbRadius))
                                             Text("\(item.title) - \(item.channelName)")
-                                                .font(.caption)
-                                                .foregroundStyle(.white)
+                                                .font(YTLiteType.meta)
+                                                .foregroundStyle(YTLiteColor.onSurface)
                                                 .lineLimit(2)
                                                 .frame(width: 120, alignment: .leading)
                                         }
@@ -407,14 +407,14 @@ struct SearchView: View {
                 }
 
                 if !memory.recentQueries.isEmpty {
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: YTLiteLayout.stackDefault) {
                         SectionHeaderRow(title: "Search history", actionTitle: "Clear all") {
                             memory.clearQueries()
                         }
                         .padding(.horizontal, YTLiteLayout.screenPadding)
 
                         ForEach(memory.recentQueries, id: \.self) { q in
-                            HStack(spacing: 12) {
+                            HStack(spacing: YTLiteLayout.stackLoose) {
                                 Button {
                                     viewModel.query = q
                                     viewModel.submit(memory: memory)
@@ -424,7 +424,7 @@ struct SearchView: View {
                                         Image(systemName: "clock.arrow.circlepath")
                                             .foregroundStyle(YTLiteColor.onSurfaceVariant)
                                         Text(q)
-                                            .foregroundStyle(.white)
+                                            .foregroundStyle(YTLiteColor.onSurface)
                                             .lineLimit(1)
                                         Spacer(minLength: 0)
                                     }
@@ -437,22 +437,22 @@ struct SearchView: View {
                                     searchFocused = true
                                 } label: {
                                     Image(systemName: "arrow.up.left")
-                                        .font(.footnote)
+                                        .font(YTLiteType.meta)
                                         .foregroundStyle(YTLiteColor.onSurfaceVariant)
                                         .frame(width: 36, height: 36)
                                 }
                                 .buttonStyle(.plain)
                             }
                             .padding(.horizontal, YTLiteLayout.screenPadding)
-                            .padding(.vertical, 10)
+                            .padding(.vertical, YTLiteLayout.rowVertical)
                         }
                     }
                 }
 
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: YTLiteLayout.stackLoose) {
                     Text("Trending searches")
-                        .font(.headline)
-                        .foregroundStyle(.white)
+                        .font(YTLiteType.sectionTitle)
+                        .foregroundStyle(YTLiteColor.onSurface)
                         .padding(.horizontal, YTLiteLayout.screenPadding)
 
                     FlowChips(items: SearchMemoryStore.trendingDefaults) { tag in
@@ -463,7 +463,7 @@ struct SearchView: View {
                     .padding(.horizontal, YTLiteLayout.screenPadding)
                 }
             }
-            .padding(.bottom, 24)
+            .padding(.bottom, YTLiteLayout.sectionGap)
         }
     }
 }
@@ -474,7 +474,7 @@ private struct SearchVideoResultRow: View {
     let item: VideoItem
 
     var body: some View {
-        HStack(alignment: .center, spacing: 4) {
+        HStack(alignment: .center, spacing: YTLiteLayout.stackTight) {
             AsyncImage(url: item.thumbnailURL) { phase in
                 switch phase {
                 case .success(let image):
@@ -483,25 +483,25 @@ private struct SearchVideoResultRow: View {
                     YTLiteColor.surfaceVariant
                 }
             }
-            .frame(width: 112, height: 63)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .frame(width: YTLiteLayout.searchThumbWidth, height: YTLiteLayout.searchThumbHeight)
+            .clipShape(RoundedRectangle(cornerRadius: YTLiteLayout.thumbRadius))
 
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: YTLiteLayout.stackTight) {
                 Text(item.title)
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(.white)
+                    .font(YTLiteType.rowTitleMedium)
+                    .foregroundStyle(YTLiteColor.onSurface)
                     .lineLimit(2)
                 Text(item.subtitle)
-                    .font(.caption)
+                    .font(YTLiteType.meta)
                     .foregroundStyle(YTLiteColor.onSurfaceVariant)
                     .lineLimit(1)
             }
-            .padding(.leading, 8)
+            .padding(.leading, YTLiteLayout.stackDefault)
 
-            Spacer(minLength: 4)
+            Spacer(minLength: YTLiteLayout.stackTight)
 
             Image(systemName: "arrow.down.to.line")
-                .font(.body)
+                .font(YTLiteType.body)
                 .foregroundStyle(YTLiteColor.onSurfaceVariant)
                 .frame(width: 28, height: 28)
             Image(systemName: "ellipsis")
@@ -509,7 +509,7 @@ private struct SearchVideoResultRow: View {
                 .frame(width: 28, height: 28)
         }
         .padding(.horizontal, YTLiteLayout.screenPadding)
-        .padding(.vertical, 8)
+        .padding(.vertical, YTLiteLayout.rowVertical)
     }
 }
 
@@ -517,7 +517,7 @@ private struct SearchChannelResultRow: View {
     let channel: ChannelItem
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: YTLiteLayout.stackLoose) {
             AsyncImage(url: channel.thumbnailURL) { phase in
                 switch phase {
                 case .success(let image):
@@ -526,26 +526,26 @@ private struct SearchChannelResultRow: View {
                     YTLiteColor.surfaceVariant
                 }
             }
-            .frame(width: 56, height: 56)
+            .frame(width: YTLiteLayout.channelAvatar, height: YTLiteLayout.channelAvatar)
             .clipShape(Circle())
 
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: YTLiteLayout.stackTight) {
                 Text(channel.title)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.white)
+                    .font(YTLiteType.rowTitle)
+                    .foregroundStyle(YTLiteColor.onSurface)
                     .lineLimit(1)
                 Text(channel.subtitle)
-                    .font(.caption)
+                    .font(YTLiteType.meta)
                     .foregroundStyle(YTLiteColor.onSurfaceVariant)
                     .lineLimit(1)
             }
             Spacer()
             Image(systemName: "chevron.right")
-                .font(.caption)
+                .font(YTLiteType.meta)
                 .foregroundStyle(YTLiteColor.onSurfaceVariant)
         }
         .padding(.horizontal, YTLiteLayout.screenPadding)
-        .padding(.vertical, 8)
+        .padding(.vertical, YTLiteLayout.rowVertical)
     }
 }
 
@@ -553,7 +553,7 @@ private struct SearchPlaylistResultRow: View {
     let playlist: PlaylistPreview
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: YTLiteLayout.stackLoose) {
             AsyncImage(url: playlist.thumbnailURL) { phase in
                 switch phase {
                 case .success(let image):
@@ -562,23 +562,23 @@ private struct SearchPlaylistResultRow: View {
                     YTLiteColor.surfaceVariant
                 }
             }
-            .frame(width: 112, height: 63)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .frame(width: YTLiteLayout.searchThumbWidth, height: YTLiteLayout.searchThumbHeight)
+            .clipShape(RoundedRectangle(cornerRadius: YTLiteLayout.thumbRadius))
 
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: YTLiteLayout.stackTight) {
                 Text(playlist.title)
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(.white)
+                    .font(YTLiteType.rowTitleMedium)
+                    .foregroundStyle(YTLiteColor.onSurface)
                     .lineLimit(2)
                 Text(playlist.subtitle)
-                    .font(.caption)
+                    .font(YTLiteType.meta)
                     .foregroundStyle(YTLiteColor.onSurfaceVariant)
                     .lineLimit(1)
             }
             Spacer()
         }
         .padding(.horizontal, YTLiteLayout.screenPadding)
-        .padding(.vertical, 8)
+        .padding(.vertical, YTLiteLayout.rowVertical)
     }
 }
 
@@ -586,19 +586,19 @@ struct FlowChips: View {
     let items: [String]
     var onTap: (String) -> Void
 
-    private let columns = [GridItem(.adaptive(minimum: 72), spacing: 8, alignment: .leading)]
+    private let columns = [GridItem(.adaptive(minimum: 72), spacing: YTLiteLayout.stackDefault, alignment: .leading)]
 
     var body: some View {
-        LazyVGrid(columns: columns, alignment: .leading, spacing: 8) {
+        LazyVGrid(columns: columns, alignment: .leading, spacing: YTLiteLayout.stackDefault) {
             ForEach(items, id: \.self) { title in
                 Button {
                     onTap(title)
                 } label: {
                     Text(title)
-                        .font(.subheadline)
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 8)
+                        .font(YTLiteType.label)
+                        .foregroundStyle(YTLiteColor.onSurface)
+                        .padding(.horizontal, YTLiteLayout.chipHorizontal)
+                        .padding(.vertical, YTLiteLayout.chipVertical)
                         .background(YTLiteColor.surfaceChip, in: Capsule())
                 }
                 .buttonStyle(.plain)

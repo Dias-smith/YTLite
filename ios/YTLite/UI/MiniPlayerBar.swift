@@ -6,11 +6,11 @@ struct MiniPlayerBar: View {
 
     var body: some View {
         if let item = playback.nowPlaying {
-            HStack(spacing: 12) {
+            HStack(spacing: YTLiteLayout.stackLoose) {
                 Button {
                     showPlayer = true
                 } label: {
-                    HStack(spacing: 12) {
+                    HStack(spacing: YTLiteLayout.stackLoose) {
                         AsyncImage(url: item.thumbnailURL) { phase in
                             switch phase {
                             case .success(let image):
@@ -19,20 +19,20 @@ struct MiniPlayerBar: View {
                                 YTLiteColor.surfaceVariant
                             }
                         }
-                        .frame(width: 40, height: 40)
+                        .frame(width: YTLiteLayout.miniThumb, height: YTLiteLayout.miniThumb)
                         .clipShape(RoundedRectangle(cornerRadius: 4))
 
                         VStack(alignment: .leading, spacing: 2) {
                             Text(item.title)
-                                .font(.subheadline.weight(.medium))
-                                .foregroundStyle(.white)
+                                .font(YTLiteType.rowTitleMedium)
+                                .foregroundStyle(YTLiteColor.onSurface)
                                 .lineLimit(1)
                             Text(item.channelName)
-                                .font(.caption)
+                                .font(YTLiteType.meta)
                                 .foregroundStyle(YTLiteColor.onSurfaceVariant)
                                 .lineLimit(1)
                         }
-                        Spacer(minLength: 8)
+                        Spacer(minLength: YTLiteLayout.stackDefault)
                     }
                 }
                 .buttonStyle(.plain)
@@ -42,7 +42,7 @@ struct MiniPlayerBar: View {
                 } label: {
                     Image(systemName: playback.isPlaying ? "pause.fill" : "play.fill")
                         .font(.body.weight(.semibold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(YTLiteColor.onSurface)
                         .frame(width: 36, height: 36)
                 }
                 .disabled(playback.isBuffering || playback.player == nil)
@@ -52,17 +52,17 @@ struct MiniPlayerBar: View {
                 } label: {
                     Image(systemName: "forward.fill")
                         .font(.body.weight(.semibold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(YTLiteColor.onSurface)
                         .frame(width: 36, height: 36)
                 }
                 .disabled(playback.queueIndex + 1 >= playback.queue.count)
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+            .padding(.horizontal, YTLiteLayout.stackLoose)
+            .padding(.vertical, YTLiteLayout.rowVertical)
             .background(YTLiteColor.miniPlayer)
             .overlay(alignment: .top) {
                 Rectangle()
-                    .fill(Color.white.opacity(0.08))
+                    .fill(YTLiteColor.onSurface.opacity(0.08))
                     .frame(height: 0.5)
             }
             .sheet(isPresented: $showPlayer) {

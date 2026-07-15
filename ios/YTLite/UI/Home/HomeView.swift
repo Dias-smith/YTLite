@@ -108,7 +108,7 @@ struct HomeView: View {
 
     private var categoryChips: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
+            HStack(spacing: YTLiteLayout.stackDefault) {
                 ForEach(HomeCategory.all) { cat in
                     YTLiteChip(
                         title: cat.title,
@@ -119,7 +119,7 @@ struct HomeView: View {
                 }
             }
             .padding(.horizontal, YTLiteLayout.screenPadding)
-            .padding(.vertical, 12)
+            .padding(.vertical, YTLiteLayout.stackLoose)
         }
     }
 
@@ -135,20 +135,20 @@ struct HomeView: View {
                 systemImage: "house",
                 description: Text(viewModel.errorMessage ?? "Pull to refresh")
             )
-            .foregroundStyle(.white)
+            .foregroundStyle(YTLiteColor.onSurface)
         } else {
             ScrollView {
-                LazyVStack(spacing: 4) {
+                LazyVStack(spacing: YTLiteLayout.stackTight) {
                     if viewModel.isLoading {
                         ProgressView()
                             .tint(YTLiteColor.accent)
-                            .padding(.vertical, 8)
+                            .padding(.vertical, YTLiteLayout.rowVertical)
                     }
                     if let err = viewModel.errorMessage {
                         Text(err)
-                            .font(.caption)
-                            .foregroundStyle(.red)
-                            .padding(.horizontal)
+                            .font(YTLiteType.meta)
+                            .foregroundStyle(YTLiteColor.danger)
+                            .padding(.horizontal, YTLiteLayout.screenPadding)
                     }
                     ForEach(Array(viewModel.videos.enumerated()), id: \.element.id) { index, item in
                         Button {
@@ -160,7 +160,7 @@ struct HomeView: View {
                         .buttonStyle(.plain)
                     }
                 }
-                .padding(.bottom, 8)
+                .padding(.bottom, YTLiteLayout.rowVertical)
             }
             .refreshable { viewModel.load(force: true) }
         }

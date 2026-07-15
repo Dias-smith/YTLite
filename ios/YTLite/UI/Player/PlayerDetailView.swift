@@ -31,10 +31,12 @@ struct PlayerDetailView: View {
         VStack(spacing: 0) {
             playerCanvas
             ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: YTLiteLayout.screenPadding) {
                     titleBlock
                     if let error = playback.lastError {
-                        Text(error).font(.footnote).foregroundStyle(.red)
+                        Text(error)
+                            .font(YTLiteType.meta)
+                            .foregroundStyle(YTLiteColor.danger)
                     }
                     actionBar
                     transportControls
@@ -42,8 +44,8 @@ struct PlayerDetailView: View {
                     listToolbar
                     tabContent
                 }
-                .padding(.horizontal, 16)
-                .padding(.top, 12)
+                .padding(.horizontal, YTLiteLayout.screenPadding)
+                .padding(.top, YTLiteLayout.stackLoose)
                 .padding(.bottom, 32)
             }
         }
@@ -106,9 +108,9 @@ struct PlayerDetailView: View {
 
             if playback.isBuffering {
                 ProgressView("Extracting…")
-                    .tint(.white)
-                    .padding(16)
-                    .background(.black.opacity(0.55), in: RoundedRectangle(cornerRadius: 12))
+                    .tint(YTLiteColor.onSurface)
+                    .padding(YTLiteLayout.screenPadding)
+                    .background(.black.opacity(0.55), in: RoundedRectangle(cornerRadius: YTLiteLayout.stackLoose))
             }
 
             // Tap catcher under overlay so control buttons keep priority.
@@ -155,25 +157,25 @@ struct PlayerDetailView: View {
 
             VStack(spacing: 0) {
                 overlayTopBar
-                    .padding(.horizontal, 8)
-                    .padding(.top, 8)
+                    .padding(.horizontal, YTLiteLayout.stackDefault)
+                    .padding(.top, YTLiteLayout.stackDefault)
 
                 Spacer()
 
                 overlayTransport
-                    .padding(.bottom, 8)
+                    .padding(.bottom, YTLiteLayout.stackDefault)
 
                 Spacer()
 
                 overlayProgress
-                    .padding(.horizontal, 12)
+                    .padding(.horizontal, YTLiteLayout.stackLoose)
                     .padding(.bottom, 10)
             }
         }
     }
 
     private var overlayTopBar: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: YTLiteLayout.stackDefault) {
             overlayIconButton(systemName: "chevron.down") {
                 dismiss()
             }
@@ -184,11 +186,11 @@ struct PlayerDetailView: View {
                     bumpOverlayAutoHide()
                 } label: {
                     Text(PlaybackSpeeds.formatLabel(playback.playbackSpeed))
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.white)
+                        .font(YTLiteType.badge)
+                        .foregroundStyle(YTLiteColor.onSurface)
                         .frame(minWidth: 36)
                         .padding(.horizontal, 10)
-                        .padding(.vertical, 10)
+                        .padding(.vertical, YTLiteLayout.rowVertical)
                 }
                 .buttonStyle(.plain)
 
@@ -206,7 +208,7 @@ struct PlayerDetailView: View {
     }
 
     private var overlayTransport: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: YTLiteLayout.stackDefault) {
             overlayPlainIcon("backward.fill", size: 22) {
                 playback.playPrevious()
                 bumpOverlayAutoHide()
@@ -220,16 +222,16 @@ struct PlayerDetailView: View {
                 bumpOverlayAutoHide()
             }
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
+        .padding(.horizontal, YTLiteLayout.stackDefault)
+        .padding(.vertical, YTLiteLayout.stackTight)
         .background(Color.black.opacity(0.5), in: RoundedRectangle(cornerRadius: 20))
     }
 
     private var overlayProgress: some View {
         HStack(spacing: 10) {
             Text(formatTime(playback.positionSeconds))
-                .font(.caption2.monospacedDigit())
-                .foregroundStyle(.white)
+                .font(YTLiteType.tabLabel.monospacedDigit())
+                .foregroundStyle(YTLiteColor.onSurface)
                 .frame(minWidth: 36, alignment: .leading)
 
             OrangeProgressBar(
@@ -241,8 +243,8 @@ struct PlayerDetailView: View {
             }
 
             Text(formatTime(playback.durationSeconds))
-                .font(.caption2.monospacedDigit())
-                .foregroundStyle(.white)
+                .font(YTLiteType.tabLabel.monospacedDigit())
+                .foregroundStyle(YTLiteColor.onSurface)
                 .frame(minWidth: 36, alignment: .trailing)
         }
     }
@@ -251,7 +253,7 @@ struct PlayerDetailView: View {
         Button(action: action) {
             Image(systemName: systemName)
                 .font(.body.weight(.semibold))
-                .foregroundStyle(.white)
+                .foregroundStyle(YTLiteColor.onSurface)
                 .frame(width: 40, height: 40)
                 .background(Color.black.opacity(0.5), in: Circle())
         }
@@ -266,7 +268,7 @@ struct PlayerDetailView: View {
         Button(action: action) {
             Image(systemName: systemName)
                 .font(.system(size: size, weight: .semibold))
-                .foregroundStyle(.white)
+                .foregroundStyle(YTLiteColor.onSurface)
                 .frame(width: 44, height: 44)
                 .contentShape(Rectangle())
         }
@@ -290,25 +292,25 @@ struct PlayerDetailView: View {
     // MARK: - Metadata
 
     private var titleBlock: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
+        VStack(alignment: .leading, spacing: YTLiteLayout.stackDefault) {
+            HStack(spacing: YTLiteLayout.stackDefault) {
                 Text(playback.nowPlaying?.title ?? "")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.white)
+                    .font(YTLiteType.rowTitle)
+                    .foregroundStyle(YTLiteColor.onSurface)
                     .lineLimit(1)
-                Spacer(minLength: 8)
+                Spacer(minLength: YTLiteLayout.stackDefault)
                 Image(systemName: "ellipsis")
                     .foregroundStyle(YTLiteColor.onSurfaceVariant)
             }
             HStack(spacing: 10) {
                 Text(playback.nowPlaying?.channelName ?? "")
-                    .font(.subheadline)
+                    .font(YTLiteType.body)
                     .foregroundStyle(YTLiteColor.onSurfaceVariant)
                     .lineLimit(1)
                 Text("Subscribe")
-                    .font(.caption.weight(.semibold))
+                    .font(YTLiteType.badge)
                     .foregroundStyle(.black)
-                    .padding(.horizontal, 12)
+                    .padding(.horizontal, YTLiteLayout.stackLoose)
                     .padding(.vertical, 6)
                     .background(Color.white, in: Capsule())
             }
@@ -320,7 +322,7 @@ struct PlayerDetailView: View {
             actionItem(
                 title: "Like",
                 icon: playback.isFavorite ? "hand.thumbsup.fill" : "hand.thumbsup",
-                tint: playback.isFavorite ? YTLiteColor.accent : .white
+                tint: playback.isFavorite ? YTLiteColor.accent : YTLiteColor.onSurface
             ) {
                 playback.toggleFavorite()
             }
@@ -329,9 +331,9 @@ struct PlayerDetailView: View {
                 ShareLink(item: item.watchShareURL) {
                     VStack(spacing: 6) {
                         Image(systemName: "arrowshape.turn.up.right")
-                        Text("Share").font(.caption2)
+                        Text("Share").font(YTLiteType.iconCaption)
                     }
-                    .foregroundStyle(.white)
+                    .foregroundStyle(YTLiteColor.onSurface)
                     .frame(maxWidth: .infinity)
                 }
             }
@@ -340,7 +342,7 @@ struct PlayerDetailView: View {
             }
             actionItem(title: "Download", icon: "arrow.down.to.line") {}
         }
-        .padding(.vertical, 14)
+        .padding(.vertical, YTLiteLayout.stackLoose)
         .background(
             YTLiteColor.surfaceVariant.opacity(0.55),
             in: RoundedRectangle(cornerRadius: 28)
@@ -350,13 +352,13 @@ struct PlayerDetailView: View {
     private func actionItem(
         title: String,
         icon: String,
-        tint: Color = .white,
+        tint: Color = YTLiteColor.onSurface,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
             VStack(spacing: 6) {
                 Image(systemName: icon)
-                Text(title).font(.caption2)
+                Text(title).font(YTLiteType.iconCaption)
             }
             .foregroundStyle(tint)
             .frame(maxWidth: .infinity)
@@ -369,13 +371,13 @@ struct PlayerDetailView: View {
             Button { shuffleOn.toggle() } label: {
                 Image(systemName: "shuffle")
                     .font(.title3)
-                    .foregroundStyle(shuffleOn ? YTLiteColor.accent : .white)
+                    .foregroundStyle(shuffleOn ? YTLiteColor.accent : YTLiteColor.onSurface)
             }
             Spacer()
             Button { playback.playPrevious() } label: {
                 Image(systemName: "backward.fill")
                     .font(.title2)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(YTLiteColor.onSurface)
             }
             Spacer()
             Button { playback.togglePlayPause() } label: {
@@ -391,17 +393,17 @@ struct PlayerDetailView: View {
             Button { playback.playNext() } label: {
                 Image(systemName: "forward.fill")
                     .font(.title2)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(YTLiteColor.onSurface)
             }
             Spacer()
             Button { repeatOn.toggle() } label: {
                 Image(systemName: "repeat")
                     .font(.title3)
-                    .foregroundStyle(repeatOn ? YTLiteColor.accent : .white)
+                    .foregroundStyle(repeatOn ? YTLiteColor.accent : YTLiteColor.onSurface)
             }
         }
         .buttonStyle(.plain)
-        .padding(.vertical, 4)
+        .padding(.vertical, YTLiteLayout.stackTight)
     }
 
     // MARK: - Tabs
@@ -412,12 +414,12 @@ struct PlayerDetailView: View {
                 Button {
                     tab = item
                 } label: {
-                    VStack(spacing: 8) {
+                    VStack(spacing: YTLiteLayout.stackDefault) {
                         Text(item.rawValue)
-                            .font(.subheadline.weight(tab == item ? .semibold : .regular))
-                            .foregroundStyle(tab == item ? .white : YTLiteColor.onSurfaceVariant)
+                            .font(tab == item ? YTLiteType.labelEmphasized : YTLiteType.label)
+                            .foregroundStyle(tab == item ? YTLiteColor.onSurface : YTLiteColor.onSurfaceVariant)
                         Rectangle()
-                            .fill(tab == item ? Color.white : Color.clear)
+                            .fill(tab == item ? YTLiteColor.onSurface : Color.clear)
                             .frame(height: 2)
                     }
                 }
@@ -428,9 +430,9 @@ struct PlayerDetailView: View {
     }
 
     private var listToolbar: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: YTLiteLayout.stackLoose) {
             Text(toolbarTitle)
-                .font(.subheadline)
+                .font(YTLiteType.body)
                 .foregroundStyle(YTLiteColor.onSurfaceVariant)
             Spacer()
             if tab == .upNext {
@@ -443,7 +445,7 @@ struct PlayerDetailView: View {
                 } label: {
                     Image(systemName: "plus")
                         .font(.body.weight(.bold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(YTLiteColor.onSurface)
                         .frame(width: 36, height: 36)
                         .background(YTLiteColor.accent, in: Circle())
                 }
@@ -474,21 +476,23 @@ struct PlayerDetailView: View {
             }
         case .lyrics:
             LyricsPanel()
-                .padding(.top, 4)
+                .padding(.top, YTLiteLayout.stackTight)
         case .related:
             if relatedLoading && related.isEmpty {
                 ProgressView()
                     .tint(YTLiteColor.accent)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 24)
+                    .padding(.vertical, YTLiteLayout.sectionGap)
             } else if let relatedError, related.isEmpty {
                 Text(relatedError)
+                    .font(YTLiteType.body)
                     .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                    .padding(.vertical, 16)
+                    .padding(.vertical, YTLiteLayout.screenPadding)
             } else if related.isEmpty {
                 Text("No related videos")
+                    .font(YTLiteType.body)
                     .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                    .padding(.vertical, 16)
+                    .padding(.vertical, YTLiteLayout.screenPadding)
             } else {
                 ForEach(Array(related.enumerated()), id: \.element.id) { index, item in
                     Button {
@@ -550,7 +554,7 @@ private struct OrangeProgressBar: View {
             let trackH: CGFloat = 3
             ZStack(alignment: .leading) {
                 Capsule()
-                    .fill(Color.white.opacity(0.35))
+                    .fill(YTLiteColor.onSurface.opacity(0.35))
                     .frame(height: trackH)
                 Capsule()
                     .fill(YTLiteColor.accent)
@@ -579,7 +583,7 @@ private struct UpNextRow: View {
     let isCurrent: Bool
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: YTLiteLayout.stackLoose) {
             ZStack(alignment: .bottomTrailing) {
                 AsyncImage(url: item.thumbnailURL) { phase in
                     switch phase {
@@ -598,13 +602,13 @@ private struct UpNextRow: View {
                 }
             }
 
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: YTLiteLayout.stackTight) {
                 Text(item.title)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(isCurrent ? YTLiteColor.accent : .white)
+                    .font(YTLiteType.rowTitle)
+                    .foregroundStyle(isCurrent ? YTLiteColor.accent : YTLiteColor.onSurface)
                     .lineLimit(1)
                 Text(item.channelName)
-                    .font(.caption)
+                    .font(YTLiteType.meta)
                     .foregroundStyle(YTLiteColor.onSurfaceVariant)
                     .lineLimit(1)
             }
@@ -614,13 +618,13 @@ private struct UpNextRow: View {
             Image(systemName: "ellipsis")
                 .foregroundStyle(YTLiteColor.onSurfaceVariant)
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 8)
+        .padding(.horizontal, YTLiteLayout.stackDefault)
+        .padding(.vertical, YTLiteLayout.rowVertical)
         .background(
             isCurrent
                 ? YTLiteColor.accent.opacity(0.14)
                 : Color.clear,
-            in: RoundedRectangle(cornerRadius: 8)
+            in: RoundedRectangle(cornerRadius: YTLiteLayout.thumbRadius)
         )
     }
 }
@@ -654,7 +658,7 @@ struct SpeedPickerSheet: View {
                                 ? "Normal (\(PlaybackSpeeds.formatLabel(speed)))"
                                 : PlaybackSpeeds.formatLabel(speed)
                         )
-                        .foregroundStyle(.white)
+                        .foregroundStyle(YTLiteColor.onSurface)
                         Spacer()
                         if abs(speed - selected) < 0.001 {
                             Image(systemName: "checkmark")
@@ -693,7 +697,7 @@ struct AddToPlaylistSheet: View {
                     )
                     dismiss()
                 }
-                .foregroundStyle(.white)
+                .foregroundStyle(YTLiteColor.onSurface)
                 .listRowBackground(YTLiteColor.surfaceElevated)
             }
             .scrollContentBackground(.hidden)
