@@ -18,7 +18,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ytlite.player.MainActivity
 import com.ytlite.player.R
 import com.ytlite.player.data.local.entity.PlaylistSystemType
-import com.ytlite.player.data.model.LibraryFilterChip
 import com.ytlite.player.data.model.LibraryItem
 import com.ytlite.player.data.model.SubscriptionChannel
 import com.ytlite.player.data.model.VideoItem
@@ -157,13 +156,7 @@ fun LibraryNavHost(
                 uiState = uiState,
                 onProfileClick = { showAccountSheet = true },
                 onSettingsClick = { destination = LibraryDestination.Settings },
-                onFilterSelected = { chip ->
-                    if (chip == LibraryFilterChip.DOWNLOADS) {
-                        destination = LibraryDestination.Downloads
-                    } else {
-                        viewModel.selectFilter(chip)
-                    }
-                },
+                onFilterSelected = viewModel::selectFilter,
                 onSetSort = viewModel::setSort,
                 onToggleViewMode = viewModel::toggleViewMode,
                 onItemClick = { item ->
@@ -226,6 +219,7 @@ fun LibraryNavHost(
                 },
                 onFindMusic = onNavigateHomeTab,
                 onNewPlaylist = { showNewPlaylistDialog = true },
+                onDownloadsClick = { destination = LibraryDestination.Downloads },
                 onEnterPlaylistReorder = viewModel::enterPlaylistReorderMode,
                 onExitPlaylistReorder = viewModel::exitPlaylistReorderMode,
                 onPlaylistOrderCommitted = viewModel::commitPlaylistOrder,

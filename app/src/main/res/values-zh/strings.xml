@@ -157,6 +157,8 @@
     <string name="library_chip_playlists">播放列表</string>
     <string name="library_chip_songs">歌曲</string>
     <string name="library_chip_downloads">下载</string>
+    <string name="library_downloads_entry_count">已下载 %1$d 项</string>
+    <string name="library_downloads_entry_empty">点击管理下载内容</string>
     <string name="library_chip_channels">频道</string>
     <string name="library_chip_albums">专辑</string>
     <string name="library_chip_youtube">YouTube</string>
@@ -227,10 +229,10 @@
     <string name="track_download_section_music">音频</string>
     <string name="track_download_section_video">视频</string>
     <string name="track_download_music_fast">快速</string>
-    <string name="track_download_music_classic">标准 AAC</string>
+    <string name="track_download_music_classic">HQ</string>
     <string name="track_download_music_high">高音质</string>
     <string name="track_download_music_generic">音频 (itag %1$d)</string>
-    <string name="track_download_video_fast_360">快速 (360p)</string>
+    <string name="track_download_video_fast_360">快速</string>
     <string name="track_download_video_high_720">高画质 (720p)</string>
     <string name="track_download_video_best_1080">最佳画质 (1080p)</string>
     <string name="track_download_video_generic">视频 (%1$dp)</string>
@@ -271,9 +273,9 @@
     <string name="settings_download_wifi_only">仅 Wi‑Fi 下载</string>
     <string name="settings_download_default_format">默认格式</string>
     <string name="settings_download_format_ask">每次询问</string>
-    <string name="settings_download_format_audio">音频 (itag 140)</string>
-    <string name="settings_download_format_360">视频 360p</string>
-    <string name="settings_download_format_720">视频 720p</string>
+    <string name="settings_download_format_audio">音乐</string>
+    <string name="settings_download_format_360">视频（快速）</string>
+    <string name="settings_download_format_720">视频（高清）</string>
     <string name="track_action_view_lyrics">查看歌词</string>
     <string name="track_action_not_interested">不感兴趣</string>
     <string name="track_action_remove_not_interested">撤销不感兴趣</string>

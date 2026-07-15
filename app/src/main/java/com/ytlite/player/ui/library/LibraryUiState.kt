@@ -21,6 +21,7 @@ data class LibraryUiState(
     val isSelectionMode: Boolean = false,
     val selectedIds: Set<String> = emptySet(),
     val pendingSnackbar: String? = null,
+    val downloadedCount: Int = 0,
 ) {
     val selectedCount: Int get() = selectedIds.size
 

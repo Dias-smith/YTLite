@@ -57,6 +57,7 @@ fun LibraryHomeScreen(
     onChannelMoreClick: (LibraryItem.Channel) -> Unit = {},
     onFindMusic: () -> Unit,
     onNewPlaylist: () -> Unit,
+    onDownloadsClick: () -> Unit,
     onEnterPlaylistReorder: () -> Unit = {},
     onExitPlaylistReorder: () -> Unit = {},
     onPlaylistOrderCommitted: ((List<LibraryItem.Playlist>) -> Unit)? = null,
@@ -180,6 +181,10 @@ fun LibraryHomeScreen(
                 .padding(innerPadding),
         ) {
             if (!uiState.isSelectionMode) {
+                LibraryDownloadsEntry(
+                    downloadedCount = uiState.downloadedCount,
+                    onClick = onDownloadsClick,
+                )
                 LibraryFilterChips(
                     visibleChips = uiState.visibleChips,
                     selectedFilter = uiState.selectedFilter,

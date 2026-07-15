@@ -208,7 +208,7 @@ internal object LibraryItemMapper {
             LibraryFilterChip.PLAYLISTS,
             LibraryFilterChip.SONGS,
             LibraryFilterChip.CHANNELS,
-            LibraryFilterChip.DOWNLOADS,
+            // Downloads uses a fixed entry card on Library home (not a filter chip).
             // Albums / YouTube chips intentionally hidden for v1.
         )
 

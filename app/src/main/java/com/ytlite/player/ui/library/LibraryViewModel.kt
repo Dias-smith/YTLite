@@ -16,6 +16,7 @@ import com.ytlite.player.data.model.LibraryViewMode
 import com.ytlite.player.data.repository.LibraryItemMapper
 import com.ytlite.player.data.repository.LibraryRepository
 import com.ytlite.player.data.youtube.YoutubeDiagnostics
+import com.ytlite.player.download.DownloadRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -31,6 +32,7 @@ class LibraryViewModel(
     application: Application,
     private val authRepository: AuthRepository = AuthRepository.getInstance(application),
     private val libraryRepository: LibraryRepository = LibraryRepository.getInstance(application),
+    private val downloadRepository: DownloadRepository = DownloadRepository.getInstance(application),
 ) : ViewModel() {
 
     private val sessionFlow = authRepository.session
@@ -78,7 +80,8 @@ class LibraryViewModel(
             isSelectionMode,
             selectedIds,
             pendingSnackbar,
-        ) { items, selectionMode, ids, snackbar ->
+            downloadRepository.observeDownloaded().map { it.size },
+        ) { items, selectionMode, ids, snackbar, downloadedCount ->
             LibraryUiState(
                 session = session,
                 items = items,
@@ -91,6 +94,7 @@ class LibraryViewModel(
                 isSelectionMode = selectionMode,
                 selectedIds = ids,
                 pendingSnackbar = snackbar,
+                downloadedCount = downloadedCount,
             )
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LibraryUiState(isLoading = true))

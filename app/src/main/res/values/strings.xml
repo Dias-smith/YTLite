@@ -175,6 +175,8 @@
     <string name="library_chip_playlists">Playlists</string>
     <string name="library_chip_songs">Songs</string>
     <string name="library_chip_downloads">Downloads</string>
+    <string name="library_downloads_entry_count">%1$d downloaded</string>
+    <string name="library_downloads_entry_empty">Tap to manage downloads</string>
     <string name="library_chip_channels">Channels</string>
     <string name="library_chip_albums">Albums</string>
     <string name="library_chip_youtube">YouTube</string>
@@ -275,10 +277,10 @@
     <string name="track_download_section_music">Music</string>
     <string name="track_download_section_video">Video</string>
     <string name="track_download_music_fast">Fast</string>
-    <string name="track_download_music_classic">Classic AAC</string>
+    <string name="track_download_music_classic">HQ</string>
     <string name="track_download_music_high">High quality</string>
     <string name="track_download_music_generic">Audio (itag %1$d)</string>
-    <string name="track_download_video_fast_360">Fast (360p)</string>
+    <string name="track_download_video_fast_360">Fast</string>
     <string name="track_download_video_high_720">High quality (720p)</string>
     <string name="track_download_video_best_1080">Best quality (1080p)</string>
     <string name="track_download_video_generic">Video (%1$dp)</string>
@@ -319,9 +321,9 @@
     <string name="settings_download_wifi_only">Wi‑Fi only</string>
     <string name="settings_download_default_format">Default format</string>
     <string name="settings_download_format_ask">Ask each time</string>
-    <string name="settings_download_format_audio">Audio (itag 140)</string>
-    <string name="settings_download_format_360">Video 360p</string>
-    <string name="settings_download_format_720">Video 720p</string>
+    <string name="settings_download_format_audio">Music</string>
+    <string name="settings_download_format_360">Video(fast)</string>
+    <string name="settings_download_format_720">Video(HD)</string>
     <string name="track_action_view_lyrics">View lyrics</string>
     <string name="track_action_not_interested">Not interested</string>
     <string name="track_action_remove_not_interested">Remove not interested</string>
