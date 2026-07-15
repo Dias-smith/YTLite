@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -47,6 +48,7 @@ import com.ytlite.player.data.model.SearchResultTab
 import com.ytlite.player.data.model.VideoItem
 import com.ytlite.player.ui.library.LibraryImage
 import com.ytlite.player.ui.player.toVideoItem
+import com.ytlite.player.ui.trackaction.LocalTrackDownloadClick
 import com.ytlite.player.ui.trackaction.LocalTrackMoreClick
 import com.ytlite.player.ui.trackaction.TrackActionContext
 
@@ -212,12 +214,13 @@ private fun VideoResultRow(
     onClick: (VideoItem) -> Unit,
 ) {
     val onTrackMoreClick = LocalTrackMoreClick.current
+    val onTrackDownloadClick = LocalTrackDownloadClick.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick(item.toVideoItem()) }
             .padding(horizontal = 16.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         LibraryImage(
@@ -227,7 +230,11 @@ private fun VideoResultRow(
                 .size(112.dp, 63.dp)
                 .clip(RoundedCornerShape(8.dp)),
         )
-        Column(modifier = Modifier.weight(1f)) {
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(start = 8.dp),
+        ) {
             Text(
                 text = item.title,
                 style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
@@ -242,7 +249,19 @@ private fun VideoResultRow(
                 overflow = TextOverflow.Ellipsis,
             )
         }
-        IconButton(onClick = { onTrackMoreClick(TrackActionContext.fromSearchVideo(item)) }) {
+        IconButton(
+            onClick = { onTrackDownloadClick(item.videoId) },
+            modifier = Modifier.size(36.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Download,
+                contentDescription = stringResource(R.string.library_action_download),
+            )
+        }
+        IconButton(
+            onClick = { onTrackMoreClick(TrackActionContext.fromSearchVideo(item)) },
+            modifier = Modifier.size(36.dp),
+        ) {
             Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.library_song_more))
         }
     }

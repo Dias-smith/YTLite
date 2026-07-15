@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import com.ytlite.player.R
 import com.ytlite.player.data.model.VideoPlayback
 import com.ytlite.player.playback.NowPlaying
+import com.ytlite.player.ui.trackaction.LocalTrackDownloadClick
 import com.ytlite.player.ui.trackaction.LocalTrackMoreClick
 import com.ytlite.player.ui.trackaction.TrackActionContext
 import com.ytlite.player.ui.trackaction.TrackActionSource
@@ -46,6 +47,7 @@ fun PlayerMetadataPanel(
     showTitle: Boolean = true,
 ) {
     val onTrackMoreClick = LocalTrackMoreClick.current
+    val onTrackDownloadClick = LocalTrackDownloadClick.current
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -145,6 +147,7 @@ fun PlayerMetadataPanel(
             onDislike = onDislike,
             onShare = onShare,
             onSaveToPlaylist = onSaveToPlaylist,
+            onDownload = { onTrackDownloadClick(playback.videoId) },
         )
     }
 }

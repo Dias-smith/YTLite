@@ -87,6 +87,8 @@
     <string name="player_subscribe">订阅</string>
     <string name="player_subscribed">已订阅</string>
     <string name="player_share">分享</string>
+    <string name="player_save_playlist">保存</string>
+    <string name="player_download">下载</string>
     <string name="player_cast">投屏</string>
     <string name="player_show_more">展开</string>
     <string name="player_show_less">收起</string>
