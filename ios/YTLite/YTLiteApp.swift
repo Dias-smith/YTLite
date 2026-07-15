@@ -43,7 +43,10 @@ struct YTLiteApp: App {
             LibraryTrack.self,
             LibraryPlaylist.self,
             LibraryPlaylistEntry.self,
-            PlayHistoryItem.self,
+            PlaybackHistoryItem.self,
+            UserTrackLastPlayed.self,
+            UserTrackMetadata.self,
+            UserSubscribedChannel.self,
         ])
         let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
         do {

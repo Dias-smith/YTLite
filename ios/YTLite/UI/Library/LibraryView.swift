@@ -12,7 +12,7 @@ struct LibraryView: View {
     @EnvironmentObject private var auth: AuthService
     @EnvironmentObject private var appModel: AppModel
     @State private var playlists: [LibraryPlaylist] = []
-    @State private var history: [PlayHistoryItem] = []
+    @State private var history: [VideoItem] = []
     @State private var showNewPlaylist = false
     @State private var newPlaylistName = ""
     @State private var showPlayer = false
@@ -184,12 +184,12 @@ struct LibraryView: View {
                         .foregroundStyle(YTLiteColor.onSurfaceVariant)
                         .padding()
                 } else {
-                    ForEach(history, id: \.playedAt) { item in
+                    ForEach(history) { item in
                         Button {
-                            playback.play(items: [item.asVideoItem], startAt: 0)
+                            playback.play(items: [item], startAt: 0)
                             showPlayer = true
                         } label: {
-                            LibrarySongRow(item: item.asVideoItem)
+                            LibrarySongRow(item: item)
                         }
                         .buttonStyle(.plain)
                     }
@@ -253,7 +253,7 @@ struct LibraryView: View {
 
     private func reload() {
         playlists = store?.allPlaylists() ?? []
-        history = store?.history() ?? []
+        history = store?.historyVideos() ?? []
     }
 }
 

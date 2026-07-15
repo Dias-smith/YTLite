@@ -14,7 +14,8 @@ final class LibraryStore {
     }
 
     func ensureSystemPlaylists() {
-        ensureSystemPlaylist(name: "Favorites", systemType: SystemPlaylistType.favorites)
+        // Names match Supabase seed_system_playlists() / Android.
+        ensureSystemPlaylist(name: "Liked videos", systemType: SystemPlaylistType.favorites)
         ensureSystemPlaylist(name: "Watch later", systemType: SystemPlaylistType.watchLater)
         try? modelContext.save()
     }
@@ -32,28 +33,72 @@ final class LibraryStore {
         let resolvedDuration = durationSeconds > 0
             ? durationSeconds
             : DurationFormat.seconds(from: item.durationText)
-        let videoId = item.videoId
+        let durationText = item.durationText ?? DurationFormat.text(seconds: resolvedDuration)
+        let trackId = item.videoId
         var descriptor = FetchDescriptor<LibraryTrack>(
-            predicate: #Predicate { $0.videoId == videoId }
+            predicate: #Predicate { $0.trackId == trackId }
         )
         descriptor.fetchLimit = 1
+        let thumb = item.thumbnailURL?.absoluteString
         if let existing = try? modelContext.fetch(descriptor).first {
             existing.title = item.title
-            existing.channelName = item.channelName
-            existing.thumbnailURLString = item.thumbnailURL?.absoluteString
-            if resolvedDuration > 0 { existing.durationSeconds = resolvedDuration }
+            existing.primaryArtistName = item.channelName
+            if let thumb {
+                existing.thumbnailHigh = thumb
+            }
+            if resolvedDuration > 0 {
+                existing.durationSeconds = resolvedDuration
+                existing.durationText = durationText
+            } else if let durationText {
+                existing.durationText = durationText
+            }
             existing.updatedAt = .now
             return existing
         }
         let track = LibraryTrack(
-            videoId: item.videoId,
+            trackId: item.videoId,
             title: item.title,
-            channelName: item.channelName,
-            thumbnailURLString: item.thumbnailURL?.absoluteString,
-            durationSeconds: resolvedDuration
+            durationSeconds: resolvedDuration,
+            durationText: durationText,
+            thumbnailHigh: thumb,
+            primaryArtistName: item.channelName
         )
         modelContext.insert(track)
         return track
+    }
+
+    @discardableResult
+    func upsertTrackEntity(_ track: LibraryTrack) -> LibraryTrack {
+        let trackId = track.trackId
+        var descriptor = FetchDescriptor<LibraryTrack>(
+            predicate: #Predicate { $0.trackId == trackId }
+        )
+        descriptor.fetchLimit = 1
+        if let existing = try? modelContext.fetch(descriptor).first {
+            existing.title = track.title
+            if track.durationSeconds > 0 { existing.durationSeconds = track.durationSeconds }
+            if let text = track.durationText { existing.durationText = text }
+            if let v = track.thumbnailLow { existing.thumbnailLow = v }
+            if let v = track.thumbnailMedium { existing.thumbnailMedium = v }
+            if let v = track.thumbnailHigh { existing.thumbnailHigh = v }
+            if track.viewCount > 0 { existing.viewCount = track.viewCount }
+            if let v = track.viewCountText { existing.viewCountText = v }
+            if let v = track.publishedText { existing.publishedText = v }
+            if let v = track.primaryArtistId { existing.primaryArtistId = v }
+            if let v = track.primaryArtistName { existing.primaryArtistName = v }
+            existing.updatedAt = .now
+            return existing
+        }
+        modelContext.insert(track)
+        return track
+    }
+
+    func track(id trackId: String) -> LibraryTrack? {
+        var descriptor = FetchDescriptor<LibraryTrack>(
+            predicate: #Predicate { $0.trackId == trackId }
+        )
+        descriptor.fetchLimit = 1
+        return try? modelContext.fetch(descriptor).first
     }
 
     func favoritesPlaylist() -> LibraryPlaylist? {
@@ -67,28 +112,60 @@ final class LibraryStore {
         return (try? modelContext.fetch(descriptor)) ?? []
     }
 
-    func history(limit: Int = 100) -> [PlayHistoryItem] {
-        var descriptor = FetchDescriptor<PlayHistoryItem>(
+    /// Recent plays for Library Songs (resolved via tracks), mirroring Android last-played list.
+    func historyVideos(limit: Int = 100) -> [VideoItem] {
+        lastPlayed(limit: limit).compactMap { row in
+            track(id: row.trackId)?.asVideoItem
+        }
+    }
+
+    func playbackHistory(limit: Int = 50) -> [PlaybackHistoryItem] {
+        var descriptor = FetchDescriptor<PlaybackHistoryItem>(
             sortBy: [SortDescriptor(\.playedAt, order: .reverse)]
         )
         descriptor.fetchLimit = limit
         return (try? modelContext.fetch(descriptor)) ?? []
     }
 
+    /// Legacy name used by sync / older call sites.
+    func history(limit: Int = 100) -> [PlaybackHistoryItem] {
+        playbackHistory(limit: limit)
+    }
+
+    func lastPlayed(limit: Int = 100) -> [UserTrackLastPlayed] {
+        var descriptor = FetchDescriptor<UserTrackLastPlayed>(
+            sortBy: [SortDescriptor(\.lastPlayedAt, order: .reverse)]
+        )
+        descriptor.fetchLimit = limit
+        return (try? modelContext.fetch(descriptor)) ?? []
+    }
+
+    func allMetadata() -> [UserTrackMetadata] {
+        (try? modelContext.fetch(FetchDescriptor<UserTrackMetadata>())) ?? []
+    }
+
+    func allSubscribedChannels() -> [UserSubscribedChannel] {
+        let descriptor = FetchDescriptor<UserSubscribedChannel>(
+            sortBy: [SortDescriptor(\.subscribedAt, order: .reverse)]
+        )
+        return (try? modelContext.fetch(descriptor)) ?? []
+    }
+
     func isFavorite(videoId: String) -> Bool {
         guard let fav = favoritesPlaylist() else { return false }
-        return fav.entries.contains { $0.track?.videoId == videoId }
+        return fav.entries.contains { $0.track?.trackId == videoId }
     }
 
     func toggleFavorite(item: VideoItem) {
         guard let fav = favoritesPlaylist() else { return }
-        if let entry = fav.entries.first(where: { $0.track?.videoId == item.videoId }) {
+        if let entry = fav.entries.first(where: { $0.track?.trackId == item.videoId }) {
             modelContext.delete(entry)
         } else {
             let track = upsertTrack(from: item)
             let entry = LibraryPlaylistEntry(position: fav.entries.count, track: track)
             fav.entries.append(entry)
             fav.updatedAt = .now
+            fav.isSynced = false
         }
         save()
     }
@@ -110,17 +187,18 @@ final class LibraryStore {
     }
 
     func add(item: VideoItem, to playlist: LibraryPlaylist) {
-        if playlist.entries.contains(where: { $0.track?.videoId == item.videoId }) {
+        if playlist.entries.contains(where: { $0.track?.trackId == item.videoId }) {
             return
         }
         let track = upsertTrack(from: item)
         let entry = LibraryPlaylistEntry(position: playlist.entries.count, track: track)
         playlist.entries.append(entry)
         playlist.updatedAt = .now
+        playlist.isSynced = false
         save()
     }
 
-    func recordPlayback(_ item: NowPlayingItem, durationSeconds: Int = 0) {
+    func recordPlayback(_ item: NowPlayingItem, durationSeconds: Int = 0, progressMs: Int64 = 0) {
         let resolvedDuration = durationSeconds > 0
             ? durationSeconds
             : DurationFormat.seconds(from: item.durationText)
@@ -132,15 +210,94 @@ final class LibraryStore {
             durationText: DurationFormat.text(seconds: resolvedDuration) ?? item.durationText
         )
         _ = upsertTrack(from: video, durationSeconds: resolvedDuration)
-        let history = PlayHistoryItem(
-            videoId: item.videoId,
-            title: item.title,
-            channelName: item.channelName,
-            thumbnailURLString: item.thumbnailURL?.absoluteString,
-            durationSeconds: resolvedDuration > 0 ? resolvedDuration : nil
+
+        let history = PlaybackHistoryItem(
+            trackId: item.videoId,
+            progressMs: progressMs,
+            isSynced: false
         )
         modelContext.insert(history)
+
+        let trackId = item.videoId
+        var descriptor = FetchDescriptor<UserTrackLastPlayed>(
+            predicate: #Predicate { $0.trackId == trackId }
+        )
+        descriptor.fetchLimit = 1
+        if let existing = try? modelContext.fetch(descriptor).first {
+            existing.lastPlayedAt = .now
+            existing.progressMs = progressMs
+            existing.isSynced = false
+        } else {
+            modelContext.insert(
+                UserTrackLastPlayed(trackId: trackId, progressMs: progressMs, isSynced: false)
+            )
+        }
         save()
+    }
+
+    func upsertLastPlayedRemote(
+        trackId: String,
+        lastPlayedAt: Date,
+        progressMs: Int64
+    ) {
+        var descriptor = FetchDescriptor<UserTrackLastPlayed>(
+            predicate: #Predicate { $0.trackId == trackId }
+        )
+        descriptor.fetchLimit = 1
+        if let existing = try? modelContext.fetch(descriptor).first {
+            if lastPlayedAt > existing.lastPlayedAt {
+                existing.lastPlayedAt = lastPlayedAt
+                existing.progressMs = progressMs
+            }
+            existing.isSynced = true
+        } else {
+            modelContext.insert(
+                UserTrackLastPlayed(
+                    trackId: trackId,
+                    lastPlayedAt: lastPlayedAt,
+                    progressMs: progressMs,
+                    isSynced: true
+                )
+            )
+        }
+    }
+
+    func upsertMetadata(_ meta: UserTrackMetadata) {
+        let trackId = meta.trackId
+        var descriptor = FetchDescriptor<UserTrackMetadata>(
+            predicate: #Predicate { $0.trackId == trackId }
+        )
+        descriptor.fetchLimit = 1
+        if let existing = try? modelContext.fetch(descriptor).first {
+            existing.customTitle = meta.customTitle
+            existing.customArtistName = meta.customArtistName
+            existing.customThumbnailUrl = meta.customThumbnailUrl
+            existing.customAlbum = meta.customAlbum
+            existing.customYear = meta.customYear
+            existing.updatedAt = meta.updatedAt
+            existing.isSynced = meta.isSynced
+        } else {
+            modelContext.insert(meta)
+        }
+    }
+
+    func upsertSubscribedChannel(_ channel: UserSubscribedChannel) {
+        let channelId = channel.channelId
+        var descriptor = FetchDescriptor<UserSubscribedChannel>(
+            predicate: #Predicate { $0.channelId == channelId }
+        )
+        descriptor.fetchLimit = 1
+        if let existing = try? modelContext.fetch(descriptor).first {
+            existing.title = channel.title
+            existing.handle = channel.handle
+            existing.avatarUrl = channel.avatarUrl
+            existing.subscriberCountText = channel.subscriberCountText
+            existing.descriptionText = channel.descriptionText
+            existing.subscribedAt = channel.subscribedAt
+            existing.isSynced = channel.isSynced
+        } else {
+            modelContext.insert(channel)
+        }
     }
 
     func deletePlaylist(_ playlist: LibraryPlaylist) {
