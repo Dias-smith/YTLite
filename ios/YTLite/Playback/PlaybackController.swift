@@ -82,6 +82,36 @@ final class PlaybackController: ObservableObject {
         isFavorite = store.isFavorite(videoId: item.videoId)
     }
 
+    /// Insert after the currently playing item (Android "Play next").
+    func insertNext(_ item: VideoItem) {
+        if queue.isEmpty {
+            play(items: [item], startAt: 0)
+            return
+        }
+        let insertAt = min(queueIndex + 1, queue.count)
+        if let existing = queue.firstIndex(where: { $0.videoId == item.videoId }) {
+            guard existing != queueIndex else { return }
+            var next = queue
+            next.remove(at: existing)
+            let adjusted = existing < insertAt ? insertAt - 1 : insertAt
+            next.insert(item, at: min(adjusted, next.count))
+            if existing < queueIndex { queueIndex -= 1 }
+            queue = next
+            return
+        }
+        queue.insert(item, at: insertAt)
+    }
+
+    /// Append to the end of the play queue (Android "Add to queue").
+    func appendToQueue(_ item: VideoItem) {
+        if queue.isEmpty {
+            play(items: [item], startAt: 0)
+            return
+        }
+        if queue.contains(where: { $0.videoId == item.videoId }) { return }
+        queue.append(item)
+    }
+
     func refreshFavoriteState() {
         guard let videoId = nowPlaying?.videoId else {
             isFavorite = false

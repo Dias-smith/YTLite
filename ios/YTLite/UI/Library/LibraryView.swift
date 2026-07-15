@@ -11,6 +11,7 @@ struct LibraryView: View {
     @EnvironmentObject private var playback: PlaybackController
     @EnvironmentObject private var auth: AuthService
     @EnvironmentObject private var appModel: AppModel
+    @EnvironmentObject private var trackActions: TrackActionPresenter
     @State private var playlists: [LibraryPlaylist] = []
     @State private var history: [VideoItem] = []
     @State private var showNewPlaylist = false
@@ -52,6 +53,7 @@ struct LibraryView: View {
                 }
             }
             .onAppear(perform: reload)
+            .onChange(of: trackActions.listEpoch) { _, _ in reload() }
             .alert("New playlist", isPresented: $showNewPlaylist) {
                 TextField("Name", text: $newPlaylistName)
                 Button("Create") {
@@ -189,7 +191,9 @@ struct LibraryView: View {
                             playback.play(items: [item], startAt: 0)
                             showPlayer = true
                         } label: {
-                            LibrarySongRow(item: item)
+                            LibrarySongRow(item: item) {
+                                trackActions.present(item: item)
+                            }
                         }
                         .buttonStyle(.plain)
                     }
@@ -253,7 +257,8 @@ struct LibraryView: View {
 
     private func reload() {
         playlists = store?.allPlaylists() ?? []
-        history = store?.historyVideos() ?? []
+        let items = store?.historyVideos() ?? []
+        history = store?.filterNotInterested(items) ?? items
     }
 }
 
@@ -286,12 +291,7 @@ private struct SystemCoverView: View {
                 Image(systemName: "music.note.list").foregroundStyle(.white)
             case .custom:
                 if let url {
-                    AsyncImage(url: url) { phase in
-                        switch phase {
-                        case .success(let image): image.resizable().scaledToFill()
-                        default: YTLiteColor.surfaceVariant
-                        }
-                    }
+                    RemoteImage(url: url)
                 } else {
                     YTLiteColor.surfaceVariant
                     Image(systemName: "music.note.list").foregroundStyle(.white)
@@ -305,6 +305,7 @@ private struct SystemCoverView: View {
 
 struct LibrarySongRow: View {
     let item: VideoItem
+    var onMore: (() -> Void)? = nil
 
     var body: some View {
         HStack(spacing: YTLiteLayout.stackLoose) {
@@ -327,7 +328,15 @@ struct LibrarySongRow: View {
                     .lineLimit(1)
             }
             Spacer()
-            Image(systemName: "ellipsis").foregroundStyle(YTLiteColor.onSurfaceVariant)
+            Button {
+                onMore?()
+            } label: {
+                Image(systemName: "ellipsis")
+                    .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                    .frame(width: 32, height: 32)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.borderless)
         }
         .padding(.horizontal, YTLiteLayout.screenPadding)
         .padding(.vertical, YTLiteLayout.rowVertical)
@@ -338,13 +347,19 @@ struct PlaylistDetailView: View {
     let playlist: LibraryPlaylist
     var onChange: () -> Void
     @EnvironmentObject private var playback: PlaybackController
+    @EnvironmentObject private var trackActions: TrackActionPresenter
     @Environment(\.libraryStore) private var store
     @State private var showPlayer = false
+    @State private var refreshTick = 0
+
+    private var canRemove: Bool { playlist.systemType == nil }
 
     private var tracks: [VideoItem] {
-        playlist.entries
+        _ = refreshTick
+        return playlist.entries
             .sorted { $0.position < $1.position }
             .compactMap { $0.track?.asVideoItem }
+            .map { store?.displayItem(for: $0) ?? $0 }
     }
 
     var body: some View {
@@ -360,7 +375,13 @@ struct PlaylistDetailView: View {
                             playback.play(items: tracks, startAt: index)
                             showPlayer = true
                         } label: {
-                            LibrarySongRow(item: item)
+                            LibrarySongRow(item: item) {
+                                trackActions.present(
+                                    item: item,
+                                    playlistId: playlist.playlistId,
+                                    canRemoveFromPlaylist: canRemove
+                                )
+                            }
                         }
                         .buttonStyle(.plain)
                     }
@@ -369,6 +390,10 @@ struct PlaylistDetailView: View {
         }
         .background(YTLiteColor.background)
         .navigationTitle(playlist.name)
+        .onChange(of: trackActions.listEpoch) { _, _ in
+            refreshTick += 1
+            onChange()
+        }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 if let current = playback.nowPlaying {

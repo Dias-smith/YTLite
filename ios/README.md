@@ -21,6 +21,6 @@ Configure Supabase redirect URL `ytlite://auth-callback` for Google OAuth.
 - **Lyrics** caption sheet (VTT)
 - **You**: Liked, Trending music, channel/playlist deep browse
 
-Still later: Downloads Hub, Cookie Web login, Data API subscriptions (needs YouTube OAuth token).
+Still later: Cookie Web login, Data API subscriptions (needs YouTube OAuth token).
 
 Shared assets: [`shared/extractor/`](../shared/extractor/)

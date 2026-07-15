@@ -13,6 +13,8 @@ enum YTLiteColor {
     static let surfaceVariant = Color(red: 0.165, green: 0.165, blue: 0.165) // #2A2A2A
     static let onSurface = Color.white
     static let onSurfaceVariant = Color(red: 0.69, green: 0.69, blue: 0.69) // #B0B0B0
+    /// Feed meta gray matching YouTube card (~#AAAAAA)
+    static let feedMeta = Color(red: 0.667, green: 0.667, blue: 0.667)
     static let signInBlue = Color(red: 0.024, green: 0.373, blue: 0.831) // #065FD4
     static let miniPlayer = Color(red: 0.094, green: 0.094, blue: 0.094) // #181818
     static let tabBar = Color(red: 0.059, green: 0.059, blue: 0.059)
@@ -34,7 +36,11 @@ enum YTLiteType {
     /// Body copy (~15 regular)
     static let body = Font.subheadline
     /// Secondary meta: channel, views (~12)
-    static let meta = Font.caption
+    static let meta = Font.system(size: 12, weight: .regular)
+    /// Home feed large-card title (YouTube-like ~14 semibold)
+    static let feedTitle = Font.system(size: 14, weight: .semibold)
+    /// Home feed meta under title (~12)
+    static let feedMeta = Font.system(size: 12, weight: .regular)
     /// Chip / filter / inline button label
     static let label = Font.subheadline
     /// Chip selected emphasis
@@ -67,6 +73,13 @@ enum YTLiteLayout {
     static let searchThumbWidth: CGFloat = 112
     static let searchThumbHeight: CGFloat = 63
     static let feedThumbHeight: CGFloat = 200
+    static let feedAvatar: CGFloat = 36
+    static let feedInfoHorizontal: CGFloat = 12
+    static let feedInfoTop: CGFloat = 10
+    static let feedInfoBottom: CGFloat = 12
+    static let feedAvatarTextGap: CGFloat = 12
+    static let feedTitleMetaGap: CGFloat = 4
+    static let feedDurationInset: CGFloat = 8
     static let miniThumb: CGFloat = 40
     static let channelAvatar: CGFloat = 56
 }
@@ -119,18 +132,11 @@ struct VideoThumbnail: View {
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
-            AsyncImage(url: url) { phase in
-                switch phase {
-                case .success(let image):
-                    image.resizable().aspectRatio(contentMode: contentMode)
-                default:
-                    YTLiteColor.surfaceVariant
-                }
-            }
-            .frame(width: width, height: height)
-            .frame(maxWidth: width == nil ? .infinity : width)
-            .clipped()
-            .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
+            RemoteImage(url: url, contentMode: contentMode)
+                .frame(width: width, height: height)
+                .frame(maxWidth: width == nil ? .infinity : width)
+                .clipped()
+                .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
 
             if let durationText, !durationText.isEmpty {
                 DurationBadge(text: durationText)
@@ -167,34 +173,70 @@ struct FeedVideoCard: View {
     var onMore: (() -> Void)? = nil
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            VideoThumbnail(
-                url: item.thumbnailURL,
-                durationText: item.durationText,
-                height: YTLiteLayout.feedThumbHeight,
-                cornerRadius: YTLiteLayout.cardRadius,
-                badgePadding: YTLiteLayout.stackDefault
-            )
+        VStack(alignment: .leading, spacing: 0) {
+            ZStack(alignment: .bottomTrailing) {
+                RemoteImage(url: item.thumbnailURL)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .clipped()
 
-            HStack(alignment: .top, spacing: YTLiteLayout.stackDefault) {
-                VStack(alignment: .leading, spacing: YTLiteLayout.stackTight) {
+                if let durationText = item.durationText, !durationText.isEmpty {
+                    DurationBadge(text: durationText)
+                        .padding(YTLiteLayout.feedDurationInset)
+                }
+            }
+            .aspectRatio(16 / 9, contentMode: .fit)
+            .frame(maxWidth: .infinity)
+            .clipped()
+
+            HStack(alignment: .top, spacing: YTLiteLayout.feedAvatarTextGap) {
+                feedAvatar
+
+                VStack(alignment: .leading, spacing: YTLiteLayout.feedTitleMetaGap) {
                     Text(item.title)
-                        .font(YTLiteType.rowTitle)
+                        .font(YTLiteType.feedTitle)
                         .foregroundStyle(YTLiteColor.onSurface)
                         .lineLimit(2)
-                    Text(item.subtitle.isEmpty ? item.channelName : item.subtitle)
-                        .font(YTLiteType.meta)
-                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                        .multilineTextAlignment(.leading)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                    Text(item.feedMetaLine)
+                        .font(YTLiteType.feedMeta)
+                        .foregroundStyle(YTLiteColor.feedMeta)
                         .lineLimit(2)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                Spacer(minLength: 0)
+
                 Button(action: { onMore?() }) {
-                    Image(systemName: "ellipsis")
-                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                    Image(systemName: "ellipsis.vertical")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(YTLiteColor.onSurface)
+                        .frame(width: 36, height: 36, alignment: .top)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.borderless)
+            }
+            .padding(.horizontal, YTLiteLayout.feedInfoHorizontal)
+            .padding(.top, YTLiteLayout.feedInfoTop)
+            .padding(.bottom, YTLiteLayout.feedInfoBottom)
+        }
+        .background(YTLiteColor.background)
+    }
+
+    @ViewBuilder
+    private var feedAvatar: some View {
+        Group {
+            if let url = item.channelAvatarURL {
+                RemoteImage(url: url)
+            } else {
+                ZStack {
+                    YTLiteColor.surfaceVariant
+                    Text(String(item.channelName.prefix(1)).uppercased())
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(YTLiteColor.onSurface)
                 }
             }
         }
-        .padding(.horizontal, YTLiteLayout.screenPadding)
-        .padding(.vertical, YTLiteLayout.rowVertical)
+        .frame(width: YTLiteLayout.feedAvatar, height: YTLiteLayout.feedAvatar)
+        .clipShape(Circle())
     }
 }

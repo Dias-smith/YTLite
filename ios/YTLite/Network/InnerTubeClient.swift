@@ -365,18 +365,33 @@ enum VideoJSONParser {
         let views = extractText(renderer["shortViewCountText"])
             ?? extractText(renderer["viewCountText"])
         let published = extractText(renderer["publishedTimeText"])
-        let parts = [channel, views, published].compactMap { $0 }.filter { !$0.isEmpty }
         let thumb = pickThumbnail(renderer["thumbnail"] as? [String: Any])
+        let avatar = pickChannelAvatar(from: renderer)
         let duration = extractText(renderer["lengthText"])
             ?? lengthFromOverlays(renderer["thumbnailOverlays"] as? [[String: Any]])
         return VideoItem(
             videoId: videoId,
             title: title,
             channelName: channel,
-            subtitle: parts.joined(separator: " · "),
             thumbnailURL: thumb,
-            durationText: duration
+            channelAvatarURL: avatar,
+            durationText: duration,
+            viewCountText: views,
+            publishedTimeText: published
         )
+    }
+
+    private static func pickChannelAvatar(from renderer: [String: Any]) -> URL? {
+        if let supported = renderer["channelThumbnailSupportedRenderers"] as? [String: Any],
+           let link = supported["channelThumbnailWithLinkRenderer"] as? [String: Any],
+           let url = pickThumbnail(link["thumbnail"] as? [String: Any])
+        {
+            return url
+        }
+        if let url = pickThumbnail(renderer["channelThumbnail"] as? [String: Any]) {
+            return url
+        }
+        return pickThumbnail(renderer["avatar"] as? [String: Any])
     }
 
     private static func lengthFromOverlays(_ overlays: [[String: Any]]?) -> String? {
@@ -402,7 +417,14 @@ enum VideoJSONParser {
 
     private static func pickThumbnail(_ thumb: [String: Any]?) -> URL? {
         guard let thumbs = thumb?["thumbnails"] as? [[String: Any]] else { return nil }
-        return thumbs.reversed().compactMap { ($0["url"] as? String).flatMap(URL.init(string:)) }.first
+        let raw = thumbs.reversed().compactMap { $0["url"] as? String }.first
+        guard var urlString = raw, !urlString.isEmpty else { return nil }
+        if urlString.hasPrefix("//") {
+            urlString = "https:" + urlString
+        } else if urlString.hasPrefix("http://") {
+            urlString = "https://" + urlString.dropFirst("http://".count)
+        }
+        return URL(string: urlString)
     }
 }
 

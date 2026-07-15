@@ -59,14 +59,20 @@ private struct PersistedVideo: Codable {
     let title: String
     let channelName: String
     let thumbnailURLString: String?
+    let channelAvatarURLString: String?
     let durationText: String?
+    let viewCountText: String?
+    let publishedTimeText: String?
 
     init(from item: VideoItem) {
         videoId = item.videoId
         title = item.title
         channelName = item.channelName
         thumbnailURLString = item.thumbnailURL?.absoluteString
+        channelAvatarURLString = item.channelAvatarURL?.absoluteString
         durationText = item.durationText
+        viewCountText = item.viewCountText
+        publishedTimeText = item.publishedTimeText
     }
 
     var asVideoItem: VideoItem {
@@ -75,7 +81,10 @@ private struct PersistedVideo: Codable {
             title: title,
             channelName: channelName,
             thumbnailURL: thumbnailURLString.flatMap(URL.init(string:)),
-            durationText: durationText
+            channelAvatarURL: channelAvatarURLString.flatMap(URL.init(string:)),
+            durationText: durationText,
+            viewCountText: viewCountText,
+            publishedTimeText: publishedTimeText
         )
     }
 }

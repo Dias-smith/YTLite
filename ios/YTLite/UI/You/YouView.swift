@@ -4,6 +4,7 @@ struct YouView: View {
     @EnvironmentObject private var auth: AuthService
     @EnvironmentObject private var appModel: AppModel
     @EnvironmentObject private var playback: PlaybackController
+    @EnvironmentObject private var trackActions: TrackActionPresenter
     @Environment(\.libraryStore) private var store
     @StateObject private var viewModel = YouViewModel()
     @State private var showPlayer = false
@@ -26,6 +27,9 @@ struct YouView: View {
             .task {
                 guard auth.isAuthenticated else { return }
                 await viewModel.load(apiKey: appModel.config.youtubeDataAPIKey, store: store)
+            }
+            .onChange(of: trackActions.listEpoch) { _, _ in
+                viewModel.refilter(store: store)
             }
             .sheet(isPresented: $showPlayer) {
                 NavigationStack {
@@ -125,13 +129,15 @@ struct YouView: View {
                     .foregroundStyle(YTLiteColor.onSurface)
                     .padding(.horizontal, YTLiteLayout.screenPadding)
 
-                LazyVStack(spacing: YTLiteLayout.stackTight) {
+                LazyVStack(spacing: 0) {
                     ForEach(Array(viewModel.trending.enumerated()), id: \.element.id) { index, item in
                         Button {
                             playback.play(items: viewModel.trending, startAt: index)
                             showPlayer = true
                         } label: {
-                            FeedVideoCard(item: item)
+                            FeedVideoCard(item: item) {
+                                trackActions.present(item: item)
+                            }
                         }
                         .buttonStyle(.plain)
                     }
@@ -202,6 +208,7 @@ final class YouViewModel: ObservableObject {
     @Published var trending: [VideoItem] = []
     @Published var isLoading = false
     @Published var errorMessage: String?
+    private var rawTrending: [VideoItem] = []
 
     func load(apiKey: String, store: LibraryStore?) async {
         isLoading = true
@@ -211,12 +218,19 @@ final class YouViewModel: ObservableObject {
             liked = fav.entries
                 .sorted { $0.position < $1.position }
                 .compactMap { $0.track?.asVideoItem }
+                .map { store?.displayItem(for: $0) ?? $0 }
         }
         do {
-            trending = try await InnerTubeClient.fetchTrendingMusic(apiKey: apiKey)
+            rawTrending = try await InnerTubeClient.fetchTrendingMusic(apiKey: apiKey)
+            trending = store?.filterNotInterested(rawTrending) ?? rawTrending
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    func refilter(store: LibraryStore?) {
+        liked = liked.map { store?.displayItem(for: $0) ?? $0 }
+        trending = store?.filterNotInterested(rawTrending) ?? rawTrending
     }
 }
 
@@ -264,12 +278,7 @@ struct ChannelSearchView: View {
                 ChannelVideosView(channel: channel)
             } label: {
                 HStack(spacing: YTLiteLayout.stackLoose) {
-                    AsyncImage(url: channel.thumbnailURL) { phase in
-                        switch phase {
-                        case .success(let image): image.resizable().scaledToFill()
-                        default: YTLiteColor.surfaceVariant
-                        }
-                    }
+                    RemoteImage(url: channel.thumbnailURL)
                     .frame(width: 48, height: 48)
                     .clipShape(Circle())
                     VStack(alignment: .leading) {
@@ -338,6 +347,8 @@ struct PlaylistSearchView: View {
 struct ChannelVideosView: View {
     let channel: ChannelItem
     @EnvironmentObject private var playback: PlaybackController
+    @EnvironmentObject private var trackActions: TrackActionPresenter
+    @Environment(\.libraryStore) private var store
     @State private var videos: [VideoItem] = []
     @State private var isLoading = true
     @State private var errorMessage: String?
@@ -351,13 +362,15 @@ struct ChannelVideosView: View {
                 ContentUnavailableView("No videos", systemImage: "play.slash", description: Text(errorMessage ?? ""))
             } else {
                 ScrollView {
-                    LazyVStack(spacing: YTLiteLayout.stackTight) {
+                    LazyVStack(spacing: 0) {
                         ForEach(Array(videos.enumerated()), id: \.element.id) { index, item in
                             Button {
                                 playback.play(items: videos, startAt: index)
                                 showPlayer = true
                             } label: {
-                                FeedVideoCard(item: item)
+                                FeedVideoCard(item: item) {
+                                    trackActions.present(item: item)
+                                }
                             }
                             .buttonStyle(.plain)
                         }
@@ -367,11 +380,15 @@ struct ChannelVideosView: View {
         }
         .background(YTLiteColor.background)
         .navigationTitle(channel.title)
+        .onChange(of: trackActions.listEpoch) { _, _ in
+            videos = store?.filterNotInterested(videos) ?? videos
+        }
         .task {
             isLoading = true
             defer { isLoading = false }
             do {
-                videos = try await InnerTubeClient.fetchChannelUploads(channelId: channel.channelId)
+                let fetched = try await InnerTubeClient.fetchChannelUploads(channelId: channel.channelId)
+                videos = store?.filterNotInterested(fetched) ?? fetched
             } catch {
                 errorMessage = error.localizedDescription
             }
@@ -385,6 +402,8 @@ struct ChannelVideosView: View {
 struct PlaylistVideosBrowserView: View {
     let playlist: PlaylistPreview
     @EnvironmentObject private var playback: PlaybackController
+    @EnvironmentObject private var trackActions: TrackActionPresenter
+    @Environment(\.libraryStore) private var store
     @State private var videos: [VideoItem] = []
     @State private var isLoading = true
     @State private var errorMessage: String?
@@ -398,13 +417,15 @@ struct PlaylistVideosBrowserView: View {
                 ContentUnavailableView("Empty playlist", systemImage: "list.bullet", description: Text(errorMessage ?? ""))
             } else {
                 ScrollView {
-                    LazyVStack(spacing: YTLiteLayout.stackTight) {
+                    LazyVStack(spacing: 0) {
                         ForEach(Array(videos.enumerated()), id: \.element.id) { index, item in
                             Button {
                                 playback.play(items: videos, startAt: index)
                                 showPlayer = true
                             } label: {
-                                FeedVideoCard(item: item)
+                                FeedVideoCard(item: item) {
+                                    trackActions.present(item: item)
+                                }
                             }
                             .buttonStyle(.plain)
                         }
@@ -414,11 +435,15 @@ struct PlaylistVideosBrowserView: View {
         }
         .background(YTLiteColor.background)
         .navigationTitle(playlist.title)
+        .onChange(of: trackActions.listEpoch) { _, _ in
+            videos = store?.filterNotInterested(videos) ?? videos
+        }
         .task {
             isLoading = true
             defer { isLoading = false }
             do {
-                videos = try await InnerTubeClient.fetchPlaylistVideos(playlistId: playlist.playlistId)
+                let fetched = try await InnerTubeClient.fetchPlaylistVideos(playlistId: playlist.playlistId)
+                videos = store?.filterNotInterested(fetched) ?? fetched
             } catch {
                 errorMessage = error.localizedDescription
             }

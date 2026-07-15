@@ -21,67 +21,107 @@ struct HomeCategory: Identifiable, Hashable {
 @MainActor
 final class HomeViewModel: ObservableObject {
     @Published var videos: [VideoItem] = []
-    @Published var isLoading = false
+    @Published var isRefreshing = false
     @Published var errorMessage: String?
     @Published var selectedCategoryId: String = HomeCategory.all[0].id
 
     private var loadGeneration = 0
+    private var rawVideos: [VideoItem] = []
+    weak var libraryStore: LibraryStore?
+
+    init() {
+        applyStoredFeed(for: selectedCategoryId)
+    }
 
     var selectedCategory: HomeCategory {
         HomeCategory.all.first { $0.id == selectedCategoryId } ?? HomeCategory.all[0]
     }
 
+    /// Switch chip: show local feed; auto-refresh only when this category has no local data.
     func selectCategory(_ category: HomeCategory) {
         guard category.id != selectedCategoryId else { return }
         selectedCategoryId = category.id
-        load(force: true)
+        errorMessage = nil
+        applyStoredFeed(for: category.id)
+        refreshIfEmpty()
     }
 
-    func load(force: Bool = false) {
-        if isLoading && !force { return }
+    /// First open / home enter: show local feed; auto-refresh only when empty.
+    func appear() {
+        applyStoredFeed(for: selectedCategoryId)
+        refreshIfEmpty()
+    }
+
+    func refilter() {
+        videos = applyLibraryFilter(rawVideos)
+    }
+
+    private func refreshIfEmpty() {
+        guard videos.isEmpty else { return }
+        Task { await refresh() }
+    }
+
+    /// Pull-to-refresh / explicit network reload for the current category.
+    func refresh() async {
+        if isRefreshing { return }
         let category = selectedCategory
         let requestId = category.id
         loadGeneration += 1
         let generation = loadGeneration
 
-        isLoading = true
+        isRefreshing = true
         errorMessage = nil
-        if force {
-            videos = []
+        defer {
+            if generation == loadGeneration {
+                isRefreshing = false
+            }
         }
 
-        Task {
-            defer {
-                if generation == loadGeneration {
-                    isLoading = false
-                }
+        do {
+            let fetched: [VideoItem]
+            if let query = category.searchQuery {
+                fetched = try await InnerTubeClient.searchVideos(query: query)
+            } else {
+                fetched = try await InnerTubeClient.fetchHomeFeed()
             }
-            do {
-                let fetched: [VideoItem]
-                if let query = category.searchQuery {
-                    fetched = try await InnerTubeClient.searchVideos(query: query)
-                } else {
-                    fetched = try await InnerTubeClient.fetchHomeFeed()
-                }
-                guard generation == loadGeneration, requestId == selectedCategoryId else { return }
-                videos = fetched
-                if fetched.isEmpty {
-                    errorMessage = "No videos in feed"
-                }
-            } catch {
-                guard generation == loadGeneration, requestId == selectedCategoryId else { return }
-                errorMessage = error.localizedDescription
-                if videos.isEmpty {
-                    videos = []
-                }
+            guard generation == loadGeneration, requestId == selectedCategoryId else { return }
+            rawVideos = fetched
+            videos = applyLibraryFilter(fetched)
+            if fetched.isEmpty {
+                errorMessage = "No videos in feed"
+            } else {
+                errorMessage = nil
+                HomeFeedStore.save(categoryId: requestId, videos: fetched)
+            }
+        } catch {
+            guard generation == loadGeneration, requestId == selectedCategoryId else { return }
+            errorMessage = error.localizedDescription
+            if videos.isEmpty {
+                applyStoredFeed(for: requestId)
             }
         }
+    }
+
+    private func applyStoredFeed(for categoryId: String) {
+        if let stored = HomeFeedStore.loadVideos(categoryId: categoryId) {
+            rawVideos = stored
+        } else {
+            rawVideos = []
+        }
+        videos = applyLibraryFilter(rawVideos)
+    }
+
+    private func applyLibraryFilter(_ items: [VideoItem]) -> [VideoItem] {
+        guard let libraryStore else { return items }
+        return libraryStore.filterNotInterested(items)
     }
 }
 
 struct HomeView: View {
     @StateObject private var viewModel = HomeViewModel()
     @EnvironmentObject private var playback: PlaybackController
+    @EnvironmentObject private var trackActions: TrackActionPresenter
+    @Environment(\.libraryStore) private var libraryStore
     @State private var showPlayer = false
 
     var body: some View {
@@ -93,9 +133,15 @@ struct HomeView: View {
             .background(YTLiteColor.background)
             .navigationBarHidden(true)
             .task {
-                if viewModel.videos.isEmpty {
-                    viewModel.load(force: true)
-                }
+                viewModel.libraryStore = libraryStore
+                viewModel.appear()
+            }
+            .onChange(of: libraryStore != nil) { _, _ in
+                viewModel.libraryStore = libraryStore
+                viewModel.refilter()
+            }
+            .onChange(of: trackActions.listEpoch) { _, _ in
+                viewModel.refilter()
             }
             .sheet(isPresented: $showPlayer) {
                 NavigationStack {
@@ -125,25 +171,24 @@ struct HomeView: View {
 
     @ViewBuilder
     private var content: some View {
-        if viewModel.isLoading && viewModel.videos.isEmpty {
+        if viewModel.isRefreshing && viewModel.videos.isEmpty {
             ProgressView()
                 .tint(YTLiteColor.accent)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if viewModel.videos.isEmpty {
-            ContentUnavailableView(
-                "Home",
-                systemImage: "house",
-                description: Text(viewModel.errorMessage ?? "Pull to refresh")
-            )
-            .foregroundStyle(YTLiteColor.onSurface)
+            ScrollView {
+                ContentUnavailableView(
+                    "Home",
+                    systemImage: "house",
+                    description: Text(viewModel.errorMessage ?? "Pull to refresh")
+                )
+                .foregroundStyle(YTLiteColor.onSurface)
+                .frame(maxWidth: .infinity, minHeight: 420)
+            }
+            .refreshable { await viewModel.refresh() }
         } else {
             ScrollView {
-                LazyVStack(spacing: YTLiteLayout.stackTight) {
-                    if viewModel.isLoading {
-                        ProgressView()
-                            .tint(YTLiteColor.accent)
-                            .padding(.vertical, YTLiteLayout.rowVertical)
-                    }
+                LazyVStack(spacing: 0) {
                     if let err = viewModel.errorMessage {
                         Text(err)
                             .font(YTLiteType.meta)
@@ -155,14 +200,16 @@ struct HomeView: View {
                             playback.play(items: viewModel.videos, startAt: index)
                             showPlayer = true
                         } label: {
-                            FeedVideoCard(item: item)
+                            FeedVideoCard(item: item) {
+                                trackActions.present(item: item)
+                            }
                         }
                         .buttonStyle(.plain)
                     }
                 }
                 .padding(.bottom, YTLiteLayout.rowVertical)
             }
-            .refreshable { viewModel.load(force: true) }
+            .refreshable { await viewModel.refresh() }
         }
     }
 }

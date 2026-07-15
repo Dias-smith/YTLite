@@ -11,53 +11,55 @@ struct RootView: View {
     @State private var syncService: LibrarySyncService?
 
     var body: some View {
-        VStack(spacing: 0) {
-            Group {
-                switch selectedTab {
-                case .home:
-                    HomeView()
-                case .shorts:
-                    ShortsView()
-                case .search:
-                    SearchView()
-                case .you:
-                    YouView()
-                case .library:
-                    LibraryView()
+        TrackActionHost {
+            VStack(spacing: 0) {
+                Group {
+                    switch selectedTab {
+                    case .home:
+                        HomeView()
+                    case .shorts:
+                        ShortsView()
+                    case .search:
+                        SearchView()
+                    case .you:
+                        YouView()
+                    case .library:
+                        LibraryView()
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(YTLiteColor.background)
+
+                if playback.nowPlaying != nil && selectedTab != .shorts {
+                    MiniPlayerBar()
+                }
+
+                MainTabBar(selected: $selectedTab)
+            }
+            .background(YTLiteColor.background.ignoresSafeArea())
+            .preferredColorScheme(.dark)
+            .environment(\.libraryStore, libraryStore)
+            .onAppear {
+                if libraryStore == nil {
+                    let store = LibraryStore(modelContext: modelContext)
+                    libraryStore = store
+                    playback.libraryStore = store
+                    let sync = LibrarySyncService(auth: auth)
+                    syncService = sync
+                    store.onMutate = {
+                        Task { await sync.pushAll(store: store) }
+                    }
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(YTLiteColor.background)
-
-            if playback.nowPlaying != nil && selectedTab != .shorts {
-                MiniPlayerBar()
+            .onChange(of: auth.session?.user.id) { _, _ in
+                appModel.syncAuth(auth)
+                guard let libraryStore, auth.isAuthenticated else { return }
+                Task { await syncService?.syncBidirectional(store: libraryStore) }
             }
-
-            MainTabBar(selected: $selectedTab)
-        }
-        .background(YTLiteColor.background.ignoresSafeArea())
-        .preferredColorScheme(.dark)
-        .environment(\.libraryStore, libraryStore)
-        .onAppear {
-            if libraryStore == nil {
-                let store = LibraryStore(modelContext: modelContext)
-                libraryStore = store
-                playback.libraryStore = store
-                let sync = LibrarySyncService(auth: auth)
-                syncService = sync
-                store.onMutate = {
-                    Task { await sync.pushAll(store: store) }
+            .onChange(of: selectedTab) { _, tab in
+                if tab == .shorts, playback.isPlaying {
+                    playback.togglePlayPause()
                 }
-            }
-        }
-        .onChange(of: auth.session?.user.id) { _, _ in
-            appModel.syncAuth(auth)
-            guard let libraryStore, auth.isAuthenticated else { return }
-            Task { await syncService?.syncBidirectional(store: libraryStore) }
-        }
-        .onChange(of: selectedTab) { _, tab in
-            if tab == .shorts, playback.isPlaying {
-                playback.togglePlayPause()
             }
         }
     }

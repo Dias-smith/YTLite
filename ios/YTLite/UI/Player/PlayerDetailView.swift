@@ -9,6 +9,7 @@ private enum PlayerTab: String, CaseIterable {
 
 struct PlayerDetailView: View {
     @EnvironmentObject private var playback: PlaybackController
+    @EnvironmentObject private var trackActions: TrackActionPresenter
     @Environment(\.libraryStore) private var store
     @Environment(\.dismiss) private var dismiss
 
@@ -96,14 +97,7 @@ struct PlayerDetailView: View {
                 )
                 .allowsHitTesting(false)
             } else if let url = playback.nowPlaying?.thumbnailURL {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image.resizable().scaledToFit()
-                    default:
-                        YTLiteColor.surfaceVariant
-                    }
-                }
+                RemoteImage(url: url, contentMode: .fit)
             }
 
             if playback.isBuffering {
@@ -299,8 +293,25 @@ struct PlayerDetailView: View {
                     .foregroundStyle(YTLiteColor.onSurface)
                     .lineLimit(1)
                 Spacer(minLength: YTLiteLayout.stackDefault)
-                Image(systemName: "ellipsis")
-                    .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                Button {
+                    if let item = playback.nowPlaying {
+                        trackActions.present(
+                            TrackActionContext(
+                                videoId: item.videoId,
+                                title: item.title,
+                                channelName: item.channelName,
+                                thumbnailURL: item.thumbnailURL,
+                                durationText: item.durationText
+                            )
+                        )
+                    }
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                        .frame(width: 32, height: 32)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
             }
             HStack(spacing: 10) {
                 Text(playback.nowPlaying?.channelName ?? "")
@@ -469,7 +480,9 @@ struct PlayerDetailView: View {
                 Button {
                     playback.play(items: playback.queue, startAt: index)
                 } label: {
-                    UpNextRow(item: item, isCurrent: index == playback.queueIndex)
+                    UpNextRow(item: item, isCurrent: index == playback.queueIndex) {
+                        trackActions.present(item: item)
+                    }
                 }
                 .buttonStyle(.plain)
             }
@@ -497,7 +510,9 @@ struct PlayerDetailView: View {
                     Button {
                         playback.play(items: related, startAt: index)
                     } label: {
-                        UpNextRow(item: item, isCurrent: false)
+                        UpNextRow(item: item, isCurrent: false) {
+                            trackActions.present(item: item)
+                        }
                     }
                     .buttonStyle(.plain)
                 }
@@ -515,7 +530,8 @@ struct PlayerDetailView: View {
         defer { relatedLoading = false }
         do {
             let results = try await InnerTubeClient.searchVideos(query: seed)
-            related = results.filter { $0.videoId != playback.nowPlaying?.videoId }
+            let filtered = results.filter { $0.videoId != playback.nowPlaying?.videoId }
+            related = store?.filterNotInterested(filtered) ?? filtered
         } catch {
             relatedError = error.localizedDescription
         }
@@ -580,6 +596,7 @@ private struct OrangeProgressBar: View {
 private struct UpNextRow: View {
     let item: VideoItem
     let isCurrent: Bool
+    var onMore: (() -> Void)? = nil
 
     var body: some View {
         HStack(spacing: YTLiteLayout.stackLoose) {
@@ -603,8 +620,15 @@ private struct UpNextRow: View {
                     .lineLimit(1)
             }
             Spacer()
-            Image(systemName: "ellipsis")
-                .foregroundStyle(YTLiteColor.onSurfaceVariant)
+            Button {
+                onMore?()
+            } label: {
+                Image(systemName: "ellipsis")
+                    .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                    .frame(width: 28, height: 28)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.borderless)
         }
         .padding(.horizontal, YTLiteLayout.stackDefault)
         .padding(.vertical, YTLiteLayout.rowVertical)

@@ -241,6 +241,18 @@ final class UserSubscribedChannel {
     }
 }
 
+/// Local-only hide list — mirrors Android `NotInterestedEntity` (not synced).
+@Model
+final class NotInterestedItem {
+    @Attribute(.unique) var videoId: String
+    var createdAt: Date
+
+    init(videoId: String, createdAt: Date = .now) {
+        self.videoId = videoId
+        self.createdAt = createdAt
+    }
+}
+
 enum SystemPlaylistType {
     static let favorites = "favorites"
     static let watchLater = "watch_later"

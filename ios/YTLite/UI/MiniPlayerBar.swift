@@ -11,16 +11,9 @@ struct MiniPlayerBar: View {
                     showPlayer = true
                 } label: {
                     HStack(spacing: YTLiteLayout.stackLoose) {
-                        AsyncImage(url: item.thumbnailURL) { phase in
-                            switch phase {
-                            case .success(let image):
-                                image.resizable().scaledToFill()
-                            default:
-                                YTLiteColor.surfaceVariant
-                            }
-                        }
-                        .frame(width: YTLiteLayout.miniThumb, height: YTLiteLayout.miniThumb)
-                        .clipShape(RoundedRectangle(cornerRadius: 4))
+                        RemoteImage(url: item.thumbnailURL)
+                            .frame(width: YTLiteLayout.miniThumb, height: YTLiteLayout.miniThumb)
+                            .clipShape(RoundedRectangle(cornerRadius: 4))
 
                         VStack(alignment: .leading, spacing: 2) {
                             Text(item.title)

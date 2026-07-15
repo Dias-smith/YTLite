@@ -169,6 +169,8 @@ struct SearchView: View {
     @StateObject private var viewModel = SearchViewModel()
     @StateObject private var memory = SearchMemoryStore()
     @EnvironmentObject private var playback: PlaybackController
+    @EnvironmentObject private var trackActions: TrackActionPresenter
+    @Environment(\.libraryStore) private var libraryStore
     @State private var showPlayer = false
     @FocusState private var searchFocused: Bool
 
@@ -285,7 +287,9 @@ struct SearchView: View {
                             playback.play(items: videos.isEmpty ? [item] : videos, startAt: index)
                             showPlayer = true
                         } label: {
-                            SearchVideoResultRow(item: item)
+                            SearchVideoResultRow(item: item) {
+                                trackActions.present(item: item)
+                            }
                         }
                         .buttonStyle(.plain)
                     case .channel(let channel):
@@ -469,6 +473,7 @@ struct SearchView: View {
 
 private struct SearchVideoResultRow: View {
     let item: VideoItem
+    var onMore: (() -> Void)? = nil
 
     var body: some View {
         HStack(alignment: .center, spacing: YTLiteLayout.stackTight) {
@@ -494,9 +499,15 @@ private struct SearchVideoResultRow: View {
 
             Spacer(minLength: YTLiteLayout.stackTight)
 
-            Image(systemName: "ellipsis")
-                .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                .frame(width: 28, height: 28)
+            Button {
+                onMore?()
+            } label: {
+                Image(systemName: "ellipsis")
+                    .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                    .frame(width: 28, height: 28)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.borderless)
         }
         .padding(.horizontal, YTLiteLayout.screenPadding)
         .padding(.vertical, YTLiteLayout.rowVertical)
@@ -508,14 +519,7 @@ private struct SearchChannelResultRow: View {
 
     var body: some View {
         HStack(spacing: YTLiteLayout.stackLoose) {
-            AsyncImage(url: channel.thumbnailURL) { phase in
-                switch phase {
-                case .success(let image):
-                    image.resizable().scaledToFill()
-                default:
-                    YTLiteColor.surfaceVariant
-                }
-            }
+            RemoteImage(url: channel.thumbnailURL)
             .frame(width: YTLiteLayout.channelAvatar, height: YTLiteLayout.channelAvatar)
             .clipShape(Circle())
 
@@ -544,14 +548,7 @@ private struct SearchPlaylistResultRow: View {
 
     var body: some View {
         HStack(spacing: YTLiteLayout.stackLoose) {
-            AsyncImage(url: playlist.thumbnailURL) { phase in
-                switch phase {
-                case .success(let image):
-                    image.resizable().scaledToFill()
-                default:
-                    YTLiteColor.surfaceVariant
-                }
-            }
+            RemoteImage(url: playlist.thumbnailURL)
             .frame(width: YTLiteLayout.searchThumbWidth, height: YTLiteLayout.searchThumbHeight)
             .clipShape(RoundedRectangle(cornerRadius: YTLiteLayout.thumbRadius))
 

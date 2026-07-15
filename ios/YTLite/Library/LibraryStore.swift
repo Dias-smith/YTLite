@@ -306,6 +306,116 @@ final class LibraryStore {
         save()
     }
 
+    func remove(trackId: String, from playlist: LibraryPlaylist) {
+        guard let entry = playlist.entries.first(where: { $0.track?.trackId == trackId }) else { return }
+        modelContext.delete(entry)
+        for (index, remaining) in playlist.entries.sorted(by: { $0.position < $1.position }).enumerated() {
+            remaining.position = index
+        }
+        playlist.updatedAt = .now
+        playlist.isSynced = false
+        save()
+    }
+
+    func playlist(id playlistId: String) -> LibraryPlaylist? {
+        allPlaylists().first { $0.playlistId == playlistId }
+    }
+
+    // MARK: - Not interested
+
+    func isNotInterested(videoId: String) -> Bool {
+        var descriptor = FetchDescriptor<NotInterestedItem>(
+            predicate: #Predicate { $0.videoId == videoId }
+        )
+        descriptor.fetchLimit = 1
+        return (try? modelContext.fetch(descriptor))?.first != nil
+    }
+
+    @discardableResult
+    func toggleNotInterested(videoId: String) -> Bool {
+        var descriptor = FetchDescriptor<NotInterestedItem>(
+            predicate: #Predicate { $0.videoId == videoId }
+        )
+        descriptor.fetchLimit = 1
+        if let existing = try? modelContext.fetch(descriptor).first {
+            modelContext.delete(existing)
+            save()
+            return false
+        }
+        modelContext.insert(NotInterestedItem(videoId: videoId))
+        save()
+        return true
+    }
+
+    func removeNotInterested(videoId: String) {
+        var descriptor = FetchDescriptor<NotInterestedItem>(
+            predicate: #Predicate { $0.videoId == videoId }
+        )
+        descriptor.fetchLimit = 1
+        if let existing = try? modelContext.fetch(descriptor).first {
+            modelContext.delete(existing)
+            save()
+        }
+    }
+
+    // MARK: - Metadata
+
+    func metadata(for trackId: String) -> UserTrackMetadata? {
+        var descriptor = FetchDescriptor<UserTrackMetadata>(
+            predicate: #Predicate { $0.trackId == trackId }
+        )
+        descriptor.fetchLimit = 1
+        return try? modelContext.fetch(descriptor).first
+    }
+
+    func saveMetadata(
+        trackId: String,
+        customTitle: String?,
+        customArtistName: String?,
+        customThumbnailUrl: String?,
+        customAlbum: String?,
+        customYear: String?
+    ) {
+        let cleanedTitle = customTitle?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        let cleanedArtist = customArtistName?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        let cleanedThumb = customThumbnailUrl?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        let cleanedAlbum = customAlbum?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        let cleanedYear = customYear?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        upsertMetadata(
+            UserTrackMetadata(
+                trackId: trackId,
+                customTitle: cleanedTitle,
+                customArtistName: cleanedArtist,
+                customThumbnailUrl: cleanedThumb,
+                customAlbum: cleanedAlbum,
+                customYear: cleanedYear,
+                updatedAt: .now,
+                isSynced: false
+            )
+        )
+        save()
+    }
+
+    /// Apply local metadata overrides onto a display VideoItem.
+    func displayItem(for item: VideoItem) -> VideoItem {
+        guard let meta = metadata(for: item.videoId) else { return item }
+        return VideoItem(
+            videoId: item.videoId,
+            title: meta.customTitle ?? item.title,
+            channelName: meta.customArtistName ?? item.channelName,
+            subtitle: item.subtitle,
+            thumbnailURL: meta.customThumbnailUrl.flatMap(URL.init(string:)) ?? item.thumbnailURL,
+            channelAvatarURL: item.channelAvatarURL,
+            durationText: item.durationText,
+            viewCountText: item.viewCountText,
+            publishedTimeText: item.publishedTimeText
+        )
+    }
+
+    func filterNotInterested(_ items: [VideoItem]) -> [VideoItem] {
+        items.filter { !isNotInterested(videoId: $0.videoId) }.map { displayItem(for: $0) }
+    }
+
     func save() {
         try? modelContext.save()
         onMutate?()
@@ -317,5 +427,12 @@ final class LibraryStore {
         )
         descriptor.fetchLimit = 1
         return try? modelContext.fetch(descriptor).first
+    }
+}
+
+private extension String {
+    var nilIfEmpty: String? {
+        let t = trimmingCharacters(in: .whitespacesAndNewlines)
+        return t.isEmpty ? nil : t
     }
 }

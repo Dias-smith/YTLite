@@ -1,0 +1,177 @@
+import SwiftUI
+
+struct TrackActionSheet: View {
+    let context: TrackActionContext
+    @EnvironmentObject private var playback: PlaybackController
+    @EnvironmentObject private var trackActions: TrackActionPresenter
+    @Environment(\.libraryStore) private var store
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var isLiked = false
+    @State private var isNotInterested = false
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Capsule()
+                .fill(YTLiteColor.onSurfaceVariant.opacity(0.45))
+                .frame(width: 36, height: 4)
+                .padding(.top, 10)
+                .padding(.bottom, 12)
+
+            header
+                .padding(.horizontal, YTLiteLayout.screenPadding)
+                .padding(.bottom, YTLiteLayout.stackLoose)
+
+            Divider().overlay(YTLiteColor.surfaceVariant)
+
+            ScrollView {
+                VStack(spacing: 0) {
+                    actionRow(
+                        systemImage: isLiked ? "hand.thumbsup.fill" : "hand.thumbsup",
+                        title: isLiked ? "Unlike" : "Like"
+                    ) { toggleLike() }
+
+                    actionRow(systemImage: "text.insert", title: "Play next") {
+                        playback.insertNext(context.asVideoItem)
+                        trackActions.showToast("Playing next")
+                        dismiss()
+                    }
+
+                    actionRow(systemImage: "plus.rectangle.on.rectangle", title: "Add to queue") {
+                        playback.appendToQueue(context.asVideoItem)
+                        trackActions.showToast("Added to queue")
+                        dismiss()
+                    }
+
+                    actionRow(systemImage: "bookmark", title: "Save to library") {
+                        trackActions.openPlaylistPicker()
+                    }
+
+                    actionRow(systemImage: "pencil", title: "Edit info") {
+                        trackActions.openEditInfo()
+                    }
+
+                    actionRow(systemImage: "text.alignleft", title: "View lyrics") {
+                        trackActions.openLyrics()
+                    }
+
+                    ShareLink(item: context.watchURL) {
+                        actionRowLabel(systemImage: "square.and.arrow.up", title: "Share")
+                    }
+                    .simultaneousGesture(TapGesture().onEnded {
+                        trackActions.showToast("Share")
+                        dismiss()
+                    })
+
+                    actionRow(
+                        systemImage: isNotInterested ? "eye" : "eye.slash",
+                        title: isNotInterested ? "Undo not interested" : "Not interested"
+                    ) { toggleNotInterested() }
+
+                    if context.canRemoveFromPlaylist, let playlistId = context.playlistId {
+                        Divider().overlay(YTLiteColor.surfaceVariant)
+                            .padding(.vertical, 4)
+                        actionRow(systemImage: "trash", title: "Remove from playlist") {
+                            if let playlist = store?.playlist(id: playlistId) {
+                                store?.remove(trackId: context.videoId, from: playlist)
+                                trackActions.notifyListsChanged()
+                                trackActions.showToast("Removed from playlist")
+                            }
+                            dismiss()
+                        }
+                    }
+                }
+                .padding(.vertical, YTLiteLayout.stackDefault)
+            }
+        }
+        .background(YTLiteColor.surfaceElevated)
+        .onAppear { refreshState() }
+    }
+
+    private var header: some View {
+        HStack(alignment: .center, spacing: YTLiteLayout.stackLoose) {
+            RemoteImage(url: context.thumbnailURL)
+                .frame(width: 48, height: 48)
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(displayTitle)
+                    .font(YTLiteType.rowTitle)
+                    .foregroundStyle(YTLiteColor.onSurface)
+                    .lineLimit(1)
+                Text(displayChannel)
+                    .font(YTLiteType.meta)
+                    .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
+    private var displayTitle: String {
+        store?.metadata(for: context.videoId)?.customTitle ?? context.title
+    }
+
+    private var displayChannel: String {
+        store?.metadata(for: context.videoId)?.customArtistName ?? context.channelName
+    }
+
+    private func actionRow(systemImage: String, title: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            actionRowLabel(systemImage: systemImage, title: title)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func actionRowLabel(systemImage: String, title: String) -> some View {
+        HStack(spacing: YTLiteLayout.stackLoose) {
+            Image(systemName: systemImage)
+                .font(.system(size: 18, weight: .regular))
+                .foregroundStyle(YTLiteColor.onSurface)
+                .frame(width: 28, alignment: .center)
+            Text(title)
+                .font(YTLiteType.body)
+                .foregroundStyle(YTLiteColor.onSurface)
+            Spacer()
+        }
+        .padding(.horizontal, YTLiteLayout.screenPadding)
+        .padding(.vertical, 14)
+        .contentShape(Rectangle())
+    }
+
+    private func refreshState() {
+        isLiked = store?.isFavorite(videoId: context.videoId) ?? false
+        isNotInterested = store?.isNotInterested(videoId: context.videoId) ?? false
+    }
+
+    private func toggleLike() {
+        guard let store else { return }
+        if store.isNotInterested(videoId: context.videoId) {
+            store.removeNotInterested(videoId: context.videoId)
+        }
+        store.toggleFavorite(item: context.asVideoItem)
+        if context.videoId == playback.nowPlaying?.videoId {
+            playback.refreshFavoriteState()
+        }
+        let liked = store.isFavorite(videoId: context.videoId)
+        isLiked = liked
+        trackActions.showToast(liked ? "Liked" : "Removed from Liked videos")
+        trackActions.notifyListsChanged()
+        dismiss()
+    }
+
+    private func toggleNotInterested() {
+        guard let store else { return }
+        if store.isFavorite(videoId: context.videoId) {
+            store.toggleFavorite(item: context.asVideoItem)
+            if context.videoId == playback.nowPlaying?.videoId {
+                playback.refreshFavoriteState()
+            }
+        }
+        let nowBlocked = store.toggleNotInterested(videoId: context.videoId)
+        isNotInterested = nowBlocked
+        trackActions.showToast(nowBlocked ? "Got it, we'll show fewer videos like this" : "Removed from Not interested")
+        trackActions.notifyListsChanged()
+        dismiss()
+    }
+}

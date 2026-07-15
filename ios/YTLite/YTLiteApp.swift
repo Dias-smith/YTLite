@@ -47,6 +47,7 @@ struct YTLiteApp: App {
             UserTrackLastPlayed.self,
             UserTrackMetadata.self,
             UserSubscribedChannel.self,
+            NotInterestedItem.self,
         ])
         let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
         do {

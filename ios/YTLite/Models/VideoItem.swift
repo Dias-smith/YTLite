@@ -7,7 +7,10 @@ struct VideoItem: Identifiable, Hashable, Sendable {
     let channelName: String
     let subtitle: String
     let thumbnailURL: URL?
+    let channelAvatarURL: URL?
     let durationText: String?
+    let viewCountText: String?
+    let publishedTimeText: String?
 
     init(
         videoId: String,
@@ -15,15 +18,37 @@ struct VideoItem: Identifiable, Hashable, Sendable {
         channelName: String,
         subtitle: String = "",
         thumbnailURL: URL? = nil,
-        durationText: String? = nil
+        channelAvatarURL: URL? = nil,
+        durationText: String? = nil,
+        viewCountText: String? = nil,
+        publishedTimeText: String? = nil
     ) {
         self.videoId = videoId
         self.title = title
         self.channelName = channelName
-        self.subtitle = subtitle.isEmpty ? channelName : subtitle
         self.thumbnailURL = thumbnailURL
             ?? URL(string: "https://i.ytimg.com/vi/\(videoId)/hqdefault.jpg")
+        self.channelAvatarURL = channelAvatarURL
         self.durationText = durationText
+        self.viewCountText = viewCountText
+        self.publishedTimeText = publishedTimeText
+        if subtitle.isEmpty {
+            let parts = [channelName, viewCountText, publishedTimeText]
+                .compactMap { $0 }
+                .filter { !$0.isEmpty }
+            self.subtitle = parts.joined(separator: " · ")
+        } else {
+            self.subtitle = subtitle
+        }
+    }
+
+    /// Meta line under the title (channel · views · published).
+    var feedMetaLine: String {
+        let parts = [channelName, viewCountText, publishedTimeText]
+            .compactMap { $0 }
+            .filter { !$0.isEmpty }
+        if !parts.isEmpty { return parts.joined(separator: " · ") }
+        return subtitle.isEmpty ? channelName : subtitle
     }
 
     var watchURL: URL {
