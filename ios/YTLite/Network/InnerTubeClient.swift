@@ -5,15 +5,67 @@ enum InnerTubeClient {
     static let homeBrowseId = "FEwhat_to_watch"
 
     static func searchVideos(query: String) async throws -> [VideoItem] {
+        try await search(query: query, tab: .videos).compactMap(\.asVideoItem)
+    }
+
+    /// Tabbed search matching Android `SearchRepository.search`.
+    static func search(query: String, tab: SearchResultTab) async throws -> [SearchHit] {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return [] }
-        let body: [String: Any] = [
+        var body: [String: Any] = [
             "context": clientContext(),
             "query": trimmed,
-            "params": "EgIQAQ%3D%3D",
         ]
-        let json = try await postJSON(url: YouTubeConstants.searchURL, body: body, label: "search")
-        return VideoJSONParser.parseVideos(from: json)
+        if let params = tab.innerTubeParams {
+            body["params"] = params
+        }
+        let json = try await postJSON(url: YouTubeConstants.searchURL, body: body, label: "search_\(tab.rawValue)")
+        return VideoJSONParser.parseSearchHits(from: json, tab: tab)
+    }
+
+    /// Google Suggest autocomplete for YouTube (`ds=yt`), same as Android `fetchSuggestQueries`.
+    static func fetchSuggestQueries(query: String) async -> [String] {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return [] }
+        var allowed = CharacterSet.urlQueryAllowed
+        allowed.remove(charactersIn: ":#[]@!$&'()*+,;=")
+        let encoded = trimmed.addingPercentEncoding(withAllowedCharacters: allowed) ?? trimmed
+        let url =
+            "https://suggestqueries.google.com/complete/search?client=firefox&ds=yt&q=\(encoded)"
+        let result = await YouTubeHTTPClient.shared.request(
+            url: url,
+            method: "GET",
+            headers: [
+                "User-Agent": YouTubeConstants.userAgent,
+                "Accept": "application/json",
+            ],
+            body: nil
+        )
+        guard result.success,
+              let data = result.body.data(using: .utf8),
+              let root = try? JSONSerialization.jsonObject(with: data) as? [Any],
+              root.count > 1
+        else { return [] }
+
+        let items: [Any]
+        if let arr = root[1] as? [Any] {
+            items = arr
+        } else {
+            return []
+        }
+
+        return items.compactMap { entry -> String? in
+            if let s = entry as? String {
+                let t = s.trimmingCharacters(in: .whitespacesAndNewlines)
+                return t.isEmpty ? nil : t
+            }
+            // Some payloads nest [query, rank, ...]
+            if let arr = entry as? [Any], let s = arr.first as? String {
+                let t = s.trimmingCharacters(in: .whitespacesAndNewlines)
+                return t.isEmpty ? nil : t
+            }
+            return nil
+        }
     }
 
     static func fetchHomeFeed() async throws -> [VideoItem] {
@@ -164,6 +216,43 @@ enum VideoJSONParser {
         return Array(items.values)
     }
 
+    static func parseSearchHits(from root: Any, tab: SearchResultTab) -> [SearchHit] {
+        var hits: [SearchHit] = []
+        var seen = Set<String>()
+        walk(root) { dict in
+            if isAd(dict) { return }
+            switch tab {
+            case .all:
+                if let v = extractVideo(from: dict) {
+                    let id = "v:\(v.videoId)"
+                    if seen.insert(id).inserted { hits.append(.video(v)) }
+                } else if let c = extractChannel(from: dict) {
+                    let id = "c:\(c.channelId)"
+                    if seen.insert(id).inserted { hits.append(.channel(c)) }
+                } else if let p = extractPlaylist(from: dict) {
+                    let id = "p:\(p.playlistId)"
+                    if seen.insert(id).inserted { hits.append(.playlist(p)) }
+                }
+            case .videos:
+                if let v = extractVideo(from: dict) {
+                    let id = "v:\(v.videoId)"
+                    if seen.insert(id).inserted { hits.append(.video(v)) }
+                }
+            case .channels:
+                if let c = extractChannel(from: dict) {
+                    let id = "c:\(c.channelId)"
+                    if seen.insert(id).inserted { hits.append(.channel(c)) }
+                }
+            case .playlists:
+                if let p = extractPlaylist(from: dict) {
+                    let id = "p:\(p.playlistId)"
+                    if seen.insert(id).inserted { hits.append(.playlist(p)) }
+                }
+            }
+        }
+        return hits
+    }
+
     static func parseChannels(from root: Any) -> [ChannelItem] {
         var items: [String: ChannelItem] = [:]
         walk(root) { dict in
@@ -211,9 +300,16 @@ enum VideoJSONParser {
             ?? (renderer["browseId"] as? String)?.nilIfEmpty
         guard let channelId else { return nil }
         let title = extractText(renderer["title"]) ?? channelId
-        let subtitle = extractText(renderer["subscriberCountText"])
+        let handle = extractText(renderer["channelHandle"])
+            ?? extractText(renderer["subscriberCountText"])
             ?? extractText(renderer["videoCountText"])
             ?? ""
+        let subtitle: String = {
+            if handle.hasPrefix("@") { return handle }
+            if handle.contains("subscriber") || handle.contains("video") { return handle }
+            if !handle.isEmpty { return "@\(handle)" }
+            return ""
+        }()
         let thumb = pickThumbnail(renderer["thumbnail"] as? [String: Any])
         return ChannelItem(
             channelId: channelId,
