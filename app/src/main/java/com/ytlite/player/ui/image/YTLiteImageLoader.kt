@@ -10,12 +10,14 @@ import coil.disk.DiskCache
 import coil.memory.MemoryCache
 import coil.request.CachePolicy
 import coil.request.ImageRequest
+import com.ytlite.player.playback.DeviceRam
 
 object YTLiteImageLoader {
 
     private const val DiskCacheDirectoryName = "image_cache"
-    private const val DiskCacheMaxSizeBytes = 250L * 1024L * 1024L
-    private const val MemoryCacheMaxSizePercent = 0.25
+    private const val MemoryCacheMaxSizePercent = 0.15
+    private const val DiskCacheMaxBytesHighRam = 150L * 1024L * 1024L
+    private const val DiskCacheMaxBytesLowRam = 100L * 1024L * 1024L
 
     @Volatile
     private var instance: ImageLoader? = null
@@ -27,8 +29,13 @@ object YTLiteImageLoader {
         }
     }
 
-    private fun create(context: Context): ImageLoader =
-        ImageLoader.Builder(context)
+    private fun create(context: Context): ImageLoader {
+        val diskMax = if (DeviceRam.isLowRamDevice(context)) {
+            DiskCacheMaxBytesLowRam
+        } else {
+            DiskCacheMaxBytesHighRam
+        }
+        return ImageLoader.Builder(context)
             .memoryCache {
                 MemoryCache.Builder(context)
                     .maxSizePercent(MemoryCacheMaxSizePercent)
@@ -37,13 +44,14 @@ object YTLiteImageLoader {
             .diskCache {
                 DiskCache.Builder()
                     .directory(context.cacheDir.resolve(DiskCacheDirectoryName))
-                    .maxSizeBytes(DiskCacheMaxSizeBytes)
+                    .maxSizeBytes(diskMax)
                     .build()
             }
             // YouTube CDN often sends Cache-Control that would disable useful disk reuse.
             .respectCacheHeaders(false)
             .crossfade(false)
             .build()
+    }
 }
 
 @Composable
@@ -55,6 +63,7 @@ fun rememberYTLiteImageLoader(): ImageLoader {
 fun thumbnailRequest(
     context: Context,
     url: String,
+    sizePx: Int? = null,
 ): ImageRequest = ImageRequest.Builder(context)
     .data(url)
     .memoryCachePolicy(CachePolicy.ENABLED)
@@ -62,4 +71,9 @@ fun thumbnailRequest(
     .networkCachePolicy(CachePolicy.ENABLED)
     .bitmapConfig(Bitmap.Config.RGB_565)
     .crossfade(false)
+    .apply {
+        if (sizePx != null && sizePx > 0) {
+            size(sizePx)
+        }
+    }
     .build()

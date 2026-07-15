@@ -24,7 +24,7 @@ class VsPlayerBridge(
     private val onError: (String) -> Unit = {},
 ) {
     private val mainHandler = Handler(Looper.getMainLooper())
-    private val ioExecutor: ExecutorService = Executors.newSingleThreadExecutor()
+    private val ioExecutor: ExecutorService = Executors.newFixedThreadPool(HTTP_POOL_SIZE)
     private val pendingMessages = ConcurrentHashMap<String, Continuation<JSONObject>>()
     private val requestResults = ConcurrentHashMap<String, String>()
 
@@ -219,6 +219,7 @@ class VsPlayerBridge(
     companion object {
         private const val TAG = "VsPlayerBridge"
         private const val VISITOR_DATA_TTL_MS = 30 * 60 * 1000L
+        private const val HTTP_POOL_SIZE = 4
         private val VISITOR_DATA_REGEX = Regex("\"VISITOR_DATA\":\"([^\"]+)\"")
     }
 }
