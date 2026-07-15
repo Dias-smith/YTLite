@@ -1,0 +1,16 @@
+<component name="libraryTable">
+  <library name="Gradle: androidx.media3:media3-ui:1.5.1@aar" external-system-id="GRADLE">
+    <ANNOTATIONS>
+      <root url="jar://$USER_HOME$/.gradle/caches/9.6.1/transforms/f01c96357425aceb184c7d424fbb4cef/transformed/media3-ui-1.5.1/annotations.zip!/" />
+    </ANNOTATIONS>
+    <CLASSES>
+      <root url="file://$USER_HOME$/.gradle/caches/9.6.1/transforms/f01c96357425aceb184c7d424fbb4cef/transformed/media3-ui-1.5.1/AndroidManifest.xml" />
+      <root url="file://$USER_HOME$/.gradle/caches/9.6.1/transforms/f01c96357425aceb184c7d424fbb4cef/transformed/media3-ui-1.5.1/res" />
+      <root url="jar://$USER_HOME$/.gradle/caches/9.6.1/transforms/f01c96357425aceb184c7d424fbb4cef/transformed/media3-ui-1.5.1/jars/classes.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/androidx.media3/media3-ui/1.5.1/790d7bed7cabc6f5baca3f0e65ced83a3328104b/media3-ui-1.5.1-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>

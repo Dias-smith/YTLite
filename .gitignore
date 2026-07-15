@@ -29,3 +29,13 @@ replay_pid*
 .gradle/
 
 local.properties
+
+# iOS / Xcode
+ios/**/xcuserdata/
+ios/**/DerivedData/
+ios/DerivedData/
+ios/*.xcworkspace/xcuserdata/
+**/Secrets.xcconfig.local
+**/xcuserdata/
+*.xcuserstate
+.DS_Store

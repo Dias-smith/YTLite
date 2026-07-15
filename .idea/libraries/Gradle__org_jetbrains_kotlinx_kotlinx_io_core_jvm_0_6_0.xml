@@ -1,0 +1,12 @@
+<component name="libraryTable">
+  <library name="Gradle: org.jetbrains.kotlinx:kotlinx-io-core-jvm:0.6.0" type="java-imported" external-system-id="GRADLE">
+    <properties groupId="org.jetbrains.kotlinx" artifactId="kotlinx-io-core-jvm" version="0.6.0" baseVersion="0.6.0" />
+    <CLASSES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlinx/kotlinx-io-core-jvm/0.6.0/f1d1e496fe0c6937fdb7509442b7f3e613d345d4/kotlinx-io-core-jvm-0.6.0.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlinx/kotlinx-io-core-jvm/0.6.0/43be5d583adcbfe4f717a28b6770d5628dcdae4c/kotlinx-io-core-jvm-0.6.0-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>
