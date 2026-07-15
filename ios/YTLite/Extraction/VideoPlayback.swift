@@ -57,20 +57,30 @@ enum ExtractResultMapper {
         guard let data = envelope["data"] as? [String: Any] else {
             throw ExtractorBridge.ExtractorError.invalidResponse("missing data")
         }
-        let success = data["success"] as? Bool ?? false
-        if !success {
-            let msg = (data["errorMsg"] as? String)
-                ?? (data["errorMSG"] as? String)
-                ?? "extract failed"
-            throw ExtractorBridge.ExtractorError.extractFailed(msg)
+        // extractor.js `createExtractMsg` always sets success:true; real failures land in
+        // errorMsg / music:null (same as Android JsResultMapper.playbackErrorMessage).
+        let topError = stringValue(data["errorMsg"]).nilIfEmpty
+            ?? stringValue(data["errorMSG"]).nilIfEmpty
+        let explicitFail = (data["success"] as? Bool) == false
+        if explicitFail {
+            throw ExtractorBridge.ExtractorError.extractFailed(
+                topError ?? "extract failed"
+            )
         }
         guard let payload = data["data"] as? [String: Any] else {
-            throw ExtractorBridge.ExtractorError.invalidResponse("missing payload")
+            throw ExtractorBridge.ExtractorError.invalidResponse(
+                topError ?? "missing payload"
+            )
         }
+        let nestedError = stringValue(payload["errMsg"]).nilIfEmpty
+            ?? stringValue(payload["errorMSG"]).nilIfEmpty
+            ?? stringValue(payload["errorMsg"]).nilIfEmpty
+            ?? topError
         let music = payload["music"] as? [String: Any]
-            ?? payload["data"] as? [String: Any]
         guard let music else {
-            throw ExtractorBridge.ExtractorError.invalidResponse("missing music")
+            let msg = (nestedError ?? "Unable to extract playable stream")
+                .replacingOccurrences(of: "__notRetry@", with: "")
+            throw ExtractorBridge.ExtractorError.extractFailed(msg)
         }
         let rawFormats = music["formats"] as? [[String: Any]] ?? []
         let formats: [StreamFormat] = rawFormats.compactMap { item in
@@ -93,7 +103,9 @@ enum ExtractResultMapper {
             )
         }
         guard !formats.isEmpty else {
-            throw ExtractorBridge.ExtractorError.invalidResponse("no formats with url")
+            let msg = (nestedError ?? "no formats with url")
+                .replacingOccurrences(of: "__notRetry@", with: "")
+            throw ExtractorBridge.ExtractorError.extractFailed(msg)
         }
 
         let videoId = stringValue(music["videoId"]).nilIfEmpty

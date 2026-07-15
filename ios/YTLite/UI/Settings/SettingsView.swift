@@ -42,6 +42,9 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
         }
+        .scrollContentBackground(.hidden)
+        .background(YTLiteColor.background)
         .navigationTitle("Settings")
+        .preferredColorScheme(.dark)
     }
 }

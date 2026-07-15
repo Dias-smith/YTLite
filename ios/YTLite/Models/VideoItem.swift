@@ -7,13 +7,15 @@ struct VideoItem: Identifiable, Hashable, Sendable {
     let channelName: String
     let subtitle: String
     let thumbnailURL: URL?
+    let durationText: String?
 
     init(
         videoId: String,
         title: String,
         channelName: String,
         subtitle: String = "",
-        thumbnailURL: URL? = nil
+        thumbnailURL: URL? = nil,
+        durationText: String? = nil
     ) {
         self.videoId = videoId
         self.title = title
@@ -21,6 +23,7 @@ struct VideoItem: Identifiable, Hashable, Sendable {
         self.subtitle = subtitle.isEmpty ? channelName : subtitle
         self.thumbnailURL = thumbnailURL
             ?? URL(string: "https://i.ytimg.com/vi/\(videoId)/hqdefault.jpg")
+        self.durationText = durationText
     }
 
     var watchURL: URL {

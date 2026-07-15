@@ -12,88 +12,177 @@ struct YouView: View {
         NavigationStack {
             Group {
                 if !auth.isAuthenticated {
-                    ContentUnavailableView {
-                        VStack(spacing: 12) {
-                            Image("BrandLogo")
-                                .resizable()
-                                .scaledToFit()
-                                .frame(width: 72, height: 72)
-                                .clipShape(RoundedRectangle(cornerRadius: 16))
-                            Label("You", systemImage: "person.crop.circle")
-                        }
-                    } description: {
-                        Text("Sign in to see Liked and discover music channels.")
-                    } actions: {
-                        Button(auth.isBusy ? "Signing in…" : "Sign in with Google") {
-                            Task {
-                                await auth.signInWithGoogle()
-                                appModel.syncAuth(auth)
-                                await viewModel.load(apiKey: appModel.config.youtubeDataAPIKey, store: store)
-                            }
-                        }
-                        .disabled(auth.isBusy || !auth.isConfigured)
-                    }
+                    subsSignInEmpty
                 } else if viewModel.isLoading && viewModel.trending.isEmpty {
-                    ProgressView("Loading…")
+                    ProgressView()
+                        .tint(YTLiteColor.accent)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
-                    List {
-                        if let err = viewModel.errorMessage {
-                            Text(err).font(.caption).foregroundStyle(.red)
-                        }
-
-                        Section("Liked") {
-                            if viewModel.liked.isEmpty {
-                                Text("No liked videos yet").foregroundStyle(.secondary)
-                            } else {
-                                ScrollView(.horizontal, showsIndicators: false) {
-                                    HStack(spacing: 12) {
-                                        ForEach(viewModel.liked) { item in
-                                            ShelfCard(title: item.title, subtitle: item.channelName, imageURL: item.thumbnailURL) {
-                                                playback.play(items: viewModel.liked, startAt: viewModel.liked.firstIndex(of: item) ?? 0)
-                                                showPlayer = true
-                                            }
-                                        }
-                                    }
-                                    .padding(.vertical, 4)
-                                }
-                                .listRowInsets(EdgeInsets())
-                            }
-                        }
-
-                        Section("Trending music") {
-                            ForEach(Array(viewModel.trending.enumerated()), id: \.element.id) { index, item in
-                                Button {
-                                    playback.play(items: viewModel.trending, startAt: index)
-                                    showPlayer = true
-                                } label: {
-                                    VideoRow(item: item)
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
-
-                        Section("Find channels") {
-                            NavigationLink("Search channels") {
-                                ChannelSearchView()
-                            }
-                            NavigationLink("Search playlists") {
-                                PlaylistSearchView()
-                            }
-                        }
-                    }
-                    .refreshable {
-                        await viewModel.load(apiKey: appModel.config.youtubeDataAPIKey, store: store)
-                    }
+                    signedInContent
                 }
             }
-            .navigationTitle("You")
+            .background(YTLiteColor.background)
+            .navigationBarHidden(true)
             .task {
                 guard auth.isAuthenticated else { return }
                 await viewModel.load(apiKey: appModel.config.youtubeDataAPIKey, store: store)
             }
             .sheet(isPresented: $showPlayer) {
-                NavigationStack { PlayerDetailView() }
+                NavigationStack {
+                    PlayerDetailView()
+                        .preferredColorScheme(.dark)
+                }
             }
+        }
+    }
+
+    private var subsSignInEmpty: some View {
+        VStack(spacing: 20) {
+            Spacer()
+            SubsEmptyGraphic()
+                .frame(width: 120, height: 100)
+
+            Text("Don't miss new videos")
+                .font(.title3.weight(.bold))
+                .foregroundStyle(.white)
+                .multilineTextAlignment(.center)
+
+            Text("Sign in to see updates from your favorite YouTube channels")
+                .font(.subheadline)
+                .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 40)
+
+            Button {
+                Task {
+                    await auth.signInWithGoogle()
+                    appModel.syncAuth(auth)
+                    await viewModel.load(apiKey: appModel.config.youtubeDataAPIKey, store: store)
+                }
+            } label: {
+                Text(auth.isBusy ? "Signing in…" : "Sign in")
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 28)
+                    .padding(.vertical, 12)
+                    .background(YTLiteColor.signInBlue, in: Capsule())
+            }
+            .disabled(auth.isBusy || !auth.isConfigured)
+            .padding(.top, 4)
+
+            if let err = auth.lastError {
+                Text(err)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                    .padding(.horizontal)
+            }
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var signedInContent: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                Text("Subscriptions")
+                    .font(.largeTitle.bold())
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, YTLiteLayout.screenPadding)
+                    .padding(.top, 8)
+
+                if let err = viewModel.errorMessage {
+                    Text(err).font(.caption).foregroundStyle(.red).padding(.horizontal)
+                }
+
+                if !viewModel.liked.isEmpty {
+                    Text("Liked")
+                        .font(.headline)
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, YTLiteLayout.screenPadding)
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 12) {
+                            ForEach(viewModel.liked) { item in
+                                ShelfCard(title: item.title, subtitle: item.channelName, imageURL: item.thumbnailURL) {
+                                    playback.play(items: viewModel.liked, startAt: viewModel.liked.firstIndex(of: item) ?? 0)
+                                    showPlayer = true
+                                }
+                            }
+                        }
+                        .padding(.horizontal, YTLiteLayout.screenPadding)
+                    }
+                }
+
+                Text("Trending music")
+                    .font(.headline)
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, YTLiteLayout.screenPadding)
+
+                LazyVStack(spacing: 4) {
+                    ForEach(Array(viewModel.trending.enumerated()), id: \.element.id) { index, item in
+                        Button {
+                            playback.play(items: viewModel.trending, startAt: index)
+                            showPlayer = true
+                        } label: {
+                            FeedVideoCard(item: item)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+
+                VStack(spacing: 0) {
+                    NavigationLink {
+                        ChannelSearchView()
+                    } label: {
+                        discoverRow(title: "Search channels", icon: "person.2")
+                    }
+                    NavigationLink {
+                        PlaylistSearchView()
+                    } label: {
+                        discoverRow(title: "Search playlists", icon: "list.bullet.rectangle")
+                    }
+                }
+                .padding(.horizontal, YTLiteLayout.screenPadding)
+                .padding(.bottom, 24)
+            }
+        }
+        .refreshable {
+            await viewModel.load(apiKey: appModel.config.youtubeDataAPIKey, store: store)
+        }
+    }
+
+    private func discoverRow(title: String, icon: String) -> some View {
+        HStack {
+            Image(systemName: icon)
+                .foregroundStyle(YTLiteColor.accent)
+            Text(title)
+                .foregroundStyle(.white)
+            Spacer()
+            Image(systemName: "chevron.right")
+                .foregroundStyle(YTLiteColor.onSurfaceVariant)
+        }
+        .padding(.vertical, 14)
+    }
+}
+
+private struct SubsEmptyGraphic: View {
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 10)
+                .fill(Color.white.opacity(0.12))
+                .frame(width: 88, height: 56)
+                .rotationEffect(.degrees(-8))
+                .offset(x: -18, y: -8)
+            RoundedRectangle(cornerRadius: 10)
+                .fill(Color.white.opacity(0.18))
+                .frame(width: 92, height: 58)
+                .rotationEffect(.degrees(6))
+                .offset(x: 16, y: -4)
+            RoundedRectangle(cornerRadius: 10)
+                .fill(Color.white.opacity(0.28))
+                .frame(width: 96, height: 60)
+            Image(systemName: "play.fill")
+                .font(.title3)
+                .foregroundStyle(Color.white.opacity(0.85))
         }
     }
 }
@@ -134,15 +223,22 @@ private struct ShelfCard: View {
                 AsyncImage(url: imageURL) { phase in
                     switch phase {
                     case .success(let image): image.resizable().scaledToFill()
-                    default: Color.secondary.opacity(0.2)
+                    default: YTLiteColor.surfaceVariant
                     }
                 }
                 .frame(width: 140, height: 80)
                 .clipShape(RoundedRectangle(cornerRadius: 8))
-                Text(title).font(.caption.weight(.semibold)).lineLimit(2).frame(width: 140, alignment: .leading)
-                Text(subtitle).font(.caption2).foregroundStyle(.secondary).lineLimit(1).frame(width: 140, alignment: .leading)
+                Text(title)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .lineLimit(2)
+                    .frame(width: 140, alignment: .leading)
+                Text(subtitle)
+                    .font(.caption2)
+                    .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                    .lineLimit(1)
+                    .frame(width: 140, alignment: .leading)
             }
-            .padding(.horizontal, 8)
         }
         .buttonStyle(.plain)
     }
@@ -162,22 +258,25 @@ struct ChannelSearchView: View {
                     AsyncImage(url: channel.thumbnailURL) { phase in
                         switch phase {
                         case .success(let image): image.resizable().scaledToFill()
-                        default: Color.secondary.opacity(0.2)
+                        default: YTLiteColor.surfaceVariant
                         }
                     }
                     .frame(width: 48, height: 48)
                     .clipShape(Circle())
                     VStack(alignment: .leading) {
-                        Text(channel.title).font(.subheadline.weight(.semibold))
-                        Text(channel.subtitle).font(.caption).foregroundStyle(.secondary)
+                        Text(channel.title).font(.subheadline.weight(.semibold)).foregroundStyle(.white)
+                        Text(channel.subtitle).font(.caption).foregroundStyle(YTLiteColor.onSurfaceVariant)
                     }
                 }
+                .listRowBackground(YTLiteColor.background)
             }
         }
+        .scrollContentBackground(.hidden)
+        .background(YTLiteColor.background)
         .navigationTitle("Channels")
         .searchable(text: $query, prompt: "Search channels")
         .onSubmit(of: .search) { Task { await search() } }
-        .overlay { if isLoading { ProgressView() } }
+        .overlay { if isLoading { ProgressView().tint(YTLiteColor.accent) } }
     }
 
     private func search() async {
@@ -198,15 +297,18 @@ struct PlaylistSearchView: View {
                 PlaylistVideosBrowserView(playlist: playlist)
             } label: {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(playlist.title).font(.subheadline.weight(.semibold))
-                    Text(playlist.subtitle).font(.caption).foregroundStyle(.secondary)
+                    Text(playlist.title).font(.subheadline.weight(.semibold)).foregroundStyle(.white)
+                    Text(playlist.subtitle).font(.caption).foregroundStyle(YTLiteColor.onSurfaceVariant)
                 }
+                .listRowBackground(YTLiteColor.background)
             }
         }
+        .scrollContentBackground(.hidden)
+        .background(YTLiteColor.background)
         .navigationTitle("Playlists")
         .searchable(text: $query, prompt: "Search playlists")
         .onSubmit(of: .search) { Task { await search() } }
-        .overlay { if isLoading { ProgressView() } }
+        .overlay { if isLoading { ProgressView().tint(YTLiteColor.accent) } }
     }
 
     private func search() async {
@@ -227,23 +329,26 @@ struct ChannelVideosView: View {
     var body: some View {
         Group {
             if isLoading {
-                ProgressView()
+                ProgressView().tint(YTLiteColor.accent)
             } else if videos.isEmpty {
                 ContentUnavailableView("No videos", systemImage: "play.slash", description: Text(errorMessage ?? ""))
             } else {
-                List {
-                    ForEach(Array(videos.enumerated()), id: \.element.id) { index, item in
-                        Button {
-                            playback.play(items: videos, startAt: index)
-                            showPlayer = true
-                        } label: {
-                            VideoRow(item: item)
+                ScrollView {
+                    LazyVStack(spacing: 4) {
+                        ForEach(Array(videos.enumerated()), id: \.element.id) { index, item in
+                            Button {
+                                playback.play(items: videos, startAt: index)
+                                showPlayer = true
+                            } label: {
+                                FeedVideoCard(item: item)
+                            }
+                            .buttonStyle(.plain)
                         }
-                        .buttonStyle(.plain)
                     }
                 }
             }
         }
+        .background(YTLiteColor.background)
         .navigationTitle(channel.title)
         .task {
             isLoading = true
@@ -255,7 +360,7 @@ struct ChannelVideosView: View {
             }
         }
         .sheet(isPresented: $showPlayer) {
-            NavigationStack { PlayerDetailView() }
+            NavigationStack { PlayerDetailView().preferredColorScheme(.dark) }
         }
     }
 }
@@ -271,23 +376,26 @@ struct PlaylistVideosBrowserView: View {
     var body: some View {
         Group {
             if isLoading {
-                ProgressView()
+                ProgressView().tint(YTLiteColor.accent)
             } else if videos.isEmpty {
                 ContentUnavailableView("Empty playlist", systemImage: "list.bullet", description: Text(errorMessage ?? ""))
             } else {
-                List {
-                    ForEach(Array(videos.enumerated()), id: \.element.id) { index, item in
-                        Button {
-                            playback.play(items: videos, startAt: index)
-                            showPlayer = true
-                        } label: {
-                            VideoRow(item: item)
+                ScrollView {
+                    LazyVStack(spacing: 4) {
+                        ForEach(Array(videos.enumerated()), id: \.element.id) { index, item in
+                            Button {
+                                playback.play(items: videos, startAt: index)
+                                showPlayer = true
+                            } label: {
+                                FeedVideoCard(item: item)
+                            }
+                            .buttonStyle(.plain)
                         }
-                        .buttonStyle(.plain)
                     }
                 }
             }
         }
+        .background(YTLiteColor.background)
         .navigationTitle(playlist.title)
         .task {
             isLoading = true
@@ -299,7 +407,7 @@ struct PlaylistVideosBrowserView: View {
             }
         }
         .sheet(isPresented: $showPlayer) {
-            NavigationStack { PlayerDetailView() }
+            NavigationStack { PlayerDetailView().preferredColorScheme(.dark) }
         }
     }
 }

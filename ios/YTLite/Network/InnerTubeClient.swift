@@ -266,15 +266,29 @@ enum VideoJSONParser {
             ?? ""
         let views = extractText(renderer["shortViewCountText"])
             ?? extractText(renderer["viewCountText"])
-        let parts = [channel, views].compactMap { $0 }.filter { !$0.isEmpty }
+        let published = extractText(renderer["publishedTimeText"])
+        let parts = [channel, views, published].compactMap { $0 }.filter { !$0.isEmpty }
         let thumb = pickThumbnail(renderer["thumbnail"] as? [String: Any])
+        let duration = extractText(renderer["lengthText"])
+            ?? lengthFromOverlays(renderer["thumbnailOverlays"] as? [[String: Any]])
         return VideoItem(
             videoId: videoId,
             title: title,
             channelName: channel,
             subtitle: parts.joined(separator: " · "),
-            thumbnailURL: thumb
+            thumbnailURL: thumb,
+            durationText: duration
         )
+    }
+
+    private static func lengthFromOverlays(_ overlays: [[String: Any]]?) -> String? {
+        guard let overlays else { return nil }
+        for overlay in overlays {
+            if let renderer = overlay["thumbnailOverlayTimeStatusRenderer"] as? [String: Any] {
+                return extractText(renderer["text"])
+            }
+        }
+        return nil
     }
 
     private static func extractText(_ any: Any?) -> String? {

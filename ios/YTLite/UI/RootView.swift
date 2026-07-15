@@ -12,32 +12,31 @@ struct RootView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            TabView(selection: $selectedTab) {
-                HomeView()
-                    .tabItem { Label("Home", systemImage: "house.fill") }
-                    .tag(AppTab.home)
-
-                ShortsView()
-                    .tabItem { Label("Shorts", systemImage: "play.square.stack.fill") }
-                    .tag(AppTab.shorts)
-
-                SearchView()
-                    .tabItem { Label("Search", systemImage: "magnifyingglass") }
-                    .tag(AppTab.search)
-
-                YouView()
-                    .tabItem { Label("You", systemImage: "person.crop.circle") }
-                    .tag(AppTab.you)
-
-                LibraryView()
-                    .tabItem { Label("Library", systemImage: "books.vertical.fill") }
-                    .tag(AppTab.library)
+            Group {
+                switch selectedTab {
+                case .home:
+                    HomeView()
+                case .shorts:
+                    ShortsView()
+                case .search:
+                    SearchView()
+                case .you:
+                    YouView()
+                case .library:
+                    LibraryView()
+                }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(YTLiteColor.background)
 
             if playback.nowPlaying != nil && selectedTab != .shorts {
                 MiniPlayerBar()
             }
+
+            MainTabBar(selected: $selectedTab)
         }
+        .background(YTLiteColor.background.ignoresSafeArea())
+        .preferredColorScheme(.dark)
         .environment(\.libraryStore, libraryStore)
         .onAppear {
             if libraryStore == nil {

@@ -11,56 +11,65 @@ struct MiniPlayerBar: View {
                     showPlayer = true
                 } label: {
                     HStack(spacing: 12) {
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 6)
-                                .fill(Color.secondary.opacity(0.25))
-                                .frame(width: 44, height: 44)
-                            if playback.isBuffering {
-                                ProgressView().scaleEffect(0.8)
-                            } else {
-                                Image(systemName: "play.rectangle.fill")
-                                    .foregroundStyle(.secondary)
+                        AsyncImage(url: item.thumbnailURL) { phase in
+                            switch phase {
+                            case .success(let image):
+                                image.resizable().scaledToFill()
+                            default:
+                                YTLiteColor.surfaceVariant
                             }
                         }
+                        .frame(width: 40, height: 40)
+                        .clipShape(RoundedRectangle(cornerRadius: 4))
 
                         VStack(alignment: .leading, spacing: 2) {
                             Text(item.title)
-                                .font(.subheadline.weight(.semibold))
+                                .font(.subheadline.weight(.medium))
+                                .foregroundStyle(.white)
                                 .lineLimit(1)
-                                .foregroundStyle(.primary)
                             Text(item.channelName)
                                 .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(YTLiteColor.onSurfaceVariant)
                                 .lineLimit(1)
                         }
-                        Spacer(minLength: 0)
+                        Spacer(minLength: 8)
                     }
                 }
                 .buttonStyle(.plain)
-
-                Button { playback.playPrevious() } label: {
-                    Image(systemName: "backward.fill")
-                }
-                .disabled(playback.queue.count <= 1 && playback.positionSeconds <= 3)
 
                 Button {
                     playback.togglePlayPause()
                 } label: {
                     Image(systemName: playback.isPlaying ? "pause.fill" : "play.fill")
-                        .font(.title3)
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .frame(width: 36, height: 36)
                 }
                 .disabled(playback.isBuffering || playback.player == nil)
 
-                Button { playback.playNext() } label: {
+                Button {
+                    playback.playNext()
+                } label: {
                     Image(systemName: "forward.fill")
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .frame(width: 36, height: 36)
                 }
                 .disabled(playback.queueIndex + 1 >= playback.queue.count)
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-            .background(.ultraThinMaterial)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(YTLiteColor.miniPlayer)
+            .overlay(alignment: .top) {
+                Rectangle()
+                    .fill(Color.white.opacity(0.08))
+                    .frame(height: 0.5)
+            }
             .sheet(isPresented: $showPlayer) {
-                NavigationStack { PlayerDetailView() }
+                NavigationStack {
+                    PlayerDetailView()
+                        .preferredColorScheme(.dark)
+                }
             }
         }
     }

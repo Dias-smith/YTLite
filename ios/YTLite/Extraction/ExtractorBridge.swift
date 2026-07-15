@@ -48,6 +48,8 @@ final class ExtractorBridge: NSObject, WKScriptMessageHandler {
 
     func extractPlayback(videoId: String) async throws -> VideoPlayback {
         try await ensureReady()
+        // Match Android VsPlayerBridge.getVisitorData(): ensure fresh visitor before player calls.
+        await refreshVisitorData()
         let watchURL = "\(YouTubeConstants.baseURL)/watch?v=\(videoId)"
         let uid = UUID().uuidString
         let envelope: [String: Any] = [
@@ -219,28 +221,46 @@ final class ExtractorBridge: NSObject, WKScriptMessageHandler {
 
     private func completeHTTPCallback(callbackId: String, result: HttpStringResult) async {
         guard let webView else { return }
+        // WKWebView cannot sync-return like Android JavascriptInterface; bridge-ios.html
+        // reads window.__requestResults[id]. Large player JSON must be chunked — a single
+        // callAsyncJavaScript argument often fails and left music=null with success:true.
+        let ok = await depositHTTPBody(callbackId: callbackId, body: result.body)
+        let success = result.success && ok
+        let errCode = ok ? result.errCode : -1
+        let errMsg = ok ? result.errMsg : "Failed to deposit HTTP body into JS bridge"
+        let script =
+            "window.AndroidBridge_invokeCallback(" +
+            "\(Self.jsonQuoted(callbackId)),\(success ? "true" : "false"),null," +
+            "\(errCode),\(Self.jsonQuoted(errMsg)));"
         do {
-            _ = try await webView.callAsyncJavaScript(
-                """
-                window.__requestResults[id] = body;
-                window.AndroidBridge_invokeCallback(id, success, null, errCode, errMsg);
-                return true;
-                """,
-                arguments: [
-                    "id": callbackId,
-                    "body": result.body,
-                    "success": result.success,
-                    "errCode": result.errCode,
-                    "errMsg": result.errMsg,
-                ],
-                contentWorld: .page
-            )
+            _ = try await webView.evaluateJavaScript(script)
         } catch {
-            // Last-resort: empty failure callback.
             webView.evaluateJavaScript(
                 "window.AndroidBridge_invokeCallback(\(Self.jsonQuoted(callbackId)),false,null,-1,\(Self.jsonQuoted(error.localizedDescription)));",
                 completionHandler: nil
             )
+        }
+    }
+
+    /// Splits large responses into JSON-safe chunks and assigns `window.__requestResults[id]`.
+    private func depositHTTPBody(callbackId: String, body: String) async -> Bool {
+        guard let webView else { return false }
+        let idLit = Self.jsonQuoted(callbackId)
+        do {
+            _ = try await webView.evaluateJavaScript("window.__requestResults[\(idLit)]='';")
+            // Keep chunks small enough for evaluateJavaScript / JSON escaping.
+            let chunkSize = 80_000
+            var start = body.startIndex
+            while start < body.endIndex {
+                let end = body.index(start, offsetBy: chunkSize, limitedBy: body.endIndex) ?? body.endIndex
+                let chunk = String(body[start..<end])
+                let script = "window.__requestResults[\(idLit)]+=\(Self.jsonQuoted(chunk));"
+                _ = try await webView.evaluateJavaScript(script)
+                start = end
+            }
+            return true
+        } catch {
+            return false
         }
     }
 
