@@ -26,6 +26,7 @@ import coil.ImageLoader
 import androidx.compose.foundation.layout.Row
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.ui.res.stringResource
@@ -33,6 +34,7 @@ import com.ytlite.player.R
 import com.ytlite.player.data.model.VideoItem
 import com.ytlite.player.ui.image.thumbnailRequest
 import com.ytlite.player.ui.trackaction.TrackActionSource
+import com.ytlite.player.ui.trackaction.LocalTrackDownloadClick
 import com.ytlite.player.ui.trackaction.LocalTrackMoreClick
 import com.ytlite.player.ui.trackaction.TrackActionContext
 
@@ -43,10 +45,15 @@ fun VideoFeedItem(
     modifier: Modifier = Modifier,
     onClick: () -> Unit = {},
     onMoreClick: (() -> Unit)? = null,
+    onDownloadClick: (() -> Unit)? = null,
 ) {
     val defaultMoreClick = LocalTrackMoreClick.current
+    val defaultDownloadClick = LocalTrackDownloadClick.current
     val moreHandler = onMoreClick ?: {
         defaultMoreClick(TrackActionContext.fromVideoItem(video, TrackActionSource.FEED))
+    }
+    val downloadHandler = onDownloadClick ?: {
+        defaultDownloadClick(video.videoId)
     }
 
     Card(
@@ -109,6 +116,15 @@ fun VideoFeedItem(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                    IconButton(
+                        onClick = downloadHandler,
+                        modifier = Modifier.size(36.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Download,
+                            contentDescription = stringResource(R.string.library_action_download),
                         )
                     }
                     IconButton(

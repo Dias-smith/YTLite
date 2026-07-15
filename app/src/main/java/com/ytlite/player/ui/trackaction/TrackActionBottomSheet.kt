@@ -15,12 +15,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.PlaylistAdd
 import androidx.compose.material.icons.automirrored.outlined.QueueMusic
-import androidx.compose.material.icons.outlined.Album
 import androidx.compose.material.icons.outlined.Block
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Edit
-import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.PlaylistRemove
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.Subtitles
@@ -56,8 +54,6 @@ fun TrackActionBottomSheet(
     onDismiss: () -> Unit,
     onSaveToLibrary: (TrackActionContext) -> Unit,
     onEditMetadata: (TrackActionContext) -> Unit,
-    onGoToAlbum: (String) -> Unit,
-    onGoToArtist: (String, String) -> Unit,
     onViewLyrics: (String) -> Unit,
     onRemoveFromQueue: (() -> Unit)? = null,
 ) {
@@ -166,41 +162,6 @@ fun TrackActionBottomSheet(
                 label = stringResource(R.string.library_action_edit_metadata),
                 onClick = {
                     onEditMetadata(context)
-                    onDismiss()
-                },
-            )
-            TrackMenuRow(
-                icon = Icons.Outlined.Album,
-                label = stringResource(R.string.track_action_go_to_album),
-                enabled = uiState.canGoToAlbum,
-                subtitle = if (!uiState.canGoToAlbum) {
-                    stringResource(R.string.track_action_album_unavailable)
-                } else {
-                    null
-                },
-                onClick = {
-                    context.album?.let {
-                        toast(R.string.toast_opening_album)
-                        onGoToAlbum(it)
-                    }
-                    onDismiss()
-                },
-            )
-            TrackMenuRow(
-                icon = Icons.Outlined.Person,
-                label = stringResource(R.string.track_action_go_to_artist),
-                enabled = uiState.canGoToArtist,
-                subtitle = if (!uiState.canGoToArtist) {
-                    stringResource(R.string.track_action_artist_unavailable)
-                } else {
-                    null
-                },
-                onClick = {
-                    val channelId = context.channelId
-                    if (channelId != null) {
-                        toast(R.string.toast_opening_artist)
-                        onGoToArtist(channelId, context.channelName)
-                    }
                     onDismiss()
                 },
             )

@@ -268,6 +268,9 @@
     <string name="track_action_save_to_library">Save to library</string>
     <string name="track_action_go_to_album">Go to album</string>
     <string name="track_action_go_to_artist">Go to artist</string>
+    <string name="track_download_formats_title">Choose download format</string>
+    <string name="track_download_formats_error">Couldn\'t load download formats</string>
+    <string name="track_download_coming_soon">Download coming soon</string>
     <string name="track_action_view_lyrics">View lyrics</string>
     <string name="track_action_not_interested">Not interested</string>
     <string name="track_action_remove_not_interested">Remove not interested</string>

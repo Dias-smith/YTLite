@@ -23,6 +23,7 @@ import com.ytlite.player.ui.library.PlaylistPickerSheet
 import com.ytlite.player.ui.library.PlaylistPickerViewModel
 
 val LocalTrackMoreClick = compositionLocalOf<(TrackActionContext) -> Unit> { {} }
+val LocalTrackDownloadClick = compositionLocalOf<(String) -> Unit> { {} }
 
 data class TrackActionNavigation(
     val onGoToArtist: (SubscriptionChannel) -> Unit = {},
@@ -31,7 +32,7 @@ data class TrackActionNavigation(
 
 @Composable
 fun TrackActionHost(
-    navigation: TrackActionNavigation,
+    @Suppress("UNUSED_PARAMETER") navigation: TrackActionNavigation = TrackActionNavigation(),
     onRemoveFromQueue: ((String) -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
@@ -40,6 +41,7 @@ fun TrackActionHost(
     var trackActionContext by remember { mutableStateOf<TrackActionContext?>(null) }
     var editMetadataSeed by remember { mutableStateOf<TrackMetadataSeed?>(null) }
     var lyricsVideoId by remember { mutableStateOf<String?>(null) }
+    var downloadVideoId by remember { mutableStateOf<String?>(null) }
     var playlistPickerVideo by remember { mutableStateOf<LibraryVideo?>(null) }
     var showNewPlaylistDialog by remember { mutableStateOf(false) }
 
@@ -51,12 +53,18 @@ fun TrackActionHost(
     val onTrackMoreClick: (TrackActionContext) -> Unit = { context ->
         trackActionContext = context
     }
+    val onTrackDownloadClick: (String) -> Unit = { videoId ->
+        downloadVideoId = videoId
+    }
 
     fun toast(message: String) {
         Toast.makeText(androidContext, message, Toast.LENGTH_SHORT).show()
     }
 
-    CompositionLocalProvider(LocalTrackMoreClick provides onTrackMoreClick) {
+    CompositionLocalProvider(
+        LocalTrackMoreClick provides onTrackMoreClick,
+        LocalTrackDownloadClick provides onTrackDownloadClick,
+    ) {
         content()
     }
 
@@ -67,19 +75,6 @@ fun TrackActionHost(
             onSaveToLibrary = { playlistPickerVideo = it.toLibraryVideo() },
             onEditMetadata = { trackContext ->
                 editMetadataSeed = trackContext.toMetadataSeed()
-            },
-            onGoToAlbum = { album -> navigation.onGoToAlbum(album) },
-            onGoToArtist = { channelId, channelName ->
-                navigation.onGoToArtist(
-                    SubscriptionChannel(
-                        channelId = channelId,
-                        title = channelName,
-                        handle = null,
-                        avatarUrl = "",
-                        subscriberCountText = null,
-                        description = null,
-                    ),
-                )
             },
             onViewLyrics = { videoId -> lyricsVideoId = videoId },
             onRemoveFromQueue = if (context.showRemoveFromQueue) {
@@ -105,6 +100,13 @@ fun TrackActionHost(
         LyricsBottomSheet(
             videoId = videoId,
             onDismiss = { lyricsVideoId = null },
+        )
+    }
+
+    downloadVideoId?.let { videoId ->
+        DownloadFormatBottomSheet(
+            videoId = videoId,
+            onDismiss = { downloadVideoId = null },
         )
     }
 

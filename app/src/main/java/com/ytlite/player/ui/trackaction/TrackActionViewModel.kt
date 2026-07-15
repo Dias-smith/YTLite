@@ -22,8 +22,6 @@ import kotlinx.coroutines.launch
 data class TrackActionUiState(
     val isLiked: Boolean = false,
     val isNotInterested: Boolean = false,
-    val canGoToAlbum: Boolean = false,
-    val canGoToArtist: Boolean = false,
     val canRemoveFromPlaylist: Boolean = false,
 )
 
@@ -38,8 +36,6 @@ class TrackActionViewModel(
             val ownerKey = session?.ownerKey
                 ?: return@flatMapLatest flowOf(
                     TrackActionUiState(
-                        canGoToAlbum = !context.album.isNullOrBlank(),
-                        canGoToArtist = !context.channelId.isNullOrBlank(),
                         canRemoveFromPlaylist = context.playlistSource == DataSource.LOCAL &&
                             context.playlistId != null,
                     ),
@@ -51,8 +47,6 @@ class TrackActionViewModel(
                 TrackActionUiState(
                     isLiked = liked,
                     isNotInterested = notInterested,
-                    canGoToAlbum = !context.album.isNullOrBlank(),
-                    canGoToArtist = !context.channelId.isNullOrBlank(),
                     canRemoveFromPlaylist = context.playlistSource == DataSource.LOCAL &&
                         context.playlistId != null,
                 )

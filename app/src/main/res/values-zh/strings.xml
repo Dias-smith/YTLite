@@ -218,6 +218,9 @@
     <string name="track_action_save_to_library">保存到资料库</string>
     <string name="track_action_go_to_album">前往专辑</string>
     <string name="track_action_go_to_artist">前往艺人</string>
+    <string name="track_download_formats_title">选择下载格式</string>
+    <string name="track_download_formats_error">无法加载下载格式</string>
+    <string name="track_download_coming_soon">下载功能即将推出</string>
     <string name="track_action_view_lyrics">查看歌词</string>
     <string name="track_action_not_interested">不感兴趣</string>
     <string name="track_action_remove_not_interested">撤销不感兴趣</string>
