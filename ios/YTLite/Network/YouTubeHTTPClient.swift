@@ -1,5 +1,62 @@
 import Foundation
 
+/// Normalize watch / Shorts / youtu.be URLs before extract.
+enum YouTubeURL {
+    /// `https://www.youtube.com/watch?v={id}`
+    static func watchURL(videoId: String) -> String {
+        "\(YouTubeConstants.baseURL)/watch?v=\(videoId)"
+    }
+
+    /// Convert Shorts (and similar) URLs to a canonical watch URL before parsing.
+    /// e.g. `https://www.youtube.com/shorts/26beJql1QWY` → `https://www.youtube.com/watch?v=26beJql1QWY`
+    static func canonicalWatchURL(_ urlString: String) -> String {
+        if let id = videoId(from: urlString) {
+            return watchURL(videoId: id)
+        }
+        return urlString
+    }
+
+    static func videoId(from urlString: String) -> String? {
+        let trimmed = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+
+        // Bare 11-char video id.
+        if trimmed.range(of: #"^[A-Za-z0-9_-]{11}$"#, options: .regularExpression) != nil {
+            return trimmed
+        }
+
+        guard let url = URL(string: trimmed) else { return nil }
+        if let v = URLComponents(url: url, resolvingAgainstBaseURL: false)?
+            .queryItems?
+            .first(where: { $0.name == "v" })?
+            .value,
+           !v.isEmpty
+        {
+            return v
+        }
+
+        let parts = url.path.split(separator: "/").map(String.init)
+        if let idx = parts.firstIndex(where: { $0 == "shorts" || $0 == "embed" || $0 == "v" || $0 == "live" }),
+           parts.index(after: idx) < parts.endIndex
+        {
+            let id = parts[parts.index(after: idx)]
+            if id.range(of: #"^[A-Za-z0-9_-]{11}$"#, options: .regularExpression) != nil {
+                return id
+            }
+        }
+
+        // youtu.be/{id}
+        if let host = url.host?.lowercased(),
+           (host == "youtu.be" || host.hasSuffix(".youtu.be")),
+           let id = parts.first,
+           id.range(of: #"^[A-Za-z0-9_-]{11}$"#, options: .regularExpression) != nil
+        {
+            return id
+        }
+        return nil
+    }
+}
+
 enum YouTubeConstants {
     static let apiKey = "AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8"
     static let musicApiKey = "AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30"

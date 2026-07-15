@@ -190,7 +190,7 @@ struct PlayerDetailView: View {
             }
 
             if playback.isBuffering {
-                ProgressView("Extracting…")
+                ProgressView()
                     .tint(YTLiteColor.onSurface)
                     .padding(YTLiteLayout.screenPadding)
                     .background(.black.opacity(0.55), in: RoundedRectangle(cornerRadius: YTLiteLayout.stackLoose))

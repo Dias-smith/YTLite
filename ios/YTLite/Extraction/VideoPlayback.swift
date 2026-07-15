@@ -222,11 +222,227 @@ enum ExtractResultMapper {
     }
 
     private static func extractVideoId(from url: String?) -> String? {
-        guard let url, let comps = URLComponents(string: url) else { return nil }
-        return comps.queryItems?.first(where: { $0.name == "v" })?.value
+        guard let url else { return nil }
+        return YouTubeURL.videoId(from: url)
+    }
+}
+
+/// When InnerTube clients return UNPLAYABLE, scrape `ytInitialPlayerResponse` from
+/// the public watch HTML page (often still has progressive itag 18 URLs).
+enum WatchPagePlayerFallback {
+    static func extract(videoId: String) async throws -> VideoPlayback {
+        let id = videoId.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !id.isEmpty else {
+            throw ExtractorBridge.ExtractorError.invalidResponse("empty videoId")
+        }
+        // Normalize Shorts → watch before scraping (never hit /shorts/{id}).
+        let pages = [
+            YouTubeURL.canonicalWatchURL(YouTubeURL.watchURL(videoId: id)),
+            YouTubeURL.canonicalWatchURL("https://m.youtube.com/watch?v=\(id)"),
+        ]
+        var lastError: Error = ExtractorBridge.ExtractorError.extractFailed("unplayable")
+        for pageURL in pages {
+            do {
+                let html = try await fetchHTML(pageURL)
+                guard let player = extractPlayerResponseJSON(from: html) else {
+                    continue
+                }
+                return try mapPlayerResponse(player, fallbackVideoId: id)
+            } catch {
+                lastError = error
+            }
+        }
+        throw lastError
+    }
+
+    private static func fetchHTML(_ url: String) async throws -> String {
+        let result = await YouTubeHTTPClient.shared.request(
+            url: url,
+            method: "GET",
+            headers: [
+                "User-Agent":
+                    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 "
+                    + "(KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1",
+                "Accept-Language": "en-US,en;q=0.9",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            ],
+            body: nil
+        )
+        guard result.success, !result.body.isEmpty else {
+            throw ExtractorBridge.ExtractorError.extractFailed(
+                result.errMsg.isEmpty ? "watch page fetch failed" : result.errMsg
+            )
+        }
+        return result.body
+    }
+
+    /// Locates `ytInitialPlayerResponse = {...}` (skips `= null` stubs).
+    private static func extractPlayerResponseJSON(from html: String) -> [String: Any]? {
+        let marker = "ytInitialPlayerResponse = "
+        var searchStart = html.startIndex
+        while let markerRange = html.range(of: marker, range: searchStart..<html.endIndex) {
+            let after = html[markerRange.upperBound...]
+              .drop(while: { $0.isWhitespace || $0 == "\n" || $0 == "\r" })
+            if after.hasPrefix("null") {
+                searchStart = markerRange.upperBound
+                continue
+            }
+            guard after.first == "{" else {
+                searchStart = markerRange.upperBound
+                continue
+            }
+            let braceIndex = after.startIndex
+            // Map into full-string index
+            let absoluteBrace = braceIndex
+            if let jsonText = extractBalancedObject(from: html, startingAt: absoluteBrace),
+               let data = jsonText.data(using: .utf8),
+               let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               obj["videoDetails"] != nil || obj["streamingData"] != nil
+            {
+                return obj
+            }
+            searchStart = markerRange.upperBound
+        }
+        return nil
+    }
+
+    private static func extractBalancedObject(from text: String, startingAt start: String.Index) -> String? {
+        var depth = 0
+        var inString = false
+        var escaped = false
+        var i = start
+        while i < text.endIndex {
+            let ch = text[i]
+            if inString {
+                if escaped {
+                    escaped = false
+                } else if ch == "\\" {
+                    escaped = true
+                } else if ch == "\"" {
+                    inString = false
+                }
+            } else {
+                switch ch {
+                case "\"":
+                    inString = true
+                case "{":
+                    depth += 1
+                case "}":
+                    depth -= 1
+                    if depth == 0 {
+                        return String(text[start...i])
+                    }
+                default:
+                    break
+                }
+            }
+            i = text.index(after: i)
+        }
+        return nil
+    }
+
+    private static func mapPlayerResponse(_ player: [String: Any], fallbackVideoId: String) throws -> VideoPlayback {
+        let status = ((player["playabilityStatus"] as? [String: Any])?["status"] as? String)?
+            .uppercased() ?? ""
+        guard status == "OK" || status.isEmpty else {
+            let reason = ((player["playabilityStatus"] as? [String: Any])?["reason"] as? String)?
+                .nilIfEmpty
+            throw ExtractorBridge.ExtractorError.extractFailed(reason ?? status.lowercased())
+        }
+
+        let streaming = player["streamingData"] as? [String: Any] ?? [:]
+        let formatsRaw = (streaming["formats"] as? [[String: Any]] ?? [])
+            + (streaming["adaptiveFormats"] as? [[String: Any]] ?? [])
+        let formats: [StreamFormat] = formatsRaw.compactMap { item in
+            guard let urlString = (item["url"] as? String)?.nilIfEmpty,
+                  let url = URL(string: urlString.youtubeUnescaped)
+            else { return nil }
+            let mime = (item["mimeType"] as? String) ?? (item["type"] as? String) ?? ""
+            let codecs = mimeCodecs(mime)
+            let hasAudio = codecs.contains(where: { $0.hasPrefix("mp4a") || $0.hasPrefix("opus") || $0.hasPrefix("aac") })
+                || mime.contains("audio/")
+                || item["audioQuality"] != nil
+                || item["audioSampleRate"] != nil
+            let hasVideo = codecs.contains(where: { $0.hasPrefix("avc") || $0.hasPrefix("vp9") || $0.hasPrefix("av01") || $0.hasPrefix("hev") })
+                || mime.contains("video/")
+                || ((item["width"] as? Int) ?? 0) > 0
+                || ((item["height"] as? Int) ?? 0) > 0
+            return StreamFormat(
+                itag: intValue(item["itag"]) ?? 0,
+                url: url,
+                mimeType: mime,
+                width: intValue(item["width"]) ?? 0,
+                height: intValue(item["height"]) ?? 0,
+                acodec: hasAudio ? (codecs.first(where: { $0.hasPrefix("mp4a") || $0.hasPrefix("opus") }) ?? "audio") : "none",
+                vcodec: hasVideo ? (codecs.first(where: { $0.hasPrefix("avc") || $0.hasPrefix("vp9") || $0.hasPrefix("av01") }) ?? "video") : "none"
+            )
+        }
+        guard !formats.isEmpty else {
+            throw ExtractorBridge.ExtractorError.extractFailed("watch page: no formats with url")
+        }
+
+        let details = player["videoDetails"] as? [String: Any] ?? [:]
+        let videoId = (details["videoId"] as? String)?.nilIfEmpty ?? fallbackVideoId
+        let title = (details["title"] as? String)?.nilIfEmpty ?? videoId
+        let micro = (player["microformat"] as? [String: Any])
+            .flatMap { $0["playerMicroformatRenderer"] as? [String: Any] }
+        let channel = (details["author"] as? String)?.nilIfEmpty
+            ?? (micro?["ownerChannelName"] as? String)?.nilIfEmpty
+            ?? ""
+        let channelId = (details["channelId"] as? String)?.nilIfEmpty
+        let duration = intValue(details["lengthSeconds"]) ?? 0
+
+        return VideoPlayback(
+            videoId: videoId,
+            title: title,
+            channelName: channel,
+            channelId: channelId,
+            durationSeconds: duration,
+            formats: formats,
+            thumbnailURL: URL(string: "https://i.ytimg.com/vi/\(videoId)/hqdefault.jpg"),
+            captionTracks: []
+        )
+    }
+
+    private static func mimeCodecs(_ mime: String) -> [String] {
+        guard let range = mime.range(of: "codecs=\"") else { return [] }
+        let rest = mime[range.upperBound...]
+        guard let end = rest.firstIndex(of: "\"") else { return [] }
+        return String(rest[..<end])
+            .split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+    }
+
+    private static func intValue(_ any: Any?) -> Int? {
+        switch any {
+        case let i as Int: return i
+        case let n as NSNumber: return n.intValue
+        case let s as String: return Int(s)
+        default: return nil
+        }
+    }
+
+    private static func stringValue(_ any: Any?) -> String {
+        switch any {
+        case let s as String: return s
+        case let n as NSNumber: return n.stringValue
+        default: return ""
+        }
+    }
+}
+
+private extension Dictionary where Key == String, Value == Any {
+    func nested(_ key: String) -> [String: Any]? {
+        self[key] as? [String: Any]
     }
 }
 
 private extension String {
     var nilIfEmpty: String? { isEmpty ? nil : self }
+
+    /// YouTube HTML embeds `&` as `\u0026`.
+    var youtubeUnescaped: String {
+        replacingOccurrences(of: "\\u0026", with: "&")
+            .replacingOccurrences(of: "\\/", with: "/")
+    }
 }

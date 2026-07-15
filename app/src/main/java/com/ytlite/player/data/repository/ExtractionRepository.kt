@@ -5,6 +5,7 @@ import android.util.Log
 import com.ytlite.player.data.js.JsExtractorClient
 import com.ytlite.player.data.js.JsExtractorEngine
 import com.ytlite.player.data.js.JsResultMapper
+import com.ytlite.player.data.js.WatchPagePlayerFallback
 import com.ytlite.player.data.model.ExtractionResult
 import com.ytlite.player.data.model.FeedPage
 import com.ytlite.player.data.model.HomeFeedItem
@@ -223,19 +224,37 @@ class ExtractionRepository(
                     rawMessage = message,
                 )
             } else {
-                VideoPlaybackBundle(
-                    playback = null,
-                    rawMessage = message,
-                    errorMessage = JsResultMapper.playbackErrorMessage(message)
-                        ?: "Unable to parse playable mp4 URL from JS extractor",
-                )
+                val pageFallback = WatchPagePlayerFallback.extract(videoId)
+                if (pageFallback != null) {
+                    Log.d(TAG, "watch-page fallback ok videoId=$videoId formats=${pageFallback.formats.size}")
+                    VideoPlaybackBundle(
+                        playback = pageFallback,
+                        rawMessage = message,
+                    )
+                } else {
+                    VideoPlaybackBundle(
+                        playback = null,
+                        rawMessage = message,
+                        errorMessage = JsResultMapper.playbackErrorMessage(message)
+                            ?: "Unable to parse playable mp4 URL from JS extractor",
+                    )
+                }
             }
         } catch (e: Exception) {
-            VideoPlaybackBundle(
-                playback = null,
-                rawMessage = null,
-                errorMessage = "Failed to load video playback",
-            )
+            val pageFallback = WatchPagePlayerFallback.extract(videoId)
+            if (pageFallback != null) {
+                Log.d(TAG, "watch-page fallback after exception videoId=$videoId", e)
+                VideoPlaybackBundle(
+                    playback = pageFallback,
+                    rawMessage = null,
+                )
+            } else {
+                VideoPlaybackBundle(
+                    playback = null,
+                    rawMessage = null,
+                    errorMessage = "Failed to load video playback",
+                )
+            }
         }
     }
 

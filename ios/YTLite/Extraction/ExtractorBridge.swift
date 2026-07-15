@@ -47,10 +47,38 @@ final class ExtractorBridge: NSObject, WKScriptMessageHandler {
     }
 
     func extractPlayback(videoId: String) async throws -> VideoPlayback {
+        do {
+            return try await extractPlaybackViaBridge(videoId: videoId)
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            if Self.shouldTryWatchPageFallback(error) {
+                if let fallback = try? await WatchPagePlayerFallback.extract(videoId: videoId) {
+                    return fallback
+                }
+            }
+            throw error
+        }
+    }
+
+    private static func shouldTryWatchPageFallback(_ error: Error) -> Bool {
+        if Task.isCancelled { return false }
+        let msg = error.localizedDescription.lowercased()
+        return msg.contains("unplayable")
+            || msg.contains("not available")
+            || msg.contains("video unavailable")
+            || msg.contains("unable to extract playable stream")
+            || msg.contains("no formats")
+            || msg.contains("missing payload")
+    }
+
+    private func extractPlaybackViaBridge(videoId: String) async throws -> VideoPlayback {
         try await ensureReady()
         // Match Android VsPlayerBridge.getVisitorData(): ensure fresh visitor before player calls.
         await refreshVisitorData()
-        let watchURL = "\(YouTubeConstants.baseURL)/watch?v=\(videoId)"
+        // Always extract via canonical watch URL (Shorts URLs → /watch?v=…).
+        let id = YouTubeURL.videoId(from: videoId) ?? videoId
+        let watchURL = YouTubeURL.canonicalWatchURL(YouTubeURL.watchURL(videoId: id))
         let uid = UUID().uuidString
         let envelope: [String: Any] = [
             "uid": uid,
@@ -91,7 +119,7 @@ final class ExtractorBridge: NSObject, WKScriptMessageHandler {
                 group.cancelAll()
                 return first
             }
-            return try ExtractResultMapper.map(envelope: response, fallbackVideoId: videoId)
+            return try ExtractResultMapper.map(envelope: response, fallbackVideoId: id)
         } catch {
             if let cont = pendingResults.removeValue(forKey: uid) {
                 cont.resume(throwing: error)

@@ -3,24 +3,221 @@ import WebKit
 
 enum ShortsConfig {
     static let url = URL(string: "https://www.youtube.com/shorts/")!
+    /// Hides selected Shorts chrome without touching the player surface.
+    /// Keep selectors tight — broad aria/text matches previously hid parents and broke playback.
     static let lockScript = """
     (function () {
-      if (document.getElementById('ytlite-shorts-lock-css')) return;
-      var style = document.createElement('style');
-      style.id = 'ytlite-shorts-lock-css';
-      style.textContent = [
-        'ytd-masthead, #masthead-container, ytm-mobile-topbar-renderer,',
-        'ytm-pivot-bar-renderer, #guide-button, ytd-searchbox {',
-        '  display: none !important; height: 0 !important; visibility: hidden !important;',
+      var CSS_ID = 'ytlite-shorts-lock-css';
+      var CSS_TEXT = [
+        'ytd-masthead, #masthead-container, #masthead, ytm-mobile-topbar-renderer,',
+        'ytm-pivot-bar-renderer, ytd-miniapp-header-renderer, #guide-button,',
+        'ytd-searchbox, #search-icon-legacy, tp-yt-app-toolbar.ytd-masthead {',
+        '  display: none !important; height: 0 !important; max-height: 0 !important;',
+        '  overflow: hidden !important; visibility: hidden !important; pointer-events: none !important;',
+        '}',
+        'ytd-reel-player-overlay-renderer #menu-button,',
+        'ytd-reel-player-overlay-renderer #menu,',
+        'ytd-reel-player-overlay-renderer #button-bar,',
+        'ytd-reel-player-overlay-renderer ytd-menu-renderer,',
+        'ytd-reel-player-header-renderer #menu,',
+        'ytd-reel-player-header-renderer ytd-menu-renderer,',
+        'ytd-reel-video-renderer #menu-button,',
+        'ytd-reel-video-renderer #menu,',
+        'ytd-reel-video-renderer ytd-menu-renderer,',
+        'ytm-reel-player-overlay-renderer #menu-button,',
+        'ytm-reel-player-overlay-renderer ytm-menu-renderer,',
+        'shorts-page #menu-button,',
+        '#shorts-panel #menu-button,',
+        'ytd-reel-player-overlay-renderer #actions,',
+        'ytd-reel-player-overlay-renderer #like-button,',
+        'ytd-reel-player-overlay-renderer #dislike-button,',
+        'ytd-reel-player-overlay-renderer #comments-button,',
+        'ytd-reel-player-overlay-renderer #share-button,',
+        'ytd-reel-player-overlay-renderer #remix-button,',
+        'ytd-reel-player-overlay-renderer #sound-button,',
+        'ytd-reel-player-overlay-renderer ytd-subscribe-button-renderer,',
+        'ytd-reel-player-overlay-renderer #subscribe-button,',
+        'ytd-reel-video-renderer #actions,',
+        'ytm-reel-player-overlay-renderer #actions,',
+        'reel-player-overlay-actions, reel-action-bar-view-model,',
+        'like-button-view-model, dislike-button-view-model,',
+        'comment-button-view-model, share-button-view-model,',
+        'ytd-segmented-like-dislike-button-renderer,',
+        'ytd-subscribe-button-renderer, subscribe-button-view-model, #subscribe-button,',
+        'ytm-shorts-search-suggestion, ytm-searchbox, ytm-mobile-searchbox-v2,',
+        'button[aria-label*="More actions"], button[aria-label*="More options"],',
+        'button[aria-label*="Action menu"], button[aria-label="More"],',
+        'yt-icon-button[aria-label*="More actions"], yt-icon-button[aria-label*="More options"],',
+        'yt-icon-button[aria-label*="Action menu"], yt-icon-button[aria-label="More"],',
+        'button[aria-label*="Subscribe"], button[aria-label*="subscribe"], button[aria-label*="订阅"],',
+        'a[aria-label*="Subscribe"], a[aria-label*="subscribe"], a[aria-label*="订阅"],',
+        'button[aria-label^="Search"], a[aria-label^="Search"],',
+        'button[aria-label^="搜索"], a[aria-label^="搜索"] {',
+        '  display: none !important; visibility: hidden !important; pointer-events: none !important;',
+        '  width: 0 !important; height: 0 !important; margin: 0 !important; padding: 0 !important;',
+        '  overflow: hidden !important;',
         '}'
       ].join('\\n');
-      document.documentElement.appendChild(style);
-      window.__ytliteShortsNudge = function(dir) {
+
+      window.__ytliteShortsCssText = CSS_TEXT;
+      if (typeof window.__ytliteShortsArmed !== 'boolean') {
+        window.__ytliteShortsArmed = false;
+      }
+
+      function queryDeep(root, selector) {
+        var out = [];
+        function walk(node) {
+          if (!node) return;
+          if (node.querySelectorAll) {
+            try {
+              var list = node.querySelectorAll(selector);
+              for (var i = 0; i < list.length; i++) out.push(list[i]);
+            } catch (e) {}
+          }
+          var all = node.querySelectorAll ? node.querySelectorAll('*') : [];
+          for (var j = 0; j < all.length; j++) {
+            if (all[j].shadowRoot) walk(all[j].shadowRoot);
+          }
+        }
+        walk(root);
+        return out;
+      }
+
+      function hideEl(el) {
+        if (!el || !el.style) return;
         try {
-          var dy = dir === 'up' ? -120 : 120;
+          var tag = (el.tagName || '').toLowerCase();
+          if (tag === 'video' || tag === 'ytd-player' || tag === 'ytm-player') return;
+          if (el.id === 'player' || el.id === 'movie_player') return;
+          if (el.classList && el.classList.contains('html5-video-player')) return;
+        } catch (e) {}
+        el.style.setProperty('display', 'none', 'important');
+        el.style.setProperty('visibility', 'hidden', 'important');
+        el.style.setProperty('pointer-events', 'none', 'important');
+      }
+
+      function hideOverlays() {
+        var selectors = [
+          '#actions', '#menu-button', '#menu', '#button-bar',
+          '#like-button', '#dislike-button', '#comments-button',
+          '#share-button', '#remix-button', '#sound-button',
+          '#subscribe-button', 'ytd-subscribe-button-renderer', 'subscribe-button-view-model',
+          'like-button-view-model', 'dislike-button-view-model',
+          'comment-button-view-model', 'share-button-view-model',
+          'reel-player-overlay-actions', 'reel-action-bar-view-model',
+          'ytd-menu-renderer', 'ytm-menu-renderer',
+          'ytm-shorts-search-suggestion', 'ytm-searchbox'
+        ];
+        for (var s = 0; s < selectors.length; s++) {
+          var found = queryDeep(document, selectors[s]);
+          for (var i = 0; i < found.length; i++) hideEl(found[i]);
+        }
+        hideTopRightOverflowMenu();
+        hideSearchChip();
+      }
+
+      function hideTopRightOverflowMenu() {
+        var MENU_ARIA = /^(more actions|more options|action menu|options|更多|菜单|选项)/i;
+        var nodes = queryDeep(document, 'button, yt-icon-button, [role="button"]');
+        var vw = window.innerWidth || document.documentElement.clientWidth || 0;
+        for (var i = 0; i < nodes.length; i++) {
+          var el = nodes[i];
+          var aria = '';
+          try {
+            aria = (el.getAttribute && (el.getAttribute('aria-label') || '')) || '';
+          } catch (e) {}
+          var byLabel = MENU_ARIA.test(aria);
+          var byPos = false;
+          try {
+            var rect = el.getBoundingClientRect();
+            byPos = rect.width > 0 && rect.height > 0 &&
+              rect.width <= 56 && rect.height <= 56 &&
+              rect.top >= 0 && rect.top < 120 &&
+              rect.right > vw - 72 && rect.left > vw * 0.7;
+          } catch (e2) {}
+          if (byLabel || byPos) hideEl(el);
+        }
+      }
+
+      function hideSearchChip() {
+        var nodes = queryDeep(document, 'button, a, [role="button"]');
+        for (var i = 0; i < nodes.length; i++) {
+          var el = nodes[i];
+          var aria = '';
+          var text = '';
+          try {
+            aria = (el.getAttribute && (el.getAttribute('aria-label') || '')) || '';
+            text = (el.innerText || '').replace(/\\s+/g, ' ').trim();
+          } catch (e) {}
+          if (text.length > 80) continue;
+          var isSearch = /^(search|搜索)\\b/i.test(aria) || /^(search|搜索)\\s*["“]/i.test(text);
+          var isSub = /^(subscribe|订阅)\\b/i.test(aria) || /^(subscribe|订阅)$/i.test(text);
+          if (isSearch || isSub) hideEl(el);
+        }
+      }
+
+      function applyCss() {
+        var el = document.getElementById(CSS_ID);
+        if (!el) {
+          el = document.createElement('style');
+          el.id = CSS_ID;
+          (document.head || document.documentElement).appendChild(el);
+        }
+        el.textContent = window.__ytliteShortsCssText || CSS_TEXT;
+        hideOverlays();
+      }
+
+      window.__ytliteShortsBegin = function () {
+        window.__ytliteShortsArmed = true;
+        function unmuteAndPlay() {
+          var videos = queryDeep(document, 'video');
+          for (var i = 0; i < videos.length; i++) {
+            try {
+              videos[i].muted = false;
+              videos[i].defaultMuted = false;
+              videos[i].volume = 1;
+              videos[i].removeAttribute('muted');
+              var p = videos[i].play();
+              if (p && typeof p.catch === 'function') p.catch(function () {});
+            } catch (e) {}
+          }
+        }
+        unmuteAndPlay();
+        setTimeout(unmuteAndPlay, 120);
+        setTimeout(unmuteAndPlay, 400);
+      };
+
+      window.__ytliteShortsNudge = function (dir) {
+        try {
+          var dy = typeof dir === 'number' ? dir : (dir === 'up' ? -120 : 120);
           window.scrollBy({ top: dy, behavior: 'smooth' });
         } catch (e) {}
       };
+
+      window.__ytliteShortsApply = applyCss;
+      applyCss();
+
+      if (window.__ytliteShortsLockInstalled) return;
+      window.__ytliteShortsLockInstalled = true;
+
+      var applyScheduled = false;
+      function scheduleApply() {
+        if (applyScheduled) return;
+        applyScheduled = true;
+        setTimeout(function () {
+          applyScheduled = false;
+          applyCss();
+        }, 80);
+      }
+
+      try {
+        new MutationObserver(scheduleApply).observe(document.documentElement, {
+          childList: true,
+          subtree: true
+        });
+      } catch (e) {}
+
+      setInterval(applyCss, 600);
     })();
     """
 }
@@ -57,6 +254,12 @@ struct ShortsView: View {
                             playback.togglePlayPause()
                         }
                         unlocked = true
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                            webView?.evaluateJavaScript(
+                                "window.__ytliteShortsBegin && window.__ytliteShortsBegin();",
+                                completionHandler: nil
+                            )
+                        }
                     } label: {
                         Image(systemName: "play.fill")
                             .font(.title)
@@ -67,9 +270,6 @@ struct ShortsView: View {
                     .accessibilityLabel("Play Shorts")
                 }
             }
-        }
-        .onDisappear {
-            // Keep web state; lock again when leaving is optional.
         }
     }
 }
@@ -91,13 +291,15 @@ struct ShortsWebView: UIViewRepresentable {
         let userScript = WKUserScript(
             source: lockScript,
             injectionTime: .atDocumentEnd,
-            forMainFrameOnly: false
+            forMainFrameOnly: true
         )
         config.userContentController.addUserScript(userScript)
         let view = WKWebView(frame: .zero, configuration: config)
         view.scrollView.contentInsetAdjustmentBehavior = .never
         view.navigationDelegate = context.coordinator
         view.isUserInteractionEnabled = isInteractive
+        view.customUserAgent =
+            "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
         view.load(URLRequest(url: url))
         onWebView(view)
         return view

@@ -52,7 +52,7 @@ struct VideoItem: Identifiable, Hashable, Sendable {
     }
 
     var watchURL: URL {
-        URL(string: "https://www.youtube.com/watch?v=\(videoId)")!
+        URL(string: YouTubeURL.watchURL(videoId: videoId))!
     }
 }
 
