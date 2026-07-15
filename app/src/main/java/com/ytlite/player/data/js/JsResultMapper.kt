@@ -158,19 +158,34 @@ object JsResultMapper {
             val url = format.optString("url")
             if (url.isBlank()) return@mapNotNull null
 
-            val acodec = format.optString("acodec")
-            val vcodec = format.optString("vcodec")
+            val itag = format.optInt("itag")
+            val mimeType = format.optString("type").ifBlank { format.optString("mimeType") }
+            val acodec = normalizeCodec(format.optString("acodec"))
+            val vcodec = normalizeCodec(format.optString("vcodec"))
+            var hasAudio = acodec.isNotBlank()
+            var hasVideo = vcodec.isNotBlank()
+            // Known AAC audio-only itags must never be treated as video, even if codecs are missing.
+            if (com.ytlite.player.data.model.StreamFormatIds.isAudioOnlyItag(itag)) {
+                hasAudio = true
+                hasVideo = false
+            } else if (mimeType.lowercase().startsWith("audio/")) {
+                hasAudio = true
+                hasVideo = false
+            }
+
             StreamFormat(
-                itag = format.optInt("itag"),
+                itag = itag,
                 width = format.optInt("width"),
                 height = format.optInt("height"),
-                hasAudio = acodec.isNotBlank(),
-                hasVideo = vcodec.isNotBlank(),
+                hasAudio = hasAudio,
+                hasVideo = hasVideo,
                 url = url,
-                mimeType = format.optString("type").ifBlank { format.optString("mimeType") },
-                contentLengthBytes = format.optLong("filesize")
-                    .takeIf { it > 0 }
-                    ?: format.optString("filesize").toLongOrNull()
+                mimeType = mimeType,
+                contentLengthBytes = parseContentLength(format, url),
+                bitrateBps = format.optLong("bitrate").takeIf { it > 0 }
+                    ?: format.optString("bitrate").toLongOrNull()
+                    ?: format.optLong("averageBitrate").takeIf { it > 0 }
+                    ?: format.optString("averageBitrate").toLongOrNull()
                     ?: 0L,
             )
         }
@@ -179,6 +194,32 @@ object JsResultMapper {
             compareByDescending<StreamFormat> { it.hasVideo && it.hasAudio }
                 .thenByDescending { it.height },
         )
+    }
+
+    private fun normalizeCodec(codec: String): String {
+        val trimmed = codec.trim()
+        return if (trimmed.isEmpty() || trimmed.equals("none", ignoreCase = true)) {
+            ""
+        } else {
+            trimmed
+        }
+    }
+
+    private fun parseContentLength(format: JSONObject, url: String): Long {
+        val fromKeys = sequenceOf(
+            "filesize",
+            "contentLength",
+            "content_length",
+            "filesize_approx",
+        ).mapNotNull { key ->
+            format.optLong(key).takeIf { it > 0 }
+                ?: format.optString(key).toLongOrNull()?.takeIf { it > 0 }
+        }.firstOrNull()
+        if (fromKeys != null) return fromKeys
+
+        return runCatching {
+            android.net.Uri.parse(url).getQueryParameter("clen")?.toLongOrNull()?.takeIf { it > 0 }
+        }.getOrNull() ?: 0L
     }
 
     fun playbackErrorMessage(message: JSONObject): String? {

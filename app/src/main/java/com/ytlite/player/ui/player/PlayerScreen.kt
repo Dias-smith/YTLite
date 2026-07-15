@@ -122,6 +122,7 @@ fun PlayerScreen(
                 onPictureInPictureClick = {},
                 positionMs = positionMs,
                 durationMs = durationMs,
+                playbackSpeed = expandedState.playbackSpeed,
                 modifier = Modifier.fillMaxSize(),
             )
         }
@@ -182,6 +183,7 @@ fun PlayerScreen(
                                 },
                                 positionMs = positionMs,
                                 durationMs = durationMs,
+                                playbackSpeed = expandedState.playbackSpeed,
                                 modifier = Modifier
                                     .playerSwipeToDismissHeader(swipeToDismissState, enabled = true)
                                     .onGloballyPositioned { coordinates ->
@@ -403,6 +405,7 @@ private fun PlayerSmartCanvas(
     onPictureInPictureClick: () -> Unit,
     positionMs: Long,
     durationMs: Long,
+    playbackSpeed: Float,
     modifier: Modifier = Modifier,
 ) {
     SmartPlayerCanvas(
@@ -423,6 +426,8 @@ private fun PlayerSmartCanvas(
         onBack = onBack,
         layout = layout,
         showPictureInPicture = showPictureInPicture,
+        playbackSpeed = playbackSpeed,
+        onPlaybackSpeedChange = globalPlaybackViewModel::setPlaybackSpeed,
         modifier = modifier,
     )
 }

@@ -52,6 +52,9 @@ object PlaybackManager {
     private val _playbackError = MutableStateFlow<String?>(null)
     val playbackError: StateFlow<String?> = _playbackError.asStateFlow()
 
+    private val _playbackSpeed = MutableStateFlow(PlaybackSpeeds.DEFAULT)
+    val playbackSpeedState: StateFlow<Float> = _playbackSpeed.asStateFlow()
+
     private val _playerState = MutableStateFlow<Player?>(null)
     val playerState: StateFlow<Player?> = _playerState.asStateFlow()
 
@@ -76,7 +79,7 @@ object PlaybackManager {
     private var subtitleUri: String? = null
     private var subtitleMimeType: String = "text/vtt"
     private var subtitlesEnabled: Boolean = false
-    private var playbackSpeed: Float = 1f
+    private var playbackSpeed: Float = PlaybackSpeeds.DEFAULT
 
     private inline fun runOnMainThread(crossinline block: () -> Unit) {
         if (Looper.myLooper() == Looper.getMainLooper()) {
@@ -242,12 +245,15 @@ object PlaybackManager {
     }
 
     fun setPlaybackSpeed(speed: Float) {
-        playbackSpeed = speed.coerceIn(0.25f, 2f)
+        playbackSpeed = PlaybackSpeeds.coerce(speed)
+        _playbackSpeed.value = playbackSpeed
         runOnMainThread {
             val player = getPlayer() ?: return@runOnMainThread
             player.playbackParameters = player.playbackParameters.withSpeed(playbackSpeed)
         }
     }
+
+    fun getPlaybackSpeed(): Float = playbackSpeed
 
     fun setRepeatMode(mode: QueueRepeatMode) {
         runOnMainThread {

@@ -634,10 +634,11 @@ class GlobalPlaybackViewModel(
     }
 
     fun setPlaybackSpeed(speed: Float) {
+        val coerced = PlaybackSpeeds.coerce(speed)
         viewModelScope.launch {
-            playbackPreferences?.setPlaybackSpeed(speed)
-            PlaybackManager.setPlaybackSpeed(speed)
-            expandedState.update { it.copy(playbackSpeed = speed) }
+            playbackPreferences?.setPlaybackSpeed(coerced)
+            PlaybackManager.setPlaybackSpeed(coerced)
+            expandedState.update { it.copy(playbackSpeed = coerced) }
         }
     }
 

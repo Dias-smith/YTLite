@@ -13,11 +13,16 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.ytlite.player.data.preferences.PlaybackPreferences
 import com.ytlite.player.playback.PlaybackManager
+import com.ytlite.player.playback.PlaybackSpeeds
 import com.ytlite.player.ui.theme.YTLiteTheme
+import kotlinx.coroutines.launch
 
 class FullscreenPlayerActivity : ComponentActivity() {
 
@@ -35,7 +40,10 @@ class FullscreenPlayerActivity : ComponentActivity() {
                 val isPlaying by PlaybackManager.isPlaying.collectAsStateWithLifecycle()
                 val positionMs by PlaybackManager.positionMs.collectAsStateWithLifecycle()
                 val durationMs by PlaybackManager.durationMs.collectAsStateWithLifecycle()
+                val playbackSpeed by PlaybackManager.playbackSpeedState.collectAsStateWithLifecycle()
                 val isInPipMode by PlayerPipState.isInPictureInPictureMode.collectAsStateWithLifecycle()
+                val playbackPreferences = remember { PlaybackPreferences.getInstance(this) }
+                val scope = rememberCoroutineScope()
 
                 DisposableEffect(isPlaying) {
                     if (isPlaying) {
@@ -77,6 +85,12 @@ class FullscreenPlayerActivity : ComponentActivity() {
                         onTogglePlayPause = PlaybackManager::togglePlayPause,
                         onSkipPrevious = PlaybackManager::skipToPreviousInQueue,
                         onSkipNext = PlaybackManager::skipToNextInQueue,
+                        playbackSpeed = playbackSpeed,
+                        onPlaybackSpeedChange = { speed ->
+                            val coerced = PlaybackSpeeds.coerce(speed)
+                            PlaybackManager.setPlaybackSpeed(coerced)
+                            scope.launch { playbackPreferences.setPlaybackSpeed(coerced) }
+                        },
                         modifier = Modifier.fillMaxSize(),
                         layout = if (isInPipMode) PlayerCanvasLayout.Pip else PlayerCanvasLayout.Fullscreen,
                         onBack = if (isInPipMode) {

@@ -12,21 +12,27 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material.icons.filled.Pause
@@ -34,11 +40,15 @@ import androidx.compose.material.icons.filled.PictureInPictureAlt
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.SheetState
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -56,12 +66,14 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.Player
 import coil.compose.AsyncImage
 import com.ytlite.player.R
+import com.ytlite.player.playback.PlaybackSpeeds
 import com.ytlite.player.ui.image.thumbnailRequest
 import kotlinx.coroutines.delay
 
@@ -69,6 +81,7 @@ private val OverlayIconBackground = Color.Black.copy(alpha = 0.5f)
 private val OverlayGradientEnd = Color.Black.copy(alpha = 0.78f)
 private const val OverlayAutoHideDelayMs = 5_000L
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SmartPlayerCanvas(
     player: Player?,
@@ -89,6 +102,8 @@ fun SmartPlayerCanvas(
     showPictureInPicture: Boolean = true,
     attachPlayerSurface: Boolean = true,
     onBack: (() -> Unit)? = null,
+    playbackSpeed: Float = PlaybackSpeeds.DEFAULT,
+    onPlaybackSpeedChange: (Float) -> Unit = {},
 ) {
     val context = LocalContext.current
     val pipAvailable = rememberPictureInPictureAvailable()
@@ -122,14 +137,16 @@ fun SmartPlayerCanvas(
 
     var controlsVisible by remember { mutableStateOf(true) }
     var interactionToken by remember { mutableIntStateOf(0) }
+    var showSpeedSheet by remember { mutableStateOf(false) }
+    val speedSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     fun revealControls() {
         controlsVisible = true
         interactionToken++
     }
 
-    LaunchedEffect(interactionToken, controlsVisible, isPlaying) {
-        if (!controlsVisible || !isPlaying) return@LaunchedEffect
+    LaunchedEffect(interactionToken, controlsVisible, isPlaying, showSpeedSheet) {
+        if (!controlsVisible || !isPlaying || showSpeedSheet) return@LaunchedEffect
         delay(OverlayAutoHideDelayMs)
         controlsVisible = false
     }
@@ -228,6 +245,22 @@ fun SmartPlayerCanvas(
                         }
                         Box(modifier = Modifier.weight(1f))
                         PlayerOverlayButtonGroup(cornerRadius = 20.dp) {
+                            PlayerOverlayPlainIconButton(
+                                onClick = {
+                                    revealControls()
+                                    showSpeedSheet = true
+                                },
+                                size = 40.dp,
+                                modifier = Modifier.widthIn(min = 44.dp),
+                            ) {
+                                Text(
+                                    text = PlaybackSpeeds.formatLabel(playbackSpeed),
+                                    color = Color.White,
+                                    style = MaterialTheme.typography.labelMedium.copy(
+                                        fontWeight = FontWeight.SemiBold,
+                                    ),
+                                )
+                            }
                             if (!isPip && showPictureInPicture && pipAvailable && resolvedMode == PlayerSurfaceMode.Video) {
                                 PlayerOverlayPlainIconButton(
                                     onClick = {
@@ -363,6 +396,87 @@ fun SmartPlayerCanvas(
             }
         }
         }
+
+        if (showSpeedSheet) {
+            PlaybackSpeedSheet(
+                selectedSpeed = playbackSpeed,
+                sheetState = speedSheetState,
+                onDismiss = { showSpeedSheet = false },
+                onSelect = { speed ->
+                    onPlaybackSpeedChange(speed)
+                    showSpeedSheet = false
+                    revealControls()
+                },
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PlaybackSpeedSheet(
+    selectedSpeed: Float,
+    sheetState: SheetState,
+    onDismiss: () -> Unit,
+    onSelect: (Float) -> Unit,
+) {
+    val selected = PlaybackSpeeds.nearest(selectedSpeed)
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 24.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.player_playback_speed),
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+            )
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 420.dp)
+                    .verticalScroll(rememberScrollState()),
+            ) {
+                PlaybackSpeeds.OPTIONS.forEach { speed ->
+                    val isSelected = speed == selected
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onSelect(speed) }
+                            .padding(horizontal = 20.dp, vertical = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Text(
+                            text = if (speed == 1f) {
+                                stringResource(R.string.player_speed_normal) +
+                                    " (${PlaybackSpeeds.formatLabel(speed)})"
+                            } else {
+                                PlaybackSpeeds.formatLabel(speed)
+                            },
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = if (isSelected) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurface
+                            },
+                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                        )
+                        if (isSelected) {
+                            Icon(
+                                imageVector = Icons.Filled.Check,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -395,7 +509,9 @@ private fun PlayerOverlayPlainIconButton(
 ) {
     IconButton(
         onClick = onClick,
-        modifier = modifier.size(size),
+        modifier = modifier
+            .height(size)
+            .widthIn(min = size),
     ) {
         content()
     }

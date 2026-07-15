@@ -81,6 +81,8 @@
     <string name="player_mode_sequential">循序播放</string>
     <string name="player_mode_shuffle">随机播放</string>
     <string name="player_now_playing">正在播放</string>
+    <string name="player_playback_speed">播放速度</string>
+    <string name="player_speed_normal">正常</string>
     <string name="player_error">无法播放视频</string>
     <string name="player_like">点赞</string>
     <string name="player_dislike">踩</string>

@@ -17,8 +17,8 @@ import com.ytlite.player.data.model.StreamFormat
 import com.ytlite.player.data.model.VideoItem
 import com.ytlite.player.data.model.VideoPlayback
 import com.ytlite.player.data.repository.ExtractionRepository
-import com.ytlite.player.data.repository.LibraryRepository
 import com.ytlite.player.data.repository.LibraryItemMapper
+import com.ytlite.player.data.repository.LibraryRepository
 import com.ytlite.player.playback.NowPlaying
 import com.ytlite.player.playback.PlayQueueRepository
 import com.ytlite.player.playback.PlaybackManager
@@ -27,6 +27,8 @@ import com.ytlite.player.playback.PlaybackTiming
 import com.ytlite.player.playback.QueueItem
 import com.ytlite.player.playback.RelatedCacheKind
 import com.ytlite.player.playback.UpNextCache
+import com.ytlite.player.playback.isLocalAudioPlayback
+import com.ytlite.player.playback.isLocalMediaUri
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -75,6 +77,11 @@ class PlayerViewModel(
                     isExtracting = false,
                     playback = active.toStubPlayback(),
                     selectedStreamUrl = active.streamUrl,
+                    surfaceMode = if (active.isLocalAudioPlayback()) {
+                        PlayerSurfaceMode.AudioPowerSave
+                    } else {
+                        PlayerSurfaceMode.Video
+                    },
                     errorMessage = null,
                     recommendedItems = cachedMusic.orEmpty(),
                     recommendLoading = cachedMusic == null,
@@ -195,6 +202,11 @@ class PlayerViewModel(
                 selectedStreamUrl = nowPlaying.streamUrl,
                 isExtracting = false,
                 errorMessage = null,
+                surfaceMode = if (nowPlaying.isLocalAudioPlayback()) {
+                    PlayerSurfaceMode.AudioPowerSave
+                } else {
+                    it.surfaceMode
+                },
             )
         }
         loadPlaybackMetadataFor(nowPlaying.videoId)
@@ -573,6 +585,11 @@ class PlayerViewModel(
     fun setSurfaceMode(mode: PlayerSurfaceMode) {
         _uiState.update { it.copy(surfaceMode = mode) }
         viewModelScope.launch(Dispatchers.IO) {
+            val nowPlaying = PlaybackManager.nowPlaying.value
+            // Offline local files must keep their downloaded stream; do not swap to remote.
+            if (nowPlaying != null && isLocalMediaUri(nowPlaying.streamUrl)) {
+                return@launch
+            }
             val playback = ensurePlaybackWithFormats() ?: return@launch
             switchStreamForMode(mode, playback)
         }
@@ -580,6 +597,17 @@ class PlayerViewModel(
 
     fun prepareVideoForFullscreen(onReady: (PlayerSurfaceMode) -> Unit) {
         viewModelScope.launch(Dispatchers.IO) {
+            val nowPlaying = PlaybackManager.nowPlaying.value
+            if (nowPlaying != null && isLocalMediaUri(nowPlaying.streamUrl)) {
+                val mode = if (nowPlaying.isLocalAudioPlayback()) {
+                    PlayerSurfaceMode.AudioPowerSave
+                } else {
+                    PlayerSurfaceMode.Video
+                }
+                _uiState.update { it.copy(surfaceMode = mode) }
+                withContext(Dispatchers.Main) { onReady(mode) }
+                return@launch
+            }
             _uiState.update { it.copy(surfaceMode = PlayerSurfaceMode.Video) }
             val playback = ensurePlaybackWithFormats()
             if (playback != null) {
@@ -614,11 +642,14 @@ class PlayerViewModel(
     }
 
     private fun applyStreamSwitch(playback: VideoPlayback, format: StreamFormat) {
+        val nowPlaying = PlaybackManager.nowPlaying.value
+        if (nowPlaying != null && isLocalMediaUri(nowPlaying.streamUrl)) {
+            return
+        }
         if (format.url == _uiState.value.selectedStreamUrl) {
             _uiState.update { it.copy(playback = playback) }
             return
         }
-        val nowPlaying = PlaybackManager.nowPlaying.value
         if (nowPlaying != null && nowPlaying.videoId == playback.videoId) {
             PlayQueueRepository.updateStreamUrl(playback.videoId, format.url)
             PlaybackManager.swapStreamUrl(nowPlaying.copy(streamUrl = format.url))

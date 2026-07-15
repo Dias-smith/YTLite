@@ -35,12 +35,9 @@ object PlaybackFormatSelector {
             formats.firstOrNull { it.itag == itag && it.hasAudio && !it.hasVideo }?.let { return it }
         }
 
-        formats
+        return formats
             .filter { it.hasAudio && !it.hasVideo }
-            .maxByOrNull { it.height }
-            ?.let { return it }
-
-        return formats.firstOrNull { it.hasAudio }
+            .maxByOrNull { it.itag }
     }
 
     fun selectFormat(formats: List<StreamFormat>, audioOnly: Boolean): StreamFormat? =
