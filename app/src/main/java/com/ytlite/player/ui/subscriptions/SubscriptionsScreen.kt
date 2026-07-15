@@ -37,6 +37,7 @@ fun SubscriptionsScreen(
             onVideoClick = onVideoClick,
             onCreatePlaylistClick = onCreatePlaylistClick,
             onYoutubeWebLoginClick = onYoutubeWebLoginClick,
+            onReauthClick = onSignInClick,
             youtubeCookieSessionEpoch = youtubeCookieSessionEpoch,
             modifier = modifier,
         )

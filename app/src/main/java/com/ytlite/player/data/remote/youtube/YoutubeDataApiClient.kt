@@ -1202,12 +1202,24 @@ class YoutubeDataApiClient(
     }
 
     private fun logApiFailure(endpoint: String, result: HttpResult) {
+        lastErrorCode = result.errCode
         val bodySnippet = result.result?.take(500).orEmpty()
         YoutubeDiagnostics.w(
             "DataApi",
             "$endpoint failed code=${result.errCode} msg=${result.errMsg} body=$bodySnippet",
         )
     }
+
+    fun clearLastError() {
+        lastErrorCode = 0
+    }
+
+    fun isLastErrorUnauthorized(): Boolean =
+        lastErrorCode == 401 || lastErrorCode == 403
+
+    @Volatile
+    var lastErrorCode: Int = 0
+        private set
 
     companion object {
         private val SKIP_LIBRARY_RELATED_PLAYLIST_KEYS = setOf("uploads", "watchHistory")
