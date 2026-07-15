@@ -47,15 +47,44 @@ final class ExtractorBridge: NSObject, WKScriptMessageHandler {
     }
 
     func extractPlayback(videoId: String) async throws -> VideoPlayback {
+        let id = YouTubeURL.videoId(from: videoId) ?? videoId
+        PlayProbe.log("extract.start", videoId: id, "raw=\(videoId)")
         do {
-            return try await extractPlaybackViaBridge(videoId: videoId)
+            let result = try await extractPlaybackViaBridge(videoId: videoId)
+            PlayProbe.log(
+                "extract.bridge.ok",
+                videoId: result.videoId,
+                "formats=\(result.formats.count)"
+            )
+            return result
         } catch is CancellationError {
+            PlayProbe.log("extract.cancelled", videoId: id)
             throw CancellationError()
         } catch {
+            PlayProbe.log(
+                "extract.bridge.fail",
+                videoId: id,
+                error.localizedDescription
+            )
             if Self.shouldTryWatchPageFallback(error) {
-                if let fallback = try? await WatchPagePlayerFallback.extract(videoId: videoId) {
+                PlayProbe.log("extract.fallback.eligible", videoId: id)
+                do {
+                    let fallback = try await WatchPagePlayerFallback.extract(videoId: id)
+                    PlayProbe.log(
+                        "extract.fallback.return",
+                        videoId: fallback.videoId,
+                        "formats=\(fallback.formats.count)"
+                    )
                     return fallback
+                } catch {
+                    PlayProbe.log(
+                        "extract.fallback.throw",
+                        videoId: id,
+                        error.localizedDescription
+                    )
                 }
+            } else {
+                PlayProbe.log("extract.fallback.skip", videoId: id, "error not eligible")
             }
             throw error
         }
@@ -73,12 +102,15 @@ final class ExtractorBridge: NSObject, WKScriptMessageHandler {
     }
 
     private func extractPlaybackViaBridge(videoId: String) async throws -> VideoPlayback {
+        PlayProbe.log("extract.bridge.ensureReady", videoId: videoId)
         try await ensureReady()
+        PlayProbe.log("extract.bridge.ready", videoId: videoId)
         // Match Android VsPlayerBridge.getVisitorData(): ensure fresh visitor before player calls.
         await refreshVisitorData()
         // Always extract via canonical watch URL (Shorts URLs → /watch?v=…).
         let id = YouTubeURL.videoId(from: videoId) ?? videoId
         let watchURL = YouTubeURL.canonicalWatchURL(YouTubeURL.watchURL(videoId: id))
+        PlayProbe.log("extract.normalize", videoId: id, "url=\(watchURL)")
         let uid = UUID().uuidString
         let envelope: [String: Any] = [
             "uid": uid,
@@ -92,6 +124,7 @@ final class ExtractorBridge: NSObject, WKScriptMessageHandler {
         }
 
         do {
+            PlayProbe.log("extract.bridge.invoke", videoId: id, "uid=\(uid)")
             let response: [String: Any] = try await withThrowingTaskGroup(of: [String: Any].self) { group in
                 group.addTask { @MainActor in
                     try await withTaskCancellationHandler {
@@ -119,11 +152,14 @@ final class ExtractorBridge: NSObject, WKScriptMessageHandler {
                 group.cancelAll()
                 return first
             }
+            let dataKeys = (response["data"] as? [String: Any])?.keys.sorted().joined(separator: ",") ?? "-"
+            PlayProbe.log("extract.bridge.response", videoId: id, "dataKeys=\(dataKeys)")
             return try ExtractResultMapper.map(envelope: response, fallbackVideoId: id)
         } catch {
             if let cont = pendingResults.removeValue(forKey: uid) {
                 cont.resume(throwing: error)
             }
+            PlayProbe.log("extract.bridge.invoke.fail", videoId: id, error.localizedDescription)
             throw error
         }
     }
@@ -239,11 +275,18 @@ final class ExtractorBridge: NSObject, WKScriptMessageHandler {
         let requestBody = body["body"] as? String ?? ""
         let headers = Self.parseHeaders(headersJson)
 
+        let shortURL = url.count > 120 ? String(url.prefix(120)) + "…" : url
+        PlayProbe.log("extract.http.req", "\(method) \(shortURL)")
+
         let result = await YouTubeHTTPClient.shared.request(
             url: url,
             method: method,
             headers: headers,
             body: requestBody.isEmpty ? nil : requestBody
+        )
+        PlayProbe.log(
+            "extract.http.res",
+            "ok=\(result.success) code=\(result.errCode) bytes=\(result.body.utf8.count) err=\(result.errMsg)"
         )
         await completeHTTPCallback(callbackId: callbackId, result: result)
     }

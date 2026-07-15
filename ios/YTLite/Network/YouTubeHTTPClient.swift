@@ -71,6 +71,14 @@ enum YouTubeConstants {
     static let musicBrowseIdNewReleaseAlbums = "FEmusic_new_releases_albums"
     static let userAgent =
         "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
+    /// HTTP headers googlevideo expects (match Android ExoPlayer `PlaybackService`).
+    static var streamPlaybackHeaders: [String: String] {
+        [
+            "User-Agent": userAgent,
+            "Referer": "https://www.youtube.com/",
+            "Origin": "https://www.youtube.com",
+        ]
+    }
     static let hl = "en"
     static let gl = "US"
     static let webClientName = "WEB"
@@ -82,7 +90,8 @@ enum YouTubeConstants {
     static let musicClientNameHeader = "67"
     /// InnerTube songs filter for YouTube Music search.
     static let musicSearchParamsSongs = "EgWKAQIIAWoKEAMQBBAJEAoQBQ%3D%3D"
-    static let preferredVideoItags = [37, 22, 18]
+    /// Playback preference: progressive 360p muxed first (AVPlayer-friendly), then higher muxed.
+    static let preferredVideoItags = [18, 22, 37]
     static let preferredAudioItags = [140, 141, 139]
 }
 

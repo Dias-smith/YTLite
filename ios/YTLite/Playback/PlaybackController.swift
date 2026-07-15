@@ -41,6 +41,8 @@ final class PlaybackController: ObservableObject {
     private(set) var player: AVPlayer?
     private var timeObserver: Any?
     private var endObserver: NSObjectProtocol?
+    private var failObserver: NSObjectProtocol?
+    private var itemStatusObservation: NSKeyValueObservation?
     private var extractTask: Task<Void, Never>?
     private var persistTask: Task<Void, Never>?
     private var sleepTimerCancellable: AnyCancellable?
@@ -343,6 +345,11 @@ final class PlaybackController: ObservableObject {
         let item = queue[queueIndex]
         lastError = nil
         captionTracks = []
+        PlayProbe.log(
+            "play.request",
+            videoId: item.videoId,
+            "title=\(item.title.prefix(48)) index=\(queueIndex)/\(queue.count)"
+        )
         let knownArtistId = libraryStore?.track(id: item.videoId)?.primaryArtistId
         let knownAvatar = item.channelAvatarURL
             ?? libraryStore?.subscribedChannel(id: knownArtistId ?? "")?.avatarUrl.flatMap(URL.init(string:))
@@ -364,11 +371,20 @@ final class PlaybackController: ObservableObject {
         extractTask?.cancel()
         extractTask = Task {
             do {
+                PlayProbe.log("play.extract.begin", videoId: expectedVideoId)
                 let playback = try await extractPlaybackWithRetry(videoId: expectedVideoId)
+                PlayProbe.log(
+                    "play.extract.ok",
+                    videoId: playback.videoId,
+                    "formats=\(playback.formats.count)"
+                )
                 guard generation == extractGeneration,
                       !Task.isCancelled,
                       isCurrentExtractTarget(expectedVideoId)
-                else { return }
+                else {
+                    PlayProbe.log("play.extract.stale", videoId: expectedVideoId)
+                    return
+                }
                 let durationText = DurationFormat.text(seconds: playback.durationSeconds)
                     ?? item.durationText
                 let channelId = playback.channelId ?? knownArtistId
@@ -389,10 +405,22 @@ final class PlaybackController: ObservableObject {
                 guard let url = playback.preferredStreamURL(preferVideo: true)
                     ?? playback.preferredStreamURL(preferVideo: false)
                 else {
+                    PlayProbe.log(
+                        "play.stream.fail",
+                        videoId: expectedVideoId,
+                        "no muxed/hls url (\(playback.preferredStreamDescription())) formats=\(playback.formats.count)"
+                    )
                     throw ExtractorBridge.ExtractorError.invalidResponse("no playable url")
                 }
+                let host = url.host ?? "?"
+                PlayProbe.log(
+                    "play.stream.select",
+                    videoId: expectedVideoId,
+                    "\(playback.preferredStreamDescription()) host=\(host) path=\(url.path.prefix(64))"
+                )
                 guard generation == extractGeneration, isCurrentExtractTarget(expectedVideoId) else { return }
                 lastError = nil
+                PlayProbe.log("play.avplayer.start", videoId: expectedVideoId)
                 play(url: url)
                 let seekTo = pendingSeekSeconds
                 pendingSeekSeconds = 0
@@ -403,7 +431,9 @@ final class PlaybackController: ObservableObject {
                 onPlaybackStarted?(playing)
                 refreshFavoriteState()
                 persistSession(immediate: true)
+                PlayProbe.log("play.ok", videoId: expectedVideoId)
             } catch is CancellationError {
+                PlayProbe.log("play.cancelled", videoId: expectedVideoId)
                 return
             } catch {
                 guard generation == extractGeneration,
@@ -416,6 +446,11 @@ final class PlaybackController: ObservableObject {
                 isBuffering = false
                 isPlaying = false
                 lastError = Self.userFacingExtractError(error)
+                PlayProbe.log(
+                    "play.fail",
+                    videoId: expectedVideoId,
+                    "raw=\(error.localizedDescription) ui=\(lastError ?? "-")"
+                )
                 updateNowPlayingInfo()
             }
         }
@@ -433,6 +468,7 @@ final class PlaybackController: ObservableObject {
             throw CancellationError()
         } catch {
             if Task.isCancelled { throw CancellationError() }
+            PlayProbe.log("play.extract.retry", videoId: videoId, error.localizedDescription)
             // One retry helps transient music=null / deposit failures on large player JSON.
             try await Task.sleep(nanoseconds: 350_000_000)
             if Task.isCancelled { throw CancellationError() }
@@ -455,7 +491,13 @@ final class PlaybackController: ObservableObject {
     }
 
     func play(url: URL) {
-        let avItem = AVPlayerItem(url: url)
+        // googlevideo rejects bare AVPlayerItem(url:) without Referer/UA → "Cannot Open".
+        let asset = AVURLAsset(
+            url: url,
+            options: ["AVURLAssetHTTPHeaderFieldsKey": YouTubeConstants.streamPlaybackHeaders]
+        )
+        let avItem = AVPlayerItem(asset: asset)
+        observePlayerItem(avItem, videoId: nowPlaying?.videoId)
         if let player {
             player.replaceCurrentItem(with: avItem)
         } else {
@@ -469,6 +511,57 @@ final class PlaybackController: ObservableObject {
         player?.play()
         isPlaying = true
         updateNowPlayingInfo()
+    }
+
+    private func observePlayerItem(_ item: AVPlayerItem, videoId: String?) {
+        itemStatusObservation?.invalidate()
+        itemStatusObservation = item.observe(\.status, options: [.initial, .new]) { [weak self] item, _ in
+            Task { @MainActor in
+                guard let self else { return }
+                switch item.status {
+                case .unknown:
+                    PlayProbe.log("avplayer.status", videoId: videoId, "unknown")
+                case .readyToPlay:
+                    PlayProbe.log(
+                        "avplayer.status",
+                        videoId: videoId,
+                        "readyToPlay duration=\(item.duration.seconds)"
+                    )
+                case .failed:
+                    let ns = item.error as NSError?
+                    let underlying = (ns?.userInfo[NSUnderlyingErrorKey] as? NSError)
+                        .map { "underlying=\($0.domain)/\($0.code) \($0.localizedDescription)" } ?? ""
+                    let err = item.error?.localizedDescription ?? "unknown"
+                    PlayProbe.log(
+                        "avplayer.status",
+                        videoId: videoId,
+                        "failed err=\(err) domain=\(ns?.domain ?? "") code=\(ns?.code ?? -1) \(underlying)"
+                    )
+                    self.isBuffering = false
+                    self.isPlaying = false
+                    self.lastError = err
+                @unknown default:
+                    PlayProbe.log("avplayer.status", videoId: videoId, "other")
+                }
+            }
+        }
+
+        if let failObserver {
+            NotificationCenter.default.removeObserver(failObserver)
+        }
+        failObserver = NotificationCenter.default.addObserver(
+            forName: .AVPlayerItemFailedToPlayToEndTime,
+            object: item,
+            queue: .main
+        ) { [weak self] note in
+            let err = (note.userInfo?[AVPlayerItemFailedToPlayToEndTimeErrorKey] as? Error)?
+                .localizedDescription ?? "failedToPlayToEnd"
+            Task { @MainActor in
+                PlayProbe.log("avplayer.failToEnd", videoId: videoId, err)
+                self?.isPlaying = false
+                self?.lastError = err
+            }
+        }
     }
 
     func togglePlayPause() {
