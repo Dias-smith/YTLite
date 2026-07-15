@@ -23,17 +23,6 @@ struct SettingsView: View {
                 }
             }
 
-            Section("Download (prefs for later Hub)") {
-                Toggle("Wi‑Fi only", isOn: $appModel.downloadWifiOnly)
-                Toggle("Resume", isOn: $appModel.downloadResumeEnabled)
-                Picker("Threads", selection: $appModel.downloadThreadCount) {
-                    Text("1").tag(1)
-                    Text("2").tag(2)
-                    Text("4").tag(4)
-                    Text("8").tag(8)
-                }
-            }
-
             Section("About") {
                 LabeledContent("Bundle", value: Bundle.main.bundleIdentifier ?? "—")
                 LabeledContent("Supabase", value: appModel.config.isConfigured ? "Configured" : "Missing secrets")

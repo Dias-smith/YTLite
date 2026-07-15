@@ -29,6 +29,9 @@ final class LibraryStore {
     }
 
     func upsertTrack(from item: VideoItem, durationSeconds: Int = 0) -> LibraryTrack {
+        let resolvedDuration = durationSeconds > 0
+            ? durationSeconds
+            : DurationFormat.seconds(from: item.durationText)
         let videoId = item.videoId
         var descriptor = FetchDescriptor<LibraryTrack>(
             predicate: #Predicate { $0.videoId == videoId }
@@ -38,7 +41,7 @@ final class LibraryStore {
             existing.title = item.title
             existing.channelName = item.channelName
             existing.thumbnailURLString = item.thumbnailURL?.absoluteString
-            if durationSeconds > 0 { existing.durationSeconds = durationSeconds }
+            if resolvedDuration > 0 { existing.durationSeconds = resolvedDuration }
             existing.updatedAt = .now
             return existing
         }
@@ -47,7 +50,7 @@ final class LibraryStore {
             title: item.title,
             channelName: item.channelName,
             thumbnailURLString: item.thumbnailURL?.absoluteString,
-            durationSeconds: durationSeconds
+            durationSeconds: resolvedDuration
         )
         modelContext.insert(track)
         return track
@@ -117,19 +120,24 @@ final class LibraryStore {
         save()
     }
 
-    func recordPlayback(_ item: NowPlayingItem) {
+    func recordPlayback(_ item: NowPlayingItem, durationSeconds: Int = 0) {
+        let resolvedDuration = durationSeconds > 0
+            ? durationSeconds
+            : DurationFormat.seconds(from: item.durationText)
         let video = VideoItem(
             videoId: item.videoId,
             title: item.title,
             channelName: item.channelName,
-            thumbnailURL: item.thumbnailURL
+            thumbnailURL: item.thumbnailURL,
+            durationText: DurationFormat.text(seconds: resolvedDuration) ?? item.durationText
         )
-        _ = upsertTrack(from: video)
+        _ = upsertTrack(from: video, durationSeconds: resolvedDuration)
         let history = PlayHistoryItem(
             videoId: item.videoId,
             title: item.title,
             channelName: item.channelName,
-            thumbnailURLString: item.thumbnailURL?.absoluteString
+            thumbnailURLString: item.thumbnailURL?.absoluteString,
+            durationSeconds: resolvedDuration > 0 ? resolvedDuration : nil
         )
         modelContext.insert(history)
         save()

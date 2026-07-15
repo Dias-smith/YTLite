@@ -340,7 +340,6 @@ struct PlayerDetailView: View {
             actionItem(title: "Save", icon: "bookmark") {
                 showAddPlaylist = true
             }
-            actionItem(title: "Download", icon: "arrow.down.to.line") {}
         }
         .padding(.vertical, YTLiteLayout.stackLoose)
         .background(
@@ -584,23 +583,14 @@ private struct UpNextRow: View {
 
     var body: some View {
         HStack(spacing: YTLiteLayout.stackLoose) {
-            ZStack(alignment: .bottomTrailing) {
-                AsyncImage(url: item.thumbnailURL) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image.resizable().scaledToFill()
-                    default:
-                        YTLiteColor.surfaceVariant
-                    }
-                }
-                .frame(width: 56, height: 56)
-                .clipShape(RoundedRectangle(cornerRadius: 6))
-                if let d = item.durationText {
-                    DurationBadge(text: d)
-                        .scaleEffect(0.85)
-                        .padding(2)
-                }
-            }
+            VideoThumbnail(
+                url: item.thumbnailURL,
+                durationText: item.durationText,
+                width: 56,
+                height: 56,
+                cornerRadius: 6,
+                badgePadding: 2
+            )
 
             VStack(alignment: .leading, spacing: YTLiteLayout.stackTight) {
                 Text(item.title)
@@ -613,8 +603,6 @@ private struct UpNextRow: View {
                     .lineLimit(1)
             }
             Spacer()
-            Image(systemName: "arrow.down.to.line")
-                .foregroundStyle(YTLiteColor.onSurfaceVariant)
             Image(systemName: "ellipsis")
                 .foregroundStyle(YTLiteColor.onSurfaceVariant)
         }

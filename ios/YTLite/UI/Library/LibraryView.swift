@@ -24,7 +24,6 @@ struct LibraryView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: YTLiteLayout.screenPadding) {
                         header
-                        downloadsRow
                         filterChips
                         listControls
                         contentList
@@ -115,28 +114,6 @@ struct LibraryView: View {
         }
         .padding(.horizontal, YTLiteLayout.screenPadding)
         .padding(.top, YTLiteLayout.rowVertical)
-    }
-
-    private var downloadsRow: some View {
-        HStack(spacing: 14) {
-            Image(systemName: "arrow.down.circle.fill")
-                .font(.system(size: 22))
-                .foregroundStyle(YTLiteColor.accent)
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Downloads")
-                    .font(YTLiteType.rowTitle)
-                    .foregroundStyle(YTLiteColor.onSurface)
-                Text("Tap to manage downloads")
-                    .font(YTLiteType.meta)
-                    .foregroundStyle(YTLiteColor.onSurfaceVariant)
-            }
-            Spacer()
-            Image(systemName: "chevron.right")
-                .foregroundStyle(YTLiteColor.onSurfaceVariant)
-        }
-        .padding(14)
-        .background(YTLiteColor.surfaceElevated, in: RoundedRectangle(cornerRadius: YTLiteLayout.stackLoose))
-        .padding(.horizontal, YTLiteLayout.screenPadding)
     }
 
     private var filterChips: some View {
@@ -331,19 +308,14 @@ struct LibrarySongRow: View {
 
     var body: some View {
         HStack(spacing: YTLiteLayout.stackLoose) {
-            ZStack(alignment: .bottomTrailing) {
-                AsyncImage(url: item.thumbnailURL) { phase in
-                    switch phase {
-                    case .success(let image): image.resizable().scaledToFill()
-                    default: YTLiteColor.surfaceVariant
-                    }
-                }
-                .frame(width: YTLiteLayout.channelAvatar, height: YTLiteLayout.channelAvatar)
-                .clipShape(RoundedRectangle(cornerRadius: 6))
-                if let d = item.durationText {
-                    DurationBadge(text: d).scaleEffect(0.85).padding(2)
-                }
-            }
+            VideoThumbnail(
+                url: item.thumbnailURL,
+                durationText: item.durationText,
+                width: YTLiteLayout.channelAvatar,
+                height: YTLiteLayout.channelAvatar,
+                cornerRadius: 6,
+                badgePadding: 2
+            )
             VStack(alignment: .leading, spacing: YTLiteLayout.stackTight) {
                 Text(item.title)
                     .font(YTLiteType.rowTitle)
@@ -355,7 +327,6 @@ struct LibrarySongRow: View {
                     .lineLimit(1)
             }
             Spacer()
-            Image(systemName: "arrow.down.to.line").foregroundStyle(YTLiteColor.onSurfaceVariant)
             Image(systemName: "ellipsis").foregroundStyle(YTLiteColor.onSurfaceVariant)
         }
         .padding(.horizontal, YTLiteLayout.screenPadding)

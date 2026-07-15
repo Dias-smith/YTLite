@@ -31,7 +31,8 @@ final class LibraryTrack {
             videoId: videoId,
             title: title,
             channelName: channelName,
-            thumbnailURL: thumbnailURLString.flatMap(URL.init(string:))
+            thumbnailURL: thumbnailURLString.flatMap(URL.init(string:)),
+            durationText: DurationFormat.text(seconds: durationSeconds)
         )
     }
 }
@@ -85,6 +86,8 @@ final class PlayHistoryItem {
     var title: String
     var channelName: String
     var thumbnailURLString: String?
+    /// Optional so existing stores can lightweight-migrate without a fill value.
+    var durationSeconds: Int?
     var playedAt: Date
 
     init(
@@ -92,12 +95,14 @@ final class PlayHistoryItem {
         title: String,
         channelName: String,
         thumbnailURLString: String? = nil,
+        durationSeconds: Int? = nil,
         playedAt: Date = .now
     ) {
         self.videoId = videoId
         self.title = title
         self.channelName = channelName
         self.thumbnailURLString = thumbnailURLString
+        self.durationSeconds = durationSeconds
         self.playedAt = playedAt
     }
 
@@ -106,7 +111,8 @@ final class PlayHistoryItem {
             videoId: videoId,
             title: title,
             channelName: channelName,
-            thumbnailURL: thumbnailURLString.flatMap(URL.init(string:))
+            thumbnailURL: thumbnailURLString.flatMap(URL.init(string:)),
+            durationText: DurationFormat.text(seconds: durationSeconds ?? 0)
         )
     }
 }

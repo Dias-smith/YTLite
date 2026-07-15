@@ -381,16 +381,13 @@ struct SearchView: View {
                                         showPlayer = true
                                     } label: {
                                         VStack(alignment: .leading, spacing: YTLiteLayout.stackDefault) {
-                                            AsyncImage(url: item.thumbnailURL) { phase in
-                                                switch phase {
-                                                case .success(let image):
-                                                    image.resizable().scaledToFill()
-                                                default:
-                                                    YTLiteColor.surfaceVariant
-                                                }
-                                            }
-                                            .frame(width: 120, height: 120)
-                                            .clipShape(RoundedRectangle(cornerRadius: YTLiteLayout.thumbRadius))
+                                            VideoThumbnail(
+                                                url: item.thumbnailURL,
+                                                durationText: item.durationText,
+                                                width: 120,
+                                                height: 120,
+                                                badgePadding: YTLiteLayout.stackTight
+                                            )
                                             Text("\(item.title) - \(item.channelName)")
                                                 .font(YTLiteType.meta)
                                                 .foregroundStyle(YTLiteColor.onSurface)
@@ -475,16 +472,13 @@ private struct SearchVideoResultRow: View {
 
     var body: some View {
         HStack(alignment: .center, spacing: YTLiteLayout.stackTight) {
-            AsyncImage(url: item.thumbnailURL) { phase in
-                switch phase {
-                case .success(let image):
-                    image.resizable().scaledToFill()
-                default:
-                    YTLiteColor.surfaceVariant
-                }
-            }
-            .frame(width: YTLiteLayout.searchThumbWidth, height: YTLiteLayout.searchThumbHeight)
-            .clipShape(RoundedRectangle(cornerRadius: YTLiteLayout.thumbRadius))
+            VideoThumbnail(
+                url: item.thumbnailURL,
+                durationText: item.durationText,
+                width: YTLiteLayout.searchThumbWidth,
+                height: YTLiteLayout.searchThumbHeight,
+                badgePadding: YTLiteLayout.stackTight
+            )
 
             VStack(alignment: .leading, spacing: YTLiteLayout.stackTight) {
                 Text(item.title)
@@ -500,10 +494,6 @@ private struct SearchVideoResultRow: View {
 
             Spacer(minLength: YTLiteLayout.stackTight)
 
-            Image(systemName: "arrow.down.to.line")
-                .font(YTLiteType.body)
-                .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                .frame(width: 28, height: 28)
             Image(systemName: "ellipsis")
                 .foregroundStyle(YTLiteColor.onSurfaceVariant)
                 .frame(width: 28, height: 28)

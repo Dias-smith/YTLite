@@ -105,7 +105,12 @@ struct YouView: View {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: YTLiteLayout.stackLoose) {
                             ForEach(viewModel.liked) { item in
-                                ShelfCard(title: item.title, subtitle: item.channelName, imageURL: item.thumbnailURL) {
+                                ShelfCard(
+                                    title: item.title,
+                                    subtitle: item.channelName,
+                                    imageURL: item.thumbnailURL,
+                                    durationText: item.durationText
+                                ) {
                                     playback.play(items: viewModel.liked, startAt: viewModel.liked.firstIndex(of: item) ?? 0)
                                     showPlayer = true
                                 }
@@ -219,19 +224,19 @@ private struct ShelfCard: View {
     let title: String
     let subtitle: String
     let imageURL: URL?
+    var durationText: String? = nil
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
             VStack(alignment: .leading, spacing: 6) {
-                AsyncImage(url: imageURL) { phase in
-                    switch phase {
-                    case .success(let image): image.resizable().scaledToFill()
-                    default: YTLiteColor.surfaceVariant
-                    }
-                }
-                .frame(width: 140, height: 80)
-                .clipShape(RoundedRectangle(cornerRadius: YTLiteLayout.thumbRadius))
+                VideoThumbnail(
+                    url: imageURL,
+                    durationText: durationText,
+                    width: 140,
+                    height: 80,
+                    badgePadding: YTLiteLayout.stackTight
+                )
                 Text(title)
                     .font(YTLiteType.meta.weight(.semibold))
                     .foregroundStyle(YTLiteColor.onSurface)

@@ -98,7 +98,8 @@ final class PlaybackController: ObservableObject {
             videoId: item.videoId,
             title: item.title,
             channelName: item.channelName,
-            thumbnailURL: item.thumbnailURL
+            thumbnailURL: item.thumbnailURL,
+            durationText: item.durationText
         )
         refreshFavoriteState()
         isBuffering = true
@@ -107,11 +108,14 @@ final class PlaybackController: ObservableObject {
             do {
                 let playback = try await ExtractorBridge.shared.extractPlayback(videoId: item.videoId)
                 guard !Task.isCancelled else { return }
+                let durationText = DurationFormat.text(seconds: playback.durationSeconds)
+                    ?? item.durationText
                 let playing = NowPlayingItem(
                     videoId: playback.videoId,
                     title: playback.title == playback.videoId ? item.title : playback.title,
                     channelName: playback.channelName.isEmpty ? item.channelName : playback.channelName,
-                    thumbnailURL: playback.thumbnailURL ?? item.thumbnailURL
+                    thumbnailURL: playback.thumbnailURL ?? item.thumbnailURL,
+                    durationText: durationText
                 )
                 nowPlaying = playing
                 captionTracks = playback.captionTracks
@@ -119,7 +123,7 @@ final class PlaybackController: ObservableObject {
                     throw ExtractorBridge.ExtractorError.invalidResponse("no playable url")
                 }
                 play(url: url)
-                libraryStore?.recordPlayback(playing)
+                libraryStore?.recordPlayback(playing, durationSeconds: playback.durationSeconds)
                 onPlaybackStarted?(playing)
                 refreshFavoriteState()
             } catch {
@@ -277,6 +281,7 @@ struct NowPlayingItem: Identifiable, Equatable, Sendable {
     let title: String
     let channelName: String
     let thumbnailURL: URL?
+    let durationText: String?
 }
 
 private extension Int {

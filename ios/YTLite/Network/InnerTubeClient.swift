@@ -125,7 +125,7 @@ enum InnerTubeClient {
             return try await searchVideos(query: "music")
         }
         let url =
-            "https://www.googleapis.com/youtube/v3/videos?part=snippet&chart=mostPopular&videoCategoryId=10&maxResults=20&key=\(apiKey)"
+            "https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails&chart=mostPopular&videoCategoryId=10&maxResults=20&key=\(apiKey)"
         let result = await YouTubeHTTPClient.shared.request(
             url: url,
             method: "GET",
@@ -147,11 +147,13 @@ enum InnerTubeClient {
             let channel = snippet["channelTitle"] as? String ?? ""
             let thumbs = snippet["thumbnails"] as? [String: Any]
             let high = (thumbs?["high"] as? [String: Any])?["url"] as? String
+            let iso = (item["contentDetails"] as? [String: Any])?["duration"] as? String
             return VideoItem(
                 videoId: id,
                 title: title,
                 channelName: channel,
-                thumbnailURL: high.flatMap(URL.init(string:))
+                thumbnailURL: high.flatMap(URL.init(string:)),
+                durationText: DurationFormat.text(fromISO8601: iso)
             )
         }
     }

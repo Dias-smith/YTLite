@@ -107,6 +107,41 @@ struct DurationBadge: View {
     }
 }
 
+/// Shared video cover with optional duration badge at bottom-trailing.
+struct VideoThumbnail: View {
+    let url: URL?
+    var durationText: String? = nil
+    var width: CGFloat? = nil
+    var height: CGFloat
+    var cornerRadius: CGFloat = YTLiteLayout.thumbRadius
+    var badgePadding: CGFloat = 4
+    var contentMode: ContentMode = .fill
+
+    var body: some View {
+        ZStack(alignment: .bottomTrailing) {
+            AsyncImage(url: url) { phase in
+                switch phase {
+                case .success(let image):
+                    image.resizable().aspectRatio(contentMode: contentMode)
+                default:
+                    YTLiteColor.surfaceVariant
+                }
+            }
+            .frame(width: width, height: height)
+            .frame(maxWidth: width == nil ? .infinity : width)
+            .clipped()
+            .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
+
+            if let durationText, !durationText.isEmpty {
+                DurationBadge(text: durationText)
+                    .padding(badgePadding)
+            }
+        }
+        .frame(width: width, height: height)
+        .frame(maxWidth: width == nil ? .infinity : width)
+    }
+}
+
 struct SectionHeaderRow: View {
     let title: String
     var actionTitle: String? = nil
@@ -130,29 +165,16 @@ struct SectionHeaderRow: View {
 struct FeedVideoCard: View {
     let item: VideoItem
     var onMore: (() -> Void)? = nil
-    var onDownload: (() -> Void)? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            ZStack(alignment: .bottomTrailing) {
-                AsyncImage(url: item.thumbnailURL) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image.resizable().scaledToFill()
-                    default:
-                        YTLiteColor.surfaceVariant
-                    }
-                }
-                .frame(maxWidth: .infinity)
-                .frame(height: YTLiteLayout.feedThumbHeight)
-                .clipped()
-                .clipShape(RoundedRectangle(cornerRadius: YTLiteLayout.cardRadius))
-
-                if let duration = item.durationText, !duration.isEmpty {
-                    DurationBadge(text: duration)
-                        .padding(YTLiteLayout.stackDefault)
-                }
-            }
+            VideoThumbnail(
+                url: item.thumbnailURL,
+                durationText: item.durationText,
+                height: YTLiteLayout.feedThumbHeight,
+                cornerRadius: YTLiteLayout.cardRadius,
+                badgePadding: YTLiteLayout.stackDefault
+            )
 
             HStack(alignment: .top, spacing: YTLiteLayout.stackDefault) {
                 VStack(alignment: .leading, spacing: YTLiteLayout.stackTight) {
@@ -166,12 +188,6 @@ struct FeedVideoCard: View {
                         .lineLimit(2)
                 }
                 Spacer(minLength: 0)
-                if let onDownload {
-                    Button(action: onDownload) {
-                        Image(systemName: "arrow.down.to.line")
-                            .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                    }
-                }
                 Button(action: { onMore?() }) {
                     Image(systemName: "ellipsis")
                         .foregroundStyle(YTLiteColor.onSurfaceVariant)
