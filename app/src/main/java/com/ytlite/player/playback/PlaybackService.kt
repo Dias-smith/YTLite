@@ -78,6 +78,7 @@ class PlaybackService : MediaSessionService() {
             .setUpstreamDataSourceFactory(httpDataSourceFactory)
             .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
         val mediaSourceFactory = ConditionalCacheMediaSourceFactory(
+            context = this,
             httpDataSourceFactory = httpDataSourceFactory,
             cacheDataSourceFactory = cacheDataSourceFactory,
         )

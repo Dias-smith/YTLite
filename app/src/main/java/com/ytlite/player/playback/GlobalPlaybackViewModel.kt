@@ -73,6 +73,7 @@ class GlobalPlaybackViewModel(
     private val libraryRepository: com.ytlite.player.data.repository.LibraryRepository? = null,
     private val authRepository: com.ytlite.player.data.auth.AuthRepository? = null,
     private val playbackSessionStore: PlaybackSessionStore? = null,
+    private val appContext: android.content.Context? = null,
 ) : ViewModel() {
 
     private val showMiniPlayer = MutableStateFlow(false)
@@ -404,6 +405,18 @@ class GlobalPlaybackViewModel(
             PlaybackManager.syncRepeatMode()
             return
         }
+        val localPath = appContext?.let { ctx ->
+            withContext(Dispatchers.IO) {
+                com.ytlite.player.download.DownloadRepository.getInstance(ctx)
+                    .findLocalPath(item.videoId)
+            }
+        }
+        if (!localPath.isNullOrBlank()) {
+            val localUri = android.net.Uri.fromFile(java.io.File(localPath)).toString()
+            PlaybackManager.play(item.toNowPlaying(localUri), startPositionMs)
+            PlaybackManager.syncRepeatMode()
+            return
+        }
         when (val result = withContext(Dispatchers.IO) {
             extractionRepository.fetchVideoPlayback(item.videoId)
         }) {
@@ -658,6 +671,7 @@ class GlobalPlaybackViewModel(
                         libraryRepository = com.ytlite.player.data.repository.LibraryRepository.getInstance(application),
                         authRepository = com.ytlite.player.data.auth.AuthRepository.getInstance(application),
                         playbackSessionStore = PlaybackSessionStore.getInstance(application),
+                        appContext = application.applicationContext,
                     )
                 }
             }

@@ -63,4 +63,5 @@ private fun chipLabel(chip: LibraryFilterChip): String = when (chip) {
     LibraryFilterChip.CHANNELS -> stringResource(R.string.library_chip_channels)
     LibraryFilterChip.ALBUMS -> stringResource(R.string.library_chip_albums)
     LibraryFilterChip.YOUTUBE -> stringResource(R.string.library_chip_youtube)
+    LibraryFilterChip.DOWNLOADS -> stringResource(R.string.library_chip_downloads)
 }

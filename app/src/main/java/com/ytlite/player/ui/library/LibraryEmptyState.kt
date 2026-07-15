@@ -43,6 +43,7 @@ fun LibraryEmptyState(
                 LibraryFilterChip.ALBUMS -> stringResource(R.string.library_empty_albums)
                 LibraryFilterChip.CHANNELS -> stringResource(R.string.library_empty_channels)
                 LibraryFilterChip.YOUTUBE -> stringResource(R.string.library_playlists_youtube_empty)
+                LibraryFilterChip.DOWNLOADS -> stringResource(R.string.downloads_library_empty)
                 else -> stringResource(R.string.library_empty_default)
             },
             style = MaterialTheme.typography.bodyMedium,

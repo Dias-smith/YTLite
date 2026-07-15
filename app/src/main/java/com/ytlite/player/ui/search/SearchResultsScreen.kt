@@ -19,7 +19,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -48,9 +47,9 @@ import com.ytlite.player.data.model.SearchResultTab
 import com.ytlite.player.data.model.VideoItem
 import com.ytlite.player.ui.library.LibraryImage
 import com.ytlite.player.ui.player.toVideoItem
-import com.ytlite.player.ui.trackaction.LocalTrackDownloadClick
 import com.ytlite.player.ui.trackaction.LocalTrackMoreClick
 import com.ytlite.player.ui.trackaction.TrackActionContext
+import com.ytlite.player.ui.trackaction.TrackDownloadIconButton
 
 @Composable
 fun SearchResultsScreen(
@@ -214,7 +213,6 @@ private fun VideoResultRow(
     onClick: (VideoItem) -> Unit,
 ) {
     val onTrackMoreClick = LocalTrackMoreClick.current
-    val onTrackDownloadClick = LocalTrackDownloadClick.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -249,15 +247,7 @@ private fun VideoResultRow(
                 overflow = TextOverflow.Ellipsis,
             )
         }
-        IconButton(
-            onClick = { onTrackDownloadClick(item.videoId) },
-            modifier = Modifier.size(36.dp),
-        ) {
-            Icon(
-                imageVector = Icons.Outlined.Download,
-                contentDescription = stringResource(R.string.library_action_download),
-            )
-        }
+        TrackDownloadIconButton(videoId = item.videoId)
         IconButton(
             onClick = { onTrackMoreClick(TrackActionContext.fromSearchVideo(item)) },
             modifier = Modifier.size(36.dp),

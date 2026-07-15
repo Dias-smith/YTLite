@@ -208,6 +208,7 @@ internal object LibraryItemMapper {
             LibraryFilterChip.PLAYLISTS,
             LibraryFilterChip.SONGS,
             LibraryFilterChip.CHANNELS,
+            LibraryFilterChip.DOWNLOADS,
             // Albums / YouTube chips intentionally hidden for v1.
         )
 

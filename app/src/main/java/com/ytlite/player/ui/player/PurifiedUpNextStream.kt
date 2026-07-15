@@ -18,7 +18,6 @@ import androidx.compose.material.icons.automirrored.outlined.Sort
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -40,10 +39,10 @@ import coil.compose.AsyncImage
 import com.ytlite.player.R
 import com.ytlite.player.data.model.VideoItem
 import com.ytlite.player.ui.image.thumbnailRequest
-import com.ytlite.player.ui.trackaction.LocalTrackDownloadClick
 import com.ytlite.player.ui.trackaction.LocalTrackMoreClick
 import com.ytlite.player.ui.trackaction.TrackActionContext
 import com.ytlite.player.ui.trackaction.TrackActionSource
+import com.ytlite.player.ui.trackaction.TrackDownloadIconButton
 
 @Composable
 fun PurifiedUpNextItem(
@@ -55,7 +54,6 @@ fun PurifiedUpNextItem(
 ) {
     val context = LocalContext.current
     val onTrackMoreClick = LocalTrackMoreClick.current
-    val onTrackDownloadClick = LocalTrackDownloadClick.current
     val subtitle = item.channelName.takeIf { it.isNotBlank() }.orEmpty()
     val titleColor = if (isCurrentlyPlaying) {
         MaterialTheme.colorScheme.primary
@@ -140,16 +138,10 @@ fun PurifiedUpNextItem(
                 )
             }
         }
-        IconButton(
-            onClick = { onTrackDownloadClick(item.videoId) },
-            modifier = Modifier.size(36.dp),
-        ) {
-            Icon(
-                imageVector = Icons.Outlined.Download,
-                contentDescription = stringResource(R.string.library_action_download),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
+        TrackDownloadIconButton(
+            videoId = item.videoId,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
         IconButton(
             onClick = {
                 onTrackMoreClick(

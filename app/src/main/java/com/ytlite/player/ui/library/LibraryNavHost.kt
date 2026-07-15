@@ -18,11 +18,13 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ytlite.player.MainActivity
 import com.ytlite.player.R
 import com.ytlite.player.data.local.entity.PlaylistSystemType
+import com.ytlite.player.data.model.LibraryFilterChip
 import com.ytlite.player.data.model.LibraryItem
 import com.ytlite.player.data.model.SubscriptionChannel
 import com.ytlite.player.data.model.VideoItem
 import com.ytlite.player.data.repository.LibraryItemMapper
 import com.ytlite.player.playback.QueueItem
+import com.ytlite.player.ui.download.DownloadsHubScreen
 import com.ytlite.player.ui.player.toQueueItem
 import com.ytlite.player.ui.playlistaction.LocalPlaylistMoreClick
 import com.ytlite.player.ui.playlistaction.PlaylistActionContext
@@ -155,7 +157,13 @@ fun LibraryNavHost(
                 uiState = uiState,
                 onProfileClick = { showAccountSheet = true },
                 onSettingsClick = { destination = LibraryDestination.Settings },
-                onFilterSelected = viewModel::selectFilter,
+                onFilterSelected = { chip ->
+                    if (chip == LibraryFilterChip.DOWNLOADS) {
+                        destination = LibraryDestination.Downloads
+                    } else {
+                        viewModel.selectFilter(chip)
+                    }
+                },
                 onSetSort = viewModel::setSort,
                 onToggleViewMode = viewModel::toggleViewMode,
                 onItemClick = { item ->
@@ -282,6 +290,16 @@ fun LibraryNavHost(
             SettingsScreen(
                 onBack = { destination = LibraryDestination.Home },
                 onLanguageChanged = { activity?.recreate() },
+                modifier = modifier,
+            )
+        }
+        LibraryDestination.Downloads -> {
+            DownloadsHubScreen(
+                onBack = { destination = LibraryDestination.Home },
+                onSettingsClick = { destination = LibraryDestination.Settings },
+                onPlayDownloaded = { items, startIndex ->
+                    onPlayPlaylist(items, startIndex, "library:downloads")
+                },
                 modifier = modifier,
             )
         }

@@ -15,15 +15,16 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ytlite.player.R
 import com.ytlite.player.data.model.LibraryVideo
 import com.ytlite.player.data.model.SubscriptionChannel
-import com.ytlite.player.ui.library.EditTrackMetadataDialog
 import com.ytlite.player.data.model.TrackMetadataSeed
-import com.ytlite.player.ui.trackaction.toMetadataSeed
+import com.ytlite.player.download.DownloadRepository
+import com.ytlite.player.ui.library.EditTrackMetadataDialog
 import com.ytlite.player.ui.library.NewPlaylistDialog
 import com.ytlite.player.ui.library.PlaylistPickerSheet
 import com.ytlite.player.ui.library.PlaylistPickerViewModel
 
 val LocalTrackMoreClick = compositionLocalOf<(TrackActionContext) -> Unit> { {} }
 val LocalTrackDownloadClick = compositionLocalOf<(String) -> Unit> { {} }
+val LocalDownloadedVideoIds = compositionLocalOf<Set<String>> { emptySet() }
 
 data class TrackActionNavigation(
     val onGoToArtist: (SubscriptionChannel) -> Unit = {},
@@ -49,21 +50,31 @@ fun TrackActionHost(
         factory = PlaylistPickerViewModel.factory(application),
     )
     val playlistPickerState by playlistPickerViewModel.uiState.collectAsStateWithLifecycle()
-
-    val onTrackMoreClick: (TrackActionContext) -> Unit = { context ->
-        trackActionContext = context
+    val downloadRepository = remember(application) {
+        DownloadRepository.getInstance(application)
     }
-    val onTrackDownloadClick: (String) -> Unit = { videoId ->
-        downloadVideoId = videoId
-    }
+    val downloadedVideoIds by downloadRepository.observeDownloadedVideoIds()
+        .collectAsStateWithLifecycle(initialValue = emptySet())
 
     fun toast(message: String) {
         Toast.makeText(androidContext, message, Toast.LENGTH_SHORT).show()
     }
 
+    val onTrackMoreClick: (TrackActionContext) -> Unit = { context ->
+        trackActionContext = context
+    }
+    val onTrackDownloadClick: (String) -> Unit = { videoId ->
+        if (videoId in downloadedVideoIds) {
+            toast(androidContext.getString(R.string.download_video_already_downloaded))
+        } else {
+            downloadVideoId = videoId
+        }
+    }
+
     CompositionLocalProvider(
         LocalTrackMoreClick provides onTrackMoreClick,
         LocalTrackDownloadClick provides onTrackDownloadClick,
+        LocalDownloadedVideoIds provides downloadedVideoIds,
     ) {
         content()
     }

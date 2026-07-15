@@ -6,6 +6,7 @@ enum class LibraryFilterChip {
     CHANNELS,
     ALBUMS,
     YOUTUBE,
+    DOWNLOADS,
 }
 
 enum class LibrarySort {

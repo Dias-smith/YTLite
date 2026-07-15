@@ -437,7 +437,11 @@ object PlaybackManager {
                     .setArtworkUri(Uri.parse(thumbnailUrl))
                     .build(),
             )
-        if (PlaybackCachePolicy.isCacheableDuration(durationMs)) {
+        val isLocalUri = streamUrl.startsWith("file:", ignoreCase = true) ||
+            streamUrl.startsWith("content:", ignoreCase = true)
+        // Never attach a media cache key to local files — CacheDataSource would try to
+        // re-buffer file:// through the HTTP stack and can stall mid-playback.
+        if (!isLocalUri && PlaybackCachePolicy.isCacheableDuration(durationMs)) {
             builder.setCustomCacheKey(PlaybackCachePolicy.cacheKey(videoId, itag))
         }
         if (subtitlesEnabled) {

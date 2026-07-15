@@ -11,4 +11,5 @@ data class StreamFormat(
     val hasVideo: Boolean,
     val url: String,
     val mimeType: String = "",
+    val contentLengthBytes: Long = 0L,
 )

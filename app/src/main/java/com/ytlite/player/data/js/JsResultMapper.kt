@@ -168,6 +168,10 @@ object JsResultMapper {
                 hasVideo = vcodec.isNotBlank(),
                 url = url,
                 mimeType = format.optString("type").ifBlank { format.optString("mimeType") },
+                contentLengthBytes = format.optLong("filesize")
+                    .takeIf { it > 0 }
+                    ?: format.optString("filesize").toLongOrNull()
+                    ?: 0L,
             )
         }
 

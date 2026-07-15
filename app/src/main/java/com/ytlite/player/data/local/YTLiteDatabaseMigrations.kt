@@ -100,3 +100,61 @@ val MIGRATION_11_12 = object : Migration(11, 12) {
         )
     }
 }
+
+val MIGRATION_12_13 = object : Migration(12, 13) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS download_tasks (
+                id TEXT NOT NULL PRIMARY KEY,
+                videoId TEXT NOT NULL,
+                title TEXT NOT NULL,
+                channelName TEXT NOT NULL,
+                thumbnailUrl TEXT,
+                itag INTEGER NOT NULL,
+                mimeType TEXT NOT NULL,
+                url TEXT NOT NULL,
+                filePath TEXT NOT NULL,
+                totalBytes INTEGER NOT NULL DEFAULT 0,
+                downloadedBytes INTEGER NOT NULL DEFAULT 0,
+                status TEXT NOT NULL,
+                errorMessage TEXT,
+                createdAt INTEGER NOT NULL,
+                updatedAt INTEGER NOT NULL,
+                etag TEXT,
+                lastModified TEXT,
+                durationSeconds INTEGER NOT NULL DEFAULT 0
+            )
+            """.trimIndent(),
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS index_download_tasks_videoId_itag ON download_tasks(videoId, itag)",
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS index_download_tasks_status ON download_tasks(status)",
+        )
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS downloaded_items (
+                id TEXT NOT NULL PRIMARY KEY,
+                videoId TEXT NOT NULL,
+                title TEXT NOT NULL,
+                channelName TEXT NOT NULL,
+                thumbnailUrl TEXT,
+                itag INTEGER NOT NULL,
+                mimeType TEXT NOT NULL,
+                filePath TEXT NOT NULL,
+                contentLength INTEGER NOT NULL,
+                durationSeconds INTEGER NOT NULL DEFAULT 0,
+                completedAt INTEGER NOT NULL
+            )
+            """.trimIndent(),
+        )
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS index_downloaded_items_videoId_itag ON downloaded_items(videoId, itag)",
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS index_downloaded_items_completedAt ON downloaded_items(completedAt)",
+        )
+    }
+}

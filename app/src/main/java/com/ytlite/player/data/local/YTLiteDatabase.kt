@@ -5,6 +5,7 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import com.ytlite.player.data.local.dao.ArtistDao
+import com.ytlite.player.data.local.dao.DownloadDao
 import com.ytlite.player.data.local.dao.NotInterestedDao
 import com.ytlite.player.data.local.dao.PlaybackCacheDao
 import com.ytlite.player.data.local.dao.PlaybackHistoryDao
@@ -19,6 +20,8 @@ import com.ytlite.player.data.local.dao.UserSubscribedChannelDao
 import com.ytlite.player.data.local.dao.UserTrackLastPlayedDao
 import com.ytlite.player.data.local.dao.UserTrackMetadataDao
 import com.ytlite.player.data.local.entity.ArtistEntity
+import com.ytlite.player.data.local.entity.DownloadTaskEntity
+import com.ytlite.player.data.local.entity.DownloadedItemEntity
 import com.ytlite.player.data.local.entity.NotInterestedEntity
 import com.ytlite.player.data.local.entity.PlaybackCacheEntity
 import com.ytlite.player.data.local.entity.PlaybackHistoryEntity
@@ -49,8 +52,10 @@ import com.ytlite.player.data.local.entity.UserTrackMetadataEntity
         UserTrackMetadataEntity::class,
         UserSubscribedChannelEntity::class,
         PlaybackCacheEntity::class,
+        DownloadTaskEntity::class,
+        DownloadedItemEntity::class,
     ],
-    version = 12,
+    version = 13,
     exportSchema = false,
 )
 abstract class YTLiteDatabase : RoomDatabase() {
@@ -68,6 +73,7 @@ abstract class YTLiteDatabase : RoomDatabase() {
     abstract fun userTrackMetadataDao(): UserTrackMetadataDao
     abstract fun userSubscribedChannelDao(): UserSubscribedChannelDao
     abstract fun playbackCacheDao(): PlaybackCacheDao
+    abstract fun downloadDao(): DownloadDao
 
     companion object {
         @Volatile
@@ -87,6 +93,7 @@ abstract class YTLiteDatabase : RoomDatabase() {
                         MIGRATION_9_10,
                         MIGRATION_10_11,
                         MIGRATION_11_12,
+                        MIGRATION_12_13,
                     )
                     .build()
                     .also { instance = it }

@@ -223,6 +223,7 @@ class LibraryRepository(
                 )
             }
         }
+        LibraryFilterChip.DOWNLOADS -> flowOf(emptyList())
     }.flowOn(Dispatchers.Default)
 
     @OptIn(ExperimentalCoroutinesApi::class)
