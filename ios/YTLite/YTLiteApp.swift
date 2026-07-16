@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import FirebaseAnalytics
 
 @main
 struct YTLiteApp: App {
@@ -10,6 +11,8 @@ struct YTLiteApp: App {
     private let modelContainer: ModelContainer
 
     init() {
+        FirebaseBootstrap.configure()
+        Analytics.setAnalyticsCollectionEnabled(true)
         let config = AppConfig.fromBundle()
         _authService = StateObject(wrappedValue: AuthService(config: config))
         modelContainer = Self.makeModelContainer()

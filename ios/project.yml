@@ -15,6 +15,9 @@ packages:
   supabase-swift:
     url: https://github.com/supabase/supabase-swift
     from: 2.5.1
+  firebase-ios-sdk:
+    url: https://github.com/firebase/firebase-ios-sdk
+    from: 11.6.0
 targets:
   YTLite:
     type: application
@@ -38,3 +41,7 @@ targets:
     dependencies:
       - package: supabase-swift
         product: Supabase
+      - package: firebase-ios-sdk
+        product: FirebaseAnalytics
+      - package: firebase-ios-sdk
+        product: FirebaseCrashlytics
