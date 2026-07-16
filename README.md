@@ -23,7 +23,7 @@ Static files live in [`website/`](website/) (landing, privacy, terms, support).
 ### Enable Pages + custom domain
 
 1. GitHub → **Settings → Pages → Source = GitHub Actions**
-2. Push to `main`/`master` (or run **Deploy website to GitHub Pages** manually)
+2. Push to **`ios`** (or `main`/`master`), or run **Deploy website to GitHub Pages** manually
 3. **Custom domain** = `ytlite.cc` → Save → wait for DNS check → **Enforce HTTPS**
 
 ### DNS (`ytlite.cc`)

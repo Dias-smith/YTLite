@@ -30,6 +30,9 @@ replay_pid*
 
 local.properties
 
+# Supabase CLI local link cache
+supabase/.temp/
+
 # iOS / Xcode
 ios/**/xcuserdata/
 ios/**/DerivedData/
