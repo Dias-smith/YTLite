@@ -49,6 +49,13 @@ URL Scheme `ytlite` 已在 `Info.plist`；登录代码见 `AuthService`（`redir
 Google Cloud Web 客户端的 Authorized redirect 应为  
 `https://<project-ref>.supabase.co/auth/v1/callback`（指向 Supabase，不是 `ytlite://`）。
 
+5. **Sign in with Apple**（App Store 4.8；与 Google 并列）
+
+- Apple Developer → App ID `com.ytlite.player` → 启用 **Sign In with Apple**。
+- Xcode Target 已含 Capability（`YTLite.entitlements`）。
+- Supabase Dashboard → Authentication → Providers → **Apple** → Enable，按 [iOS 文档](https://supabase.com/docs/guides/auth/social-login/auth-apple?platform=ios) 填写 Client IDs（bundle id）与 Secret（Team ID / Key ID / `.p8`）。
+- You 页对仅 Apple 登录用户会提示改用 Google 以加载 YouTube Data API 货架。
+
 ## Features
 
 - Tabs: **Home / Shorts / Search / You / Library**

@@ -1,5 +1,12 @@
 # Supabase (YTLite)
 
+## Sign in with Apple
+
+Enable **Authentication → Providers → Apple** for the iOS app (bundle `com.ytlite.player`).
+See [Auth Apple (iOS)](https://supabase.com/docs/guides/auth/social-login/auth-apple?platform=ios).
+
+iOS uses native `ASAuthorization` + `signInWithIdToken` (not the web OAuth redirect).
+
 ## Account deletion (Apple 5.1.1(v))
 
 Edge Function: `functions/delete-account`

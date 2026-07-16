@@ -81,6 +81,7 @@ struct LibraryView: View {
     @State private var pendingDeleteAccount = false
     @State private var showDeleteAccountConfirm = false
     @State private var deleteAccountError: String?
+    @State private var showSignInOptions = false
 
     var body: some View {
         NavigationStack {
@@ -312,7 +313,7 @@ struct LibraryView: View {
                 if pendingSwitchAccount {
                     pendingSwitchAccount = false
                     Task {
-                        await auth.switchGoogleAccount()
+                        await auth.switchAccount()
                         appModel.syncAuth(auth)
                         reload()
                     }
@@ -355,6 +356,37 @@ struct LibraryView: View {
                 .presentationDetents([.height(340)])
                 .presentationDragIndicator(.visible)
                 .presentationBackground(YTLiteColor.surface)
+            }
+            .sheet(isPresented: $showSignInOptions) {
+                NavigationStack {
+                    VStack(spacing: 24) {
+                        Text(L("auth.sign_in_to_sync"))
+                            .font(YTLiteType.body)
+                            .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 24)
+                            .padding(.top, 12)
+
+                        SignInOptionsView(auth: auth) {
+                            appModel.syncAuth(auth)
+                            showSignInOptions = false
+                            reload()
+                        }
+                        Spacer()
+                    }
+                    .frame(maxWidth: .infinity)
+                    .background(YTLiteColor.background)
+                    .navigationTitle(L("common.sign_in"))
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button(L("common.cancel")) { showSignInOptions = false }
+                        }
+                    }
+                }
+                .presentationDetents([.medium])
+                .presentationDragIndicator(.visible)
+                .preferredColorScheme(.dark)
             }
             .alert(
                 "Delete account?",
@@ -405,12 +437,7 @@ struct LibraryView: View {
                 .accessibilityLabel(L("common.account"))
             } else {
                 Button {
-                    Task {
-                        await auth.signInWithGoogle()
-                        appModel.syncAuth(auth)
-                        // RootView onChange drives merge/sync + spinner; avoid a duplicate sync here.
-                        reload()
-                    }
+                    showSignInOptions = true
                 } label: {
                     Image(systemName: "person.crop.circle")
                         .font(.system(size: 22))

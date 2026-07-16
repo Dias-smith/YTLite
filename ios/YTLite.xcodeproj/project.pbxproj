@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 54;
+	objectVersion = 63;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -31,6 +31,7 @@
 		5510024CC9D69B83198A44BD /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = F8DC3F30B1F1BAB85AEC82FE /* FirebaseAnalytics */; };
 		55CD33F6A1B849732AD310DF /* PlaybackController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F148613909F22D6432E97CD /* PlaybackController.swift */; };
 		575E084B0BD8FE5EAC0730FE /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 5A76E914564581D50AA61C93 /* Localizable.xcstrings */; };
+		5854A05E63D39CFC42F35AD9 /* SignInOptionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C251E6365A38B882F20E592D /* SignInOptionsView.swift */; };
 		5868BDEF5E409CE44B910293 /* HomeFeedStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E40139A2CF194C95CE59BED6 /* HomeFeedStore.swift */; };
 		6BF60720EDA8058C26B06028 /* RemoteImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEA8F5D964477DD5F396E4DF /* RemoteImage.swift */; };
 		7197A0A39469C449A174BAD7 /* YTLiteTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6E872E174975CD347699542 /* YTLiteTheme.swift */; };
@@ -43,7 +44,9 @@
 		851939A3DB608B78BD6AE447 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1E29FF55D17C97ACE61342E /* SettingsView.swift */; };
 		85FB72072901FE9C6474A5C5 /* AuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0D829B6D0AECE937F00F00B /* AuthService.swift */; };
 		885197C2AA8B674B041A6337 /* SearchMemoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2604D4FEBF8E477C2661E52 /* SearchMemoryStore.swift */; };
+		8C89C3839A5FF48DA5D8A9A9 /* AuthNonce.swift in Sources */ = {isa = PBXBuildFile; fileRef = 496F688C233012874D29141D /* AuthNonce.swift */; };
 		8DF42706E7A623593FF1DC5D /* LibrarySyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB87027CCC60DA905FB7A4E8 /* LibrarySyncService.swift */; };
+		94797E28FAD1C5F6DA0903AD /* AppleSignInBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0E9FBEC0FBD1E9926018E3D /* AppleSignInBridge.swift */; };
 		96C22C7C115AE15C68F55E6E /* LibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3EC77F988D8FEBB7F2CF01F9 /* LibraryView.swift */; };
 		9BA2A97B4E399A8DE578DC68 /* SearchHit.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC4BC0290DBF96C47203AFD9 /* SearchHit.swift */; };
 		A10BB1987728C2EBC73EDC5B /* SearchSuggestionItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 785F0DBABA94995BF9801E53 /* SearchSuggestionItem.swift */; };
@@ -88,7 +91,8 @@
 		3EC77F988D8FEBB7F2CF01F9 /* LibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryView.swift; sourceTree = "<group>"; };
 		3F25F35684A83A600A625701 /* PlaylistActionContext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistActionContext.swift; sourceTree = "<group>"; };
 		4304E3E3EC343C5F5E914EBA /* EditTrackMetadataSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditTrackMetadataSheet.swift; sourceTree = "<group>"; };
-		44EBD8B1BFEA37CB163553EB /* YTLite.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = YTLite.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		44EBD8B1BFEA37CB163553EB /* YouLite.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = YouLite.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		496F688C233012874D29141D /* AuthNonce.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthNonce.swift; sourceTree = "<group>"; };
 		4F148613909F22D6432E97CD /* PlaybackController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackController.swift; sourceTree = "<group>"; };
 		5A76E914564581D50AA61C93 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		5CC3E87622C393A7C74ACF92 /* PlaybackSessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackSessionStore.swift; sourceTree = "<group>"; };
@@ -119,9 +123,11 @@
 		BCF093D73F22FDA34058B5CC /* PlaylistActionPresenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistActionPresenter.swift; sourceTree = "<group>"; };
 		BE239ADAEF6BDAECA1B2404A /* Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Debug.xcconfig; sourceTree = "<group>"; };
 		BFC27F0F09C186AC380D7C63 /* PlaylistPickerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistPickerSheet.swift; sourceTree = "<group>"; };
+		C251E6365A38B882F20E592D /* SignInOptionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignInOptionsView.swift; sourceTree = "<group>"; };
 		C6943365592158962C9CD7C2 /* OwnerKeyStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OwnerKeyStore.swift; sourceTree = "<group>"; };
 		C7A48A97E56F72E6C058051D /* LibraryModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryModels.swift; sourceTree = "<group>"; };
 		CD793EE4155858FEFE389C69 /* ExtractorBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtractorBridge.swift; sourceTree = "<group>"; };
+		D0E9FBEC0FBD1E9926018E3D /* AppleSignInBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleSignInBridge.swift; sourceTree = "<group>"; };
 		D2604D4FEBF8E477C2661E52 /* SearchMemoryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchMemoryStore.swift; sourceTree = "<group>"; };
 		D36539F7B8580F83FE3B4756 /* TrackActionHost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackActionHost.swift; sourceTree = "<group>"; };
 		D8C7436F66145066500D2402 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -137,6 +143,7 @@
 		EAFBF9441F241D72411C6974 /* TrackActionPresenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackActionPresenter.swift; sourceTree = "<group>"; };
 		ED3EEFE893246B07195F7596 /* ExtractorBundleStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtractorBundleStore.swift; sourceTree = "<group>"; };
 		F638D88CF4C1B27A6C5A3F53 /* PlaylistDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistDetailView.swift; sourceTree = "<group>"; };
+		F8153A84024FB28B0A0E73D3 /* YTLite.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = YTLite.entitlements; sourceTree = "<group>"; };
 		FA984090A0483D4EDE4D797D /* ReviewPromptSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReviewPromptSheet.swift; sourceTree = "<group>"; };
 		FEA8F5D964477DD5F396E4DF /* RemoteImage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteImage.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -192,6 +199,7 @@
 			isa = PBXGroup;
 			children = (
 				0E5C2529DFCFF70006816FEF /* AccountMenuSheet.swift */,
+				C251E6365A38B882F20E592D /* SignInOptionsView.swift */,
 			);
 			path = Auth;
 			sourceTree = "<group>";
@@ -265,6 +273,8 @@
 		9516BC3EDFBBD9076F33909C /* Auth */ = {
 			isa = PBXGroup;
 			children = (
+				D0E9FBEC0FBD1E9926018E3D /* AppleSignInBridge.swift */,
+				496F688C233012874D29141D /* AuthNonce.swift */,
 				E0D829B6D0AECE937F00F00B /* AuthService.swift */,
 				DB87027CCC60DA905FB7A4E8 /* LibrarySyncService.swift */,
 			);
@@ -362,7 +372,7 @@
 		DF27C9EE4607BE8FB57E954A /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				44EBD8B1BFEA37CB163553EB /* YTLite.app */,
+				44EBD8B1BFEA37CB163553EB /* YouLite.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -374,6 +384,7 @@
 				88C861F7CCE788FEFD78C175 /* GoogleService-Info.plist */,
 				6B84EDDCCC216705C7DEB5E1 /* Info.plist */,
 				5A76E914564581D50AA61C93 /* Localizable.xcstrings */,
+				F8153A84024FB28B0A0E73D3 /* YTLite.entitlements */,
 				37556EF2BFFC392D74790365 /* YTLiteApp.swift */,
 				BC0C5EECA1D3027B3BD78035 /* App */,
 				9516BC3EDFBBD9076F33909C /* Auth */,
@@ -440,7 +451,7 @@
 				524505D54A15D7DD87755C5C /* FirebaseCrashlytics */,
 			);
 			productName = YTLite;
-			productReference = 44EBD8B1BFEA37CB163553EB /* YTLite.app */;
+			productReference = 44EBD8B1BFEA37CB163553EB /* YouLite.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -451,12 +462,6 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1600;
-				TargetAttributes = {
-					E5A6BFBC1A4F74FC530383E8 = {
-						DevelopmentTeam = "";
-						ProvisioningStyle = Automatic;
-					};
-				};
 			};
 			buildConfigurationList = 1F473F463797279AAE0EC02C /* Build configuration list for PBXProject "YTLite" */;
 			compatibilityVersion = "Xcode 14.0";
@@ -464,7 +469,14 @@
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				Base,
+				ar,
 				en,
+				es,
+				fr,
+				hi,
+				"pt-BR",
+				"zh-Hans",
+				"zh-Hant",
 			);
 			mainGroup = 94BF2DF654B20D1AFAFA461D;
 			minimizedProjectReferenceProxies = 1;
@@ -472,7 +484,6 @@
 				E1399E50B57C77C65DD9C2CA /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
 				A4DE782A5061B5C8A8FFBDA8 /* XCRemoteSwiftPackageReference "supabase-swift" */,
 			);
-			preferredProjectObjectVersion = 54;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -503,6 +514,8 @@
 				72573D3B64285A67519CD06D /* AppLanguage.swift in Sources */,
 				4FFC0B7F64200ADB4D2FE006 /* AppLinks.swift in Sources */,
 				F32CAC193DB54AAEF185C300 /* AppModel.swift in Sources */,
+				94797E28FAD1C5F6DA0903AD /* AppleSignInBridge.swift in Sources */,
+				8C89C3839A5FF48DA5D8A9A9 /* AuthNonce.swift in Sources */,
 				85FB72072901FE9C6474A5C5 /* AuthService.swift in Sources */,
 				1416F31DD3C8F32D5F655843 /* CaptionService.swift in Sources */,
 				BAAE4BAA3C318ACE54DE33BE /* EditTrackMetadataSheet.swift in Sources */,
@@ -543,6 +556,7 @@
 				C29709D6EEA4B7209A8C09D8 /* SearchView.swift in Sources */,
 				851939A3DB608B78BD6AE447 /* SettingsView.swift in Sources */,
 				F506A2AF0EFC70C710A181F8 /* ShortsView.swift in Sources */,
+				5854A05E63D39CFC42F35AD9 /* SignInOptionsView.swift in Sources */,
 				B9D3A9D84C9DB839DFFBF13A /* SleepTimerOptions.swift in Sources */,
 				155523AA5ACE86E47C08C2AF /* TrackActionContext.swift in Sources */,
 				AD70B6E4A962301570BF6A75 /* TrackActionHost.swift in Sources */,
@@ -693,10 +707,11 @@
 			baseConfigurationReference = 0655C2E16E330F3F5522D5F5 /* Release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_ENTITLEMENTS = YTLite/YTLite.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_LANGUAGE = en;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = 8S748AQ4H7;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = YTLite/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -705,6 +720,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.ytlite.player;
 				PRODUCT_NAME = YouLite;
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = iphoneos;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited)";
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -717,10 +733,11 @@
 			baseConfigurationReference = BE239ADAEF6BDAECA1B2404A /* Debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_ENTITLEMENTS = YTLite/YTLite.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_LANGUAGE = en;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = 8S748AQ4H7;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = YTLite/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -729,6 +746,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.ytlite.player;
 				PRODUCT_NAME = YouLite;
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = iphoneos;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited)";
 				TARGETED_DEVICE_FAMILY = "1,2";

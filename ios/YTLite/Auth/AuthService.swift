@@ -2,6 +2,11 @@ import Foundation
 import Supabase
 import AuthenticationServices
 
+enum AuthProviderKind: String {
+    case google
+    case apple
+}
+
 @MainActor
 final class AuthService: ObservableObject {
     @Published private(set) var session: Session?
@@ -9,12 +14,25 @@ final class AuthService: ObservableObject {
     @Published var lastError: String?
 
     private var client: SupabaseClient?
+    private let appleBridge = AppleSignInBridge()
 
     var isAuthenticated: Bool { session != nil }
     var userId: String? { session?.user.id.uuidString.lowercased() }
     var isConfigured: Bool { client != nil }
 
-    /// Google profile name for You / Library headers.
+    /// Active social provider for the current Supabase session.
+    var authProvider: AuthProviderKind? {
+        guard let session else { return nil }
+        if let provider = session.user.appMetadata["provider"]?.stringValue?.lowercased() {
+            if provider == "apple" { return .apple }
+            if provider == "google" { return .google }
+        }
+        let identities = session.user.identities ?? []
+        if identities.contains(where: { $0.provider == "apple" }) { return .apple }
+        if identities.contains(where: { $0.provider == "google" }) { return .google }
+        return nil
+    }
+
     var displayName: String {
         if let name = metaString("full_name") ?? metaString("name"), !name.isEmpty {
             return name
@@ -33,9 +51,10 @@ final class AuthService: ObservableObject {
         (metaString("avatar_url") ?? metaString("picture")).flatMap(URL.init(string:))
     }
 
-    /// Google OAuth access token from Supabase (needs `youtube.readonly` scope).
+    /// Google OAuth access token. Nil for Apple-only sessions.
     var googleAccessToken: String? {
-        session?.providerToken
+        guard authProvider != .apple else { return nil }
+        return session?.providerToken
     }
 
     private static let googleOAuthScopes =
@@ -88,8 +107,94 @@ final class AuthService: ObservableObject {
         }
     }
 
-    /// Opens Google account picker. UI keeps the current account until the new login succeeds;
-    /// cancel / failure restores the previous session.
+    func signInWithApple() async {
+        guard client != nil else {
+            lastError = "Supabase is not configured. Fill ios/Config/Secrets.xcconfig.local"
+            return
+        }
+        isBusy = true
+        lastError = nil
+        defer { isBusy = false }
+        do {
+            let apple = try await appleBridge.signIn()
+            try await applyAppleIdToken(
+                idToken: apple.idToken,
+                rawNonce: apple.rawNonce,
+                fullName: apple.fullName
+            )
+        } catch {
+            if isAppleCancel(error) {
+                lastError = nil
+                return
+            }
+            lastError = error.localizedDescription
+        }
+    }
+
+    /// Completes Sign in with Apple from `SignInWithAppleButton`.
+    func completeAppleSignIn(
+        result: Result<ASAuthorization, Error>,
+        rawNonce: String?
+    ) async {
+        guard client != nil else {
+            lastError = "Supabase is not configured. Fill ios/Config/Secrets.xcconfig.local"
+            return
+        }
+        isBusy = true
+        lastError = nil
+        defer { isBusy = false }
+
+        switch result {
+        case .failure(let error):
+            if isAppleCancel(error) {
+                lastError = nil
+            } else {
+                lastError = error.localizedDescription
+            }
+        case .success(let authorization):
+            guard
+                let credential = authorization.credential as? ASAuthorizationAppleIDCredential,
+                let tokenData = credential.identityToken,
+                let idToken = String(data: tokenData, encoding: .utf8),
+                let rawNonce, !rawNonce.isEmpty
+            else {
+                lastError = AppleSignInError.invalidCredential.localizedDescription
+                return
+            }
+            do {
+                try await applyAppleIdToken(
+                    idToken: idToken,
+                    rawNonce: rawNonce,
+                    fullName: credential.fullName
+                )
+            } catch {
+                lastError = error.localizedDescription
+            }
+        }
+    }
+
+    private func applyAppleIdToken(
+        idToken: String,
+        rawNonce: String,
+        fullName: PersonNameComponents?
+    ) async throws {
+        guard let client else { return }
+        let newSession = try await client.auth.signInWithIdToken(
+            credentials: OpenIDConnectCredentials(
+                provider: .apple,
+                idToken: idToken,
+                nonce: rawNonce
+            )
+        )
+        session = newSession
+        if let name = formattedName(fullName), !name.isEmpty {
+            _ = try? await client.auth.update(
+                user: UserAttributes(data: ["full_name": .string(name)])
+            )
+            await refreshSession()
+        }
+    }
+
     func switchGoogleAccount() async {
         guard let client else {
             lastError = "Supabase is not configured. Fill ios/Config/Secrets.xcconfig.local"
@@ -101,7 +206,6 @@ final class AuthService: ObservableObject {
 
         let previous = session
         do {
-            // Clear local auth so OAuth can establish a new session, but keep UI on `previous`.
             if previous != nil {
                 try? await client.auth.signOut(scope: .local)
                 session = previous
@@ -123,6 +227,46 @@ final class AuthService: ObservableObject {
             } else {
                 lastError = error.localizedDescription
             }
+        }
+    }
+
+    func switchAppleAccount() async {
+        guard let client else {
+            lastError = "Supabase is not configured. Fill ios/Config/Secrets.xcconfig.local"
+            return
+        }
+        isBusy = true
+        lastError = nil
+        defer { isBusy = false }
+
+        let previous = session
+        do {
+            if previous != nil {
+                try? await client.auth.signOut(scope: .local)
+                session = previous
+            }
+            let apple = try await appleBridge.signIn()
+            try await applyAppleIdToken(
+                idToken: apple.idToken,
+                rawNonce: apple.rawNonce,
+                fullName: apple.fullName
+            )
+        } catch {
+            await restoreSession(previous)
+            if isAppleCancel(error) {
+                lastError = nil
+            } else {
+                lastError = error.localizedDescription
+            }
+        }
+    }
+
+    func switchAccount() async {
+        switch authProvider {
+        case .apple:
+            await switchAppleAccount()
+        case .google, .none:
+            await switchGoogleAccount()
         }
     }
 
@@ -149,6 +293,22 @@ final class AuthService: ObservableObject {
         return false
     }
 
+    private func isAppleCancel(_ error: Error) -> Bool {
+        let ns = error as NSError
+        if ns.domain == ASAuthorizationError.errorDomain,
+           ns.code == ASAuthorizationError.canceled.rawValue {
+            return true
+        }
+        return false
+    }
+
+    private func formattedName(_ components: PersonNameComponents?) -> String? {
+        guard let components else { return nil }
+        let formatter = PersonNameComponentsFormatter()
+        let value = formatter.string(from: components).trimmingCharacters(in: .whitespacesAndNewlines)
+        return value.isEmpty ? nil : value
+    }
+
     func signOut() async {
         guard let client else { return }
         isBusy = true
@@ -161,8 +321,6 @@ final class AuthService: ObservableObject {
         }
     }
 
-    /// Permanently deletes the signed-in Supabase user (Apple account-deletion).
-    /// Returns `true` on success. Caller should clear the local user library bucket.
     @discardableResult
     func deleteAccount() async -> Bool {
         guard let client else {
@@ -186,7 +344,6 @@ final class AuthService: ObservableObject {
                     headers: ["Authorization": "Bearer \(accessToken)"]
                 )
             )
-            // User is gone — clear local session even if remote signOut fails.
             try? await client.auth.signOut(scope: .local)
             session = nil
             return true

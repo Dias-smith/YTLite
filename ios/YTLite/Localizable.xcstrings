@@ -10028,6 +10028,91 @@
           }
         }
       }
+    },
+    "auth.continue_with_google": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Continue with Google"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用 Google 继续"
+          }
+        }
+      }
+    },
+    "auth.sign_in_to_sync": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign in to sync your library across devices."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "登录后即可在多设备间同步媒体库。"
+          }
+        }
+      }
+    },
+    "you.apple_needs_google_title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "YouTube access required"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "需要 YouTube 访问权限"
+          }
+        }
+      }
+    },
+    "you.apple_needs_google_desc": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Subscriptions and Liked videos come from your YouTube account. Sign in with Google to load this tab. Your Apple-signed-in library stays separate."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "订阅与赞过的视频来自你的 YouTube 账号。请使用 Google 登录以加载此页。通过 Apple 登录的媒体库账号相互独立。"
+          }
+        }
+      }
+    },
+    "you.sign_in_with_google_for_youtube": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign in with Google for YouTube"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用 Google 登录以访问 YouTube"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

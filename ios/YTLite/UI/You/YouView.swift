@@ -15,6 +15,8 @@ struct YouView: View {
             Group {
                 if !auth.isAuthenticated {
                     subsSignInEmpty
+                } else if auth.googleAccessToken == nil {
+                    appleSignedInYouPlaceholder
                 } else if !viewModel.hasLoadedOnce {
                     ProgressView()
                         .tint(YTLiteColor.accent)
@@ -25,8 +27,13 @@ struct YouView: View {
             }
             .background(YTLiteColor.background)
             .navigationBarHidden(true)
-            .task(id: auth.userId) {
-                guard auth.isAuthenticated else { return }
+            .task(id: "\(auth.userId ?? "nil")-\(auth.googleAccessToken != nil)") {
+                guard auth.isAuthenticated, auth.googleAccessToken != nil else {
+                    if auth.googleAccessToken == nil {
+                        viewModel.clear()
+                    }
+                    return
+                }
                 await viewModel.loadYouTubeShelves(
                     token: auth.googleAccessToken,
                     apiKey: appModel.config.youtubeDataAPIKey
@@ -59,42 +66,67 @@ struct YouView: View {
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
 
-            Button {
-                Task {
-                    await auth.signInWithGoogle()
-                    appModel.syncAuth(auth)
-                    if auth.isAuthenticated {
-                        await viewModel.loadYouTubeShelves(
-                            token: auth.googleAccessToken,
-                            apiKey: appModel.config.youtubeDataAPIKey
-                        )
-                        if let store {
-                            Task {
-                                await LibrarySyncService(auth: auth).syncBidirectional(store: store)
-                            }
-                        }
-                    }
+            SignInOptionsView(auth: auth) {
+                appModel.syncAuth(auth)
+                await viewModel.loadYouTubeShelves(
+                    token: auth.googleAccessToken,
+                    apiKey: appModel.config.youtubeDataAPIKey
+                )
+                if let store {
+                    await LibrarySyncService(auth: auth).syncBidirectional(store: store)
                 }
-            } label: {
-                Text(auth.isBusy ? L("common.signing_in") : L("common.sign_in"))
-                    .font(YTLiteType.labelEmphasized)
-                    .foregroundStyle(YTLiteColor.onSurface)
-                    .padding(.horizontal, 28)
-                    .padding(.vertical, YTLiteLayout.stackLoose)
-                    .background(YTLiteColor.signInBlue, in: Capsule())
             }
-            .disabled(auth.isBusy || !auth.isConfigured)
             .padding(.top, YTLiteLayout.stackTight)
 
-            if let err = auth.lastError {
-                Text(err)
-                    .font(YTLiteType.meta)
-                    .foregroundStyle(YTLiteColor.danger)
-                    .padding(.horizontal)
-            }
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    /// Apple (or any session without YouTube OAuth) — explain and guide to Google.
+    private var appleSignedInYouPlaceholder: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                profileHeader
+                    .padding(.top, 8)
+
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(L("you.apple_needs_google_title"))
+                        .font(YTLiteType.rowTitle)
+                        .foregroundStyle(YTLiteColor.onSurface)
+                    Text(L("you.apple_needs_google_desc"))
+                        .font(YTLiteType.meta)
+                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                    Button {
+                        Task {
+                            await auth.signInWithGoogle()
+                            appModel.syncAuth(auth)
+                            await viewModel.loadYouTubeShelves(
+                                token: auth.googleAccessToken,
+                                apiKey: appModel.config.youtubeDataAPIKey
+                            )
+                        }
+                    } label: {
+                        Text(L("you.sign_in_with_google_for_youtube"))
+                            .font(YTLiteType.labelEmphasized)
+                            .foregroundStyle(YTLiteColor.onSurface)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 10)
+                            .frame(maxWidth: .infinity)
+                            .background(YTLiteColor.signInBlue, in: Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(auth.isBusy)
+                }
+                .padding(16)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(
+                    YTLiteColor.surfaceVariant,
+                    in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+                )
+                .padding(.horizontal, 16)
+            }
+        }
     }
 
     // MARK: - Authenticated (Android YoutubeYouScreen order)
@@ -297,7 +329,7 @@ struct YouView: View {
             HStack(spacing: 8) {
                 Button {
                     Task {
-                        await auth.switchGoogleAccount()
+                        await auth.switchAccount()
                         appModel.syncAuth(auth)
                         await viewModel.loadYouTubeShelves(
                             token: auth.googleAccessToken,
