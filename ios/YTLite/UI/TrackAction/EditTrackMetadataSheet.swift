@@ -27,53 +27,73 @@ struct EditTrackMetadataSheet: View {
     }
 
     var body: some View {
-        NavigationStack {
-            Form {
-                Section {
-                    artworkSection
-                        .listRowInsets(EdgeInsets())
-                }
+        VStack(spacing: 0) {
+            YTLiteSheetGrabHandle()
+            YTLiteSheetTitle(title: "Edit info")
 
-                Section("Details") {
-                    TextField("Title", text: $titleText)
-                    TextField("Artist", text: $artistText)
-                    TextField("Album", text: $albumText)
-                    TextField("Year", text: $yearText)
+            ScrollView {
+                VStack(alignment: .leading, spacing: YTLiteLayout.stackLoose) {
+                    artworkSection
+
+                    fieldLabel("Title")
+                    YTLiteSheetField(placeholder: "Title", text: $titleText)
+
+                    fieldLabel("Artist")
+                    YTLiteSheetField(placeholder: "Artist", text: $artistText)
+
+                    fieldLabel("Album")
+                    YTLiteSheetField(placeholder: "Album", text: $albumText)
+
+                    fieldLabel("Year")
+                    YTLiteSheetField(placeholder: "Year", text: $yearText)
                 }
+                .padding(.top, 4)
+                .padding(.bottom, 20)
             }
-            .scrollContentBackground(.hidden)
-            .background(YTLiteColor.background)
-            .navigationTitle("Edit info")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") { save() }
-                        .fontWeight(.semibold)
-                }
+
+            VStack(spacing: 10) {
+                YTLiteSheetPrimaryButton(title: "Save", action: save)
+                YTLiteSheetSecondaryButton(title: "Cancel") { dismiss() }
             }
-            .onAppear { load() }
-            .confirmationDialog("Change artwork", isPresented: $showArtworkOptions, titleVisibility: .visible) {
-                Button("相册") { showPhotoPicker = true }
-                Button("网络图片") {
+            .padding(.bottom, 28)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .background(YTLiteColor.surfaceElevated)
+        .preferredColorScheme(.dark)
+        .onAppear { load() }
+        .sheet(isPresented: $showArtworkOptions) {
+            ChangeArtworkOptionsSheet(
+                onChoosePhoto: {
+                    showArtworkOptions = false
+                    showPhotoPicker = true
+                },
+                onWebImage: {
+                    showArtworkOptions = false
                     webURLDraft = thumbText.hasPrefix("http") ? thumbText : ""
                     showWebImageSheet = true
                 }
-                Button("Cancel", role: .cancel) {}
-            }
-            .photosPicker(isPresented: $showPhotoPicker, selection: $photoItem, matching: .images)
-            .onChange(of: photoItem) { _, item in
-                guard let item else { return }
-                photoItem = nil
-                Task { await applyPhoto(item) }
-            }
-            .sheet(isPresented: $showWebImageSheet) {
-                webImageSheet
-            }
+            )
+            .presentationDetents([.height(260)])
+            .presentationDragIndicator(.hidden)
+            .presentationBackground(YTLiteColor.surfaceElevated)
         }
-        .preferredColorScheme(.dark)
+        .photosPicker(isPresented: $showPhotoPicker, selection: $photoItem, matching: .images)
+        .onChange(of: photoItem) { _, item in
+            guard let item else { return }
+            photoItem = nil
+            Task { await applyPhoto(item) }
+        }
+        .sheet(isPresented: $showWebImageSheet) {
+            webImageSheet
+        }
+    }
+
+    private func fieldLabel(_ text: String) -> some View {
+        Text(text)
+            .font(YTLiteType.meta)
+            .foregroundStyle(YTLiteColor.onSurfaceVariant)
+            .padding(.horizontal, YTLiteLayout.screenPadding)
+            .padding(.top, 4)
     }
 
     private var artworkSection: some View {
@@ -82,6 +102,7 @@ struct EditTrackMetadataSheet: View {
                 .frame(height: 140)
                 .frame(maxWidth: .infinity)
                 .clipped()
+                .clipShape(RoundedRectangle(cornerRadius: 10))
 
             Image(systemName: "camera.fill")
                 .font(.system(size: 13, weight: .semibold))
@@ -90,6 +111,7 @@ struct EditTrackMetadataSheet: View {
                 .background(YTLiteColor.surfaceElevated.opacity(0.92), in: Circle())
                 .padding(10)
         }
+        .padding(.horizontal, YTLiteLayout.screenPadding)
         .contentShape(Rectangle())
         .onTapGesture { showArtworkOptions = true }
         .accessibilityAddTraits(.isButton)
@@ -97,34 +119,43 @@ struct EditTrackMetadataSheet: View {
     }
 
     private var webImageSheet: some View {
-        NavigationStack {
-            Form {
-                Section {
-                    TextField("Image URL", text: $webURLDraft)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .keyboardType(.URL)
-                } footer: {
-                    Text("Paste a direct link to an image (https://…)")
-                }
+        VStack(spacing: 0) {
+            YTLiteSheetGrabHandle()
+            YTLiteSheetTitle(title: "网络图片")
+
+            Text("Paste a direct link to an image (https://…)")
+                .font(YTLiteType.meta)
+                .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, YTLiteLayout.screenPadding)
+                .padding(.bottom, 8)
+
+            YTLiteSheetField(
+                placeholder: "Image URL",
+                text: $webURLDraft,
+                keyboardType: .URL,
+                autocapitalization: .never,
+                disableAutocorrection: true
+            )
+
+            Spacer(minLength: 16)
+
+            VStack(spacing: 10) {
+                YTLiteSheetPrimaryButton(
+                    title: "Apply",
+                    enabled: isValidWebURL(webURLDraft),
+                    action: applyWebURL
+                )
+                YTLiteSheetSecondaryButton(title: "Cancel") { showWebImageSheet = false }
             }
-            .scrollContentBackground(.hidden)
-            .background(YTLiteColor.background)
-            .navigationTitle("网络图片")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { showWebImageSheet = false }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Apply") { applyWebURL() }
-                        .fontWeight(.semibold)
-                        .disabled(!isValidWebURL(webURLDraft))
-                }
-            }
+            .padding(.bottom, 28)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .background(YTLiteColor.surfaceElevated)
         .preferredColorScheme(.dark)
         .presentationDetents([.medium])
+        .presentationDragIndicator(.hidden)
+        .presentationBackground(YTLiteColor.surfaceElevated)
     }
 
     private func load() {
@@ -168,7 +199,6 @@ struct EditTrackMetadataSheet: View {
     private func replaceThumb(with newValue: String) {
         let previous = thumbText
         if previous != newValue, TrackThumbnailStorage.isLocalPath(previous) {
-            // Don't delete yet if previous is the same track file we're about to overwrite.
             if TrackThumbnailStorage.token(for: context.videoId) != newValue {
                 TrackThumbnailStorage.deleteIfLocal(previous)
             }
@@ -204,6 +234,27 @@ struct EditTrackMetadataSheet: View {
               url.host != nil
         else { return false }
         return true
+    }
+}
+
+private struct ChangeArtworkOptionsSheet: View {
+    var onChoosePhoto: () -> Void
+    var onWebImage: () -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(spacing: 0) {
+            YTLiteSheetGrabHandle()
+            YTLiteSheetTitle(title: "Change artwork")
+            Divider().overlay(YTLiteColor.surfaceVariant)
+            YTLiteSheetActionRow(systemImage: "photo", title: "相册", action: onChoosePhoto)
+            YTLiteSheetActionRow(systemImage: "link", title: "网络图片", action: onWebImage)
+            YTLiteSheetActionRow(systemImage: "xmark", title: "Cancel") { dismiss() }
+            Spacer(minLength: 12)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .background(YTLiteColor.surfaceElevated)
+        .preferredColorScheme(.dark)
     }
 }
 

@@ -98,6 +98,9 @@ struct TrackActionSheet: View {
             EditTrackMetadataSheet(context: context)
                 .environmentObject(trackActions)
                 .environment(\.libraryStore, store)
+                .presentationDetents([.large])
+                .presentationDragIndicator(.hidden)
+                .presentationBackground(YTLiteColor.surfaceElevated)
         }
         .sheet(isPresented: $trackActions.showLyrics) {
             TrackLyricsSheet(videoId: context.videoId)

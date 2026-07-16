@@ -161,13 +161,12 @@ struct LibraryView: View {
                 }
                 reload()
             }
-            .confirmationDialog(
+            .alert(
                 "Unsubscribe?",
                 isPresented: Binding(
                     get: { channelPendingUnsubscribe != nil },
                     set: { if !$0 { channelPendingUnsubscribe = nil } }
-                ),
-                titleVisibility: .visible
+                )
             ) {
                 Button("Unsubscribe", role: .destructive) {
                     if let channel = channelPendingUnsubscribe {
@@ -205,8 +204,8 @@ struct LibraryView: View {
                         enterReorderMode()
                     }
                 )
-                .presentationDetents([.height(filter == .songs ? 340 : 300)])
-                .presentationDragIndicator(.visible)
+                .presentationDetents([.height(filter == .songs ? 380 : 340)])
+                .presentationDragIndicator(.hidden)
                 .presentationBackground(YTLiteColor.surfaceElevated)
                 .preferredColorScheme(.dark)
             }
@@ -298,7 +297,7 @@ struct LibraryView: View {
                     }
                 )
                 .presentationDetents([.medium, .large])
-                .presentationDragIndicator(.visible)
+                .presentationDragIndicator(.hidden)
                 .presentationBackground(YTLiteColor.surfaceElevated)
                 .preferredColorScheme(.dark)
             }
@@ -1327,34 +1326,34 @@ private struct LibraryPlaylistPickSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text(title)
-                .font(YTLiteType.sectionTitle)
-                .foregroundStyle(YTLiteColor.onSurface)
-                .padding(.horizontal, YTLiteLayout.screenPadding)
-                .padding(.top, 20)
-                .padding(.bottom, 8)
+            YTLiteSheetGrabHandle()
+            YTLiteSheetTitle(title: title)
+            Divider().overlay(YTLiteColor.surfaceVariant)
 
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 0) {
                     ForEach(playlists, id: \.playlistId) { playlist in
-                        Button {
+                        YTLiteSheetActionRow(
+                            systemImage: playlistRowIcon(for: playlist),
+                            title: displayName(playlist)
+                        ) {
                             onSelect(playlist)
-                        } label: {
-                            Text(displayName(playlist))
-                                .font(YTLiteType.body)
-                                .foregroundStyle(YTLiteColor.onSurface)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(.horizontal, YTLiteLayout.screenPadding)
-                                .padding(.vertical, 14)
-                                .contentShape(Rectangle())
                         }
-                        .buttonStyle(.plain)
                     }
                 }
+                .padding(.bottom, 28)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(YTLiteColor.surfaceElevated.ignoresSafeArea())
+    }
+
+    private func playlistRowIcon(for playlist: LibraryPlaylist) -> String {
+        switch playlist.systemType {
+        case SystemPlaylistType.favorites: return "hand.thumbsup"
+        case SystemPlaylistType.watchLater: return "clock"
+        default: return "music.note.list"
+        }
     }
 }
 
@@ -1369,46 +1368,26 @@ private struct LibrarySortSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("Sort by")
-                .font(YTLiteType.sectionTitle)
-                .foregroundStyle(YTLiteColor.onSurface)
-                .padding(.horizontal, YTLiteLayout.screenPadding)
-                .padding(.top, 20)
-                .padding(.bottom, 8)
+            YTLiteSheetGrabHandle()
+            YTLiteSheetTitle(title: "Sort by")
+            Divider().overlay(YTLiteColor.surfaceVariant)
 
             ForEach(options) { option in
-                Button {
+                YTLiteSheetActionRow(
+                    systemImage: "arrow.up.arrow.down",
+                    title: option.title,
+                    isSelected: option == current
+                ) {
                     onSelect(option)
-                } label: {
-                    HStack(spacing: 14) {
-                        Text(option.title)
-                            .font(YTLiteType.body)
-                            .foregroundStyle(YTLiteColor.onSurface)
-                        Spacer()
-                        if option == current {
-                            Image(systemName: "checkmark")
-                                .font(.system(size: 15, weight: .semibold))
-                                .foregroundStyle(YTLiteColor.accent)
-                        }
-                    }
-                    .padding(.horizontal, YTLiteLayout.screenPadding)
-                    .padding(.vertical, 14)
-                    .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
             }
 
             if showsReorderPlaylists {
-                Button(action: onReorderPlaylists) {
-                    Text("Reorder playlists")
-                        .font(YTLiteType.body)
-                        .foregroundStyle(YTLiteColor.onSurface)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, YTLiteLayout.screenPadding)
-                        .padding(.vertical, 14)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
+                YTLiteSheetActionRow(
+                    systemImage: "line.3.horizontal",
+                    title: "Reorder playlists",
+                    action: onReorderPlaylists
+                )
             }
 
             Spacer(minLength: 12)

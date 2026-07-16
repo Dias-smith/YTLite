@@ -3,11 +3,12 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 63;
+	objectVersion = 54;
 	objects = {
 
 /* Begin PBXBuildFile section */
 		04AA8137173B3F16BA42BA89 /* LyricsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95BB5987A01CB83F34EC4732 /* LyricsSheet.swift */; };
+		05E890CF43A22346F8982065 /* YTLiteSheetChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A2E2B438DB6EE30A26B52AF /* YTLiteSheetChrome.swift */; };
 		0B53FFD0BF2E85F8B97EAA04 /* TrackLyricsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90C3AFEA3FF8DF17A290E374 /* TrackLyricsSheet.swift */; };
 		11D42CD1F44B8C9E81D33FD7 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B70A93BD5CE828D414CF8BBE /* RootView.swift */; };
 		1416F31DD3C8F32D5F655843 /* CaptionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E18CD28AA17FA185B077C5E2 /* CaptionService.swift */; };
@@ -74,7 +75,7 @@
 		3EC77F988D8FEBB7F2CF01F9 /* LibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryView.swift; sourceTree = "<group>"; };
 		3F25F35684A83A600A625701 /* PlaylistActionContext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistActionContext.swift; sourceTree = "<group>"; };
 		4304E3E3EC343C5F5E914EBA /* EditTrackMetadataSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditTrackMetadataSheet.swift; sourceTree = "<group>"; };
-		44EBD8B1BFEA37CB163553EB /* YTLite.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = YTLite.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		44EBD8B1BFEA37CB163553EB /* YTLite.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = YTLite.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		4F148613909F22D6432E97CD /* PlaybackController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackController.swift; sourceTree = "<group>"; };
 		5CC3E87622C393A7C74ACF92 /* PlaybackSessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackSessionStore.swift; sourceTree = "<group>"; };
 		6B84EDDCCC216705C7DEB5E1 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -84,6 +85,7 @@
 		770E66C46620B9C80B71FB27 /* YouTubeHTTPClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YouTubeHTTPClient.swift; sourceTree = "<group>"; };
 		7808B0DE3172F30505602CA1 /* PlayerDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerDetailView.swift; sourceTree = "<group>"; };
 		785F0DBABA94995BF9801E53 /* SearchSuggestionItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchSuggestionItem.swift; sourceTree = "<group>"; };
+		7A2E2B438DB6EE30A26B52AF /* YTLiteSheetChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YTLiteSheetChrome.swift; sourceTree = "<group>"; };
 		810DCEABC066DAF9AA39EB6B /* MiniPlayerBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniPlayerBar.swift; sourceTree = "<group>"; };
 		82F8E26AA33C8BCEF1EC7A42 /* VideoItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoItem.swift; sourceTree = "<group>"; };
 		8EA90531C6E856EF762C37C9 /* ShortsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortsView.swift; sourceTree = "<group>"; };
@@ -361,6 +363,7 @@
 			children = (
 				1B4731471EE13027FBEBDD87 /* MainTabBar.swift */,
 				FEA8F5D964477DD5F396E4DF /* RemoteImage.swift */,
+				7A2E2B438DB6EE30A26B52AF /* YTLiteSheetChrome.swift */,
 				E6E872E174975CD347699542 /* YTLiteTheme.swift */,
 			);
 			path = Theme;
@@ -409,6 +412,7 @@
 				LastUpgradeCheck = 1600;
 				TargetAttributes = {
 					E5A6BFBC1A4F74FC530383E8 = {
+						DevelopmentTeam = "";
 						ProvisioningStyle = Automatic;
 					};
 				};
@@ -426,6 +430,7 @@
 			packageReferences = (
 				A4DE782A5061B5C8A8FFBDA8 /* XCRemoteSwiftPackageReference "supabase-swift" */,
 			);
+			preferredProjectObjectVersion = 54;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -496,6 +501,7 @@
 				2016F531F2C583A556F3E03C /* VideoItem.swift in Sources */,
 				BF80F794550A2F98653F0227 /* VideoPlayback.swift in Sources */,
 				B19A0548C73F27801320D382 /* YTLiteApp.swift in Sources */,
+				05E890CF43A22346F8982065 /* YTLiteSheetChrome.swift in Sources */,
 				7197A0A39469C449A174BAD7 /* YTLiteTheme.swift in Sources */,
 				3FAB82C7DD328823910B07D7 /* YouTubeHTTPClient.swift in Sources */,
 				BCF733C20A1751C2B9103A99 /* YouView.swift in Sources */,
@@ -638,7 +644,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = 34878H47P6;
+				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = YTLite/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -660,7 +666,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = 34878H47P6;
+				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = YTLite/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (

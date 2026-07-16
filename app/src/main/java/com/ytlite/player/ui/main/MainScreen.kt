@@ -1,9 +1,12 @@
 package com.ytlite.player.ui.main
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Subscriptions
@@ -102,6 +105,7 @@ private fun Modifier.mainTabPadding(
     bottom = innerPadding.calculateBottomPadding(),
 )
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun MainScreen(
     onVideoClick: (VideoItem) -> Unit,
@@ -203,67 +207,72 @@ fun MainScreen(
         )
     }
 
+    val imeVisible = WindowInsets.isImeVisible
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
         snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
-            Column {
-                if (globalPlaybackState.showMiniPlayer) {
-                    MiniPlayerBar(
-                        state = globalPlaybackState,
-                        onOpenPlayer = {
-                            globalPlaybackState.nowPlaying?.videoId?.let(onMiniPlayerOpenPlayer)
-                        },
-                        onTogglePlayPause = onMiniPlayerTogglePlayPause,
-                        onSkipNext = onMiniPlayerSkipNext,
-                    )
-                }
-                NavigationBar {
-                    val navItemColors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = MaterialTheme.colorScheme.primary,
-                        selectedTextColor = MaterialTheme.colorScheme.primary,
-                        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        indicatorColor = MaterialTheme.colorScheme.primaryContainer,
-                    )
-                    MainTab.entries.forEach { tab ->
-                        val selected = selectedTab == tab
-                        val labelRes = if (tab == MainTab.Subscriptions && isYoutubeAuthed) {
-                            R.string.nav_youtube
-                        } else {
-                            tab.labelRes
-                        }
-                        NavigationBarItem(
-                            selected = selected,
-                            onClick = { selectedTabName = tab.name },
-                            colors = navItemColors,
-                            icon = {
-                                Icon(
-                                    imageVector = if (selected) {
-                                        tab.selectedIcon
-                                    } else {
-                                        tab.unselectedIcon
-                                    },
-                                    contentDescription = stringResource(labelRes),
-                                )
+            // Hide chrome above the keyboard (Search focus / IME).
+            if (!imeVisible) {
+                Column {
+                    if (globalPlaybackState.showMiniPlayer) {
+                        MiniPlayerBar(
+                            state = globalPlaybackState,
+                            onOpenPlayer = {
+                                globalPlaybackState.nowPlaying?.videoId?.let(onMiniPlayerOpenPlayer)
                             },
-                            label = {
-                                Text(
-                                    text = stringResource(labelRes),
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        fontWeight = if (selected) {
-                                            FontWeight.Bold
-                                        } else {
-                                            FontWeight.Normal
-                                        },
-                                    ),
-                                    maxLines = 1,
-                                    softWrap = false,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                            },
-                            alwaysShowLabel = true,
+                            onTogglePlayPause = onMiniPlayerTogglePlayPause,
+                            onSkipNext = onMiniPlayerSkipNext,
                         )
+                    }
+                    NavigationBar {
+                        val navItemColors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = MaterialTheme.colorScheme.primary,
+                            selectedTextColor = MaterialTheme.colorScheme.primary,
+                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                        )
+                        MainTab.entries.forEach { tab ->
+                            val selected = selectedTab == tab
+                            val labelRes = if (tab == MainTab.Subscriptions && isYoutubeAuthed) {
+                                R.string.nav_youtube
+                            } else {
+                                tab.labelRes
+                            }
+                            NavigationBarItem(
+                                selected = selected,
+                                onClick = { selectedTabName = tab.name },
+                                colors = navItemColors,
+                                icon = {
+                                    Icon(
+                                        imageVector = if (selected) {
+                                            tab.selectedIcon
+                                        } else {
+                                            tab.unselectedIcon
+                                        },
+                                        contentDescription = stringResource(labelRes),
+                                    )
+                                },
+                                label = {
+                                    Text(
+                                        text = stringResource(labelRes),
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontWeight = if (selected) {
+                                                FontWeight.Bold
+                                            } else {
+                                                FontWeight.Normal
+                                            },
+                                        ),
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                },
+                                alwaysShowLabel = true,
+                            )
+                        }
                     }
                 }
             }

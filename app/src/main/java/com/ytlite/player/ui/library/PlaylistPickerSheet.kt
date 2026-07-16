@@ -1,11 +1,20 @@
 package com.ytlite.player.ui.library
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.PlaylistAdd
+import androidx.compose.material.icons.outlined.AccessTime
+import androidx.compose.material.icons.outlined.ThumbUp
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -14,10 +23,12 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.ytlite.player.R
 import com.ytlite.player.data.local.entity.PlaylistSystemType
+import com.ytlite.player.ui.common.ActionMenuRow
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,8 +48,9 @@ fun PlaylistPickerSheet(
     }
 
     ModalBottomSheet(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { onDismiss() },
         sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
     ) {
         Column(
             modifier = Modifier
@@ -48,7 +60,8 @@ fun PlaylistPickerSheet(
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
             )
             if (!subtitle.isNullOrBlank() && trackCount == null) {
                 Text(
@@ -58,29 +71,40 @@ fun PlaylistPickerSheet(
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
                 )
             }
-            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-            LazyColumn {
-                item {
-                    Text(
-                        text = stringResource(R.string.library_new_playlist_title),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable(onClick = onCreatePlaylist)
-                            .padding(horizontal = 16.dp, vertical = 14.dp),
-                    )
-                }
+            HorizontalDivider(
+                modifier = Modifier.padding(vertical = 4.dp),
+                color = MaterialTheme.colorScheme.outlineVariant,
+            )
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 360.dp),
+            ) {
                 items(playlists, key = { it.playlistId }) { playlist ->
-                    Text(
-                        text = playlistPickerDisplayName(playlist),
-                        style = MaterialTheme.typography.bodyLarge,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onPlaylistSelected(playlist.playlistId) }
-                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                    ActionMenuRow(
+                        icon = playlistPickerIcon(playlist.systemType),
+                        label = playlistPickerDisplayName(playlist),
+                        onClick = { onPlaylistSelected(playlist.playlistId) },
                     )
                 }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Button(
+                onClick = onCreatePlaylist,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                shape = RoundedCornerShape(10.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                ),
+            ) {
+                Text(
+                    text = stringResource(R.string.library_new_playlist_title),
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.padding(vertical = 4.dp),
+                )
             }
         }
     }
@@ -91,4 +115,10 @@ private fun playlistPickerDisplayName(playlist: PlaylistPickerOption): String = 
     PlaylistSystemType.WATCH_LATER -> stringResource(R.string.library_watch_later)
     PlaylistSystemType.FAVORITES -> stringResource(R.string.library_liked_videos)
     else -> playlist.name
+}
+
+private fun playlistPickerIcon(systemType: String?): ImageVector = when (systemType) {
+    PlaylistSystemType.FAVORITES -> Icons.Outlined.ThumbUp
+    PlaylistSystemType.WATCH_LATER -> Icons.Outlined.AccessTime
+    else -> Icons.AutoMirrored.Outlined.PlaylistAdd
 }

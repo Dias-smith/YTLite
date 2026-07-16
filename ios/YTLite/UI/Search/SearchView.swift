@@ -47,10 +47,8 @@ final class SearchViewModel: ObservableObject {
         suggestTask?.cancel()
         searchTask?.cancel()
 
-        suppressQuerySideEffects = true
-        query = q
-        suppressQuerySideEffects = false
-
+        // Lock results phase before mutating `query` so any residual side effects
+        // cannot flash the suggestions pane.
         if let tab {
             selectedTab = tab
         }
@@ -58,6 +56,11 @@ final class SearchViewModel: ObservableObject {
         activeResultsQuery = q
         suggestions = []
         isSuggestionsLoading = false
+
+        suppressQuerySideEffects = true
+        query = q
+        suppressQuerySideEffects = false
+
         loadResults(memory: memory, reset: true)
     }
 
@@ -138,7 +141,11 @@ final class SearchViewModel: ObservableObject {
             return
         }
 
-        if phase == .results || phase == .hub {
+        if phase == .results {
+            // Editing from the results search field should drop into suggestions;
+            // hub / history / hot taps use `submit` and never reach here.
+            phase = .suggestions
+        } else if phase == .hub {
             phase = .suggestions
         }
 
@@ -265,29 +272,16 @@ struct SearchView: View {
     }
 
     private var resultTabs: some View {
-        HStack(spacing: 0) {
-            ForEach(SearchResultTab.allCases) { tab in
-                Button {
-                    viewModel.selectTab(tab, memory: memory)
-                } label: {
-                    VStack(spacing: YTLiteLayout.stackDefault) {
-                        Text(tab.rawValue)
-                            .font(viewModel.selectedTab == tab ? YTLiteType.labelEmphasized : YTLiteType.label)
-                            .foregroundStyle(
-                                viewModel.selectedTab == tab
-                                    ? YTLiteColor.accent
-                                    : YTLiteColor.onSurfaceVariant
-                            )
-                        Rectangle()
-                            .fill(viewModel.selectedTab == tab ? YTLiteColor.accent : Color.clear)
-                            .frame(height: 2)
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: YTLiteLayout.stackDefault) {
+                ForEach(SearchResultTab.allCases) { tab in
+                    YTLiteChip(title: tab.rawValue, selected: viewModel.selectedTab == tab) {
+                        viewModel.selectTab(tab, memory: memory)
                     }
-                    .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.plain)
             }
+            .padding(.horizontal, YTLiteLayout.screenPadding)
         }
-        .padding(.horizontal, YTLiteLayout.stackDefault)
         .padding(.bottom, YTLiteLayout.stackTight)
     }
 
@@ -432,39 +426,25 @@ struct SearchView: View {
                         .padding(.bottom, YTLiteLayout.stackTight)
 
                         ForEach(memory.recentQueries, id: \.self) { q in
-                            HStack(spacing: YTLiteLayout.stackLoose) {
-                                Button {
-                                    viewModel.submit(memory: memory, query: q)
-                                    searchFocused = false
-                                } label: {
-                                    HStack(spacing: 12) {
-                                        Image(systemName: "clock.arrow.circlepath")
-                                            .font(.system(size: 16))
-                                            .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                                        Text(q)
-                                            .font(YTLiteType.body)
-                                            .foregroundStyle(YTLiteColor.onSurface)
-                                            .lineLimit(1)
-                                        Spacer(minLength: 0)
-                                    }
-                                    .contentShape(Rectangle())
-                                }
-                                .buttonStyle(.plain)
-
-                                Button {
-                                    viewModel.query = q
-                                    searchFocused = true
-                                } label: {
-                                    Image(systemName: "arrow.up.left")
-                                        .font(YTLiteType.meta)
+                            Button {
+                                searchFocused = false
+                                viewModel.submit(memory: memory, query: q)
+                            } label: {
+                                HStack(spacing: 12) {
+                                    Image(systemName: "clock.arrow.circlepath")
+                                        .font(.system(size: 16))
                                         .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                                        .frame(width: 28, height: 28)
-                                        .contentShape(Rectangle())
+                                    Text(q)
+                                        .font(YTLiteType.body)
+                                        .foregroundStyle(YTLiteColor.onSurface)
+                                        .lineLimit(1)
+                                    Spacer(minLength: 0)
                                 }
-                                .buttonStyle(.plain)
+                                .padding(.horizontal, YTLiteLayout.screenPadding)
+                                .padding(.vertical, 6)
+                                .contentShape(Rectangle())
                             }
-                            .padding(.horizontal, YTLiteLayout.screenPadding)
-                            .padding(.vertical, 6)
+                            .buttonStyle(.plain)
                         }
                     }
                 }
@@ -477,8 +457,8 @@ struct SearchView: View {
                             .padding(.horizontal, YTLiteLayout.screenPadding)
 
                         FlowChips(items: viewModel.hotKeywords) { tag in
-                            viewModel.submit(memory: memory, query: tag)
                             searchFocused = false
+                            viewModel.submit(memory: memory, query: tag)
                         }
                         .padding(.horizontal, YTLiteLayout.screenPadding)
                     }

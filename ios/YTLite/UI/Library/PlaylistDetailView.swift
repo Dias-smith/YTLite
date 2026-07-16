@@ -15,9 +15,7 @@ struct PlaylistDetailView: View {
 
     @State private var sort: PlaylistTrackSort = .manual
     @State private var showSortSheet = false
-    @State private var showCoverOptions = false
     @State private var showPhotoPicker = false
-    @State private var showTrackCoverPicker = false
     @State private var photoItem: PhotosPickerItem?
     @State private var refreshTick = 0
     @State private var orderedTrackIds: [String] = []
@@ -63,11 +61,6 @@ struct PlaylistDetailView: View {
                 $0.item.title.localizedCaseInsensitiveCompare($1.item.title) == .orderedAscending
             }
         }
-    }
-
-    private var hasCustomCover: Bool {
-        guard let path = livePlaylist.coverUrlOrPath else { return false }
-        return !path.isEmpty
     }
 
     private var coverURLs: [URL] {
@@ -158,19 +151,10 @@ struct PlaylistDetailView: View {
                 showSortSheet = false
                 if selected == .manual { syncOrderedIds() }
             })
-            .presentationDetents([.medium])
-            .presentationDragIndicator(.visible)
+            .presentationDetents([.height(320)])
+            .presentationDragIndicator(.hidden)
+            .presentationBackground(YTLiteColor.surfaceElevated)
             .preferredColorScheme(.dark)
-        }
-        .confirmationDialog("Change cover", isPresented: $showCoverOptions, titleVisibility: .visible) {
-            Button("Choose photo") { showPhotoPicker = true }
-            if !entryRows.isEmpty {
-                Button("Use track artwork") { showTrackCoverPicker = true }
-            }
-            if hasCustomCover {
-                Button("Remove cover", role: .destructive) { clearCover() }
-            }
-            Button("Cancel", role: .cancel) {}
         }
         .photosPicker(isPresented: $showPhotoPicker, selection: $photoItem, matching: .images)
         .onChange(of: photoItem) { _, item in
@@ -178,17 +162,6 @@ struct PlaylistDetailView: View {
             // Clear selection first so a duplicate onChange cannot delete the cover just written.
             photoItem = nil
             Task { await applyPhotoCover(item) }
-        }
-        .sheet(isPresented: $showTrackCoverPicker) {
-            PlaylistTrackCoverPickerSheet(
-                tracks: entryRows.sorted { $0.position < $1.position }
-            ) { url in
-                applyCoverURL(url)
-                showTrackCoverPicker = false
-            }
-            .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.visible)
-            .preferredColorScheme(.dark)
         }
     }
 
@@ -215,7 +188,7 @@ struct PlaylistDetailView: View {
             .contentShape(Rectangle())
             .onTapGesture {
                 guard canEdit else { return }
-                showCoverOptions = true
+                showPhotoPicker = true
             }
             .accessibilityAddTraits(canEdit ? .isButton : [])
             .accessibilityLabel(canEdit ? "Change cover" : "Playlist cover")
@@ -415,20 +388,6 @@ struct PlaylistDetailView: View {
         )
     }
 
-    private func clearCover() {
-        store?.updatePlaylistCover(livePlaylist, coverUrlOrPath: nil)
-        refreshTick += 1
-        onChange()
-        playlistActions.showToast("Cover removed")
-    }
-
-    private func applyCoverURL(_ url: URL) {
-        store?.updatePlaylistCover(livePlaylist, coverUrlOrPath: url.absoluteString)
-        refreshTick += 1
-        onChange()
-        playlistActions.showToast("Cover updated")
-    }
-
     private func applyPhotoCover(_ item: PhotosPickerItem) async {
         do {
             guard let data = try await item.loadTransferable(type: Data.self),
@@ -545,73 +504,6 @@ private struct PlaylistDetailCoverArt: View {
     }
 }
 
-// MARK: - Track artwork picker
-
-private struct PlaylistTrackCoverPickerSheet: View {
-    let tracks: [PlaylistDetailTrack]
-    var onSelect: (URL) -> Void
-    @Environment(\.dismiss) private var dismiss
-
-    private var candidates: [(id: String, title: String, url: URL)] {
-        tracks.compactMap { row in
-            guard let url = row.item.thumbnailURL else { return nil }
-            return (row.trackId, row.item.title, url)
-        }
-    }
-
-    var body: some View {
-        NavigationStack {
-            Group {
-                if candidates.isEmpty {
-                    Text("No track artwork available")
-                        .font(YTLiteType.body)
-                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else {
-                    ScrollView {
-                        LazyVGrid(
-                            columns: [
-                                GridItem(.flexible(), spacing: 12),
-                                GridItem(.flexible(), spacing: 12),
-                                GridItem(.flexible(), spacing: 12),
-                            ],
-                            spacing: 12
-                        ) {
-                            ForEach(candidates, id: \.id) { item in
-                                Button {
-                                    onSelect(item.url)
-                                } label: {
-                                    VStack(spacing: 6) {
-                                        RemoteImage(url: item.url)
-                                            .aspectRatio(1, contentMode: .fill)
-                                            .clipped()
-                                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                                        Text(item.title)
-                                            .font(YTLiteType.meta)
-                                            .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                                            .lineLimit(1)
-                                    }
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
-                        .padding(YTLiteLayout.screenPadding)
-                    }
-                }
-            }
-            .background(YTLiteColor.surfaceElevated)
-            .navigationTitle("Track artwork")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                        .foregroundStyle(YTLiteColor.accent)
-                }
-            }
-        }
-    }
-}
-
 // MARK: - Sort sheet
 
 private struct PlaylistSortSheet: View {
@@ -620,31 +512,18 @@ private struct PlaylistSortSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("Sort")
-                .font(YTLiteType.sectionTitle)
-                .foregroundStyle(YTLiteColor.onSurface)
-                .padding(.horizontal, YTLiteLayout.screenPadding)
-                .padding(.top, 20)
-                .padding(.bottom, 12)
+            YTLiteSheetGrabHandle()
+            YTLiteSheetTitle(title: "Sort by")
+            Divider().overlay(YTLiteColor.surfaceVariant)
 
             ForEach(PlaylistTrackSort.allCases) { option in
-                Button {
+                YTLiteSheetActionRow(
+                    systemImage: "arrow.up.arrow.down",
+                    title: option.label,
+                    isSelected: option == current
+                ) {
                     onSelect(option)
-                } label: {
-                    HStack(spacing: 14) {
-                        Image(systemName: option == current ? "checkmark" : "line.3.horizontal.decrease")
-                            .font(.system(size: 16, weight: .medium))
-                            .frame(width: 24)
-                        Text(option.label)
-                            .font(YTLiteType.body)
-                        Spacer()
-                    }
-                    .foregroundStyle(YTLiteColor.onSurface)
-                    .padding(.horizontal, YTLiteLayout.screenPadding)
-                    .padding(.vertical, 14)
-                    .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
             }
             Spacer(minLength: 12)
         }

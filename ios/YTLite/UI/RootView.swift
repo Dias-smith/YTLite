@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import UIKit
 
 struct RootView: View {
     @EnvironmentObject private var playback: PlaybackController
@@ -9,6 +10,7 @@ struct RootView: View {
     @State private var selectedTab: AppTab = .home
     @State private var libraryStore: LibraryStore?
     @State private var syncService: LibrarySyncService?
+    @State private var isKeyboardVisible = false
 
     var body: some View {
         TrackActionHost(libraryStore: libraryStore) {
@@ -30,17 +32,26 @@ struct RootView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(YTLiteColor.background)
 
-                if playback.nowPlaying != nil && selectedTab != .shorts {
-                    MiniPlayerBar()
-                }
+                // Keep mini player + tab bar off the keyboard — they must not float above IME.
+                if !isKeyboardVisible {
+                    if playback.nowPlaying != nil && selectedTab != .shorts {
+                        MiniPlayerBar()
+                    }
 
-                MainTabBar(selected: $selectedTab, isAuthenticated: auth.isAuthenticated)
+                    MainTabBar(selected: $selectedTab, isAuthenticated: auth.isAuthenticated)
+                }
             }
             .environment(\.selectAppTab) { tab in
                 selectedTab = tab
             }
             .background(YTLiteColor.background.ignoresSafeArea())
             .preferredColorScheme(.dark)
+            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
+                isKeyboardVisible = true
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
+                isKeyboardVisible = false
+            }
             .onAppear {
                 if libraryStore == nil {
                     let ownerKey = OwnerKeyStore.current(auth: auth)

@@ -129,7 +129,9 @@ struct PlayerDetailView: View {
                 applySort(option)
             }
             .preferredColorScheme(.dark)
-            .presentationDetents([.medium, .large])
+            .presentationDetents([.height(300)])
+            .presentationDragIndicator(.hidden)
+            .presentationBackground(YTLiteColor.surfaceElevated)
         }
         .sheet(item: $playerTrackMenu, onDismiss: {
             trackActions.dismissAllOverlays()
@@ -624,21 +626,11 @@ struct PlayerDetailView: View {
     // MARK: - Tabs
 
     private var tabHeader: some View {
-        HStack(spacing: 20) {
+        HStack(spacing: YTLiteLayout.stackDefault) {
             ForEach(PlayerTab.allCases, id: \.self) { item in
-                Button {
+                YTLiteChip(title: item.rawValue, selected: tab == item) {
                     tab = item
-                } label: {
-                    VStack(spacing: YTLiteLayout.stackDefault) {
-                        Text(item.rawValue)
-                            .font(tab == item ? YTLiteType.labelEmphasized : YTLiteType.label)
-                            .foregroundStyle(tab == item ? YTLiteColor.onSurface : YTLiteColor.onSurfaceVariant)
-                        Rectangle()
-                            .fill(tab == item ? YTLiteColor.onSurface : Color.clear)
-                            .frame(height: 2)
-                    }
                 }
-                .buttonStyle(.plain)
             }
             Spacer(minLength: 0)
         }
@@ -1217,36 +1209,25 @@ private struct PlayerListSortSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        NavigationStack {
-            List {
-                ForEach(PlayerListSort.allCases, id: \.self) { option in
-                    Button {
-                        onSelect(option)
-                        dismiss()
-                    } label: {
-                        HStack {
-                            Text(option.title)
-                                .foregroundStyle(YTLiteColor.onSurface)
-                            Spacer()
-                            if option == selected {
-                                Image(systemName: "checkmark")
-                                    .foregroundStyle(YTLiteColor.accent)
-                            }
-                        }
-                    }
-                    .listRowBackground(YTLiteColor.surfaceElevated)
+        VStack(alignment: .leading, spacing: 0) {
+            YTLiteSheetGrabHandle()
+            YTLiteSheetTitle(title: "Sort by")
+            Divider().overlay(YTLiteColor.surfaceVariant)
+
+            ForEach(PlayerListSort.allCases, id: \.self) { option in
+                YTLiteSheetActionRow(
+                    systemImage: "arrow.up.arrow.down",
+                    title: option.title,
+                    isSelected: option == selected
+                ) {
+                    onSelect(option)
+                    dismiss()
                 }
             }
-            .scrollContentBackground(.hidden)
-            .background(YTLiteColor.background)
-            .navigationTitle("Sort by")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Close") { dismiss() }
-                }
-            }
+            Spacer(minLength: 12)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(YTLiteColor.surfaceElevated)
     }
 }
 
@@ -1265,103 +1246,82 @@ struct AddToPlaylistSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            header(title: title) { dismiss() }
+            YTLiteSheetGrabHandle()
+            YTLiteSheetTitle(title: title)
+            Divider().overlay(YTLiteColor.surfaceVariant)
 
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 0) {
-                    Button {
-                        newName = ""
-                        showCreate = true
-                    } label: {
-                        Label("New playlist", systemImage: "plus")
-                            .font(YTLiteType.body)
-                            .foregroundStyle(YTLiteColor.accent)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal, YTLiteLayout.screenPadding)
-                            .padding(.vertical, 14)
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-
                     ForEach(store?.allPlaylists() ?? [], id: \.playlistId) { playlist in
-                        Button {
+                        YTLiteSheetActionRow(
+                            systemImage: playlistRowIcon(for: playlist),
+                            title: displayName(playlist)
+                        ) {
                             save(to: playlist)
-                        } label: {
-                            Text(displayName(playlist))
-                                .font(YTLiteType.body)
-                                .foregroundStyle(YTLiteColor.onSurface)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(.horizontal, YTLiteLayout.screenPadding)
-                                .padding(.vertical, 14)
-                                .contentShape(Rectangle())
                         }
-                        .buttonStyle(.plain)
                     }
                 }
+                .padding(.bottom, 12)
             }
+
+            YTLiteSheetPrimaryButton(title: "New playlist") {
+                newName = ""
+                showCreate = true
+            }
+            .padding(.top, 8)
+            .padding(.bottom, 28)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(YTLiteColor.surfaceElevated)
         .sheet(isPresented: $showCreate) {
-            VStack(alignment: .leading, spacing: 16) {
-                header(title: "New playlist") { showCreate = false }
-                TextField("Playlist name", text: $newName)
-                    .textFieldStyle(.plain)
-                    .foregroundStyle(YTLiteColor.onSurface)
-                    .padding(.horizontal, YTLiteLayout.screenPadding)
-                    .padding(.vertical, 12)
-                    .background(YTLiteColor.surfaceVariant, in: RoundedRectangle(cornerRadius: 10))
-                    .padding(.horizontal, YTLiteLayout.screenPadding)
-                Button {
+            createPlaylistSheet
+        }
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.hidden)
+        .presentationBackground(YTLiteColor.surfaceElevated)
+        .preferredColorScheme(.dark)
+    }
+
+    private var createPlaylistSheet: some View {
+        VStack(spacing: 0) {
+            YTLiteSheetGrabHandle()
+            YTLiteSheetTitle(title: "New playlist")
+
+            Text("Name")
+                .font(YTLiteType.meta)
+                .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, YTLiteLayout.screenPadding)
+                .padding(.bottom, 6)
+
+            YTLiteSheetField(placeholder: "Playlist name", text: $newName)
+
+            Spacer(minLength: 20)
+
+            VStack(spacing: 10) {
+                YTLiteSheetPrimaryButton(
+                    title: "Create",
+                    enabled: !newName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                ) {
                     let name = newName.trimmingCharacters(in: .whitespacesAndNewlines)
                     guard !name.isEmpty, let store else { return }
                     let playlist = store.createPlaylist(name: name)
                     showCreate = false
                     save(to: playlist)
-                } label: {
-                    Text("Create")
-                        .font(YTLiteType.labelEmphasized)
-                        .foregroundStyle(YTLiteColor.onAccent)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
-                        .background(YTLiteColor.accent, in: Capsule())
                 }
-                .disabled(newName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                .opacity(newName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.45 : 1)
-                .padding(.horizontal, YTLiteLayout.screenPadding)
-                Spacer()
+                YTLiteSheetSecondaryButton(title: "Cancel") {
+                    newName = ""
+                    showCreate = false
+                }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .background(YTLiteColor.surfaceElevated)
-            .presentationDetents([.medium])
-            .presentationDragIndicator(.visible)
-            .presentationBackground(YTLiteColor.surfaceElevated)
-            .preferredColorScheme(.dark)
+            .padding(.bottom, 28)
         }
-        .presentationDetents([.medium, .large])
-        .presentationDragIndicator(.visible)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .background(YTLiteColor.surfaceElevated)
+        .presentationDetents([.height(280)])
+        .presentationDragIndicator(.hidden)
         .presentationBackground(YTLiteColor.surfaceElevated)
         .preferredColorScheme(.dark)
-    }
-
-    private func header(title: String, close: @escaping () -> Void) -> some View {
-        HStack {
-            Button("Close", action: close)
-                .font(YTLiteType.body)
-                .foregroundStyle(YTLiteColor.onSurface)
-            Spacer()
-            Text(title)
-                .font(YTLiteType.sectionTitle)
-                .foregroundStyle(YTLiteColor.onSurface)
-            Spacer()
-            Button("Close", action: close)
-                .font(YTLiteType.body)
-                .foregroundStyle(.clear)
-                .accessibilityHidden(true)
-        }
-        .padding(.horizontal, YTLiteLayout.screenPadding)
-        .padding(.top, 18)
-        .padding(.bottom, 10)
     }
 
     private func save(to playlist: LibraryPlaylist) {
@@ -1378,6 +1338,14 @@ struct AddToPlaylistSheet: View {
         case SystemPlaylistType.favorites: return "Liked videos"
         case SystemPlaylistType.watchLater: return "Watch later"
         default: return playlist.name
+        }
+    }
+
+    private func playlistRowIcon(for playlist: LibraryPlaylist) -> String {
+        switch playlist.systemType {
+        case SystemPlaylistType.favorites: return "hand.thumbsup"
+        case SystemPlaylistType.watchLater: return "clock"
+        default: return "music.note.list"
         }
     }
 }

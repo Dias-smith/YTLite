@@ -35,27 +35,14 @@ struct TrackActionHost<Content: View>: View {
                 }
             }
             .sheet(isPresented: $playlistPresenter.showRename) {
-                NavigationStack {
-                    Form {
-                        TextField("Name", text: $renameText)
-                            .foregroundStyle(YTLiteColor.onSurface)
-                    }
-                    .scrollContentBackground(.hidden)
-                    .background(YTLiteColor.background)
-                    .navigationTitle("Edit playlist")
-                    .navigationBarTitleDisplayMode(.inline)
-                    .toolbar {
-                        ToolbarItem(placement: .cancellationAction) {
-                            Button("Cancel") { playlistPresenter.showRename = false }
-                        }
-                        ToolbarItem(placement: .confirmationAction) {
-                            Button("Save") { commitRename() }
-                                .disabled(renameText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                        }
-                    }
-                }
-                .preferredColorScheme(.dark)
-                .presentationDetents([.medium])
+                EditPlaylistNameSheet(
+                    name: $renameText,
+                    onCancel: { playlistPresenter.showRename = false },
+                    onSave: { commitRename() }
+                )
+                .presentationDetents([.height(280)])
+                .presentationDragIndicator(.hidden)
+                .presentationBackground(YTLiteColor.surfaceElevated)
             }
             .onChange(of: playlistPresenter.showRename) { _, isPresented in
                 if isPresented {
@@ -96,6 +83,43 @@ struct TrackActionHost<Content: View>: View {
         playlistPresenter.showRename = false
         playlistPresenter.showToast("Playlist updated")
         playlistPresenter.notifyListsChanged()
+    }
+}
+
+private struct EditPlaylistNameSheet: View {
+    @Binding var name: String
+    var onCancel: () -> Void
+    var onSave: () -> Void
+
+    private var canSave: Bool {
+        !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            YTLiteSheetGrabHandle()
+            YTLiteSheetTitle(title: "Edit playlist")
+
+            Text("Name")
+                .font(YTLiteType.meta)
+                .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, YTLiteLayout.screenPadding)
+                .padding(.bottom, 6)
+
+            YTLiteSheetField(placeholder: "Name", text: $name)
+
+            Spacer(minLength: 20)
+
+            VStack(spacing: 10) {
+                YTLiteSheetPrimaryButton(title: "Save", enabled: canSave, action: onSave)
+                YTLiteSheetSecondaryButton(title: "Cancel", action: onCancel)
+            }
+            .padding(.bottom, 28)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .background(YTLiteColor.surfaceElevated)
+        .preferredColorScheme(.dark)
     }
 }
 

@@ -173,18 +173,13 @@ fun PlayerDetailListHeader(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 4.dp),
-            horizontalArrangement = Arrangement.spacedBy(20.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             DetailListTab(
                 label = stringResource(R.string.player_up_next),
                 selected = selectedTab == PlayerListTab.UpNext,
                 onClick = { onTabSelected(PlayerListTab.UpNext) },
-            )
-            DetailListTab(
-                label = stringResource(R.string.player_lyrics),
-                selected = selectedTab == PlayerListTab.Lyrics,
-                onClick = { onTabSelected(PlayerListTab.Lyrics) },
             )
             DetailListTab(
                 label = stringResource(R.string.player_related),
@@ -261,34 +256,23 @@ private fun DetailListTab(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val color = if (selected) {
-        MaterialTheme.colorScheme.onSurface
-    } else {
-        MaterialTheme.colorScheme.onSurfaceVariant
-    }
-    Column(
-        modifier = modifier
-            .clickable(role = Role.Tab, onClick = onClick)
-            .padding(vertical = 8.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
+    Surface(
+        modifier = modifier.clickable(role = Role.Tab, onClick = onClick),
+        shape = RoundedCornerShape(percent = 50),
+        color = if (selected) {
+            MaterialTheme.colorScheme.primary
+        } else {
+            MaterialTheme.colorScheme.surfaceVariant
+        },
     ) {
         Text(
             text = label,
-            style = MaterialTheme.typography.titleMedium,
+            style = MaterialTheme.typography.labelLarge,
             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-            color = color,
+            color = MaterialTheme.colorScheme.onSurface,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-        )
-        Box(
-            modifier = Modifier
-                .padding(top = 6.dp)
-                .width(28.dp)
-                .height(2.dp)
-                .clip(RoundedCornerShape(1.dp))
-                .background(
-                    if (selected) MaterialTheme.colorScheme.onSurface else Color.Transparent,
-                ),
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
         )
     }
 }

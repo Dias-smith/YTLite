@@ -90,7 +90,12 @@ class SearchViewModel(
                     }
                     return@collect
                 }
-                if (state !is SearchScreenState.Suggestions && state !is SearchScreenState.Results) {
+                // History / hot keyword / keyboard submit land on Results — do not
+                // bounce into the suggestions pane for that query update.
+                if (state is SearchScreenState.Results) {
+                    return@collect
+                }
+                if (state !is SearchScreenState.Suggestions) {
                     mutableState.update {
                         it.copy(screenState = SearchScreenState.Suggestions(query))
                     }
