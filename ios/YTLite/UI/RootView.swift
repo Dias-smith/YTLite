@@ -45,7 +45,6 @@ struct RootView: View {
                 selectedTab = tab
             }
             .background(YTLiteColor.background.ignoresSafeArea())
-            .preferredColorScheme(.dark)
             .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
                 isKeyboardVisible = true
             }

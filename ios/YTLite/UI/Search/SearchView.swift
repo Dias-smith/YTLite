@@ -229,7 +229,6 @@ struct SearchView: View {
             .sheet(isPresented: $showPlayer) {
                 NavigationStack {
                     PlayerDetailView()
-                        .preferredColorScheme(.dark)
                 }
             }
         }

@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// Bottom mini player — aligned with Android `MiniPlayerBar`.
 struct MiniPlayerBar: View {
@@ -13,6 +14,9 @@ struct MiniPlayerBar: View {
     var body: some View {
         if let item = playback.nowPlaying {
             VStack(spacing: 0) {
+                Rectangle()
+                    .fill(YTLiteColor.chromeDivider)
+                    .frame(height: 1 / UIScreen.main.scale)
                 progressBar
                 contentRow(item: item)
             }
@@ -20,7 +24,6 @@ struct MiniPlayerBar: View {
             .sheet(isPresented: $showPlayer) {
                 NavigationStack {
                     PlayerDetailView()
-                        .preferredColorScheme(.dark)
                 }
             }
         }
@@ -73,7 +76,7 @@ struct MiniPlayerBar: View {
             } label: {
                 Image(systemName: playback.isPlaying ? "pause.fill" : "play.fill")
                     .font(.system(size: 20, weight: .medium))
-                    .foregroundStyle(Color.white)
+                    .foregroundStyle(YTLiteColor.onSurface)
                     .frame(width: YTLiteLayout.miniControlSize, height: YTLiteLayout.miniControlSize)
                     .contentShape(Rectangle())
             }
@@ -86,7 +89,7 @@ struct MiniPlayerBar: View {
             } label: {
                 Image(systemName: "forward.fill")
                     .font(.system(size: 20, weight: .medium))
-                    .foregroundStyle(Color.white)
+                    .foregroundStyle(YTLiteColor.onSurface)
                     .frame(width: YTLiteLayout.miniControlSize, height: YTLiteLayout.miniControlSize)
                     .contentShape(Rectangle())
             }

@@ -53,7 +53,6 @@ struct TrackActionHost<Content: View>: View {
                 PlaylistDeleteConfirmSheet()
                     .environmentObject(playlistPresenter)
                     .environment(\.libraryStore, libraryStore)
-                    .preferredColorScheme(.dark)
                     .presentationDetents([.medium])
             }
             .overlay(alignment: .bottom) {
@@ -119,7 +118,6 @@ private struct EditPlaylistNameSheet: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(YTLiteColor.surfaceElevated)
-        .preferredColorScheme(.dark)
     }
 }
 

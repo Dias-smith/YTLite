@@ -36,7 +36,13 @@ class MainActivity : ComponentActivity() {
     ) { }
 
     override fun attachBaseContext(newBase: Context) {
-        super.attachBaseContext(applyAppLocale(newBase, AppPreferences.peekLanguage(newBase)))
+        super.attachBaseContext(
+            applyAppAppearance(
+                newBase,
+                languageTag = AppPreferences.peekLanguage(newBase),
+                nightMode = AppPreferences.peekNightMode(newBase),
+            ),
+        )
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -44,10 +50,11 @@ class MainActivity : ComponentActivity() {
         requestNotificationPermissionIfNeeded()
         handleOpenPlayerIntent(intent)
         enableEdgeToEdge()
+        val nightModePeek = AppPreferences.peekNightMode(this)
         val appPreferences = AppPreferences.getInstance(this)
         setContent {
             val nightMode by appPreferences.nightModeEnabled.collectAsStateWithLifecycle(
-                initialValue = AppPreferences.peekNightMode(this),
+                initialValue = nightModePeek,
             )
             YTLiteTheme(darkTheme = nightMode) {
                 YTLiteNavHost(modifier = Modifier.fillMaxSize())
@@ -104,19 +111,40 @@ class MainActivity : ComponentActivity() {
     }
 
     companion object {
-        fun applyAppLocale(context: Context, languageTag: String): Context {
-            if (languageTag == AppPreferences.LANGUAGE_SYSTEM || languageTag.isBlank()) {
-                return context
+        fun applyAppAppearance(
+            context: Context,
+            languageTag: String,
+            nightMode: Boolean,
+        ): Context {
+            var base = context
+            if (languageTag != AppPreferences.LANGUAGE_SYSTEM && languageTag.isNotBlank()) {
+                val locale = when (languageTag) {
+                    AppPreferences.LANGUAGE_ZH -> Locale.SIMPLIFIED_CHINESE
+                    AppPreferences.LANGUAGE_EN -> Locale.ENGLISH
+                    else -> Locale.forLanguageTag(languageTag)
+                }
+                Locale.setDefault(locale)
+                val config = Configuration(base.resources.configuration)
+                config.setLocale(locale)
+                base = base.createConfigurationContext(config)
             }
-            val locale = when (languageTag) {
-                AppPreferences.LANGUAGE_ZH -> Locale.SIMPLIFIED_CHINESE
-                AppPreferences.LANGUAGE_EN -> Locale.ENGLISH
-                else -> Locale.forLanguageTag(languageTag)
+            val nightBits = if (nightMode) {
+                Configuration.UI_MODE_NIGHT_YES
+            } else {
+                Configuration.UI_MODE_NIGHT_NO
             }
-            Locale.setDefault(locale)
-            val config = Configuration(context.resources.configuration)
-            config.setLocale(locale)
-            return context.createConfigurationContext(config)
+            val config = Configuration(base.resources.configuration)
+            val uiMode = (config.uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or nightBits
+            if (config.uiMode == uiMode) return base
+            config.uiMode = uiMode
+            return base.createConfigurationContext(config)
         }
+
+        fun applyAppLocale(context: Context, languageTag: String): Context =
+            applyAppAppearance(
+                context,
+                languageTag = languageTag,
+                nightMode = AppPreferences.peekNightMode(context),
+            )
     }
 }

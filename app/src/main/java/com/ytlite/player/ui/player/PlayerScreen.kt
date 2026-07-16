@@ -23,7 +23,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -49,20 +48,6 @@ import com.ytlite.player.ui.image.thumbnailRequest
 import com.ytlite.player.ui.library.NewPlaylistDialog
 import com.ytlite.player.ui.library.PlaylistPickerSheet
 import com.ytlite.player.ui.library.PlaylistPickerViewModel
-import com.ytlite.player.ui.theme.Orange40
-
-private val PlayerDetailDarkColorScheme = darkColorScheme(
-    primary = Orange40,
-    onPrimary = Color.White,
-    primaryContainer = Color(0xFFCC5500),
-    onPrimaryContainer = Color(0xFFFFDBCC),
-    background = Color(0xFF0D0D0D),
-    onBackground = Color.White,
-    surface = Color(0xFF0D0D0D),
-    onSurface = Color.White,
-    surfaceVariant = Color(0xFF2A2A2A),
-    onSurfaceVariant = Color(0xFFB0B0B0),
-)
 
 @Composable
 fun PlayerScreen(
@@ -227,26 +212,25 @@ fun PlayerScreen(
                             )
                         }
 
-                        MaterialTheme(colorScheme = PlayerDetailDarkColorScheme) {
-                            Column(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .fillMaxWidth()
-                                    .background(MaterialTheme.colorScheme.background),
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxWidth()
+                                .background(MaterialTheme.colorScheme.background),
+                        ) {
+                            LazyColumn(
+                                state = listState,
+                                modifier = Modifier.fillMaxSize(),
                             ) {
-                                LazyColumn(
-                                    state = listState,
-                                    modifier = Modifier.fillMaxSize(),
-                                ) {
-                                    item(key = "metadata") {
-                                        PlayerMetadataPanel(
-                                            playback = playback,
-                                            showTitle = true,
-                                            isLiked = expandedState.isLiked,
-                                            isDisliked = expandedState.isDisliked,
-                                            onLike = { globalPlaybackViewModel.toggleLike(application) },
-                                            onDislike = { globalPlaybackViewModel.toggleDislike(application) },
-                                            onShare = { shareVideo(context, playback.videoId) },
+                                item(key = "metadata") {
+                                    PlayerMetadataPanel(
+                                        playback = playback,
+                                        showTitle = true,
+                                        isLiked = expandedState.isLiked,
+                                        isDisliked = expandedState.isDisliked,
+                                        onLike = { globalPlaybackViewModel.toggleLike(application) },
+                                        onDislike = { globalPlaybackViewModel.toggleDislike(application) },
+                                        onShare = { shareVideo(context, playback.videoId) },
                                             onSaveToPlaylist = viewModel::showPlaylistPicker,
                                             onChannelClick = {
                                                 if (playback.channelId.isNotBlank()) {
@@ -356,7 +340,6 @@ fun PlayerScreen(
                                                         onClick = { viewModel.onRecommendClick(item) },
                                                     )
                                                 }
-                                            }
                                         }
                                     }
                                 }

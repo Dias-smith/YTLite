@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct MainTabBar: View {
     @Binding var selected: AppTab
@@ -54,5 +55,10 @@ struct MainTabBar: View {
         .padding(.top, YTLiteLayout.stackDefault)
         .padding(.bottom, YTLiteLayout.stackTight)
         .background(YTLiteColor.tabBar)
+        .overlay(alignment: .top) {
+            Rectangle()
+                .fill(YTLiteColor.chromeDivider)
+                .frame(height: 1 / UIScreen.main.scale)
+        }
     }
 }

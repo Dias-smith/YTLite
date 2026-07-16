@@ -92,17 +92,14 @@ struct PlayerDetailView: View {
         }
         .background(YTLiteColor.surface.ignoresSafeArea())
         .navigationBarHidden(true)
-        .preferredColorScheme(.dark)
         .sheet(isPresented: $showSpeedSheet) {
             SpeedPickerSheet(selected: $playback.playbackSpeed)
                 .presentationDetents([.medium])
-                .preferredColorScheme(.dark)
         }
         .sheet(isPresented: $showSleepTimerSheet) {
             SleepTimerSheet()
                 .environmentObject(playback)
                 .presentationDetents([.medium])
-                .preferredColorScheme(.dark)
         }
         .sheet(isPresented: $showShareSheet, onDismiss: { shareURL = nil }) {
             if let shareURL {
@@ -112,23 +109,19 @@ struct PlayerDetailView: View {
         }
         .sheet(isPresented: $showAddPlaylist) {
             AddToPlaylistSheet(items: currentTrackItems)
-                .preferredColorScheme(.dark)
         }
         .sheet(isPresented: $showSaveList) {
             AddToPlaylistSheet(items: currentListItems)
-                .preferredColorScheme(.dark)
         }
         .sheet(isPresented: $showBatchAdd) {
             AddToPlaylistSheet(items: selectedListItems) {
                 exitSelectionMode()
             }
-            .preferredColorScheme(.dark)
         }
         .sheet(isPresented: $showSortMenu) {
             PlayerListSortSheet(selected: listSort) { option in
                 applySort(option)
             }
-            .preferredColorScheme(.dark)
             .presentationDetents([.height(300)])
             .presentationDragIndicator(.hidden)
             .presentationBackground(YTLiteColor.surfaceElevated)
@@ -143,7 +136,6 @@ struct PlayerDetailView: View {
                 .presentationDetents([.fraction(0.72), .large])
                 .presentationDragIndicator(.hidden)
                 .presentationContentInteraction(.scrolls)
-                .preferredColorScheme(.dark)
         }
         .onAppear {
             playback.libraryStore = store ?? playback.libraryStore
@@ -448,12 +440,18 @@ struct PlayerDetailView: View {
             } label: {
                 Text(subscribed ? "Subscribed" : "Subscribe")
                     .font(YTLiteType.badge)
-                    .foregroundStyle(subscribed ? YTLiteColor.onSurfaceVariant : .black)
+                    .foregroundStyle(subscribed ? YTLiteColor.onSurfaceVariant : YTLiteColor.onSurface)
                     .padding(.horizontal, YTLiteLayout.stackLoose)
                     .padding(.vertical, 6)
                     .background(
-                        subscribed ? YTLiteColor.surfaceVariant : Color.white,
+                        subscribed ? YTLiteColor.surfaceVariant : YTLiteColor.surfaceElevated,
                         in: Capsule()
+                    )
+                    .overlay(
+                        Capsule().strokeBorder(
+                            subscribed ? Color.clear : YTLiteColor.chromeDivider,
+                            lineWidth: 1
+                        )
                     )
                     .opacity(canSubscribe ? 1 : 0.4)
             }
@@ -1279,7 +1277,6 @@ struct AddToPlaylistSheet: View {
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.hidden)
         .presentationBackground(YTLiteColor.surfaceElevated)
-        .preferredColorScheme(.dark)
     }
 
     private var createPlaylistSheet: some View {
@@ -1321,7 +1318,6 @@ struct AddToPlaylistSheet: View {
         .presentationDetents([.height(280)])
         .presentationDragIndicator(.hidden)
         .presentationBackground(YTLiteColor.surfaceElevated)
-        .preferredColorScheme(.dark)
     }
 
     private func save(to playlist: LibraryPlaylist) {

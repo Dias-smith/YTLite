@@ -35,7 +35,6 @@ struct YouView: View {
             .sheet(isPresented: $showPlayer) {
                 NavigationStack {
                     PlayerDetailView()
-                        .preferredColorScheme(.dark)
                 }
             }
         }
@@ -565,7 +564,6 @@ struct SubscriptionChannelsListView: View {
         .navigationTitle("Subscriptions")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(YTLiteColor.background, for: .navigationBar)
-        .toolbarColorScheme(.dark, for: .navigationBar)
     }
 }
 
@@ -616,7 +614,6 @@ struct YouPlaylistsListView: View {
         .navigationTitle("Playlists")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(YTLiteColor.background, for: .navigationBar)
-        .toolbarColorScheme(.dark, for: .navigationBar)
     }
 }
 
@@ -686,14 +683,12 @@ struct YoutubePlaylistItemsView: View {
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(YTLiteColor.background, for: .navigationBar)
-        .toolbarColorScheme(.dark, for: .navigationBar)
         .task {
             await load()
         }
         .sheet(isPresented: $showPlayer) {
             NavigationStack {
                 PlayerDetailView()
-                    .preferredColorScheme(.dark)
             }
         }
     }
@@ -731,17 +726,17 @@ private struct SubsEmptyGraphic: View {
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 10)
-                .fill(Color.white.opacity(0.12))
+                .fill(YTLiteColor.onSurface.opacity(0.12))
                 .frame(width: 88, height: 56)
                 .rotationEffect(.degrees(-8))
                 .offset(x: -18, y: -8)
             RoundedRectangle(cornerRadius: 10)
-                .fill(Color.white.opacity(0.18))
+                .fill(YTLiteColor.onSurface.opacity(0.18))
                 .frame(width: 92, height: 58)
                 .rotationEffect(.degrees(6))
                 .offset(x: 16, y: -4)
             RoundedRectangle(cornerRadius: 10)
-                .fill(Color.white.opacity(0.28))
+                .fill(YTLiteColor.onSurface.opacity(0.28))
                 .frame(width: 96, height: 60)
             Image(systemName: "play.fill")
                 .font(.system(size: 20, weight: .semibold))
@@ -877,7 +872,7 @@ struct ChannelVideosView: View {
             await loadVideos()
         }
         .sheet(isPresented: $showPlayer) {
-            NavigationStack { PlayerDetailView().preferredColorScheme(.dark) }
+            NavigationStack { PlayerDetailView() }
         }
     }
 
@@ -969,7 +964,7 @@ struct PlaylistVideosBrowserView: View {
             }
         }
         .sheet(isPresented: $showPlayer) {
-            NavigationStack { PlayerDetailView().preferredColorScheme(.dark) }
+            NavigationStack { PlayerDetailView() }
         }
     }
 }

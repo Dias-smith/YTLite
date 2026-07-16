@@ -18,6 +18,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.ytlite.player.data.preferences.AppPreferences
 import com.ytlite.player.data.preferences.PlaybackPreferences
 import com.ytlite.player.playback.PlaybackManager
 import com.ytlite.player.playback.PlaybackSpeeds
@@ -25,6 +26,16 @@ import com.ytlite.player.ui.theme.YTLiteTheme
 import kotlinx.coroutines.launch
 
 class FullscreenPlayerActivity : ComponentActivity() {
+
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(
+            com.ytlite.player.MainActivity.applyAppAppearance(
+                newBase,
+                languageTag = AppPreferences.peekLanguage(newBase),
+                nightMode = AppPreferences.peekNightMode(newBase),
+            ),
+        )
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -35,7 +46,8 @@ class FullscreenPlayerActivity : ComponentActivity() {
             ?: PlayerSurfaceMode.Video
 
         setContent {
-            YTLiteTheme {
+            val nightMode = AppPreferences.peekNightMode(this)
+            YTLiteTheme(darkTheme = nightMode) {
                 val player by PlaybackManager.playerState.collectAsStateWithLifecycle()
                 val isPlaying by PlaybackManager.isPlaying.collectAsStateWithLifecycle()
                 val positionMs by PlaybackManager.positionMs.collectAsStateWithLifecycle()

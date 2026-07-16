@@ -65,7 +65,6 @@ struct TrackLyricsSheet: View {
                 Task { await loadText() }
             }
         }
-        .preferredColorScheme(.dark)
     }
 
     private func loadTracks() async {

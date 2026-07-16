@@ -15,6 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -44,7 +45,6 @@ import com.ytlite.player.playback.PlaybackManager
 import com.ytlite.player.ui.image.thumbnailRequest
 import com.ytlite.player.ui.player.MiniPlayerSurface
 
-private val MiniPlayerBackground = Color(0xFF212121)
 private val ProgressBlue = Color(0xFF3EA6FF)
 private val MiniPlayerBarHeight = 56.dp
 /** Landscape thumbnail slot; height matches the bar so it never overflows. */
@@ -67,19 +67,21 @@ fun MiniPlayerBar(
         0f
     }
     val context = LocalContext.current
+    val scheme = MaterialTheme.colorScheme
 
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .background(MiniPlayerBackground),
+            .background(scheme.surface),
     ) {
+        HorizontalDivider(color = scheme.outline.copy(alpha = 0.35f))
         LinearProgressIndicator(
             progress = { progress },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(2.dp),
             color = ProgressBlue,
-            trackColor = Color(0xFF424242),
+            trackColor = scheme.surfaceVariant,
         )
         Row(
             modifier = Modifier
@@ -98,7 +100,8 @@ fun MiniPlayerBar(
                     modifier = Modifier
                         .height(MiniPlayerBarHeight)
                         .aspectRatio(MiniPlayerMediaAspectRatio)
-                        .clipToBounds(),
+                        .clipToBounds()
+                        .background(Color.Black),
                 ) {
                     if (hasVideoTrack && sharedPlayer != null) {
                         MiniPlayerSurface(
@@ -123,14 +126,14 @@ fun MiniPlayerBar(
                     Text(
                         text = nowPlaying.title,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = Color.White,
+                        color = scheme.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
                         text = nowPlaying.channelName,
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFFAAAAAA),
+                        color = scheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -140,14 +143,14 @@ fun MiniPlayerBar(
                 Icon(
                     imageVector = if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
                     contentDescription = null,
-                    tint = Color.White,
+                    tint = scheme.onSurface,
                 )
             }
             IconButton(onClick = onSkipNext) {
                 Icon(
                     imageVector = Icons.Filled.SkipNext,
                     contentDescription = null,
-                    tint = Color.White,
+                    tint = scheme.onSurface,
                 )
             }
         }

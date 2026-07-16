@@ -128,7 +128,6 @@ struct PlaylistDetailView: View {
         .navigationTitle("")
         .toolbar(.visible, for: .navigationBar)
         .toolbarBackground(YTLiteColor.background, for: .navigationBar)
-        .toolbarColorScheme(.dark, for: .navigationBar)
         .onAppear { syncOrderedIds() }
         .onChange(of: refreshTick) { _, _ in syncOrderedIds() }
         .onChange(of: trackActions.listEpoch) { _, _ in
@@ -154,7 +153,6 @@ struct PlaylistDetailView: View {
             .presentationDetents([.height(320)])
             .presentationDragIndicator(.hidden)
             .presentationBackground(YTLiteColor.surfaceElevated)
-            .preferredColorScheme(.dark)
         }
         .photosPicker(isPresented: $showPhotoPicker, selection: $photoItem, matching: .images)
         .onChange(of: photoItem) { _, item in

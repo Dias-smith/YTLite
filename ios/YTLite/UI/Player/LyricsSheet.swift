@@ -98,6 +98,5 @@ struct LyricsSheet: View {
                 }
                 .background(YTLiteColor.background)
         }
-        .preferredColorScheme(.dark)
     }
 }

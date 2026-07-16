@@ -59,7 +59,6 @@ struct EditTrackMetadataSheet: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(YTLiteColor.surfaceElevated)
-        .preferredColorScheme(.dark)
         .onAppear { load() }
         .sheet(isPresented: $showArtworkOptions) {
             ChangeArtworkOptionsSheet(
@@ -152,7 +151,6 @@ struct EditTrackMetadataSheet: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(YTLiteColor.surfaceElevated)
-        .preferredColorScheme(.dark)
         .presentationDetents([.medium])
         .presentationDragIndicator(.hidden)
         .presentationBackground(YTLiteColor.surfaceElevated)
@@ -254,7 +252,6 @@ private struct ChangeArtworkOptionsSheet: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(YTLiteColor.surfaceElevated)
-        .preferredColorScheme(.dark)
     }
 }
 

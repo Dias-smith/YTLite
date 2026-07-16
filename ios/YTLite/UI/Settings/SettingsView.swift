@@ -55,7 +55,6 @@ struct SettingsView: View {
         .scrollContentBackground(.hidden)
         .background(YTLiteColor.background)
         .navigationTitle("Settings")
-        .preferredColorScheme(.dark)
     }
 
     private var sleepTimerSelection: Binding<Int?> {

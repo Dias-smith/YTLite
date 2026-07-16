@@ -191,7 +191,6 @@ struct HomeView: View {
             .sheet(isPresented: $showPlayer) {
                 NavigationStack {
                     PlayerDetailView()
-                        .preferredColorScheme(.dark)
                 }
             }
         }
@@ -376,7 +375,7 @@ struct AlbumTracksView: View {
         }
         .sheet(isPresented: $showPlayer) {
             NavigationStack {
-                PlayerDetailView().preferredColorScheme(.dark)
+                PlayerDetailView()
             }
         }
     }

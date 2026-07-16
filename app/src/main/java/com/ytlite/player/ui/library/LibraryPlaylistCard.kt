@@ -171,6 +171,7 @@ private fun StackedPlaylistPlaceholder(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val scheme = MaterialTheme.colorScheme
     Box(modifier = modifier.width(160.dp).height(90.dp)) {
         Box(
             modifier = Modifier
@@ -178,7 +179,7 @@ private fun StackedPlaylistPlaceholder(
                 .height(82.dp)
                 .offset(x = 8.dp, y = 0.dp)
                 .clip(RoundedCornerShape(12.dp))
-                .background(Color(0xFF3A3A3A)),
+                .background(scheme.surfaceVariant),
         )
         Box(
             modifier = Modifier
@@ -186,7 +187,7 @@ private fun StackedPlaylistPlaceholder(
                 .height(86.dp)
                 .offset(x = 4.dp, y = 4.dp)
                 .clip(RoundedCornerShape(12.dp))
-                .background(Color(0xFF4A4A4A)),
+                .background(scheme.surfaceContainerHighest),
         )
         Box(
             modifier = Modifier
@@ -194,14 +195,14 @@ private fun StackedPlaylistPlaceholder(
                 .height(90.dp)
                 .offset(y = 8.dp)
                 .clip(RoundedCornerShape(12.dp))
-                .background(Color(0xFF5A5A5A))
+                .background(scheme.surfaceContainerHigh)
                 .clickable(onClick = onClick),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = Color.White,
+                tint = scheme.onSurface,
                 modifier = Modifier.width(36.dp),
             )
         }

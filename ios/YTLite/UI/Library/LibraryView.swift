@@ -207,7 +207,6 @@ struct LibraryView: View {
                 .presentationDetents([.height(filter == .songs ? 380 : 340)])
                 .presentationDragIndicator(.hidden)
                 .presentationBackground(YTLiteColor.surfaceElevated)
-                .preferredColorScheme(.dark)
             }
             .sheet(isPresented: $showNewPlaylist) {
                 NavigationStack {
@@ -240,7 +239,6 @@ struct LibraryView: View {
                         }
                     }
                 }
-                .preferredColorScheme(.dark)
                 .presentationDetents([.medium])
             }
             .sheet(isPresented: $showDeleteConfirm) {
@@ -276,11 +274,10 @@ struct LibraryView: View {
                     .navigationTitle(filter == .channels ? "Unsubscribe?" : "Delete selected?")
                     .navigationBarTitleDisplayMode(.inline)
                 }
-                .preferredColorScheme(.dark)
                 .presentationDetents([.medium])
             }
             .sheet(isPresented: $showPlayer) {
-                NavigationStack { PlayerDetailView().preferredColorScheme(.dark) }
+                NavigationStack { PlayerDetailView() }
             }
             .sheet(isPresented: $showBatchPlaylistPicker) {
                 LibraryPlaylistPickSheet(
@@ -299,7 +296,6 @@ struct LibraryView: View {
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.hidden)
                 .presentationBackground(YTLiteColor.surfaceElevated)
-                .preferredColorScheme(.dark)
             }
             .sheet(isPresented: $showAccountMenu, onDismiss: {
                 if pendingSwitchAccount {
@@ -348,7 +344,6 @@ struct LibraryView: View {
                 .presentationDetents([.height(340)])
                 .presentationDragIndicator(.visible)
                 .presentationBackground(YTLiteColor.surface)
-                .preferredColorScheme(.dark)
             }
             .alert(
                 "Delete account?",
@@ -748,7 +743,8 @@ struct LibraryView: View {
                     .clipShape(Circle())
                 if showCheck {
                     Image(systemName: selected ? "checkmark.circle.fill" : "circle")
-                        .foregroundStyle(selected ? YTLiteColor.accent : .white)
+                        .foregroundStyle(selected ? YTLiteColor.accent : YTLiteColor.onSurface)
+                        .shadow(color: .black.opacity(0.35), radius: 1, y: 0.5)
                         .padding(6)
                 }
             }
@@ -1000,7 +996,8 @@ struct LibraryView: View {
                 .clipShape(RoundedRectangle(cornerRadius: YTLiteLayout.thumbRadius))
                 if showCheck {
                     Image(systemName: selected ? "checkmark.circle.fill" : "circle")
-                        .foregroundStyle(selected ? YTLiteColor.accent : .white)
+                        .foregroundStyle(selected ? YTLiteColor.accent : YTLiteColor.onSurface)
+                        .shadow(color: .black.opacity(0.35), radius: 1, y: 0.5)
                         .padding(6)
                         .opacity(item.isSelectable ? 1 : 0.35)
                 }
@@ -1070,7 +1067,8 @@ struct LibraryView: View {
                     .aspectRatio(1, contentMode: .fit)
                     if isSelectionMode {
                         Image(systemName: selected ? "checkmark.circle.fill" : "circle")
-                            .foregroundStyle(selected ? YTLiteColor.accent : .white)
+                            .foregroundStyle(selected ? YTLiteColor.accent : YTLiteColor.onSurface)
+                            .shadow(color: .black.opacity(0.35), radius: 1, y: 0.5)
                             .padding(6)
                     }
                 }
@@ -1583,14 +1581,13 @@ struct HistoryDetailView: View {
         .navigationTitle("History")
         .toolbar(.visible, for: .navigationBar)
         .toolbarBackground(YTLiteColor.background, for: .navigationBar)
-        .toolbarColorScheme(.dark, for: .navigationBar)
         .onAppear { reload() }
         .onChange(of: trackActions.listEpoch) { _, _ in
             reload()
             onChange()
         }
         .sheet(isPresented: $showPlayer) {
-            NavigationStack { PlayerDetailView().preferredColorScheme(.dark) }
+            NavigationStack { PlayerDetailView() }
         }
     }
 

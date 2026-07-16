@@ -47,7 +47,6 @@ struct PlaylistPickerSheet: View {
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.hidden)
         .presentationBackground(YTLiteColor.surfaceElevated)
-        .preferredColorScheme(.dark)
     }
 
     private var createPlaylistSheet: some View {
@@ -92,7 +91,6 @@ struct PlaylistPickerSheet: View {
         .presentationDetents([.height(280)])
         .presentationDragIndicator(.hidden)
         .presentationBackground(YTLiteColor.surfaceElevated)
-        .preferredColorScheme(.dark)
     }
 
     private func reloadPlaylists() {

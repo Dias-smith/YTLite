@@ -1,31 +1,78 @@
 import SwiftUI
 import UIKit
 
-// MARK: - Color (Android-aligned)
+// MARK: - Color (Android-aligned, adaptive light/dark)
 
 enum YTLiteColor {
-    /// Android Orange40
+    /// Android Orange40 — brand accent (same in both schemes)
     static let accent = Color(red: 1.0, green: 0.416, blue: 0.0) // #FF6A00
     static let accentDeep = Color(red: 0.769, green: 0.333, blue: 0.0) // #C45500
-    static let background = Color.black
-    static let surface = Color(red: 0.051, green: 0.051, blue: 0.051) // #0D0D0D
-    static let surfaceElevated = Color(red: 0.118, green: 0.118, blue: 0.118) // #1E1E1E
-    static let surfaceChip = Color(red: 0.129, green: 0.129, blue: 0.129) // #212121
-    static let surfaceVariant = Color(red: 0.165, green: 0.165, blue: 0.165) // #2A2A2A
-    static let onSurface = Color.white
-    static let onSurfaceVariant = Color(red: 0.69, green: 0.69, blue: 0.69) // #B0B0B0
-    /// Feed meta gray matching YouTube card (~#AAAAAA)
-    static let feedMeta = Color(red: 0.667, green: 0.667, blue: 0.667)
+
+    static let background = adaptive(light: UIColor.white, dark: UIColor.black)
+    static let surface = adaptive(
+        light: UIColor(white: 0.96, alpha: 1), // #F5F5F5
+        dark: UIColor(red: 0.051, green: 0.051, blue: 0.051, alpha: 1) // #0D0D0D
+    )
+    static let surfaceElevated = adaptive(
+        light: UIColor.white,
+        dark: UIColor(red: 0.118, green: 0.118, blue: 0.118, alpha: 1) // #1E1E1E
+    )
+    static let surfaceChip = adaptive(
+        light: UIColor(white: 0.91, alpha: 1), // #E8E8E8
+        dark: UIColor(red: 0.129, green: 0.129, blue: 0.129, alpha: 1) // #212121
+    )
+    static let surfaceVariant = adaptive(
+        light: UIColor(white: 0.94, alpha: 1), // #F0F0F0
+        dark: UIColor(red: 0.165, green: 0.165, blue: 0.165, alpha: 1) // #2A2A2A
+    )
+    static let onSurface = adaptive(
+        light: UIColor(white: 0.102, alpha: 1), // #1A1A1A
+        dark: UIColor.white
+    )
+    static let onSurfaceVariant = adaptive(
+        light: UIColor(white: 0.42, alpha: 1), // #6B6B6B
+        dark: UIColor(red: 0.69, green: 0.69, blue: 0.69, alpha: 1) // #B0B0B0
+    )
+    /// Feed meta gray matching YouTube card
+    static let feedMeta = adaptive(
+        light: UIColor(white: 0.459, alpha: 1), // #757575
+        dark: UIColor(red: 0.667, green: 0.667, blue: 0.667, alpha: 1) // #AAAAAA
+    )
     static let signInBlue = Color(red: 0.024, green: 0.373, blue: 0.831) // #065FD4
-    static let miniPlayer = Color(red: 0.129, green: 0.129, blue: 0.129) // #212121
+    static let miniPlayer = adaptive(
+        light: UIColor.white,
+        dark: UIColor(red: 0.129, green: 0.129, blue: 0.129, alpha: 1) // #212121
+    )
     /// Mini player progress fill (Android ProgressBlue)
     static let miniProgress = Color(red: 0.243, green: 0.651, blue: 1.0) // #3EA6FF
-    static let miniProgressTrack = Color(red: 0.259, green: 0.259, blue: 0.259) // #424242
-    /// Channel meta in mini player (#AAAAAA)
-    static let miniMeta = Color(red: 0.667, green: 0.667, blue: 0.667)
-    static let tabBar = Color(red: 0.059, green: 0.059, blue: 0.059)
+    static let miniProgressTrack = adaptive(
+        light: UIColor(white: 0.82, alpha: 1),
+        dark: UIColor(red: 0.259, green: 0.259, blue: 0.259, alpha: 1) // #424242
+    )
+    /// Channel meta in mini player
+    static let miniMeta = adaptive(
+        light: UIColor(white: 0.459, alpha: 1),
+        dark: UIColor(red: 0.667, green: 0.667, blue: 0.667, alpha: 1)
+    )
+    static let tabBar = adaptive(
+        light: UIColor.white,
+        dark: UIColor(red: 0.059, green: 0.059, blue: 0.059, alpha: 1)
+    )
     static let danger = Color.red
     static let onAccent = Color.black.opacity(0.85)
+    /// Hairline divider for light chrome (tab bar / mini player)
+    static let chromeDivider = adaptive(
+        light: UIColor(white: 0.85, alpha: 1),
+        dark: UIColor(white: 1, alpha: 0.08)
+    )
+
+    private static func adaptive(light: UIColor, dark: UIColor) -> Color {
+        Color(
+            uiColor: UIColor { traits in
+                traits.userInterfaceStyle == .dark ? dark : light
+            }
+        )
+    }
 }
 
 // MARK: - Typography (SF semantic tokens)
@@ -128,7 +175,7 @@ struct DurationBadge: View {
     var body: some View {
         Text(text)
             .font(YTLiteType.badge)
-            .foregroundStyle(YTLiteColor.onSurface)
+            .foregroundStyle(Color.white)
             .monospacedDigit()
             .lineLimit(1)
             .fixedSize(horizontal: true, vertical: true)
