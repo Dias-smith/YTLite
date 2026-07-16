@@ -52,9 +52,10 @@ struct TrackActionSheet: View {
                         trackActions.openEditInfo()
                     }
 
-                    actionRow(systemImage: "text.alignleft", title: L("action.view_lyrics")) {
-                        trackActions.openLyrics()
-                    }
+                    // Lyrics entry hidden for now (feature not ready in this sheet).
+                    // actionRow(systemImage: "text.alignleft", title: L("action.view_lyrics")) {
+                    //     trackActions.openLyrics()
+                    // }
 
                     actionRow(systemImage: "square.and.arrow.up", title: L("common.share")) {
                         showShareSheet = true
