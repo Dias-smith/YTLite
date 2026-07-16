@@ -39,6 +39,7 @@ private let playlistManualOrderKey = "ytlite.library.playlistManualOrder"
 
 struct LibraryView: View {
     @Environment(\.libraryStore) private var store
+    @Environment(\.selectAppTab) private var selectAppTab
     @EnvironmentObject private var playback: PlaybackController
     @EnvironmentObject private var auth: AuthService
     @EnvironmentObject private var appModel: AppModel
@@ -67,6 +68,8 @@ struct LibraryView: View {
 
     @State private var isReorderMode = false
     @State private var reorderItems: [PlaylistDisplayItem] = []
+    @State private var showAccountMenu = false
+    @State private var pendingSwitchAccount = false
 
     var body: some View {
         NavigationStack {
@@ -121,6 +124,7 @@ struct LibraryView: View {
             .onAppear(perform: reload)
             .onChange(of: trackActions.listEpoch) { _, _ in reload() }
             .onChange(of: playlistActions.listEpoch) { _, _ in reload() }
+            .onChange(of: appModel.libraryRevision) { _, _ in reload() }
             .onChange(of: playback.isChannelSubscribed) { _, _ in reload() }
             .onChange(of: filter) { _, newFilter in
                 exitSelectionMode()
@@ -271,6 +275,43 @@ struct LibraryView: View {
                 .presentationBackground(YTLiteColor.surfaceElevated)
                 .preferredColorScheme(.dark)
             }
+            .sheet(isPresented: $showAccountMenu, onDismiss: {
+                guard pendingSwitchAccount else { return }
+                pendingSwitchAccount = false
+                Task {
+                    await auth.switchGoogleAccount()
+                    appModel.syncAuth(auth)
+                    // RootView adopts remote library + bumps libraryRevision.
+                    reload()
+                }
+            }) {
+                AccountMenuSheet(
+                    auth: auth,
+                    onViewChannel: {
+                        showAccountMenu = false
+                        // Defer tab switch until after sheet teardown.
+                        DispatchQueue.main.async {
+                            selectAppTab?(.you)
+                        }
+                    },
+                    onSwitchAccount: {
+                        pendingSwitchAccount = true
+                        showAccountMenu = false
+                    },
+                    onSignOut: {
+                        showAccountMenu = false
+                        Task {
+                            await auth.signOut()
+                            appModel.syncAuth(auth)
+                            reload()
+                        }
+                    }
+                )
+                .presentationDetents([.height(280)])
+                .presentationDragIndicator(.visible)
+                .presentationBackground(YTLiteColor.surface)
+                .preferredColorScheme(.dark)
+            }
         }
     }
 
@@ -284,16 +325,16 @@ struct LibraryView: View {
             Spacer()
             if auth.isAuthenticated {
                 Button {
-                    Task {
-                        await auth.signOut()
-                        appModel.syncAuth(auth)
-                        reload()
-                    }
+                    showAccountMenu = true
                 } label: {
-                    Image(systemName: "person.crop.circle.fill")
-                        .font(.system(size: 22))
-                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                    FeedChannelAvatar(
+                        url: auth.avatarURL,
+                        channelName: auth.displayName,
+                        size: 28
+                    )
                 }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Account")
             } else {
                 Button {
                     Task {
@@ -309,6 +350,8 @@ struct LibraryView: View {
                         .font(.system(size: 22))
                         .foregroundStyle(YTLiteColor.onSurfaceVariant)
                 }
+                .disabled(auth.isBusy)
+                .accessibilityLabel("Sign in")
             }
             NavigationLink {
                 SettingsView()

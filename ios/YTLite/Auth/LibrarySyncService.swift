@@ -24,6 +24,21 @@ final class LibrarySyncService {
         store.save()
     }
 
+    /// Replace local library with the current user's remote data (no push).
+    /// Used when switching Google accounts so the previous user's rows never upload.
+    func adoptRemoteLibrary(store: LibraryStore) async {
+        let previousMutate = store.onMutate
+        store.onMutate = nil
+        defer { store.onMutate = previousMutate }
+
+        store.clearUserLibraryForAccountSwitch()
+        await pullPlaylists(into: store)
+        await pullLastPlayed(into: store)
+        await pullMetadata(into: store)
+        await pullSubscribedChannels(into: store)
+        store.saveLocalOnly()
+    }
+
     func deleteSubscribedChannel(channelId: String) async {
         guard let client = auth.supabaseClient(), let userId = auth.userId else { return }
         _ = try? await client
@@ -223,6 +238,10 @@ final class LibrarySyncService {
                 .eq("user_id", value: userId)
                 .execute()
                 .value
+            let remoteIds = Set(rows.map(\.channel_id))
+            for local in store.allSubscribedChannels() where !remoteIds.contains(local.channelId) {
+                store.removeSubscribedChannelLocally(channelId: local.channelId)
+            }
             for row in rows {
                 store.upsertSubscribedChannel(
                     UserSubscribedChannel(

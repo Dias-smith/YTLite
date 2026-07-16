@@ -469,6 +469,12 @@ final class LibraryStore {
         }
     }
 
+    /// Delete a subscribed channel locally without calling `onUnsubscribeChannel` / cloud delete.
+    func removeSubscribedChannelLocally(channelId: String) {
+        guard let existing = subscribedChannel(id: channelId) else { return }
+        modelContext.delete(existing)
+    }
+
     func deletePlaylist(_ playlist: LibraryPlaylist) {
         guard playlist.systemType == nil else { return }
         modelContext.delete(playlist)
@@ -652,6 +658,52 @@ final class LibraryStore {
     func save() {
         try? modelContext.save()
         onMutate?()
+    }
+
+    /// Persist without notifying cloud push (used during account-switch pull).
+    func saveLocalOnly() {
+        try? modelContext.save()
+    }
+
+    /// Drop user-scoped local rows so a newly signed-in account can pull a clean remote library.
+    /// Does not fire `onMutate` (avoids pushing the previous account's data).
+    func clearUserLibraryForAccountSwitch() {
+        let previousMutate = onMutate
+        onMutate = nil
+        defer { onMutate = previousMutate }
+
+        for channel in allSubscribedChannels() {
+            modelContext.delete(channel)
+        }
+
+        for playlist in allPlaylists() {
+            if playlist.systemType == nil {
+                if let cover = playlist.coverUrlOrPath {
+                    PlaylistCoverStorage.deleteIfLocal(cover)
+                }
+                modelContext.delete(playlist)
+            } else {
+                for entry in Array(playlist.entries) {
+                    modelContext.delete(entry)
+                }
+                playlist.entries = []
+                playlist.updatedAt = .now
+                playlist.isSynced = true
+            }
+        }
+
+        let history = (try? modelContext.fetch(FetchDescriptor<PlaybackHistoryItem>())) ?? []
+        for item in history { modelContext.delete(item) }
+
+        let lastPlayed = (try? modelContext.fetch(FetchDescriptor<UserTrackLastPlayed>())) ?? []
+        for row in lastPlayed { modelContext.delete(row) }
+
+        for meta in allMetadata() {
+            modelContext.delete(meta)
+        }
+
+        try? modelContext.save()
+        ensureSystemPlaylists()
     }
 
     private func fetchPlaylist(systemType: String) -> LibraryPlaylist? {

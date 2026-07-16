@@ -10,6 +10,8 @@ final class AppModel: ObservableObject {
         didSet { UserDefaults.standard.set(languageCode, forKey: "app_language") }
     }
     @Published var isAuthenticated: Bool = false
+    /// Bumped after library sync / account-switch adopt so Subs & Library reload.
+    @Published private(set) var libraryRevision: Int = 0
 
     let config = AppConfig.fromBundle()
 
@@ -24,6 +26,10 @@ final class AppModel: ObservableObject {
 
     func syncAuth(_ auth: AuthService) {
         isAuthenticated = auth.isAuthenticated
+    }
+
+    func bumpLibraryRevision() {
+        libraryRevision += 1
     }
 }
 

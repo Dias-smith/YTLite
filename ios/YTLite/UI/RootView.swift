@@ -34,7 +34,10 @@ struct RootView: View {
                     MiniPlayerBar()
                 }
 
-                MainTabBar(selected: $selectedTab)
+                MainTabBar(selected: $selectedTab, isAuthenticated: auth.isAuthenticated)
+            }
+            .environment(\.selectAppTab) { tab in
+                selectedTab = tab
             }
             .background(YTLiteColor.background.ignoresSafeArea())
             .preferredColorScheme(.dark)
@@ -53,10 +56,21 @@ struct RootView: View {
                     }
                 }
             }
-            .onChange(of: auth.session?.user.id) { _, _ in
+            .onChange(of: auth.session?.user.id) { previous, next in
                 appModel.syncAuth(auth)
-                guard let libraryStore, auth.isAuthenticated else { return }
-                Task { await syncService?.syncBidirectional(store: libraryStore) }
+                guard let libraryStore else { return }
+                guard auth.isAuthenticated, next != nil else {
+                    appModel.bumpLibraryRevision()
+                    return
+                }
+                Task {
+                    if let previous, previous != next {
+                        await syncService?.adoptRemoteLibrary(store: libraryStore)
+                    } else {
+                        await syncService?.syncBidirectional(store: libraryStore)
+                    }
+                    appModel.bumpLibraryRevision()
+                }
             }
             .onChange(of: selectedTab) { _, tab in
                 if tab == .shorts, playback.isPlaying {
@@ -75,9 +89,18 @@ private struct LibraryStoreKey: EnvironmentKey {
     static let defaultValue: LibraryStore? = nil
 }
 
+private struct SelectAppTabKey: EnvironmentKey {
+    static let defaultValue: ((AppTab) -> Void)? = nil
+}
+
 extension EnvironmentValues {
     var libraryStore: LibraryStore? {
         get { self[LibraryStoreKey.self] }
         set { self[LibraryStoreKey.self] = newValue }
+    }
+
+    var selectAppTab: ((AppTab) -> Void)? {
+        get { self[SelectAppTabKey.self] }
+        set { self[SelectAppTabKey.self] = newValue }
     }
 }

@@ -2,14 +2,18 @@ import SwiftUI
 
 struct MainTabBar: View {
     @Binding var selected: AppTab
+    var isAuthenticated: Bool = false
 
-    private let items: [(AppTab, String, String)] = [
-        (.home, "Home", "house.fill"),
-        (.shorts, "Shorts", "play.rectangle.on.rectangle.fill"),
-        (.search, "Search", "magnifyingglass"),
-        (.you, "Subs", "play.square.fill"),
-        (.library, "Library", "rectangle.stack.fill"),
-    ]
+    private var items: [(AppTab, String, String)] {
+        [
+            (.home, "Home", "house.fill"),
+            (.shorts, "Shorts", "play.rectangle.on.rectangle.fill"),
+            (.search, "Search", "magnifyingglass"),
+            // Android: guest "Subs" → authenticated "YouTube"
+            (.you, isAuthenticated ? "YouTube" : "Subs", "play.square.fill"),
+            (.library, "Library", "rectangle.stack.fill"),
+        ]
+    }
 
     var body: some View {
         HStack(spacing: 0) {
