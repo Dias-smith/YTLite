@@ -1,23 +1,27 @@
 package com.ytlite.player.ui.player
 
+import com.ytlite.player.data.extractor.ExtractorRemoteConfigStore
 import com.ytlite.player.data.model.StreamFormat
 
 object PlaybackFormatSelector {
 
-    /** Progressive muxed preference: higher quality first, then 18. */
-    private val PREFERRED_VIDEO_ITAGS = listOf(37, 22, 18)
+    /** Progressive muxed preference; overridden by remote extractor manifest when present. */
+    private fun preferredVideoItags(): List<Int> {
+        val remote = ExtractorRemoteConfigStore.current().preferItags
+        return remote.ifEmpty { listOf(18, 22, 37) }
+    }
 
     /** AAC audio-only preference. */
     private val PREFERRED_AUDIO_ITAGS = listOf(140, 141, 139)
 
     /**
-     * Download / picker sort: preferred itags first (37→22→18→141→140→139),
-     * then remaining formats (video muxed by height, then audio, then other).
+     * Download / picker sort: preferred itags first, then remaining formats.
      */
-    val PREFERRED_DOWNLOAD_ITAG_ORDER = listOf(37, 22, 18, 141, 140, 139)
+    val PREFERRED_DOWNLOAD_ITAG_ORDER: List<Int>
+        get() = preferredVideoItags() + listOf(141, 140, 139)
 
     fun selectVideoFormat(formats: List<StreamFormat>): StreamFormat? {
-        for (itag in PREFERRED_VIDEO_ITAGS) {
+        for (itag in preferredVideoItags()) {
             formats.firstOrNull { it.itag == itag && it.hasAudio && it.hasVideo }?.let { return it }
         }
 

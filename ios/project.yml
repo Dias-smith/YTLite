@@ -21,10 +21,6 @@ targets:
     platform: iOS
     sources:
       - path: YTLite
-      - path: ../shared/extractor
-        type: folder
-        buildPhase: resources
-        name: ExtractorAssets
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.ytlite.player

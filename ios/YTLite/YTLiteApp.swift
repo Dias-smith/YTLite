@@ -23,6 +23,7 @@ struct YTLiteApp: App {
                 .environmentObject(authService)
                 .preferredColorScheme(appModel.nightModeEnabled ? .dark : .light)
                 .task {
+                    ExtractorRemoteConfigStore.restoreFromDisk()
                     appModel.syncAuth(authService)
                     _ = try? await ExtractorBridge.shared.ensureReady()
                 }

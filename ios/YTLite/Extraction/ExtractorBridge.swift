@@ -10,14 +10,16 @@ final class ExtractorBridge: NSObject, WKScriptMessageHandler {
         case timeout
         case extractFailed(String)
         case invalidResponse(String)
+        case bundleUnavailable(String)
 
         var errorDescription: String? {
             switch self {
-            case .missingBridgeAsset: return "Missing extractor bridge assets"
+            case .missingBridgeAsset: return "Extractor not downloaded yet"
             case .notReady: return "Extractor not ready"
             case .timeout: return "Extractor timed out"
             case .extractFailed(let msg): return msg
             case .invalidResponse(let msg): return "Invalid extract response: \(msg)"
+            case .bundleUnavailable(let msg): return msg
             }
         }
     }
@@ -35,7 +37,13 @@ final class ExtractorBridge: NSObject, WKScriptMessageHandler {
         if isReady { return }
         if !isPreparing {
             isPreparing = true
-            try prepareWebView()
+            Task { @MainActor in
+                do {
+                    try await self.prepareWebViewFromRemoteBundle()
+                } catch {
+                    self.markFailed(error.localizedDescription)
+                }
+            }
         }
         try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
             if isReady {
@@ -92,6 +100,8 @@ final class ExtractorBridge: NSObject, WKScriptMessageHandler {
 
     private static func shouldTryWatchPageFallback(_ error: Error) -> Bool {
         if Task.isCancelled { return false }
+        let cfg = ExtractorRemoteConfigStore.current
+        guard cfg.enableWatchPageFallback || cfg.enableAndroidPlayerFallback else { return false }
         let msg = error.localizedDescription.lowercased()
         return msg.contains("unplayable")
             || msg.contains("not available")
@@ -99,6 +109,9 @@ final class ExtractorBridge: NSObject, WKScriptMessageHandler {
             || msg.contains("unable to extract playable stream")
             || msg.contains("no formats")
             || msg.contains("missing payload")
+            || msg.contains("extractor not downloaded")
+            || msg.contains("extractor download failed")
+            || msg.contains("bundle")
     }
 
     private func extractPlaybackViaBridge(videoId: String) async throws -> VideoPlayback {
@@ -203,40 +216,44 @@ final class ExtractorBridge: NSObject, WKScriptMessageHandler {
 
     // MARK: - Private
 
-    private func prepareWebView() throws {
-        guard let bridgeURL = Self.resolveAssetURL(named: "bridge-ios", ext: "html")
-            ?? Self.resolveAssetURL(named: "bridge", ext: "html")
+    private func prepareWebViewFromRemoteBundle() async throws {
+        PlayProbe.log("extractor.bundle.ensure")
+        let dir: URL
+        do {
+            dir = try await ExtractorBundleStore.shared.ensureBundle()
+        } catch {
+            PlayProbe.log("extractor.bundle.fail", error.localizedDescription)
+            throw ExtractorError.bundleUnavailable(error.localizedDescription)
+        }
+        let bridgeURL = dir.appendingPathComponent("bridge-ios.html")
+        let jsURL = dir.appendingPathComponent("extractor.js")
+        guard FileManager.default.fileExists(atPath: bridgeURL.path),
+              FileManager.default.fileExists(atPath: jsURL.path)
         else {
             throw ExtractorError.missingBridgeAsset
         }
-        // Ensure extractor.js sits next to bridge when loading from disk.
-        // Bundled folder resources preserve relative links from bridge-ios.html.
+        PlayProbe.log("extractor.bundle.ready", "dir=\(dir.lastPathComponent)")
+
         let config = WKWebViewConfiguration()
         config.preferences.javaScriptEnabled = true
         config.userContentController.add(self, name: "AndroidBridge")
         let view = WKWebView(frame: .zero, configuration: config)
         view.isHidden = true
         webView = view
-
-        // Prefer loading HTML from the directory that also contains extractor.js.
-        let dir = bridgeURL.deletingLastPathComponent()
-        if FileManager.default.fileExists(atPath: dir.appendingPathComponent("extractor.js").path) {
-            view.loadFileURL(bridgeURL, allowingReadAccessTo: dir)
-        } else if let jsURL = Self.resolveAssetURL(named: "extractor", ext: "js"),
-                  let html = try? String(contentsOf: bridgeURL, encoding: .utf8)
-        {
-            let patched = html.replacingOccurrences(
-                of: "src=\"extractor.js\"",
-                with: "src=\"\(jsURL.absoluteString)\""
-            )
-            view.loadHTMLString(patched, baseURL: jsURL.deletingLastPathComponent())
-        } else {
-            view.loadFileURL(bridgeURL, allowingReadAccessTo: dir)
-        }
+        view.loadFileURL(bridgeURL, allowingReadAccessTo: dir)
 
         Task {
             await refreshVisitorData()
         }
+    }
+
+    private func injectExtractorConfig() async {
+        guard let webView else { return }
+        let cfg = ExtractorRemoteConfigStore.current
+        guard let data = try? JSONEncoder().encode(cfg),
+              let json = String(data: data, encoding: .utf8)
+        else { return }
+        _ = try? await webView.evaluateJavaScript("window.__extractorConfig = \(json);")
     }
 
     private func markReady() {
@@ -244,7 +261,10 @@ final class ExtractorBridge: NSObject, WKScriptMessageHandler {
         isPreparing = false
         readyContinuation?.resume()
         readyContinuation = nil
-        Task { await refreshVisitorData() }
+        Task {
+            await injectExtractorConfig()
+            await refreshVisitorData()
+        }
     }
 
     private func markFailed(_ message: String) {
@@ -367,26 +387,6 @@ final class ExtractorBridge: NSObject, WKScriptMessageHandler {
             arguments: ["value": value],
             contentWorld: .page
         )
-    }
-
-    private static func resolveAssetURL(named name: String, ext: String) -> URL? {
-        if let url = Bundle.main.url(forResource: name, withExtension: ext) {
-            return url
-        }
-        // Folder resource group may nest under ExtractorAssets /
-        if let url = Bundle.main.url(forResource: name, withExtension: ext, subdirectory: "ExtractorAssets") {
-            return url
-        }
-        if let root = Bundle.main.resourceURL {
-            let candidates = [
-                root.appendingPathComponent("\(name).\(ext)"),
-                root.appendingPathComponent("extractor/\(name).\(ext)"),
-                root.appendingPathComponent("ExtractorAssets/\(name).\(ext)"),
-                root.appendingPathComponent("shared/extractor/\(name).\(ext)"),
-            ]
-            return candidates.first { FileManager.default.fileExists(atPath: $0.path) }
-        }
-        return nil
     }
 
     private static func parseHeaders(_ json: String) -> [String: String] {

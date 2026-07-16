@@ -4,8 +4,11 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import com.ytlite.player.data.extractor.ExtractorBundleStore
+import com.ytlite.player.data.extractor.ExtractorRemoteConfigStore
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -25,14 +28,20 @@ class JsExtractorEngine private constructor(
     private val context = appContext.applicationContext
     private var webView: WebView? = null
     private var bridge: VsPlayerBridge? = null
-    private val readyDeferred = CompletableDeferred<Unit>()
+    private var readyDeferred = CompletableDeferred<Unit>()
     private val isInitializing = AtomicBoolean(false)
     private val mainHandler = Handler(Looper.getMainLooper())
+    private val bundleStore = ExtractorBundleStore.getInstance(context)
 
     suspend fun ensureReady() {
         withContext(Dispatchers.Main) {
             if (webView == null && isInitializing.compareAndSet(false, true)) {
-                initWebView()
+                try {
+                    initWebViewFromRemoteBundle()
+                } catch (e: Exception) {
+                    isInitializing.set(false)
+                    markFailed(e.message ?: "extractor bundle failed")
+                }
             }
         }
         readyDeferred.await()
@@ -83,6 +92,7 @@ class JsExtractorEngine private constructor(
         webView?.destroy()
         webView = null
         isInitializing.set(false)
+        readyDeferred = CompletableDeferred()
         synchronized(Companion) {
             if (instance === this) {
                 instance = null
@@ -93,10 +103,22 @@ class JsExtractorEngine private constructor(
     fun preloadAsync() {
         preloadScope.launch {
             runCatching { ensureReady() }
+            runCatching { bundleStore.refreshIfNewer() }
         }
     }
 
-    private fun initWebView() {
+    private suspend fun initWebViewFromRemoteBundle() {
+        Log.i(TAG, "ensuring remote extractor bundle")
+        val dir = withContext(Dispatchers.IO) {
+            bundleStore.ensureBundle(backgroundRefresh = false)
+        }
+        val bridgeUrl = "file://${dir.absolutePath}/bridge.html"
+        val jsFile = java.io.File(dir, "extractor.js")
+        if (!jsFile.isFile) {
+            throw IllegalStateException("extractor.js missing after download")
+        }
+        Log.i(TAG, "loading extractor from ${dir.absolutePath}")
+
         val view = WebView(context)
         val playerBridge = VsPlayerBridge(
             webView = view,
@@ -107,19 +129,30 @@ class JsExtractorEngine private constructor(
         view.settings.apply {
             javaScriptEnabled = true
             domStorageEnabled = true
+            allowFileAccess = true
         }
         view.addJavascriptInterface(playerBridge, "AndroidBridge")
         view.webViewClient = object : WebViewClient() {
             override fun onPageFinished(view: WebView?, url: String?) {
-                // Ready is signaled from bridge.html after extractor.js loads.
+                val cfg = ExtractorRemoteConfigStore.current()
+                val json = JSONObject()
+                    .put("androidClientVersion", cfg.androidClientVersion)
+                    .put("signatureTimestamp", cfg.signatureTimestamp)
+                    .put("preferItags", org.json.JSONArray(cfg.preferItags))
+                    .put("enableAndroidPlayerFallback", cfg.enableAndroidPlayerFallback)
+                    .put("enableWatchPageFallback", cfg.enableWatchPageFallback)
+                view?.evaluateJavascript(
+                    "window.__extractorConfig = $json;",
+                    null,
+                )
             }
         }
-        view.loadUrl(BRIDGE_URL)
+        view.loadUrl(bridgeUrl)
         webView = view
     }
 
     companion object {
-        private const val BRIDGE_URL = "file:///android_asset/extractor/bridge.html"
+        private const val TAG = "JsExtractorEngine"
         private const val INVOKE_TIMEOUT_MS = 45_000L
 
         private val preloadScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
@@ -135,6 +168,9 @@ class JsExtractorEngine private constructor(
         fun preloadAsync(context: Context) {
             preloadScope.launch {
                 runCatching { getInstance(context).ensureReady() }
+                runCatching {
+                    ExtractorBundleStore.getInstance(context).refreshIfNewer()
+                }
             }
         }
     }

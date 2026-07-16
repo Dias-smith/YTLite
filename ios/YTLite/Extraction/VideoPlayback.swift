@@ -328,25 +328,20 @@ enum ExtractResultMapper {
 /// 1) ANDROID `/youtubei/v1/player` with `signatureTimestamp` (direct googlevideo URLs, no nsig)
 /// 2) scrape `ytInitialPlayerResponse` from watch HTML (often 403 without nsig — last resort)
 enum WatchPagePlayerFallback {
-    private static let androidUA =
-        "com.google.android.youtube/20.10.38 (Linux; U; Android 11) gzip"
-    private static let androidClientVersion = "20.10.38"
-    /// Last-known STS if the watch page does not embed `"STS"`.
-    private static let defaultSignatureTimestamp = 20_646
-
     static func extract(videoId: String) async throws -> VideoPlayback {
         let id = videoId.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !id.isEmpty else {
             throw ExtractorBridge.ExtractorError.invalidResponse("empty videoId")
         }
         PlayProbe.log("extract.fallback.start", videoId: id)
+        let cfg = ExtractorRemoteConfigStore.current
         // Normalize Shorts → watch before scraping (never hit /shorts/{id}).
         let pages = [
             YouTubeURL.canonicalWatchURL(YouTubeURL.watchURL(videoId: id)),
             YouTubeURL.canonicalWatchURL("https://m.youtube.com/watch?v=\(id)"),
         ]
         var lastError: Error = ExtractorBridge.ExtractorError.extractFailed("unplayable")
-        var signatureTimestamp = defaultSignatureTimestamp
+        var signatureTimestamp = cfg.signatureTimestamp
         for pageURL in pages {
             PlayProbe.log("extract.fallback.page", videoId: id, pageURL)
             do {
@@ -361,10 +356,13 @@ enum WatchPagePlayerFallback {
                 }
 
                 // Prefer ANDROID player: WEB HTML progressive URLs commonly 403 without nsig.
-                if let androidPlayback = await extractViaAndroidPlayer(
+                if cfg.enableAndroidPlayerFallback,
+                   let androidPlayback = await extractViaAndroidPlayer(
                     videoId: id,
-                    signatureTimestamp: signatureTimestamp
-                ) {
+                    signatureTimestamp: signatureTimestamp,
+                    clientVersion: cfg.androidClientVersion
+                   )
+                {
                     PlayProbe.log(
                         "extract.fallback.android.ok",
                         videoId: id,
@@ -373,6 +371,9 @@ enum WatchPagePlayerFallback {
                     return androidPlayback
                 }
 
+                guard cfg.enableWatchPageFallback else {
+                    throw ExtractorBridge.ExtractorError.extractFailed("watch page fallback disabled")
+                }
                 guard let player = extractPlayerResponseJSON(from: html) else {
                     PlayProbe.log("extract.fallback.fail", videoId: id, "no ytInitialPlayerResponse")
                     continue
@@ -394,11 +395,14 @@ enum WatchPagePlayerFallback {
             }
         }
 
-        // HTML fetch may have failed; still try ANDROID with default STS.
-        if let androidPlayback = await extractViaAndroidPlayer(
+        // HTML fetch may have failed; still try ANDROID with configured STS.
+        if cfg.enableAndroidPlayerFallback,
+           let androidPlayback = await extractViaAndroidPlayer(
             videoId: id,
-            signatureTimestamp: signatureTimestamp
-        ) {
+            signatureTimestamp: signatureTimestamp,
+            clientVersion: cfg.androidClientVersion
+           )
+        {
             PlayProbe.log(
                 "extract.fallback.android.ok",
                 videoId: id,
@@ -414,18 +418,21 @@ enum WatchPagePlayerFallback {
     /// ANDROID Innertube player on `www.youtube.com` — returns plain `url` formats (no `n=`).
     private static func extractViaAndroidPlayer(
         videoId: String,
-        signatureTimestamp: Int
+        signatureTimestamp: Int,
+        clientVersion: String
     ) async -> VideoPlayback? {
+        let androidUA =
+            "com.google.android.youtube/\(clientVersion) (Linux; U; Android 11) gzip"
         PlayProbe.log(
             "extract.fallback.android.begin",
             videoId: videoId,
-            "sts=\(signatureTimestamp)"
+            "sts=\(signatureTimestamp) ver=\(clientVersion)"
         )
         let body: [String: Any] = [
             "context": [
                 "client": [
                     "clientName": "ANDROID",
-                    "clientVersion": androidClientVersion,
+                    "clientVersion": clientVersion,
                     "androidSdkVersion": 30,
                     "userAgent": androidUA,
                     "osName": "Android",
@@ -458,7 +465,7 @@ enum WatchPagePlayerFallback {
                 "User-Agent": androidUA,
                 "Content-Type": "application/json",
                 "X-YouTube-Client-Name": "3",
-                "X-YouTube-Client-Version": androidClientVersion,
+                "X-YouTube-Client-Version": clientVersion,
                 "Origin": "https://www.youtube.com",
                 "Referer": "https://www.youtube.com/",
             ],

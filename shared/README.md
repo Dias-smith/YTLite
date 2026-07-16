@@ -2,9 +2,16 @@
 
 ## extractor/
 
-Copied from `app/src/main/assets/extractor/` for dual-client use.
+Source of truth for the WebView InnerTube bridge:
 
-- Android may keep reading from `app/src/main/assets/extractor/` for now.
-- iOS bundles this folder via XcodeGen `ExtractorAssets`.
+- `extractor.js`
+- `bridge.html` (Android)
+- `bridge-ios.html` (iOS WKWebView polyfill)
+- [`REMOTE.md`](extractor/REMOTE.md) — hot-update publish flow
 
-When changing JS, update **both** locations until Android is switched to this folder as the single source.
+**Apps do not bundle these files.** After install they download from the
+Supabase Storage bucket `extractor` (see `scripts/publish_extractor.sh`).
+
+```bash
+./scripts/publish_extractor.sh 1
+```

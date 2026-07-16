@@ -8,20 +8,20 @@ import org.junit.Test
 class PlaybackFormatSelectorTest {
 
     @Test
-    fun selectVideoFormat_prefers37Then22Then18() {
+    fun selectVideoFormat_prefers18Then22Then37() {
         val formats = listOf(
             format(itag = 140, hasAudio = true, hasVideo = false, height = 0),
             format(itag = 18, hasAudio = true, hasVideo = true, height = 360),
             format(itag = 22, hasAudio = true, hasVideo = true, height = 720),
             format(itag = 37, hasAudio = true, hasVideo = true, height = 1080),
         )
-        assertEquals(37, PlaybackFormatSelector.selectVideoFormat(formats)?.itag)
+        assertEquals(18, PlaybackFormatSelector.selectVideoFormat(formats)?.itag)
 
-        val without37 = formats.filter { it.itag != 37 }
-        assertEquals(22, PlaybackFormatSelector.selectVideoFormat(without37)?.itag)
+        val without18 = formats.filter { it.itag != 18 }
+        assertEquals(22, PlaybackFormatSelector.selectVideoFormat(without18)?.itag)
 
-        val only18 = formats.filter { it.itag == 18 || it.itag == 140 }
-        assertEquals(18, PlaybackFormatSelector.selectVideoFormat(only18)?.itag)
+        val only37 = formats.filter { it.itag == 37 || it.itag == 140 }
+        assertEquals(37, PlaybackFormatSelector.selectVideoFormat(only37)?.itag)
     }
 
     @Test
@@ -44,7 +44,7 @@ class PlaybackFormatSelectorTest {
             format(itag = 22, hasAudio = true, hasVideo = true, height = 720),
         )
         val sorted = PlaybackFormatSelector.sortForDownload(formats).map { it.itag }
-        assertEquals(listOf(22, 18, 140, 299), sorted)
+        assertEquals(listOf(18, 22, 140, 299), sorted)
     }
 
     @Test

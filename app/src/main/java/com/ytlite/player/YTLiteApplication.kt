@@ -9,6 +9,7 @@ import coil.ImageLoaderFactory
 import com.google.firebase.FirebaseApp
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.ytlite.player.data.auth.AuthRepository
+import com.ytlite.player.data.extractor.ExtractorRemoteConfigStore
 import com.ytlite.player.data.firebase.RemoteConfigRepository
 import com.ytlite.player.data.js.JsExtractorEngine
 import com.ytlite.player.data.repository.ExtractionRepository
@@ -37,6 +38,7 @@ class YTLiteApplication : Application(), ImageLoaderFactory {
             RemoteConfigRepository.fetchAndActivate()
         }
         ExtractionRepository.init(this)
+        ExtractorRemoteConfigStore.restore(this)
         // Lightweight only — do not open media cache / FGS / WebView on the cold-start path.
         PlaybackManager.init(this)
         AuthRepository.getInstance(this)
