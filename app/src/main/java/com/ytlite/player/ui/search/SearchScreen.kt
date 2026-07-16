@@ -120,6 +120,7 @@ fun SearchScreen(
                     onSuggestionClick = viewModel::onSuggestionClick,
                     onSuggestionFill = viewModel::onSuggestionFill,
                     onHistoryQueryClick = viewModel::onHistoryQueryClick,
+                    onHistoryQueryFill = viewModel::onHistoryQueryFill,
                     onRecentClick = viewModel::onRecentClick,
                     onRecentLongPress = viewModel::requestDeleteRecent,
                     onClearRecentClicks = viewModel::clearRecentClicks,
@@ -153,6 +154,7 @@ private fun SearchContent(
     onSuggestionClick: (com.ytlite.player.data.model.SearchSuggestion) -> Unit,
     onSuggestionFill: (com.ytlite.player.data.model.SearchSuggestion) -> Unit,
     onHistoryQueryClick: (String) -> Unit,
+    onHistoryQueryFill: (String) -> Unit,
     onRecentClick: (com.ytlite.player.data.local.entity.SearchRecentClickEntity) -> Unit,
     onRecentLongPress: (String) -> Unit,
     onClearRecentClicks: () -> Unit,
@@ -198,6 +200,7 @@ private fun SearchContent(
                     onRecentLongPress = onRecentLongPress,
                     onClearRecentClicks = onClearRecentClicks,
                     onHistoryQueryClick = onHistoryQueryClick,
+                    onHistoryQueryFill = onHistoryQueryFill,
                     onClearQueryHistory = onClearQueryHistory,
                     onHotKeywordClick = onHotKeywordClick,
                 )

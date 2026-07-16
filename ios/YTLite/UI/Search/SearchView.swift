@@ -92,8 +92,11 @@ final class SearchViewModel: ObservableObject {
         submit(memory: memory, query: item.text)
     }
 
-    func fillSuggestion(_ item: SearchSuggestionItem) {
-        query = item.text
+    /// Fill the search field without submitting (Android history ↖ / suggestion fill).
+    func fillQuery(_ text: String) {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        query = trimmed
     }
 
     private func loadResults(memory: SearchMemoryStore, reset: Bool) {
@@ -142,8 +145,11 @@ final class SearchViewModel: ObservableObject {
         }
 
         if phase == .results {
-            // Editing from the results search field should drop into suggestions;
-            // hub / history / hot taps use `submit` and never reach here.
+            // Stay on results when the field is merely re-synced to the submitted query
+            // (common after dismissing the keyboard). Only leave when the user edits it.
+            if trimmed == activeResultsQuery {
+                return
+            }
             phase = .suggestions
         } else if phase == .hub {
             phase = .suggestions
@@ -334,37 +340,24 @@ struct SearchView: View {
             ScrollView {
                 LazyVStack(spacing: 0) {
                     ForEach(viewModel.suggestions) { item in
-                        HStack(spacing: YTLiteLayout.stackLoose) {
-                            Button {
-                                viewModel.applySuggestion(item, memory: memory)
-                                searchFocused = false
-                            } label: {
-                                HStack(spacing: YTLiteLayout.stackLoose) {
-                                    Image(systemName: item.isFromHistory ? "clock.arrow.circlepath" : "magnifyingglass")
-                                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                                        .frame(width: 22)
-                                    Text(item.text)
-                                        .foregroundStyle(YTLiteColor.onSurface)
-                                        .lineLimit(1)
-                                    Spacer(minLength: 0)
-                                }
-                                .contentShape(Rectangle())
-                            }
-                            .buttonStyle(.plain)
-
-                            Button {
-                                viewModel.fillSuggestion(item)
-                                searchFocused = true
-                            } label: {
-                                Image(systemName: "arrow.up.left")
-                                    .font(YTLiteType.rowTitleMedium)
+                        Button {
+                            searchFocused = false
+                            viewModel.applySuggestion(item, memory: memory)
+                        } label: {
+                            HStack(spacing: YTLiteLayout.stackLoose) {
+                                Image(systemName: item.isFromHistory ? "clock.arrow.circlepath" : "magnifyingglass")
                                     .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                                    .frame(width: 36, height: 36)
+                                    .frame(width: 22)
+                                Text(item.text)
+                                    .foregroundStyle(YTLiteColor.onSurface)
+                                    .lineLimit(1)
+                                Spacer(minLength: 0)
                             }
-                            .buttonStyle(.plain)
+                            .padding(.horizontal, YTLiteLayout.screenPadding)
+                            .padding(.vertical, YTLiteLayout.rowVertical)
+                            .contentShape(Rectangle())
                         }
-                        .padding(.horizontal, YTLiteLayout.screenPadding)
-                        .padding(.vertical, YTLiteLayout.rowVertical)
+                        .buttonStyle(.plain)
                     }
                 }
             }
@@ -379,7 +372,7 @@ struct SearchView: View {
 
     private var discoveryContent: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: YTLiteLayout.sectionGap) {
+            VStack(alignment: .leading, spacing: 0) {
                 if !memory.recentVideos.isEmpty {
                     VStack(alignment: .leading, spacing: YTLiteLayout.stackLoose) {
                         SectionHeaderRow(title: "Recent searches", actionTitle: "Clear all") {
@@ -415,6 +408,8 @@ struct SearchView: View {
                             .padding(.horizontal, YTLiteLayout.screenPadding)
                         }
                     }
+                    .padding(.top, 4)
+                    .padding(.bottom, 8)
                 }
 
                 if !memory.recentQueries.isEmpty {
@@ -423,53 +418,86 @@ struct SearchView: View {
                             memory.clearQueries()
                         }
                         .padding(.horizontal, YTLiteLayout.screenPadding)
-                        .padding(.bottom, YTLiteLayout.stackTight)
+                        .padding(.top, memory.recentVideos.isEmpty ? 4 : 8)
+                        .padding(.bottom, 4)
 
                         ForEach(memory.recentQueries, id: \.self) { q in
-                            Button {
-                                searchFocused = false
-                                viewModel.submit(memory: memory, query: q)
-                            } label: {
-                                HStack(spacing: 12) {
-                                    Image(systemName: "clock.arrow.circlepath")
-                                        .font(.system(size: 16))
-                                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                                    Text(q)
-                                        .font(YTLiteType.body)
-                                        .foregroundStyle(YTLiteColor.onSurface)
-                                        .lineLimit(1)
-                                    Spacer(minLength: 0)
+                            SearchHistoryRow(
+                                query: q,
+                                onSearch: {
+                                    searchFocused = false
+                                    viewModel.submit(memory: memory, query: q)
+                                },
+                                onFill: {
+                                    viewModel.fillQuery(q)
+                                    searchFocused = true
                                 }
-                                .padding(.horizontal, YTLiteLayout.screenPadding)
-                                .padding(.vertical, 6)
-                                .contentShape(Rectangle())
-                            }
-                            .buttonStyle(.plain)
+                            )
                         }
                     }
                 }
 
                 if !viewModel.hotKeywords.isEmpty {
-                    VStack(alignment: .leading, spacing: YTLiteLayout.stackLoose) {
+                    VStack(alignment: .leading, spacing: 8) {
                         Text("Trending searches")
-                            .font(YTLiteType.sectionTitle)
+                            .font(YTLiteType.labelEmphasized)
                             .foregroundStyle(YTLiteColor.onSurface)
                             .padding(.horizontal, YTLiteLayout.screenPadding)
 
-                        FlowChips(items: viewModel.hotKeywords) { tag in
+                        FlowChips(items: viewModel.hotKeywords, spacing: 14) { tag in
                             searchFocused = false
                             viewModel.submit(memory: memory, query: tag)
                         }
                         .padding(.horizontal, YTLiteLayout.screenPadding)
                     }
+                    .padding(.top, (memory.recentQueries.isEmpty && memory.recentVideos.isEmpty) ? 4 : 10)
                 }
             }
-            .padding(.bottom, YTLiteLayout.sectionGap)
+            .padding(.bottom, 16)
         }
     }
 }
 
 // MARK: - Result rows (compact, Android SearchResultsScreen)
+
+/// Android `HistoryQueryRow` — tap row to search; ↖ fills the field.
+private struct SearchHistoryRow: View {
+    let query: String
+    var onSearch: () -> Void
+    var onFill: () -> Void
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Button(action: onSearch) {
+                HStack(spacing: 10) {
+                    Image(systemName: "clock.arrow.circlepath")
+                        .font(.system(size: 14))
+                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                        .frame(width: 18, alignment: .center)
+                    Text(query)
+                        .font(YTLiteType.meta)
+                        .foregroundStyle(YTLiteColor.onSurface)
+                        .lineLimit(1)
+                    Spacer(minLength: 0)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            Button(action: onFill) {
+                Image(systemName: "arrow.up.left")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                    .frame(width: 28, height: 28)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Fill search")
+        }
+        .padding(.horizontal, YTLiteLayout.screenPadding)
+        .padding(.vertical, 5)
+    }
+}
 
 private struct SearchVideoResultRow: View {
     let item: VideoItem
@@ -571,21 +599,22 @@ private struct SearchPlaylistResultRow: View {
 
 struct FlowChips: View {
     let items: [String]
+    var spacing: CGFloat = 14
     var onTap: (String) -> Void
 
     var body: some View {
-        ChipFlowLayout(spacing: YTLiteLayout.stackDefault) {
+        ChipFlowLayout(spacing: spacing) {
             ForEach(items, id: \.self) { title in
                 Button {
                     onTap(title)
                 } label: {
                     Text(title)
-                        .font(YTLiteType.label)
+                        .font(YTLiteType.meta)
                         .foregroundStyle(YTLiteColor.onSurface)
                         .lineLimit(1)
                         .truncationMode(.tail)
-                        .padding(.horizontal, YTLiteLayout.chipHorizontal)
-                        .padding(.vertical, YTLiteLayout.chipVertical)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
                         .background(YTLiteColor.surfaceChip, in: Capsule())
                 }
                 .buttonStyle(.plain)

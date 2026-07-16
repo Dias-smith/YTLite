@@ -116,8 +116,13 @@ class SearchViewModel(
         mutableState.update { current ->
             val nextState = when {
                 query.isBlank() -> SearchScreenState.DefaultHub
-                current.screenState is SearchScreenState.Results ->
-                    SearchScreenState.Suggestions(query)
+                current.screenState is SearchScreenState.Results -> {
+                    val results = current.screenState as SearchScreenState.Results
+                    // Keep results when the field is re-synced to the submitted query
+                    // (e.g. after IME dismiss). Only leave when the user edits it.
+                    if (query.trim() == results.query) current.screenState
+                    else SearchScreenState.Suggestions(query)
+                }
                 else -> current.screenState
             }
             current.copy(
@@ -193,6 +198,14 @@ class SearchViewModel(
 
     fun onHistoryQueryClick(query: String) {
         onSubmitSearch(query)
+    }
+
+    fun onHistoryQueryFill(query: String) {
+        val trimmed = query.trim()
+        if (trimmed.isBlank()) return
+        mutableState.update {
+            it.copy(query = trimmed, screenState = SearchScreenState.Suggestions(trimmed))
+        }
     }
 
     fun onRecentClick(entity: SearchRecentClickEntity) {

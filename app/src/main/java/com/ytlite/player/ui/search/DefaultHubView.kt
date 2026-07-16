@@ -21,9 +21,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.NorthWest
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -51,6 +53,7 @@ fun DefaultHubView(
     onRecentLongPress: (String) -> Unit,
     onClearRecentClicks: () -> Unit,
     onHistoryQueryClick: (String) -> Unit,
+    onHistoryQueryFill: (String) -> Unit,
     onClearQueryHistory: () -> Unit,
     onHotKeywordClick: (String) -> Unit,
     modifier: Modifier = Modifier,
@@ -95,6 +98,7 @@ fun DefaultHubView(
                 HistoryQueryRow(
                     query = entity.query,
                     onClick = { onHistoryQueryClick(entity.query) },
+                    onFillQuery = { onHistoryQueryFill(entity.query) },
                 )
             }
         }
@@ -203,30 +207,46 @@ private fun RecentClickCard(
 private fun HistoryQueryRow(
     query: String,
     onClick: () -> Unit,
+    onFillQuery: () -> Unit,
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .combinedClickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 10.dp),
+            .padding(horizontal = 16.dp, vertical = 5.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(
-            imageVector = Icons.Default.History,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(22.dp),
-        )
-        Text(
-            text = query,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface,
+        Row(
             modifier = Modifier
                 .weight(1f)
-                .padding(start = 12.dp),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
+                .combinedClickable(onClick = onClick),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                imageVector = Icons.Default.History,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(18.dp),
+            )
+            Text(
+                text = query,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.padding(start = 10.dp),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        IconButton(
+            onClick = onFillQuery,
+            modifier = Modifier.size(28.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Default.NorthWest,
+                contentDescription = stringResource(R.string.search_fill_query),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(16.dp),
+            )
+        }
     }
 }
 
@@ -239,8 +259,8 @@ private fun HotKeywordChipGroup(
 ) {
     FlowRow(
         modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         keywords.forEach { keyword ->
             HotKeywordChip(
@@ -264,10 +284,10 @@ private fun HotKeywordChip(
     ) {
         Text(
             text = keyword,
-            style = MaterialTheme.typography.bodyMedium,
+            style = MaterialTheme.typography.bodySmall,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
         )
     }
 }
