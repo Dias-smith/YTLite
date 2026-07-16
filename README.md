@@ -22,9 +22,14 @@ Static files live in [`website/`](website/) (landing, privacy, terms, support).
 
 ### Enable Pages + custom domain
 
-1. GitHub → **Settings → Pages → Source = GitHub Actions**
-2. Push to **`ios`** (or `main`/`master`), or run **Deploy website to GitHub Pages** manually
-3. **Custom domain** = `ytlite.cc` → Save → wait for DNS check → **Enforce HTTPS**
+1. GitHub → **Settings → Pages**
+2. **Build and deployment → Source** 必须选 **GitHub Actions**（不要选 “Deploy from a branch”）
+3. 打开 **Actions** → 工作流 **Deploy website to GitHub Pages** → **Run workflow**（选 `ios` 分支）
+4. **Custom domain** = `ytlite.cc` → Save → 等 DNS check 变绿 → 勾选 **Enforce HTTPS**
+
+若打开站点看到的是仓库 README（路径表 `app/` `ios/`…），说明 Pages 仍在发布**分支根目录**，请回到步骤 2 改为 GitHub Actions 并手动跑一次 workflow。
+
+正式站内容来自 [`website/`](website/)（落地页等），不是根目录 README。
 
 ### DNS (`ytlite.cc`)
 
