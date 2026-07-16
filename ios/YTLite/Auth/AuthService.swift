@@ -161,5 +161,40 @@ final class AuthService: ObservableObject {
         }
     }
 
+    /// Permanently deletes the signed-in Supabase user (Apple account-deletion).
+    /// Returns `true` on success. Caller should clear the local user library bucket.
+    @discardableResult
+    func deleteAccount() async -> Bool {
+        guard let client else {
+            lastError = "Supabase is not configured"
+            return false
+        }
+        guard let accessToken = session?.accessToken else {
+            lastError = "Not signed in"
+            return false
+        }
+
+        isBusy = true
+        lastError = nil
+        defer { isBusy = false }
+
+        do {
+            try await client.functions.invoke(
+                "delete-account",
+                options: FunctionInvokeOptions(
+                    method: .post,
+                    headers: ["Authorization": "Bearer \(accessToken)"]
+                )
+            )
+            // User is gone — clear local session even if remote signOut fails.
+            try? await client.auth.signOut(scope: .local)
+            session = nil
+            return true
+        } catch {
+            lastError = error.localizedDescription
+            return false
+        }
+    }
+
     func supabaseClient() -> SupabaseClient? { client }
 }

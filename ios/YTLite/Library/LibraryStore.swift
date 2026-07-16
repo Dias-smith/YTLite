@@ -969,6 +969,47 @@ final class LibraryStore {
         try? modelContext.save()
     }
 
+    /// Remove all user-scoped rows for `key`. Does not delete global `LibraryTrack` rows.
+    func clearOwnerBucket(_ key: String) {
+        let previousMutate = onMutate
+        onMutate = nil
+        defer { onMutate = previousMutate }
+
+        for playlist in fetchPlaylists(ownerKey: key) {
+            if let cover = playlist.coverUrlOrPath {
+                PlaylistCoverStorage.deleteIfLocal(cover)
+            }
+            modelContext.delete(playlist)
+        }
+
+        let history = (try? modelContext.fetch(
+            FetchDescriptor<PlaybackHistoryItem>(predicate: #Predicate { $0.ownerKey == key })
+        )) ?? []
+        for row in history { modelContext.delete(row) }
+
+        let lastPlayed = (try? modelContext.fetch(
+            FetchDescriptor<UserTrackLastPlayed>(predicate: #Predicate { $0.ownerKey == key })
+        )) ?? []
+        for row in lastPlayed { modelContext.delete(row) }
+
+        let metadata = (try? modelContext.fetch(
+            FetchDescriptor<UserTrackMetadata>(predicate: #Predicate { $0.ownerKey == key })
+        )) ?? []
+        for row in metadata { modelContext.delete(row) }
+
+        let channels = (try? modelContext.fetch(
+            FetchDescriptor<UserSubscribedChannel>(predicate: #Predicate { $0.ownerKey == key })
+        )) ?? []
+        for row in channels { modelContext.delete(row) }
+
+        let notInterested = (try? modelContext.fetch(
+            FetchDescriptor<NotInterestedItem>(predicate: #Predicate { $0.ownerKey == key })
+        )) ?? []
+        for row in notInterested { modelContext.delete(row) }
+
+        try? modelContext.save()
+    }
+
     private func fetchPlaylist(systemType: String) -> LibraryPlaylist? {
         let key = ownerKey
         var descriptor = FetchDescriptor<LibraryPlaylist>(

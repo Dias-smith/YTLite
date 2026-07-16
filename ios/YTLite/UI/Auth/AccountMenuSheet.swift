@@ -7,6 +7,7 @@ struct AccountMenuSheet: View {
     var onViewChannel: () -> Void
     var onSwitchAccount: () -> Void
     var onSignOut: () -> Void
+    var onDeleteAccount: () -> Void
 
     private var handleText: String {
         guard let email = auth.emailHandle, !email.isEmpty else { return "" }
@@ -39,6 +40,15 @@ struct AccountMenuSheet: View {
                     showsChevron: false
                 ) {
                     onSignOut()
+                }
+
+                menuRow(
+                    systemImage: "trash",
+                    title: "Delete account",
+                    showsChevron: false,
+                    isDestructive: true
+                ) {
+                    onDeleteAccount()
                 }
             }
             .padding(.top, 4)
@@ -88,18 +98,19 @@ struct AccountMenuSheet: View {
         systemImage: String,
         title: String,
         showsChevron: Bool,
+        isDestructive: Bool = false,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
             HStack(spacing: 16) {
                 Image(systemName: systemImage)
                     .font(.system(size: 18))
-                    .foregroundStyle(YTLiteColor.onSurface)
+                    .foregroundStyle(isDestructive ? YTLiteColor.danger : YTLiteColor.onSurface)
                     .frame(width: 24, height: 24)
 
                 Text(title)
                     .font(YTLiteType.body)
-                    .foregroundStyle(YTLiteColor.onSurface)
+                    .foregroundStyle(isDestructive ? YTLiteColor.danger : YTLiteColor.onSurface)
 
                 Spacer(minLength: 0)
 

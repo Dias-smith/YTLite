@@ -70,6 +70,9 @@ struct LibraryView: View {
     @State private var reorderItems: [PlaylistDisplayItem] = []
     @State private var showAccountMenu = false
     @State private var pendingSwitchAccount = false
+    @State private var pendingDeleteAccount = false
+    @State private var showDeleteAccountConfirm = false
+    @State private var deleteAccountError: String?
 
     var body: some View {
         NavigationStack {
@@ -300,13 +303,21 @@ struct LibraryView: View {
                 .preferredColorScheme(.dark)
             }
             .sheet(isPresented: $showAccountMenu, onDismiss: {
-                guard pendingSwitchAccount else { return }
-                pendingSwitchAccount = false
-                Task {
-                    await auth.switchGoogleAccount()
-                    appModel.syncAuth(auth)
-                    // RootView adopts remote library + bumps libraryRevision.
-                    reload()
+                if pendingSwitchAccount {
+                    pendingSwitchAccount = false
+                    Task {
+                        await auth.switchGoogleAccount()
+                        appModel.syncAuth(auth)
+                        reload()
+                    }
+                    return
+                }
+                if pendingDeleteAccount {
+                    pendingDeleteAccount = false
+                    // Present confirm after sheet teardown so it isn't swallowed.
+                    DispatchQueue.main.async {
+                        showDeleteAccountConfirm = true
+                    }
                 }
             }) {
                 AccountMenuSheet(
@@ -329,12 +340,41 @@ struct LibraryView: View {
                             appModel.syncAuth(auth)
                             reload()
                         }
+                    },
+                    onDeleteAccount: {
+                        pendingDeleteAccount = true
+                        showAccountMenu = false
                     }
                 )
-                .presentationDetents([.height(280)])
+                .presentationDetents([.height(340)])
                 .presentationDragIndicator(.visible)
                 .presentationBackground(YTLiteColor.surface)
                 .preferredColorScheme(.dark)
+            }
+            .confirmationDialog(
+                "Delete account?",
+                isPresented: $showDeleteAccountConfirm,
+                titleVisibility: .visible
+            ) {
+                Button("Delete account", role: .destructive) {
+                    Task { await performDeleteAccount() }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text(
+                    "This permanently deletes your YTLite account and cloud library data (playlists, history, subscriptions, and metadata). This can't be undone."
+                )
+            }
+            .alert(
+                "Couldn't delete account",
+                isPresented: Binding(
+                    get: { deleteAccountError != nil },
+                    set: { if !$0 { deleteAccountError = nil } }
+                )
+            ) {
+                Button("OK", role: .cancel) { deleteAccountError = nil }
+            } message: {
+                Text(deleteAccountError ?? "")
             }
         }
     }
@@ -1177,6 +1217,26 @@ struct LibraryView: View {
 
     private func moveReorderItems(from source: IndexSet, to destination: Int) {
         reorderItems.move(fromOffsets: source, toOffset: destination)
+    }
+
+    private func performDeleteAccount() async {
+        guard let store, let userId = auth.userId else {
+            deleteAccountError = "Not signed in"
+            return
+        }
+        let userKey = OwnerKeyStore.userOwnerKey(userId: userId)
+        appModel.beginLibrarySync()
+        let ok = await auth.deleteAccount()
+        if ok {
+            store.clearOwnerBucket(userKey)
+            store.setOwnerKey(OwnerKeyStore.stableGuestOwnerKey)
+            appModel.syncAuth(auth)
+            appModel.endLibrarySync()
+            reload()
+        } else {
+            appModel.endLibrarySync()
+            deleteAccountError = auth.lastError ?? "Please try again."
+        }
     }
 
     private func reload() {
