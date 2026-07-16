@@ -28,7 +28,7 @@ struct AccountMenuSheet: View {
             VStack(spacing: 0) {
                 menuRow(
                     systemImage: "person.crop.rectangle.stack",
-                    title: "Switch account",
+                    title: L("you.switch_account"),
                     showsChevron: true
                 ) {
                     onSwitchAccount()
@@ -36,7 +36,7 @@ struct AccountMenuSheet: View {
 
                 menuRow(
                     systemImage: "rectangle.portrait.and.arrow.right",
-                    title: "Sign out",
+                    title: L("common.sign_out"),
                     showsChevron: false
                 ) {
                     onSignOut()
@@ -44,7 +44,7 @@ struct AccountMenuSheet: View {
 
                 menuRow(
                     systemImage: "trash",
-                    title: "Delete account",
+                    title: L("account.delete"),
                     showsChevron: false,
                     isDestructive: true
                 ) {
@@ -82,7 +82,7 @@ struct AccountMenuSheet: View {
                 Button {
                     onViewChannel()
                 } label: {
-                    Text("View your channel")
+                    Text(L("account.view_channel"))
                         .font(YTLiteType.labelEmphasized)
                         .foregroundStyle(YTLiteColor.signInBlue)
                 }

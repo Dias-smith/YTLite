@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import SwiftUI
 
 @MainActor
 final class AppModel: ObservableObject {
@@ -7,7 +8,12 @@ final class AppModel: ObservableObject {
         didSet { UserDefaults.standard.set(nightModeEnabled, forKey: "night_mode_enabled") }
     }
     @Published var languageCode: String {
-        didSet { UserDefaults.standard.set(languageCode, forKey: "app_language") }
+        didSet {
+            // Persist migrated code only — do not reassign `languageCode` here (would recurse).
+            let migrated = AppLanguage.migrateStoredCode(languageCode)
+            UserDefaults.standard.set(migrated, forKey: "app_language")
+            AppLocalization.apply(AppLanguage.fromStored(migrated))
+        }
     }
     @Published var isAuthenticated: Bool = false
     /// Bumped after library sync / account-switch adopt so Subs & Library reload.
@@ -17,9 +23,27 @@ final class AppModel: ObservableObject {
 
     let config = AppConfig.fromBundle()
 
+    var appLanguage: AppLanguage {
+        AppLanguage.fromStored(languageCode)
+    }
+
+    var resolvedLocale: Locale {
+        appLanguage.locale
+    }
+
+    var layoutDirection: LayoutDirection {
+        appLanguage.isRTL ? .rightToLeft : .leftToRight
+    }
+
     init() {
         nightModeEnabled = UserDefaults.standard.object(forKey: "night_mode_enabled") as? Bool ?? true
-        languageCode = UserDefaults.standard.string(forKey: "app_language") ?? "system"
+        let stored = UserDefaults.standard.string(forKey: "app_language") ?? AppLanguage.system.rawValue
+        let migrated = AppLanguage.migrateStoredCode(stored)
+        languageCode = migrated
+        if migrated != stored {
+            UserDefaults.standard.set(migrated, forKey: "app_language")
+        }
+        AppLocalization.apply(AppLanguage.fromStored(migrated))
         UserDefaults.standard.removeObject(forKey: "wifi_only")
         UserDefaults.standard.removeObject(forKey: "resume_enabled")
         UserDefaults.standard.removeObject(forKey: "thread_count")

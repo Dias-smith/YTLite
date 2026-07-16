@@ -21,6 +21,9 @@ struct YTLiteApp: App {
                 .environmentObject(playback)
                 .environmentObject(appModel)
                 .environmentObject(authService)
+                .environment(\.locale, appModel.resolvedLocale)
+                .environment(\.layoutDirection, appModel.layoutDirection)
+                .id(appModel.languageCode)
                 .preferredColorScheme(appModel.nightModeEnabled ? .dark : .light)
                 .task {
                     ExtractorRemoteConfigStore.restoreFromDisk()

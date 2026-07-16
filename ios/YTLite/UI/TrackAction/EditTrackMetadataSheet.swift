@@ -29,31 +29,31 @@ struct EditTrackMetadataSheet: View {
     var body: some View {
         VStack(spacing: 0) {
             YTLiteSheetGrabHandle()
-            YTLiteSheetTitle(title: "Edit info")
+            YTLiteSheetTitle(title: L("action.edit_info"))
 
             ScrollView {
                 VStack(alignment: .leading, spacing: YTLiteLayout.stackLoose) {
                     artworkSection
 
-                    fieldLabel("Title")
-                    YTLiteSheetField(placeholder: "Title", text: $titleText)
+                    fieldLabel(L("action.field_title"))
+                    YTLiteSheetField(placeholder: L("action.field_title"), text: $titleText)
 
-                    fieldLabel("Artist")
-                    YTLiteSheetField(placeholder: "Artist", text: $artistText)
+                    fieldLabel(L("action.field_artist"))
+                    YTLiteSheetField(placeholder: L("action.field_artist"), text: $artistText)
 
-                    fieldLabel("Album")
-                    YTLiteSheetField(placeholder: "Album", text: $albumText)
+                    fieldLabel(L("action.field_album"))
+                    YTLiteSheetField(placeholder: L("action.field_album"), text: $albumText)
 
-                    fieldLabel("Year")
-                    YTLiteSheetField(placeholder: "Year", text: $yearText)
+                    fieldLabel(L("action.field_year"))
+                    YTLiteSheetField(placeholder: L("action.field_year"), text: $yearText)
                 }
                 .padding(.top, 4)
                 .padding(.bottom, 20)
             }
 
             VStack(spacing: 10) {
-                YTLiteSheetPrimaryButton(title: "Save", action: save)
-                YTLiteSheetSecondaryButton(title: "Cancel") { dismiss() }
+                YTLiteSheetPrimaryButton(title: L("common.save"), action: save)
+                YTLiteSheetSecondaryButton(title: L("common.cancel")) { dismiss() }
             }
             .padding(.bottom, 28)
         }
@@ -114,15 +114,15 @@ struct EditTrackMetadataSheet: View {
         .contentShape(Rectangle())
         .onTapGesture { showArtworkOptions = true }
         .accessibilityAddTraits(.isButton)
-        .accessibilityLabel("Change artwork")
+        .accessibilityLabel(L("action.change_artwork"))
     }
 
     private var webImageSheet: some View {
         VStack(spacing: 0) {
             YTLiteSheetGrabHandle()
-            YTLiteSheetTitle(title: "网络图片")
+            YTLiteSheetTitle(title: L("action.web_image"))
 
-            Text("Paste a direct link to an image (https://…)")
+            Text(L("action.paste_image_link"))
                 .font(YTLiteType.meta)
                 .foregroundStyle(YTLiteColor.onSurfaceVariant)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -141,11 +141,11 @@ struct EditTrackMetadataSheet: View {
 
             VStack(spacing: 10) {
                 YTLiteSheetPrimaryButton(
-                    title: "Apply",
+                    title: L("common.apply"),
                     enabled: isValidWebURL(webURLDraft),
                     action: applyWebURL
                 )
-                YTLiteSheetSecondaryButton(title: "Cancel") { showWebImageSheet = false }
+                YTLiteSheetSecondaryButton(title: L("common.cancel")) { showWebImageSheet = false }
             }
             .padding(.bottom, 28)
         }
@@ -180,7 +180,7 @@ struct EditTrackMetadataSheet: View {
                   let token = TrackThumbnailStorage.save(image, trackId: context.videoId)
             else {
                 await MainActor.run {
-                    trackActions.showToast("Couldn't update artwork")
+                    trackActions.showToast(L("error.artwork_update"))
                 }
                 return
             }
@@ -189,7 +189,7 @@ struct EditTrackMetadataSheet: View {
             }
         } catch {
             await MainActor.run {
-                trackActions.showToast("Couldn't update artwork")
+                trackActions.showToast(L("error.artwork_update"))
             }
         }
     }
@@ -219,7 +219,7 @@ struct EditTrackMetadataSheet: View {
             customAlbum: albumText,
             customYear: yearText
         )
-        trackActions.showToast("Saved")
+        trackActions.showToast(L("toast.saved"))
         trackActions.notifyListsChanged()
         dismiss()
     }
@@ -243,11 +243,11 @@ private struct ChangeArtworkOptionsSheet: View {
     var body: some View {
         VStack(spacing: 0) {
             YTLiteSheetGrabHandle()
-            YTLiteSheetTitle(title: "Change artwork")
+            YTLiteSheetTitle(title: L("action.change_artwork"))
             Divider().overlay(YTLiteColor.surfaceVariant)
-            YTLiteSheetActionRow(systemImage: "photo", title: "相册", action: onChoosePhoto)
-            YTLiteSheetActionRow(systemImage: "link", title: "网络图片", action: onWebImage)
-            YTLiteSheetActionRow(systemImage: "xmark", title: "Cancel") { dismiss() }
+            YTLiteSheetActionRow(systemImage: "photo", title: L("action.photo_library"), action: onChoosePhoto)
+            YTLiteSheetActionRow(systemImage: "link", title: L("action.web_image"), action: onWebImage)
+            YTLiteSheetActionRow(systemImage: "xmark", title: L("common.cancel")) { dismiss() }
             Spacer(minLength: 12)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)

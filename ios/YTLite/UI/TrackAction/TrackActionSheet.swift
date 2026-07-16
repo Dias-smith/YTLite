@@ -29,34 +29,34 @@ struct TrackActionSheet: View {
                 VStack(spacing: 0) {
                     actionRow(
                         systemImage: isLiked ? "hand.thumbsup.fill" : "hand.thumbsup",
-                        title: isLiked ? "Unlike" : "Like"
+                        title: isLiked ? "Unlike" : L("player.like")
                     ) { toggleLike() }
 
-                    actionRow(systemImage: "text.insert", title: "Play next") {
+                    actionRow(systemImage: "text.insert", title: L("action.play_next")) {
                         playback.insertNext(context.asVideoItem)
-                        trackActions.showToast("Playing next")
+                        trackActions.showToast(L("toast.playing_next"))
                         dismiss()
                     }
 
-                    actionRow(systemImage: "plus.rectangle.on.rectangle", title: "Add to queue") {
+                    actionRow(systemImage: "plus.rectangle.on.rectangle", title: L("action.add_to_queue")) {
                         playback.appendToQueue(context.asVideoItem)
-                        trackActions.showToast("Added to queue")
+                        trackActions.showToast(L("toast.added_to_queue"))
                         dismiss()
                     }
 
-                    actionRow(systemImage: "bookmark", title: "Save to library") {
+                    actionRow(systemImage: "bookmark", title: L("action.save_to_library")) {
                         trackActions.openPlaylistPicker()
                     }
 
-                    actionRow(systemImage: "pencil", title: "Edit info") {
+                    actionRow(systemImage: "pencil", title: L("action.edit_info")) {
                         trackActions.openEditInfo()
                     }
 
-                    actionRow(systemImage: "text.alignleft", title: "View lyrics") {
+                    actionRow(systemImage: "text.alignleft", title: L("action.view_lyrics")) {
                         trackActions.openLyrics()
                     }
 
-                    actionRow(systemImage: "square.and.arrow.up", title: "Share") {
+                    actionRow(systemImage: "square.and.arrow.up", title: L("common.share")) {
                         showShareSheet = true
                     }
 
@@ -68,11 +68,11 @@ struct TrackActionSheet: View {
                     if context.canRemoveFromPlaylist, let playlistId = context.playlistId {
                         Divider().overlay(YTLiteColor.surfaceVariant)
                             .padding(.vertical, 4)
-                        actionRow(systemImage: "trash", title: "Remove from playlist") {
+                        actionRow(systemImage: "trash", title: L("action.remove_from_playlist")) {
                             if let playlist = store?.playlist(id: playlistId) {
                                 store?.remove(trackId: context.videoId, from: playlist)
                                 trackActions.notifyListsChanged()
-                                trackActions.showToast("Removed from playlist")
+                                trackActions.showToast(L("toast.removed_from_playlist"))
                             }
                             dismiss()
                         }

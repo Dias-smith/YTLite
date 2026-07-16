@@ -19,7 +19,7 @@ struct TrackLyricsSheet: View {
                         .tint(YTLiteColor.accent)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if tracks.isEmpty {
-                    Text(errorMessage ?? "No lyrics / captions available for this video.")
+                    Text(errorMessage ?? L("player.lyrics_empty"))
                         .font(YTLiteType.body)
                         .foregroundStyle(YTLiteColor.onSurfaceVariant)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -53,11 +53,11 @@ struct TrackLyricsSheet: View {
                 }
             }
             .background(YTLiteColor.background)
-            .navigationTitle("Lyrics")
+            .navigationTitle(L("player.lyrics"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Close") { dismiss() }
+                    Button(L("common.close")) { dismiss() }
                 }
             }
             .task { await loadTracks() }
@@ -77,7 +77,7 @@ struct TrackLyricsSheet: View {
             selected = CaptionService.pickDefault(tracks)
             await loadText()
             if tracks.isEmpty {
-                errorMessage = "No lyrics / captions available for this video."
+                errorMessage = L("player.lyrics_empty")
             }
         } catch {
             errorMessage = error.localizedDescription

@@ -5,9 +5,17 @@ private enum LibraryRoute {
 }
 
 private enum LibraryFilter: String, CaseIterable {
-    case playlists = "Playlists"
-    case songs = "Songs"
-    case channels = "Channels"
+    case playlists
+    case songs
+    case channels
+
+    var title: String {
+        switch self {
+        case .playlists: return L("library.filter.playlists")
+        case .songs: return L("library.filter.songs")
+        case .channels: return L("library.filter.channels")
+        }
+    }
 }
 
 private enum LibrarySortMode: String, CaseIterable, Identifiable {
@@ -21,11 +29,11 @@ private enum LibrarySortMode: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .recentActivity: return "Recent activity"
-        case .recentlySaved: return "Recently saved"
-        case .title: return "Title A–Z"
-        case .duration: return "Duration"
-        case .custom: return "Custom order"
+        case .recentActivity: return L("library.sort.recent_activity")
+        case .recentlySaved: return L("library.sort.recently_saved")
+        case .title: return L("library.sort.title_asc")
+        case .duration: return L("library.sort.duration")
+        case .custom: return L("library.sort.custom")
         }
     }
 }
@@ -104,7 +112,7 @@ struct LibraryView: View {
                     Button {
                         showNewPlaylist = true
                     } label: {
-                        Text("+ New")
+                        Text(L("library.new"))
                             .font(YTLiteType.labelEmphasized)
                             .foregroundStyle(YTLiteColor.onSurface)
                             .padding(.horizontal, 18)
@@ -125,7 +133,7 @@ struct LibraryView: View {
                             ProgressView()
                                 .tint(YTLiteColor.accent)
                                 .scaleEffect(1.15)
-                            Text("Syncing library…")
+                            Text(L("library.syncing"))
                                 .font(YTLiteType.meta.weight(.semibold))
                                 .foregroundStyle(YTLiteColor.onSurface)
                         }
@@ -162,13 +170,13 @@ struct LibraryView: View {
                 reload()
             }
             .alert(
-                "Unsubscribe?",
+                L("library.unsubscribe"),
                 isPresented: Binding(
                     get: { channelPendingUnsubscribe != nil },
                     set: { if !$0 { channelPendingUnsubscribe = nil } }
                 )
             ) {
-                Button("Unsubscribe", role: .destructive) {
+                Button(L("library.unsubscribe"), role: .destructive) {
                     if let channel = channelPendingUnsubscribe {
                         _ = store?.toggleSubscribeChannel(
                             channelId: channel.channelId,
@@ -180,12 +188,15 @@ struct LibraryView: View {
                     }
                     channelPendingUnsubscribe = nil
                 }
-                Button("Cancel", role: .cancel) {
+                Button(L("common.cancel"), role: .cancel) {
                     channelPendingUnsubscribe = nil
                 }
             } message: {
                 Text(
-                    "Unsubscribe from \"\(channelPendingUnsubscribe?.title ?? "channel")\"?"
+                    Lf(
+                        "library.unsubscribe_named",
+                        channelPendingUnsubscribe?.title ?? L("common.channel_lowercase")
+                    )
                 )
             }
             .sheet(isPresented: $showSortMenu) {
@@ -211,22 +222,22 @@ struct LibraryView: View {
             .sheet(isPresented: $showNewPlaylist) {
                 NavigationStack {
                     Form {
-                        TextField("Name", text: $newPlaylistName)
+                        TextField(L("common.name"), text: $newPlaylistName)
                             .foregroundStyle(YTLiteColor.onSurface)
                     }
                     .scrollContentBackground(.hidden)
                     .background(YTLiteColor.background)
-                    .navigationTitle("New playlist")
+                    .navigationTitle(L("library.new_playlist"))
                     .navigationBarTitleDisplayMode(.inline)
                     .toolbar {
                         ToolbarItem(placement: .cancellationAction) {
-                            Button("Cancel") {
+                            Button(L("common.cancel")) {
                                 newPlaylistName = ""
                                 showNewPlaylist = false
                             }
                         }
                         ToolbarItem(placement: .confirmationAction) {
-                            Button("Create") {
+                            Button(L("common.create")) {
                                 let name = newPlaylistName.trimmingCharacters(in: .whitespacesAndNewlines)
                                 if !name.isEmpty {
                                     _ = store?.createPlaylist(name: name)
@@ -252,7 +263,7 @@ struct LibraryView: View {
                             deleteSelected()
                             showDeleteConfirm = false
                         } label: {
-                            Text(filter == .channels ? "Unsubscribe" : "Delete")
+                            Text(filter == .channels ? L("library.unsubscribe") : L("common.delete"))
                                 .font(YTLiteType.labelEmphasized)
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 12)
@@ -262,7 +273,7 @@ struct LibraryView: View {
                         Button {
                             showDeleteConfirm = false
                         } label: {
-                            Text("Cancel")
+                            Text(L("common.cancel"))
                                 .font(YTLiteType.labelEmphasized)
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 12)
@@ -271,7 +282,7 @@ struct LibraryView: View {
                     }
                     .padding(YTLiteLayout.screenPadding)
                     .background(YTLiteColor.background)
-                    .navigationTitle(filter == .channels ? "Unsubscribe?" : "Delete selected?")
+                    .navigationTitle(filter == .channels ? L("library.unsubscribe") : L("common.delete"))
                     .navigationBarTitleDisplayMode(.inline)
                 }
                 .presentationDetents([.medium])
@@ -286,7 +297,7 @@ struct LibraryView: View {
                             || $0.systemType == SystemPlaylistType.favorites
                             || $0.systemType == SystemPlaylistType.watchLater
                     },
-                    title: "Add to playlist",
+                    title: L("library.add_to_playlist"),
                     displayName: { displayName(for: $0) },
                     onSelect: { playlist in
                         addSelectedSongs(to: playlist)
@@ -349,23 +360,23 @@ struct LibraryView: View {
                 "Delete account?",
                 isPresented: $showDeleteAccountConfirm
             ) {
-                Button("Delete account", role: .destructive) {
+                Button(L("account.delete"), role: .destructive) {
                     Task { await performDeleteAccount() }
                 }
-                Button("Cancel", role: .cancel) {}
+                Button(L("common.cancel"), role: .cancel) {}
             } message: {
                 Text(
                     "This permanently deletes your YTLite account and cloud library data (playlists, history, subscriptions, and metadata). This can't be undone."
                 )
             }
             .alert(
-                "Couldn't delete account",
+                L("account.delete_failed"),
                 isPresented: Binding(
                     get: { deleteAccountError != nil },
                     set: { if !$0 { deleteAccountError = nil } }
                 )
             ) {
-                Button("OK", role: .cancel) { deleteAccountError = nil }
+                Button(L("common.ok"), role: .cancel) { deleteAccountError = nil }
             } message: {
                 Text(deleteAccountError ?? "")
             }
@@ -376,7 +387,7 @@ struct LibraryView: View {
 
     private var header: some View {
         HStack(alignment: .center) {
-            Text("Library")
+            Text(L("library.title"))
                 .font(YTLiteType.pageTitle)
                 .foregroundStyle(YTLiteColor.onSurface)
             Spacer()
@@ -391,7 +402,7 @@ struct LibraryView: View {
                     )
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Account")
+                .accessibilityLabel(L("common.account"))
             } else {
                 Button {
                     Task {
@@ -406,7 +417,7 @@ struct LibraryView: View {
                         .foregroundStyle(YTLiteColor.onSurfaceVariant)
                 }
                 .disabled(auth.isBusy)
-                .accessibilityLabel("Sign in")
+                .accessibilityLabel(L("common.sign_in"))
             }
             NavigationLink {
                 SettingsView()
@@ -430,7 +441,7 @@ struct LibraryView: View {
                     .foregroundStyle(YTLiteColor.onSurface)
                     .frame(width: 36, height: 36)
             }
-            Text("\(selectedIds.count) selected")
+            Text(Lf("common.n_selected", selectedIds.count))
                 .font(YTLiteType.sectionTitle)
                 .foregroundStyle(YTLiteColor.onSurface)
             Spacer()
@@ -474,11 +485,11 @@ struct LibraryView: View {
 
     private var reorderHeader: some View {
         HStack {
-            Text("Reorder playlists")
+            Text(L("library.reorder"))
                 .font(YTLiteType.sectionTitle)
                 .foregroundStyle(YTLiteColor.onSurface)
             Spacer()
-            Button("Done") {
+            Button(L("common.done")) {
                 exitReorderMode(save: true)
             }
             .font(YTLiteType.labelEmphasized)
@@ -491,7 +502,7 @@ struct LibraryView: View {
     private var filterChips: some View {
         HStack(spacing: YTLiteLayout.stackDefault) {
             ForEach(LibraryFilter.allCases, id: \.self) { item in
-                YTLiteChip(title: item.rawValue, selected: filter == item) {
+                YTLiteChip(title: item.title, selected: filter == item) {
                     filter = item
                 }
             }
@@ -502,7 +513,7 @@ struct LibraryView: View {
 
     private var listControls: some View {
         HStack {
-            Text("\(displayItemCount) items")
+            Text(Lf("common.n_items", displayItemCount))
                 .font(YTLiteType.body)
                 .foregroundStyle(YTLiteColor.onSurfaceVariant)
             Spacer()
@@ -610,10 +621,10 @@ struct LibraryView: View {
                 Image(systemName: "person.2")
                     .font(.system(size: 40, weight: .light))
                     .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                Text("No channels yet")
+                Text(L("library.no_channels"))
                     .font(YTLiteType.sectionTitle)
                     .foregroundStyle(YTLiteColor.onSurface)
-                Text("Subscribe from the player to follow channels here.")
+                Text(L("library.no_channels_hint"))
                     .font(YTLiteType.body)
                     .foregroundStyle(YTLiteColor.onSurfaceVariant)
                     .multilineTextAlignment(.center)
@@ -841,7 +852,7 @@ struct LibraryView: View {
     private var songsContent: some View {
         let songs = displayedSongs
         if songs.isEmpty {
-            Text("No plays yet")
+            Text(L("library.no_plays"))
                 .foregroundStyle(YTLiteColor.onSurfaceVariant)
                 .padding()
         } else if viewMode == .grid {
@@ -1147,11 +1158,11 @@ struct LibraryView: View {
     private var deleteConfirmMessage: String {
         switch filter {
         case .playlists:
-            return "Delete \(selectedIds.count) playlist(s)? System playlists are skipped."
+            return Lf("library.delete_playlists", selectedIds.count)
         case .songs:
-            return "Remove \(selectedIds.count) song(s) from all playlists?"
+            return Lf("library.remove_songs", selectedIds.count)
         case .channels:
-            return "Unsubscribe from \(selectedIds.count) channel(s)?"
+            return Lf("library.unsubscribe_n", selectedIds.count)
         }
     }
 
@@ -1307,8 +1318,8 @@ struct LibraryView: View {
 
     private func displayName(for playlist: LibraryPlaylist) -> String {
         switch playlist.systemType {
-        case SystemPlaylistType.favorites: return "Liked videos"
-        case SystemPlaylistType.watchLater: return "Watch later"
+        case SystemPlaylistType.favorites: return L("library.liked")
+        case SystemPlaylistType.watchLater: return L("library.watch_later")
         default: return playlist.name
         }
     }
@@ -1367,7 +1378,7 @@ private struct LibrarySortSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             YTLiteSheetGrabHandle()
-            YTLiteSheetTitle(title: "Sort by")
+            YTLiteSheetTitle(title: L("library.sort_by"))
             Divider().overlay(YTLiteColor.surfaceVariant)
 
             ForEach(options) { option in
@@ -1383,7 +1394,7 @@ private struct LibrarySortSheet: View {
             if showsReorderPlaylists {
                 YTLiteSheetActionRow(
                     systemImage: "line.3.horizontal",
-                    title: "Reorder playlists",
+                    title: L("library.reorder"),
                     action: onReorderPlaylists
                 )
             }
@@ -1422,17 +1433,22 @@ private struct PlaylistDisplayItem: Identifiable {
         }()
         let title: String = {
             switch playlist.systemType {
-            case SystemPlaylistType.favorites: return "Liked videos"
-            case SystemPlaylistType.watchLater: return "Watch later"
+            case SystemPlaylistType.favorites: return L("library.liked")
+            case SystemPlaylistType.watchLater: return L("library.watch_later")
             default: return playlist.name
             }
         }()
-        let kind = playlist.systemType == nil ? "Playlist" : "System"
+        let subtitle: String = {
+            if playlist.systemType == nil {
+                return Lf("common.kind_n_songs", L("common.playlist"), playlist.trackCount)
+            }
+            return Lf("common.system_n_songs", playlist.trackCount)
+        }()
         return PlaylistDisplayItem(
             id: playlist.playlistId,
             playlist: playlist,
             title: title,
-            subtitle: "\(kind) · \(playlist.trackCount) songs",
+            subtitle: subtitle,
             cover: cover,
             coverURL: PlaylistCoverStorage.resolveURL(playlist.coverUrlOrPath),
             systemType: playlist.systemType
@@ -1443,8 +1459,8 @@ private struct PlaylistDisplayItem: Identifiable {
         PlaylistDisplayItem(
             id: LibraryRoute.history,
             playlist: nil,
-            title: "History",
-            subtitle: "System · \(songCount) songs",
+            title: L("library.history"),
+            subtitle: Lf("common.system_n_songs", songCount),
             cover: .history,
             coverURL: nil,
             systemType: "history"
@@ -1559,7 +1575,7 @@ struct HistoryDetailView: View {
         ScrollView {
             LazyVStack(spacing: 0) {
                 if tracks.isEmpty {
-                    Text("No plays yet")
+                    Text(L("library.no_plays"))
                         .foregroundStyle(YTLiteColor.onSurfaceVariant)
                         .padding()
                 } else {
@@ -1578,7 +1594,7 @@ struct HistoryDetailView: View {
             }
         }
         .background(YTLiteColor.background)
-        .navigationTitle("History")
+        .navigationTitle(L("library.history"))
         .toolbar(.visible, for: .navigationBar)
         .toolbarBackground(YTLiteColor.background, for: .navigationBar)
         .onAppear { reload() }
@@ -1605,7 +1621,7 @@ private extension UserSubscribedChannel {
             subtitle: {
                 if let subscriberCountText, !subscriberCountText.isEmpty { return subscriberCountText }
                 if let handle, !handle.isEmpty { return handle }
-                return "Channel"
+                return L("common.channel")
             }(),
             thumbnailURL: avatarUrl.flatMap(URL.init(string:))
         )

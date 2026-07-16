@@ -2,9 +2,16 @@ import SwiftUI
 import AVKit
 
 private enum PlayerTab: String, CaseIterable {
-    case upNext = "Up next"
+    case upNext
     // Lyrics tab temporarily hidden.
-    case related = "Related"
+    case related
+
+    var title: String {
+        switch self {
+        case .upNext: return L("player.up_next")
+        case .related: return L("player.related")
+        }
+    }
 }
 
 private enum PlayerListSort: String, CaseIterable {
@@ -16,8 +23,8 @@ private enum PlayerListSort: String, CaseIterable {
     var title: String {
         switch self {
         case .original: return "Original order"
-        case .titleAsc: return "Title A–Z"
-        case .titleDesc: return "Title Z–A"
+        case .titleAsc: return L("library.sort.title_asc")
+        case .titleDesc: return L("library.sort.title_desc")
         case .artistAsc: return "Artist A–Z"
         }
     }
@@ -284,7 +291,7 @@ struct PlayerDetailView: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Sleep timer")
+                .accessibilityLabel(L("player.sleep_timer"))
 
                 Button {
                     showSpeedSheet = true
@@ -436,9 +443,9 @@ struct PlayerDetailView: View {
             Button {
                 guard canSubscribe else { return }
                 let nowSubscribed = playback.toggleChannelSubscribe()
-                subscribeToast = nowSubscribed ? "Subscribed" : "Unsubscribed"
+                subscribeToast = nowSubscribed ? L("player.subscribed") : L("player.unsubscribed")
             } label: {
-                Text(subscribed ? "Subscribed" : "Subscribe")
+                Text(subscribed ? L("player.subscribed") : L("player.subscribe"))
                     .font(YTLiteType.badge)
                     .foregroundStyle(subscribed ? YTLiteColor.onSurfaceVariant : YTLiteColor.onSurface)
                     .padding(.horizontal, YTLiteLayout.stackLoose)
@@ -515,26 +522,26 @@ struct PlayerDetailView: View {
     private var actionBar: some View {
         HStack(spacing: 0) {
             actionItem(
-                title: "Like",
+                title: L("player.like"),
                 icon: playback.isFavorite ? "hand.thumbsup.fill" : "hand.thumbsup",
                 tint: playback.isFavorite ? YTLiteColor.accent : YTLiteColor.onSurface
             ) {
                 playback.toggleFavorite()
             }
             actionItem(
-                title: "Dislike",
+                title: L("player.dislike"),
                 icon: playback.isDisliked ? "hand.thumbsdown.fill" : "hand.thumbsdown",
                 tint: playback.isDisliked ? YTLiteColor.accent : YTLiteColor.onSurface
             ) {
                 playback.toggleDislike()
             }
-            actionItem(title: "Share", icon: "arrowshape.turn.up.right") {
+            actionItem(title: L("common.share"), icon: "arrowshape.turn.up.right") {
                 if let item = playback.nowPlaying {
                     shareURL = item.watchShareURL
                     showShareSheet = true
                 }
             }
-            actionItem(title: "Save", icon: "bookmark") {
+            actionItem(title: L("common.save"), icon: "bookmark") {
                 showAddPlaylist = true
             }
         }
@@ -626,7 +633,7 @@ struct PlayerDetailView: View {
     private var tabHeader: some View {
         HStack(spacing: YTLiteLayout.stackDefault) {
             ForEach(PlayerTab.allCases, id: \.self) { item in
-                YTLiteChip(title: item.rawValue, selected: tab == item) {
+                YTLiteChip(title: item.title, selected: tab == item) {
                     tab = item
                 }
             }
@@ -706,7 +713,7 @@ struct PlayerDetailView: View {
             }
             .buttonStyle(.plain)
 
-            Text("\(selectedIds.count) selected")
+            Text(Lf("common.n_selected", selectedIds.count))
                 .font(YTLiteType.body)
                 .foregroundStyle(YTLiteColor.onSurface)
                 .lineLimit(1)
@@ -726,7 +733,7 @@ struct PlayerDetailView: View {
             }
             .buttonStyle(.plain)
             .disabled(allSelected)
-            .accessibilityLabel("Select all")
+            .accessibilityLabel(L("common.select_all"))
 
             Button {
                 selectedIds.removeAll()
@@ -739,7 +746,7 @@ struct PlayerDetailView: View {
             }
             .buttonStyle(.plain)
             .disabled(selectedIds.isEmpty)
-            .accessibilityLabel("Deselect all")
+            .accessibilityLabel(L("common.deselect_all"))
 
             Button {
                 showBatchAdd = true
@@ -752,7 +759,7 @@ struct PlayerDetailView: View {
             }
             .buttonStyle(.plain)
             .disabled(selectedIds.isEmpty)
-            .accessibilityLabel("Add to playlist")
+            .accessibilityLabel(L("player.add_to_playlist"))
 
             if tab == .upNext {
                 Button {
@@ -767,7 +774,7 @@ struct PlayerDetailView: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(selectedIds.isEmpty)
-                .accessibilityLabel("Remove from queue")
+                .accessibilityLabel(L("player.remove_from_queue"))
             }
         }
     }
@@ -835,7 +842,7 @@ struct PlayerDetailView: View {
                     .foregroundStyle(YTLiteColor.onSurfaceVariant)
                     .padding(.vertical, YTLiteLayout.screenPadding)
             } else if related.isEmpty {
-                Text("No related videos")
+                Text(L("player.no_related"))
                     .font(YTLiteType.body)
                     .foregroundStyle(YTLiteColor.onSurfaceVariant)
                     .padding(.vertical, YTLiteLayout.screenPadding)
@@ -1137,7 +1144,7 @@ struct SpeedPickerSheet: View {
                     HStack {
                         Text(
                             speed == 1
-                                ? "Normal (\(PlaybackSpeeds.formatLabel(speed)))"
+                                ? Lf("player.normal_speed", PlaybackSpeeds.formatLabel(speed))
                                 : PlaybackSpeeds.formatLabel(speed)
                         )
                         .foregroundStyle(YTLiteColor.onSurface)
@@ -1152,11 +1159,11 @@ struct SpeedPickerSheet: View {
             }
             .scrollContentBackground(.hidden)
             .background(YTLiteColor.background)
-            .navigationTitle("Playback speed")
+            .navigationTitle(L("player.playback_speed"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Close") { dismiss() }
+                    Button(L("common.close")) { dismiss() }
                 }
             }
         }
@@ -1190,11 +1197,11 @@ struct SleepTimerSheet: View {
             }
             .scrollContentBackground(.hidden)
             .background(YTLiteColor.background)
-            .navigationTitle("Sleep timer")
+            .navigationTitle(L("player.sleep_timer"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Close") { dismiss() }
+                    Button(L("common.close")) { dismiss() }
                 }
             }
         }
@@ -1209,7 +1216,7 @@ private struct PlayerListSortSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             YTLiteSheetGrabHandle()
-            YTLiteSheetTitle(title: "Sort by")
+            YTLiteSheetTitle(title: L("library.sort_by"))
             Divider().overlay(YTLiteColor.surfaceVariant)
 
             ForEach(PlayerListSort.allCases, id: \.self) { option in
@@ -1239,7 +1246,7 @@ struct AddToPlaylistSheet: View {
     @State private var newName = ""
 
     private var title: String {
-        items.count > 1 ? "Save \(items.count) songs" : "Save to playlist"
+        items.count > 1 ? Lf("common.n_songs", items.count) : L("library.save_to")
     }
 
     var body: some View {
@@ -1262,7 +1269,7 @@ struct AddToPlaylistSheet: View {
                 .padding(.bottom, 12)
             }
 
-            YTLiteSheetPrimaryButton(title: "New playlist") {
+            YTLiteSheetPrimaryButton(title: L("player.new_playlist")) {
                 newName = ""
                 showCreate = true
             }
@@ -1282,22 +1289,22 @@ struct AddToPlaylistSheet: View {
     private var createPlaylistSheet: some View {
         VStack(spacing: 0) {
             YTLiteSheetGrabHandle()
-            YTLiteSheetTitle(title: "New playlist")
+            YTLiteSheetTitle(title: L("player.new_playlist"))
 
-            Text("Name")
+            Text(L("common.name"))
                 .font(YTLiteType.meta)
                 .foregroundStyle(YTLiteColor.onSurfaceVariant)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, YTLiteLayout.screenPadding)
                 .padding(.bottom, 6)
 
-            YTLiteSheetField(placeholder: "Playlist name", text: $newName)
+            YTLiteSheetField(placeholder: L("common.name"), text: $newName)
 
             Spacer(minLength: 20)
 
             VStack(spacing: 10) {
                 YTLiteSheetPrimaryButton(
-                    title: "Create",
+                    title: L("common.create"),
                     enabled: !newName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                 ) {
                     let name = newName.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -1306,7 +1313,7 @@ struct AddToPlaylistSheet: View {
                     showCreate = false
                     save(to: playlist)
                 }
-                YTLiteSheetSecondaryButton(title: "Cancel") {
+                YTLiteSheetSecondaryButton(title: L("common.cancel")) {
                     newName = ""
                     showCreate = false
                 }
@@ -1331,8 +1338,8 @@ struct AddToPlaylistSheet: View {
 
     private func displayName(_ playlist: LibraryPlaylist) -> String {
         switch playlist.systemType {
-        case SystemPlaylistType.favorites: return "Liked videos"
-        case SystemPlaylistType.watchLater: return "Watch later"
+        case SystemPlaylistType.favorites: return L("library.liked")
+        case SystemPlaylistType.watchLater: return L("library.watch_later")
         default: return playlist.name
         }
     }

@@ -31,6 +31,7 @@ targets:
         DEVELOPMENT_TEAM: ""
         SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited)"
         VALIDATE_PRODUCT: NO
+        DEVELOPMENT_LANGUAGE: en
     configFiles:
       Debug: Config/Debug.xcconfig
       Release: Config/Release.xcconfig

@@ -48,12 +48,12 @@ struct YouView: View {
             SubsEmptyGraphic()
                 .frame(width: 120, height: 100)
 
-            Text("Don't miss new videos")
+            Text(L("you.dont_miss"))
                 .font(YTLiteType.emptyTitle)
                 .foregroundStyle(YTLiteColor.onSurface)
                 .multilineTextAlignment(.center)
 
-            Text("Sign in to see updates from your favorite YouTube channels")
+            Text(L("you.sign_in_desc"))
                 .font(YTLiteType.body)
                 .foregroundStyle(YTLiteColor.onSurfaceVariant)
                 .multilineTextAlignment(.center)
@@ -76,7 +76,7 @@ struct YouView: View {
                     }
                 }
             } label: {
-                Text(auth.isBusy ? "Signing in…" : "Sign in")
+                Text(auth.isBusy ? L("common.signing_in") : L("common.sign_in"))
                     .font(YTLiteType.labelEmphasized)
                     .foregroundStyle(YTLiteColor.onSurface)
                     .padding(.horizontal, 28)
@@ -116,11 +116,11 @@ struct YouView: View {
                 }
 
                 youSection(
-                    title: "Subscriptions",
+                    title: L("you.subscriptions"),
                     isEmpty: viewModel.channels.isEmpty,
                     emptyText: viewModel.needsYoutubeReauth
                         ? "Sign in again to grant YouTube access"
-                        : "No channel subscriptions on this YouTube account",
+                        : L("you.channels_empty"),
                     emptySystemImage: "person.2",
                     showViewAll: !viewModel.channels.isEmpty
                 ) {
@@ -144,16 +144,16 @@ struct YouView: View {
                 }
 
                 youSection(
-                    title: "Playlists",
+                    title: L("you.playlists"),
                     isEmpty: viewModel.playlists.isEmpty,
                     emptyText: viewModel.needsYoutubeReauth
                         ? "Sign in again to grant YouTube access"
-                        : "No playlists on this YouTube account",
+                        : L("you.playlists_empty"),
                     emptySystemImage: "list.bullet.rectangle",
                     showViewAll: !viewModel.playlists.isEmpty
                 ) {
                     Button {
-                        trackActions.showToast("Creating playlists isn't available here yet")
+                        trackActions.showToast(L("toast.create_playlist_unavailable"))
                     } label: {
                         Image(systemName: "plus")
                             .font(.system(size: 16, weight: .semibold))
@@ -161,7 +161,7 @@ struct YouView: View {
                             .frame(width: 36, height: 36)
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("New playlist")
+                    .accessibilityLabel(L("you.new_playlist"))
                 } viewAll: {
                     YouPlaylistsListView(playlists: viewModel.playlists)
                 } content: {
@@ -189,11 +189,11 @@ struct YouView: View {
                 }
 
                 youSection(
-                    title: "Liked videos",
+                    title: L("you.liked"),
                     isEmpty: viewModel.liked.isEmpty,
                     emptyText: viewModel.needsYoutubeReauth
                         ? "Sign in again to grant YouTube access"
-                        : "No liked videos on this YouTube account",
+                        : L("you.playlist_empty"),
                     emptySystemImage: "hand.thumbsup",
                     showViewAll: !viewModel.liked.isEmpty
                 ) {
@@ -201,7 +201,7 @@ struct YouView: View {
                 } viewAll: {
                     YoutubePlaylistItemsView(
                         playlistId: viewModel.likedPlaylistId ?? "LL",
-                        title: "Liked videos"
+                        title: L("you.liked")
                     )
                 } content: {
                     ScrollView(.horizontal, showsIndicators: false) {
@@ -238,10 +238,10 @@ struct YouView: View {
 
     private var youtubeReauthBanner: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("YouTube access needed")
+            Text(L("you.access_needed"))
                 .font(YTLiteType.rowTitle)
                 .foregroundStyle(YTLiteColor.onSurface)
-            Text("Switch account or sign in again to grant YouTube readonly access for subscriptions.")
+            Text(L("you.access_desc"))
                 .font(YTLiteType.meta)
                 .foregroundStyle(YTLiteColor.onSurfaceVariant)
             Button {
@@ -254,7 +254,7 @@ struct YouView: View {
                     )
                 }
             } label: {
-                Text("Grant access")
+                Text(L("you.grant_access"))
                     .font(YTLiteType.labelEmphasized)
                     .foregroundStyle(YTLiteColor.onSurface)
                     .padding(.horizontal, 16)
@@ -305,7 +305,7 @@ struct YouView: View {
                         )
                     }
                 } label: {
-                    Text("Switch account")
+                    Text(L("you.switch_account"))
                         .font(YTLiteType.labelEmphasized)
                         .foregroundStyle(YTLiteColor.onSurface)
                         .frame(maxWidth: .infinity)
@@ -322,7 +322,7 @@ struct YouView: View {
                         viewModel.clear()
                     }
                 } label: {
-                    Text("Sign out")
+                    Text(L("common.sign_out"))
                         .font(YTLiteType.labelEmphasized)
                         .foregroundStyle(YTLiteColor.onSurface)
                         .frame(maxWidth: .infinity)
@@ -362,7 +362,7 @@ struct YouView: View {
                         viewAll()
                     } label: {
                         HStack(spacing: 2) {
-                            Text("View all")
+                            Text(L("common.view_all"))
                                 .font(YTLiteType.meta.weight(.semibold))
                             Image(systemName: "chevron.right")
                                 .font(.system(size: 12, weight: .semibold))
@@ -528,9 +528,9 @@ struct SubscriptionChannelsListView: View {
         Group {
             if channels.isEmpty {
                 ContentUnavailableView(
-                    "No subscriptions",
+                    L("you.subscriptions"),
                     systemImage: "person.2",
-                    description: Text("Channels from your YouTube account appear here")
+                    description: Text(L("you.channels_empty"))
                 )
             } else {
                 List(channels) { channel in
@@ -548,7 +548,7 @@ struct SubscriptionChannelsListView: View {
                                     .font(YTLiteType.rowTitle)
                                     .foregroundStyle(YTLiteColor.onSurface)
                                     .lineLimit(1)
-                                Text("Channel")
+                                Text(L("common.channel"))
                                     .font(YTLiteType.meta)
                                     .foregroundStyle(YTLiteColor.onSurfaceVariant)
                                     .lineLimit(1)
@@ -561,7 +561,7 @@ struct SubscriptionChannelsListView: View {
             }
         }
         .background(YTLiteColor.background)
-        .navigationTitle("Subscriptions")
+        .navigationTitle(L("you.subscriptions"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(YTLiteColor.background, for: .navigationBar)
     }
@@ -574,9 +574,9 @@ struct YouPlaylistsListView: View {
         Group {
             if playlists.isEmpty {
                 ContentUnavailableView(
-                    "No playlists",
+                    L("you.playlists"),
                     systemImage: "list.bullet.rectangle",
-                    description: Text("Playlists from your YouTube account appear here")
+                    description: Text(L("you.playlists_empty"))
                 )
             } else {
                 List(playlists) { playlist in
@@ -611,7 +611,7 @@ struct YouPlaylistsListView: View {
             }
         }
         .background(YTLiteColor.background)
-        .navigationTitle("Playlists")
+        .navigationTitle(L("you.playlists"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(YTLiteColor.background, for: .navigationBar)
     }
@@ -638,15 +638,15 @@ struct YoutubePlaylistItemsView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if let errorMessage {
                 ContentUnavailableView(
-                    "Couldn't load playlist",
+                    L("error.load_playlist"),
                     systemImage: "exclamationmark.triangle",
                     description: Text(errorMessage)
                 )
             } else if items.isEmpty {
                 ContentUnavailableView(
-                    "No videos",
+                    L("library.empty_playlist"),
                     systemImage: "play.rectangle",
-                    description: Text("This playlist has no videos")
+                    description: Text(L("you.playlist_empty"))
                 )
             } else {
                 List(Array(items.enumerated()), id: \.element.id) { index, item in
@@ -775,7 +775,7 @@ struct ChannelSearchView: View {
         }
         .scrollContentBackground(.hidden)
         .background(YTLiteColor.background)
-        .navigationTitle("Channels")
+        .navigationTitle(L("you.channels"))
         .searchable(text: $query, prompt: "Search channels")
         .onSubmit(of: .search) { Task { await search() } }
         .overlay { if isLoading { ProgressView().tint(YTLiteColor.accent) } }
@@ -811,7 +811,7 @@ struct PlaylistSearchView: View {
         }
         .scrollContentBackground(.hidden)
         .background(YTLiteColor.background)
-        .navigationTitle("Playlists")
+        .navigationTitle(L("you.playlists"))
         .searchable(text: $query, prompt: "Search playlists")
         .onSubmit(of: .search) { Task { await search() } }
         .overlay { if isLoading { ProgressView().tint(YTLiteColor.accent) } }
@@ -839,7 +839,7 @@ struct ChannelVideosView: View {
             if isLoading {
                 ProgressView().tint(YTLiteColor.accent)
             } else if videos.isEmpty {
-                ContentUnavailableView("No videos", systemImage: "play.slash", description: Text(errorMessage ?? ""))
+                ContentUnavailableView(L("common.no_videos"), systemImage: "play.slash", description: Text(errorMessage ?? ""))
             } else {
                 ScrollView {
                     LazyVStack(spacing: 0) {
@@ -924,7 +924,7 @@ struct PlaylistVideosBrowserView: View {
             if isLoading {
                 ProgressView().tint(YTLiteColor.accent)
             } else if videos.isEmpty {
-                ContentUnavailableView("Empty playlist", systemImage: "list.bullet", description: Text(errorMessage ?? ""))
+                ContentUnavailableView(L("library.empty_playlist"), systemImage: "list.bullet", description: Text(errorMessage ?? ""))
             } else {
                 ScrollView {
                     LazyVStack(spacing: 0) {

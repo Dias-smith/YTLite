@@ -29,7 +29,7 @@ struct PlaylistActionSheet: View {
                 VStack(spacing: 0) {
                     actionRow(
                         systemImage: "shuffle",
-                        title: "Shuffle play",
+                        title: L("action.shuffle_play"),
                         enabled: trackCount > 0
                     ) {
                         shufflePlay()
@@ -37,17 +37,17 @@ struct PlaylistActionSheet: View {
 
                     actionRow(
                         systemImage: "pencil",
-                        title: "Edit",
+                        title: L("common.edit"),
                         enabled: context.canEdit
                     ) {
                         playlistActions.openRename()
                     }
 
                     ShareLink(item: shareText) {
-                        actionRowLabel(systemImage: "square.and.arrow.up", title: "Share")
+                        actionRowLabel(systemImage: "square.and.arrow.up", title: L("common.share"))
                     }
                     .simultaneousGesture(TapGesture().onEnded {
-                        playlistActions.showToast("Share")
+                        playlistActions.showToast(L("common.share"))
                         dismiss()
                     })
 
@@ -56,7 +56,7 @@ struct PlaylistActionSheet: View {
 
                     actionRow(
                         systemImage: "trash",
-                        title: "Delete",
+                        title: L("common.delete"),
                         enabled: context.canDelete
                     ) {
                         playlistActions.openDeleteConfirm()
@@ -129,7 +129,7 @@ struct PlaylistActionSheet: View {
     }
 
     private var statsSubtitle: String {
-        let songs = "\(trackCount) songs"
+        let songs = Lf("common.n_songs", trackCount)
         guard totalDurationSeconds > 0 else { return songs }
         return "\(songs) · \(Self.formatDuration(totalDurationSeconds))"
     }
@@ -205,7 +205,7 @@ struct PlaylistActionSheet: View {
             startAt: 0,
             sourcePlaylistId: context.isHistory ? nil : context.playlistId
         )
-        playlistActions.showToast("Shuffle play")
+        playlistActions.showToast(L("toast.shuffle_play"))
         dismiss()
     }
 

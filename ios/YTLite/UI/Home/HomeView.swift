@@ -8,24 +8,42 @@ enum HomeCategorySource: Hashable {
 
 struct HomeCategory: Identifiable, Hashable {
     let id: String
-    let title: String
     let source: HomeCategorySource
+
+    var title: String {
+        switch id {
+        case "all": return L("home.category.all")
+        case "new_release": return L("home.category.new_release")
+        case "podcasts": return L("home.category.podcasts")
+        case "energize": return L("home.category.energize")
+        case "feel_good": return L("home.category.feel_good")
+        case "workout": return L("home.category.workout")
+        case "chill": return L("home.category.chill")
+        case "party": return L("home.category.party")
+        case "romance": return L("home.category.romance")
+        case "commute": return L("home.category.commute")
+        case "focus": return L("home.category.focus")
+        case "sad": return L("home.category.sad")
+        case "sleep": return L("home.category.sleep")
+        default: return id
+        }
+    }
 
     /// Mirrors Android `HomeCategories.items`.
     static let all: [HomeCategory] = [
-        HomeCategory(id: "all", title: "All", source: .homeBrowse),
-        HomeCategory(id: "new_release", title: "New release", source: .musicNewReleaseAlbums),
-        HomeCategory(id: "podcasts", title: "Podcasts", source: .search("podcasts")),
-        HomeCategory(id: "energize", title: "Energize", source: .search("energize music")),
-        HomeCategory(id: "feel_good", title: "Feel good", source: .search("feel good music")),
-        HomeCategory(id: "workout", title: "Workout", source: .search("workout music")),
-        HomeCategory(id: "chill", title: "Chill", source: .search("chill music")),
-        HomeCategory(id: "party", title: "Party", source: .search("party music")),
-        HomeCategory(id: "romance", title: "Romance", source: .search("romance music")),
-        HomeCategory(id: "commute", title: "Commute", source: .search("commute music")),
-        HomeCategory(id: "focus", title: "Focus", source: .search("focus music")),
-        HomeCategory(id: "sad", title: "Sad", source: .search("sad music")),
-        HomeCategory(id: "sleep", title: "Sleep", source: .search("sleep music")),
+        HomeCategory(id: "all", source: .homeBrowse),
+        HomeCategory(id: "new_release", source: .musicNewReleaseAlbums),
+        HomeCategory(id: "podcasts", source: .search("podcasts")),
+        HomeCategory(id: "energize", source: .search("energize music")),
+        HomeCategory(id: "feel_good", source: .search("feel good music")),
+        HomeCategory(id: "workout", source: .search("workout music")),
+        HomeCategory(id: "chill", source: .search("chill music")),
+        HomeCategory(id: "party", source: .search("party music")),
+        HomeCategory(id: "romance", source: .search("romance music")),
+        HomeCategory(id: "commute", source: .search("commute music")),
+        HomeCategory(id: "focus", source: .search("focus music")),
+        HomeCategory(id: "sad", source: .search("sad music")),
+        HomeCategory(id: "sleep", source: .search("sleep music")),
     ]
 }
 
@@ -222,9 +240,9 @@ struct HomeView: View {
         } else if viewModel.entries.isEmpty {
             ScrollView {
                 ContentUnavailableView(
-                    "Home",
+                    L("home.empty_title"),
                     systemImage: "house",
-                    description: Text(viewModel.errorMessage ?? "Pull to refresh")
+                    description: Text(viewModel.errorMessage ?? L("home.pull_to_refresh"))
                 )
                 .foregroundStyle(YTLiteColor.onSurface)
                 .frame(maxWidth: .infinity, minHeight: 420)
@@ -324,7 +342,7 @@ struct AlbumTracksView: View {
                 ProgressView().tint(YTLiteColor.accent)
             } else if tracks.isEmpty {
                 ContentUnavailableView(
-                    "No tracks",
+                    L("common.no_tracks"),
                     systemImage: "music.note.list",
                     description: Text(errorMessage ?? "")
                 )

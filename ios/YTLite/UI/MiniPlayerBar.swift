@@ -82,7 +82,7 @@ struct MiniPlayerBar: View {
             }
             .buttonStyle(.plain)
             .disabled(playback.isBuffering)
-            .accessibilityLabel(playback.isPlaying ? "Pause" : "Play")
+            .accessibilityLabel(playback.isPlaying ? L("common.pause") : L("common.play"))
 
             Button {
                 playback.playNext()
@@ -95,7 +95,7 @@ struct MiniPlayerBar: View {
             }
             .buttonStyle(.plain)
             .disabled(!playback.hasNextInQueue)
-            .accessibilityLabel("Next")
+            .accessibilityLabel(L("common.next"))
         }
         .frame(height: YTLiteLayout.miniBarHeight)
         .padding(.trailing, 4)

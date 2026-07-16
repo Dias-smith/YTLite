@@ -291,7 +291,7 @@ struct FeedVideoCard: View {
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.borderless)
-                    .accessibilityLabel("More")
+                    .accessibilityLabel(L("common.more"))
                 }
             }
             .padding(.horizontal, YTLiteLayout.feedInfoHorizontal)

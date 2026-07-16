@@ -241,10 +241,10 @@ struct ShortsView: View {
                 Color.black.opacity(0.45)
                     .ignoresSafeArea()
                 VStack(spacing: YTLiteLayout.screenPadding) {
-                    Text("Shorts")
+                    Text(L("shorts.title"))
                         .font(YTLiteType.emptyTitle)
                         .foregroundStyle(YTLiteColor.onSurface)
-                    Text("Tap play to unmute Shorts. App playback will pause.")
+                    Text(L("shorts.unmute_hint"))
                         .font(YTLiteType.body)
                         .foregroundStyle(YTLiteColor.onSurface.opacity(0.85))
                         .multilineTextAlignment(.center)
@@ -267,7 +267,7 @@ struct ShortsView: View {
                             .frame(width: 72, height: 72)
                             .background(YTLiteColor.accent, in: Circle())
                     }
-                    .accessibilityLabel("Play Shorts")
+                    .accessibilityLabel(L("shorts.play"))
                 }
             }
         }

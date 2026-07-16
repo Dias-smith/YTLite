@@ -12,7 +12,7 @@ struct PlaylistPickerSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             YTLiteSheetGrabHandle()
-            YTLiteSheetTitle(title: "Save to library")
+            YTLiteSheetTitle(title: L("library.save_to"))
             Divider().overlay(YTLiteColor.surfaceVariant)
 
             ScrollView {
@@ -31,7 +31,7 @@ struct PlaylistPickerSheet: View {
                 .padding(.bottom, 12)
             }
 
-            YTLiteSheetPrimaryButton(title: "New playlist") {
+            YTLiteSheetPrimaryButton(title: L("library.new_playlist")) {
                 newName = ""
                 showCreate = true
             }
@@ -52,22 +52,22 @@ struct PlaylistPickerSheet: View {
     private var createPlaylistSheet: some View {
         VStack(spacing: 0) {
             YTLiteSheetGrabHandle()
-            YTLiteSheetTitle(title: "New playlist")
+            YTLiteSheetTitle(title: L("library.new_playlist"))
 
-            Text("Name")
+            Text(L("common.name"))
                 .font(YTLiteType.meta)
                 .foregroundStyle(YTLiteColor.onSurfaceVariant)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, YTLiteLayout.screenPadding)
                 .padding(.bottom, 6)
 
-            YTLiteSheetField(placeholder: "Playlist name", text: $newName)
+            YTLiteSheetField(placeholder: L("common.name"), text: $newName)
 
             Spacer(minLength: 20)
 
             VStack(spacing: 10) {
                 YTLiteSheetPrimaryButton(
-                    title: "Create",
+                    title: L("common.create"),
                     enabled: !newName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                 ) {
                     let name = newName.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -79,7 +79,7 @@ struct PlaylistPickerSheet: View {
                     showCreate = false
                     trackActions.completePlaylistSave(toast: "Saved to \(name)")
                 }
-                YTLiteSheetSecondaryButton(title: "Cancel") {
+                YTLiteSheetSecondaryButton(title: L("common.cancel")) {
                     newName = ""
                     showCreate = false
                 }
@@ -99,8 +99,8 @@ struct PlaylistPickerSheet: View {
 
     private func displayName(_ playlist: LibraryPlaylist) -> String {
         switch playlist.systemType {
-        case SystemPlaylistType.favorites: return "Liked videos"
-        case SystemPlaylistType.watchLater: return "Watch later"
+        case SystemPlaylistType.favorites: return L("library.liked")
+        case SystemPlaylistType.watchLater: return L("library.watch_later")
         default: return playlist.name
         }
     }

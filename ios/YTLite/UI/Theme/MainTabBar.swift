@@ -7,12 +7,12 @@ struct MainTabBar: View {
 
     private var items: [(AppTab, String, String)] {
         [
-            (.home, "Home", "house.fill"),
-            (.shorts, "Shorts", "play.rectangle.on.rectangle.fill"),
-            (.search, "Search", "magnifyingglass"),
+            (.home, L("tab.home"), "house.fill"),
+            (.shorts, L("tab.shorts"), "play.rectangle.on.rectangle.fill"),
+            (.search, L("tab.search"), "magnifyingglass"),
             // Android: guest "Subs" → authenticated "YouTube"
-            (.you, isAuthenticated ? "YouTube" : "Subs", "play.square.fill"),
-            (.library, "Library", "rectangle.stack.fill"),
+            (.you, isAuthenticated ? L("tab.youtube") : L("tab.subs"), "play.square.fill"),
+            (.library, L("tab.library"), "rectangle.stack.fill"),
         ]
     }
 

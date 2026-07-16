@@ -6,8 +6,8 @@ enum SleepTimerOptions {
     static let minutesOptions: [Int] = [15, 30, 45, 60]
 
     static func formatLabel(minutes: Int?) -> String {
-        guard let minutes, minutes > 0 else { return "Off" }
-        return "\(minutes) min"
+        guard let minutes, minutes > 0 else { return L("common.off") }
+        return Lf("common.n_min", minutes)
     }
 
     /// Compact chip label for remaining time (e.g. `24m`, `1:05`).

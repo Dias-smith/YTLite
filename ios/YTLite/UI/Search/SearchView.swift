@@ -280,7 +280,7 @@ struct SearchView: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: YTLiteLayout.stackDefault) {
                 ForEach(SearchResultTab.allCases) { tab in
-                    YTLiteChip(title: tab.rawValue, selected: viewModel.selectedTab == tab) {
+                    YTLiteChip(title: tab.title, selected: viewModel.selectedTab == tab) {
                         viewModel.selectTab(tab, memory: memory)
                     }
                 }
@@ -374,7 +374,7 @@ struct SearchView: View {
             VStack(alignment: .leading, spacing: 0) {
                 if !memory.recentVideos.isEmpty {
                     VStack(alignment: .leading, spacing: YTLiteLayout.stackLoose) {
-                        SectionHeaderRow(title: "Recent searches", actionTitle: "Clear all") {
+                        SectionHeaderRow(title: L("search.recent"), actionTitle: L("search.clear_all")) {
                             memory.clearRecentVideos()
                         }
                         .padding(.horizontal, YTLiteLayout.screenPadding)
@@ -413,7 +413,7 @@ struct SearchView: View {
 
                 if !memory.recentQueries.isEmpty {
                     VStack(alignment: .leading, spacing: 0) {
-                        SectionHeaderRow(title: "Search history", actionTitle: "Clear all") {
+                        SectionHeaderRow(title: L("search.history"), actionTitle: L("search.clear_all")) {
                             memory.clearQueries()
                         }
                         .padding(.horizontal, YTLiteLayout.screenPadding)
@@ -438,7 +438,7 @@ struct SearchView: View {
 
                 if !viewModel.hotKeywords.isEmpty {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Trending searches")
+                        Text(L("search.trending"))
                             .font(YTLiteType.labelEmphasized)
                             .foregroundStyle(YTLiteColor.onSurface)
                             .padding(.horizontal, YTLiteLayout.screenPadding)
@@ -491,7 +491,7 @@ private struct SearchHistoryRow: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("Fill search")
+            .accessibilityLabel(L("search.fill"))
         }
         .padding(.horizontal, YTLiteLayout.screenPadding)
         .padding(.vertical, 5)

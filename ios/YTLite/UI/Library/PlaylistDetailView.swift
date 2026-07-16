@@ -103,7 +103,7 @@ struct PlaylistDetailView: View {
 
             Section {
                 if displayedTracks.isEmpty {
-                    Text("Empty playlist")
+                    Text(L("library.empty_playlist"))
                         .font(YTLiteType.body)
                         .foregroundStyle(YTLiteColor.onSurfaceVariant)
                         .frame(maxWidth: .infinity, alignment: .center)
@@ -309,8 +309,8 @@ struct PlaylistDetailView: View {
 
     private var displayTitle: String {
         switch livePlaylist.systemType {
-        case SystemPlaylistType.favorites: return "Liked videos"
-        case SystemPlaylistType.watchLater: return "Watch later"
+        case SystemPlaylistType.favorites: return L("library.liked")
+        case SystemPlaylistType.watchLater: return L("library.watch_later")
         default: return livePlaylist.name
         }
     }
@@ -392,7 +392,7 @@ struct PlaylistDetailView: View {
                   let image = UIImage(data: data)
             else {
                 await MainActor.run {
-                    playlistActions.showToast("Couldn't update cover")
+                    playlistActions.showToast(L("error.cover_update"))
                 }
                 return
             }
@@ -400,11 +400,11 @@ struct PlaylistDetailView: View {
                 store?.setPlaylistCoverImage(livePlaylist, image: image)
                 refreshTick += 1
                 onChange()
-                playlistActions.showToast("Cover updated")
+                playlistActions.showToast(L("toast.cover_updated"))
             }
         } catch {
             await MainActor.run {
-                playlistActions.showToast("Couldn't update cover")
+                playlistActions.showToast(L("error.cover_update"))
             }
         }
     }
@@ -511,7 +511,7 @@ private struct PlaylistSortSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             YTLiteSheetGrabHandle()
-            YTLiteSheetTitle(title: "Sort by")
+            YTLiteSheetTitle(title: L("library.sort_by"))
             Divider().overlay(YTLiteColor.surfaceVariant)
 
             ForEach(PlaylistTrackSort.allCases) { option in

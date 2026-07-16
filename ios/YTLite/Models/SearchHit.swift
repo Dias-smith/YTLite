@@ -1,12 +1,21 @@
 import Foundation
 
 enum SearchResultTab: String, CaseIterable, Identifiable {
-    case all = "All"
-    case videos = "Videos"
-    case channels = "Channels"
-    case playlists = "Playlists"
+    case all
+    case videos
+    case channels
+    case playlists
 
     var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .all: return L("search.tab.all")
+        case .videos: return L("search.tab.videos")
+        case .channels: return L("search.tab.channels")
+        case .playlists: return L("search.tab.playlists")
+        }
+    }
 
     /// InnerTube search `params`. `nil` = mixed / All.
     var innerTubeParams: String? {

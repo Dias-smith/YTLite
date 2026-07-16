@@ -80,7 +80,7 @@ struct TrackActionHost<Content: View>: View {
         }
         libraryStore?.renamePlaylist(playlist, name: renameText)
         playlistPresenter.showRename = false
-        playlistPresenter.showToast("Playlist updated")
+        playlistPresenter.showToast(L("toast.playlist_updated"))
         playlistPresenter.notifyListsChanged()
     }
 }
@@ -97,22 +97,22 @@ private struct EditPlaylistNameSheet: View {
     var body: some View {
         VStack(spacing: 0) {
             YTLiteSheetGrabHandle()
-            YTLiteSheetTitle(title: "Edit playlist")
+            YTLiteSheetTitle(title: L("library.edit_playlist"))
 
-            Text("Name")
+            Text(L("common.name"))
                 .font(YTLiteType.meta)
                 .foregroundStyle(YTLiteColor.onSurfaceVariant)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, YTLiteLayout.screenPadding)
                 .padding(.bottom, 6)
 
-            YTLiteSheetField(placeholder: "Name", text: $name)
+            YTLiteSheetField(placeholder: L("common.name"), text: $name)
 
             Spacer(minLength: 20)
 
             VStack(spacing: 10) {
-                YTLiteSheetPrimaryButton(title: "Save", enabled: canSave, action: onSave)
-                YTLiteSheetSecondaryButton(title: "Cancel", action: onCancel)
+                YTLiteSheetPrimaryButton(title: L("common.save"), enabled: canSave, action: onSave)
+                YTLiteSheetSecondaryButton(title: L("common.cancel"), action: onCancel)
             }
             .padding(.bottom, 28)
         }
@@ -129,14 +129,19 @@ private struct PlaylistDeleteConfirmSheet: View {
     var body: some View {
         NavigationStack {
             VStack(alignment: .leading, spacing: YTLiteLayout.stackLoose) {
-                Text("Delete \"\(playlistPresenter.context?.title ?? "playlist")\"? This can't be undone.")
+                Text(
+                    Lf(
+                        "library.delete_playlist_confirm",
+                        playlistPresenter.context?.title ?? L("common.playlist_lowercase")
+                    )
+                )
                     .font(YTLiteType.body)
                     .foregroundStyle(YTLiteColor.onSurfaceVariant)
                 Spacer()
                 Button {
                     commitDelete()
                 } label: {
-                    Text("Delete")
+                    Text(L("common.delete"))
                         .font(YTLiteType.labelEmphasized)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 12)
@@ -146,7 +151,7 @@ private struct PlaylistDeleteConfirmSheet: View {
                 Button {
                     playlistPresenter.showDeleteConfirm = false
                 } label: {
-                    Text("Cancel")
+                    Text(L("common.cancel"))
                         .font(YTLiteType.labelEmphasized)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 12)
@@ -155,7 +160,7 @@ private struct PlaylistDeleteConfirmSheet: View {
             }
             .padding(YTLiteLayout.screenPadding)
             .background(YTLiteColor.background)
-            .navigationTitle("Delete playlist?")
+            .navigationTitle(L("library.delete_playlist_q"))
             .navigationBarTitleDisplayMode(.inline)
         }
     }
@@ -167,7 +172,7 @@ private struct PlaylistDeleteConfirmSheet: View {
         guard let context = playlistPresenter.context, context.canDelete else { return }
         let deleted = store?.deletePlaylist(id: context.playlistId) ?? false
         guard deleted else { return }
-        playlistPresenter.showToast("Playlist deleted")
+        playlistPresenter.showToast(L("toast.playlist_deleted"))
         playlistPresenter.notifyListsChanged()
     }
 }

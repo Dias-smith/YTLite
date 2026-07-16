@@ -6,23 +6,23 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
-            Section("Appearance") {
-                Toggle("Night mode", isOn: $appModel.nightModeEnabled)
-                Picker("Language", selection: $appModel.languageCode) {
-                    Text("System").tag("system")
-                    Text("English").tag("en")
-                    Text("中文").tag("zh")
+            Section(L("settings.appearance")) {
+                Toggle(L("settings.night_mode"), isOn: $appModel.nightModeEnabled)
+                Picker(L("settings.language"), selection: $appModel.languageCode) {
+                    ForEach(AppLanguage.allCases) { language in
+                        Text(language.displayName).tag(language.rawValue)
+                    }
                 }
             }
 
             Section {
-                Picker("Speed", selection: $playback.playbackSpeed) {
+                Picker(L("settings.speed"), selection: $playback.playbackSpeed) {
                     ForEach(PlaybackSpeeds.options, id: \.self) { speed in
                         Text(PlaybackSpeeds.formatLabel(speed)).tag(speed)
                     }
                 }
 
-                Picker("Sleep timer", selection: sleepTimerSelection) {
+                Picker(L("settings.sleep_timer"), selection: sleepTimerSelection) {
                     Text(SleepTimerOptions.formatLabel(minutes: nil)).tag(Optional<Int>.none)
                     ForEach(SleepTimerOptions.minutesOptions, id: \.self) { minutes in
                         Text(SleepTimerOptions.formatLabel(minutes: minutes)).tag(Optional(minutes))
@@ -32,29 +32,29 @@ struct SettingsView: View {
                 if let remaining = playback.sleepTimerRemaining,
                    playback.sleepTimerEndsAt != nil
                 {
-                    LabeledContent("Remaining", value: SleepTimerOptions.formatRemaining(remaining))
+                    LabeledContent(L("settings.remaining"), value: SleepTimerOptions.formatRemaining(remaining))
                 }
             } header: {
-                Text("Playback")
+                Text(L("settings.playback"))
             } footer: {
                 if playback.sleepTimerEndsAt != nil {
-                    Text("Playback pauses automatically when the timer ends. Queue and mini player stay.")
+                    Text(L("settings.sleep_footer_active"))
                 } else {
-                    Text("Choose a duration to pause playback after that time.")
+                    Text(L("settings.sleep_footer_idle"))
                 }
             }
 
-            Section("About") {
-                LabeledContent("Bundle", value: Bundle.main.bundleIdentifier ?? "—")
-                LabeledContent("Supabase", value: appModel.config.isConfigured ? "Configured" : "Missing secrets")
-                Text("PRD: prd/IOS_MVP_SCOPE.md")
-                    .font(YTLiteType.meta)
-                    .foregroundStyle(YTLiteColor.onSurfaceVariant)
+            Section(L("settings.about")) {
+                LabeledContent(L("settings.bundle"), value: Bundle.main.bundleIdentifier ?? "—")
+                LabeledContent(
+                    L("settings.supabase"),
+                    value: appModel.config.isConfigured ? L("settings.configured") : L("settings.missing_secrets")
+                )
             }
         }
         .scrollContentBackground(.hidden)
         .background(YTLiteColor.background)
-        .navigationTitle("Settings")
+        .navigationTitle(L("settings.title"))
     }
 
     private var sleepTimerSelection: Binding<Int?> {

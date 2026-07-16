@@ -11,7 +11,7 @@ struct LyricsPanel: View {
     var body: some View {
         Group {
             if playback.captionTracks.isEmpty {
-                Text("No lyrics / captions available for this video.")
+                Text(L("player.lyrics_empty"))
                     .font(YTLiteType.body)
                     .foregroundStyle(YTLiteColor.onSurfaceVariant)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -89,11 +89,11 @@ struct LyricsSheet: View {
         NavigationStack {
             LyricsPanel()
                 .padding(YTLiteLayout.screenPadding)
-                .navigationTitle("Lyrics")
+                .navigationTitle(L("player.lyrics"))
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
-                        Button("Close") { dismiss() }
+                        Button(L("common.close")) { dismiss() }
                     }
                 }
                 .background(YTLiteColor.background)

@@ -35,7 +35,7 @@ struct PlaylistActionContext: Identifiable, Hashable, Sendable {
     static func history(songCountIgnored _: Int = 0) -> PlaylistActionContext {
         PlaylistActionContext(
             playlistId: "system:history",
-            title: "History",
+            title: L("library.history"),
             coverURL: nil,
             coverKind: .history,
             systemType: "history",
