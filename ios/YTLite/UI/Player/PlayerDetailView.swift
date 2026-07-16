@@ -3,7 +3,7 @@ import AVKit
 
 private enum PlayerTab: String, CaseIterable {
     case upNext = "Up next"
-    case lyrics = "Lyrics"
+    // Lyrics tab temporarily hidden.
     case related = "Related"
 }
 
@@ -648,28 +648,26 @@ struct PlayerDetailView: View {
                 .font(YTLiteType.body)
                 .foregroundStyle(YTLiteColor.onSurfaceVariant)
             Spacer()
-            if tab != .lyrics {
-                toolbarCircleButton(
-                    systemName: "arrow.up.arrow.down",
-                    filledAccent: false,
-                    enabled: !currentListItems.isEmpty
-                ) {
-                    showSortMenu = true
-                }
-                toolbarCircleButton(
-                    systemName: "checkmark.circle",
-                    filledAccent: false,
-                    enabled: !currentListItems.isEmpty
-                ) {
-                    enterSelectionMode()
-                }
-                toolbarCircleButton(
-                    systemName: "plus",
-                    filledAccent: true,
-                    enabled: canSaveList
-                ) {
-                    showSaveList = true
-                }
+            toolbarCircleButton(
+                systemName: "arrow.up.arrow.down",
+                filledAccent: false,
+                enabled: !currentListItems.isEmpty
+            ) {
+                showSortMenu = true
+            }
+            toolbarCircleButton(
+                systemName: "checkmark.circle",
+                filledAccent: false,
+                enabled: !currentListItems.isEmpty
+            ) {
+                enterSelectionMode()
+            }
+            toolbarCircleButton(
+                systemName: "plus",
+                filledAccent: true,
+                enabled: canSaveList
+            ) {
+                showSaveList = true
             }
         }
     }
@@ -790,7 +788,6 @@ struct PlayerDetailView: View {
     private var toolbarTitle: String {
         switch tab {
         case .upNext: return "\(playback.queue.count) Songs"
-        case .lyrics: return "Lyrics"
         case .related: return relatedLoading ? "Loading…" : "\(related.count) videos"
         }
     }
@@ -801,7 +798,6 @@ struct PlayerDetailView: View {
         switch tab {
         case .upNext: return playback.queue
         case .related: return related
-        case .lyrics: return []
         }
     }
 
@@ -835,9 +831,6 @@ struct PlayerDetailView: View {
                     }
                 }
             }
-        case .lyrics:
-            LyricsPanel()
-                .padding(.top, YTLiteLayout.stackTight)
         case .related:
             if relatedLoading && related.isEmpty {
                 ProgressView()
@@ -941,7 +934,7 @@ struct PlayerDetailView: View {
     }
 
     private func enterSelectionMode() {
-        guard tab != .lyrics, !currentListItems.isEmpty else { return }
+        guard !currentListItems.isEmpty else { return }
         isSelectionMode = true
         selectedIds = []
     }
@@ -970,8 +963,6 @@ struct PlayerDetailView: View {
             playback.reorderQueue { a, b in compare(a, b, sort: sort) }
         case .related:
             related = sortedItems(relatedOriginal, by: sort)
-        case .lyrics:
-            break
         }
     }
 

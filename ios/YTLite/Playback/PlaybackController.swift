@@ -2,6 +2,7 @@ import Foundation
 import AVFoundation
 import Combine
 import MediaPlayer
+import UIKit
 
 @MainActor
 final class PlaybackController: ObservableObject {
@@ -17,6 +18,7 @@ final class PlaybackController: ObservableObject {
         didSet {
             applySpeed()
             UserDefaults.standard.set(playbackSpeed, forKey: Self.speedKey)
+            updateNowPlayingInfo()
         }
     }
     @Published private(set) var positionSeconds: Double = 0
@@ -52,10 +54,22 @@ final class PlaybackController: ObservableObject {
     private var pendingSeekSeconds: Double = 0
     /// Bumps on each `playCurrentQueueItem` so stale extract callbacks cannot mutate UI.
     private var extractGeneration: Int = 0
+    private var artworkImage: UIImage?
+    private var artworkVideoId: String?
+    private var artworkTask: Task<Void, Never>?
+    private var artworkGeneration: Int = 0
+    private var interruptionObserver: NSObjectProtocol?
+    private var routeChangeObserver: NSObjectProtocol?
+    /// Resume after interruption only if we were playing when interrupted.
+    private var resumeAfterInterruption = false
 
     var hasNextInQueue: Bool {
         if queueIndex + 1 < queue.count { return true }
         return repeatMode == .all && !queue.isEmpty
+    }
+
+    var hasPreviousInQueue: Bool {
+        !queue.isEmpty
     }
 
     var sleepTimerRemaining: TimeInterval? {
@@ -76,8 +90,10 @@ final class PlaybackController: ObservableObject {
             playbackSpeed = stored
         }
         configureAudioSession()
+        configureAudioInterruptions()
         configureRemoteCommands()
         restoreSession()
+        refreshRemoteCommandEnabled()
     }
 
     func play(items: [VideoItem], startAt index: Int = 0, sourcePlaylistId: String? = nil) {
@@ -157,6 +173,7 @@ final class PlaybackController: ObservableObject {
             }
         }
         persistSession(immediate: true)
+        refreshRemoteCommandEnabled()
         return shuffleEnabled
     }
 
@@ -164,6 +181,7 @@ final class PlaybackController: ObservableObject {
     func cycleRepeatMode() -> QueueRepeatMode {
         repeatMode.cycle()
         persistSession(immediate: true)
+        refreshRemoteCommandEnabled()
         return repeatMode
     }
 
@@ -365,6 +383,12 @@ final class PlaybackController: ObservableObject {
         refreshFavoriteState()
         refreshSubscribeState()
         isBuffering = true
+        positionSeconds = pendingSeekSeconds
+        if pendingSeekSeconds <= 0 {
+            durationSeconds = 0
+        }
+        updateNowPlayingInfo()
+        refreshRemoteCommandEnabled()
         extractGeneration += 1
         let generation = extractGeneration
         let expectedVideoId = item.videoId
@@ -452,6 +476,7 @@ final class PlaybackController: ObservableObject {
                     "raw=\(error.localizedDescription) ui=\(lastError ?? "-")"
                 )
                 updateNowPlayingInfo()
+                refreshRemoteCommandEnabled()
             }
         }
     }
@@ -540,6 +565,8 @@ final class PlaybackController: ObservableObject {
                     self.isBuffering = false
                     self.isPlaying = false
                     self.lastError = err
+                    self.updateNowPlayingInfo()
+                    self.refreshRemoteCommandEnabled()
                 @unknown default:
                     PlayProbe.log("avplayer.status", videoId: videoId, "other")
                 }
@@ -560,6 +587,8 @@ final class PlaybackController: ObservableObject {
                 PlayProbe.log("avplayer.failToEnd", videoId: videoId, err)
                 self?.isPlaying = false
                 self?.lastError = err
+                self?.updateNowPlayingInfo()
+                self?.refreshRemoteCommandEnabled()
             }
         }
     }
@@ -615,6 +644,10 @@ final class PlaybackController: ObservableObject {
 
     func stop() {
         extractTask?.cancel()
+        artworkGeneration += 1
+        artworkTask?.cancel()
+        artworkImage = nil
+        artworkVideoId = nil
         cancelSleepTimer()
         player?.pause()
         player?.replaceCurrentItem(with: nil)
@@ -632,12 +665,17 @@ final class PlaybackController: ObservableObject {
         durationSeconds = 0
         pendingSeekSeconds = 0
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+        refreshRemoteCommandEnabled()
         PlaybackSessionStore.clear()
     }
 
     /// End-of-queue with Repeat Off — mirrors Android `handlePlaybackEnded` clear path.
     private func stopAndClearQueueForRepeatOff() {
         extractTask?.cancel()
+        artworkGeneration += 1
+        artworkTask?.cancel()
+        artworkImage = nil
+        artworkVideoId = nil
         cancelSleepTimer()
         player?.pause()
         player?.replaceCurrentItem(with: nil)
@@ -655,12 +693,16 @@ final class PlaybackController: ObservableObject {
         durationSeconds = 0
         pendingSeekSeconds = 0
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+        refreshRemoteCommandEnabled()
         PlaybackSessionStore.clear()
     }
 
     func seek(to seconds: Double) {
-        let time = CMTime(seconds: max(0, seconds), preferredTimescale: 600)
+        let clamped = max(0, seconds)
+        let time = CMTime(seconds: clamped, preferredTimescale: 600)
         player?.seek(to: time)
+        positionSeconds = clamped
+        updateNowPlayingInfo()
     }
 
     private func applySpeed() {
@@ -679,6 +721,71 @@ final class PlaybackController: ObservableObject {
         } catch {}
     }
 
+    private func configureAudioInterruptions() {
+        let center = NotificationCenter.default
+        if let interruptionObserver {
+            center.removeObserver(interruptionObserver)
+        }
+        if let routeChangeObserver {
+            center.removeObserver(routeChangeObserver)
+        }
+        interruptionObserver = center.addObserver(
+            forName: AVAudioSession.interruptionNotification,
+            object: AVAudioSession.sharedInstance(),
+            queue: .main
+        ) { [weak self] note in
+            Task { @MainActor in
+                self?.handleAudioInterruption(note)
+            }
+        }
+        routeChangeObserver = center.addObserver(
+            forName: AVAudioSession.routeChangeNotification,
+            object: AVAudioSession.sharedInstance(),
+            queue: .main
+        ) { [weak self] note in
+            Task { @MainActor in
+                self?.handleRouteChange(note)
+            }
+        }
+    }
+
+    private func handleAudioInterruption(_ note: Notification) {
+        guard let typeValue = note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
+              let type = AVAudioSession.InterruptionType(rawValue: typeValue)
+        else { return }
+        switch type {
+        case .began:
+            resumeAfterInterruption = isPlaying
+            pause()
+            updateNowPlayingInfo()
+        case .ended:
+            let optionsValue = note.userInfo?[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0
+            let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
+            if options.contains(.shouldResume), resumeAfterInterruption {
+                resumeAfterInterruption = false
+                if player != nil, !isPlaying {
+                    player?.playImmediately(atRate: playbackSpeed)
+                    isPlaying = true
+                }
+            } else {
+                resumeAfterInterruption = false
+            }
+            updateNowPlayingInfo()
+        @unknown default:
+            break
+        }
+    }
+
+    private func handleRouteChange(_ note: Notification) {
+        guard let reasonValue = note.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt,
+              let reason = AVAudioSession.RouteChangeReason(rawValue: reasonValue)
+        else { return }
+        if reason == .oldDeviceUnavailable {
+            pause()
+            updateNowPlayingInfo()
+        }
+    }
+
     private func attachTimeObserver() {
         guard let player else { return }
         if let timeObserver {
@@ -693,7 +800,7 @@ final class PlaybackController: ObservableObject {
                     self.durationSeconds = duration
                 }
                 self.checkSleepTimerExpired()
-                self.updateNowPlayingInfo()
+                self.updateNowPlayingElapsed()
                 self.persistSession(immediate: false)
             }
         }
@@ -757,43 +864,172 @@ final class PlaybackController: ObservableObject {
     private func configureRemoteCommands() {
         let center = MPRemoteCommandCenter.shared()
         center.playCommand.addTarget { [weak self] _ in
-            Task { @MainActor in
-                if self?.isPlaying == false { self?.togglePlayPause() }
+            Self.runOnMain {
+                guard let self else { return .commandFailed }
+                if !self.isPlaying { self.togglePlayPause() }
+                return .success
             }
-            return .success
         }
         center.pauseCommand.addTarget { [weak self] _ in
-            Task { @MainActor in
-                self?.pause()
+            Self.runOnMain {
+                guard let self else { return .commandFailed }
+                self.pause()
+                return .success
             }
-            return .success
         }
         center.togglePlayPauseCommand.addTarget { [weak self] _ in
-            Task { @MainActor in self?.togglePlayPause() }
-            return .success
+            Self.runOnMain {
+                guard let self else { return .commandFailed }
+                self.togglePlayPause()
+                return .success
+            }
         }
         center.nextTrackCommand.addTarget { [weak self] _ in
-            Task { @MainActor in self?.playNext() }
-            return .success
+            Self.runOnMain {
+                guard let self else { return .commandFailed }
+                guard self.hasNextInQueue else { return .commandFailed }
+                self.playNext()
+                return .success
+            }
         }
         center.previousTrackCommand.addTarget { [weak self] _ in
-            Task { @MainActor in self?.playPrevious() }
-            return .success
+            Self.runOnMain {
+                guard let self else { return .commandFailed }
+                guard self.hasPreviousInQueue else { return .commandFailed }
+                self.playPrevious()
+                return .success
+            }
         }
+        center.changePlaybackPositionCommand.addTarget { [weak self] event in
+            Self.runOnMain {
+                guard let self else { return .commandFailed }
+                guard let event = event as? MPChangePlaybackPositionCommandEvent else {
+                    return .commandFailed
+                }
+                guard self.durationSeconds > 0 else { return .commandFailed }
+                self.seek(to: event.positionTime)
+                return .success
+            }
+        }
+        refreshRemoteCommandEnabled()
+    }
+
+    /// Run remote-command work on the main actor before returning status to the system.
+    private nonisolated static func runOnMain(
+        _ body: @MainActor () -> MPRemoteCommandHandlerStatus
+    ) -> MPRemoteCommandHandlerStatus {
+        if Thread.isMainThread {
+            return MainActor.assumeIsolated(body)
+        }
+        var status: MPRemoteCommandHandlerStatus = .commandFailed
+        DispatchQueue.main.sync {
+            status = MainActor.assumeIsolated(body)
+        }
+        return status
+    }
+
+    func refreshRemoteCommandEnabled() {
+        let center = MPRemoteCommandCenter.shared()
+        center.nextTrackCommand.isEnabled = hasNextInQueue
+        center.previousTrackCommand.isEnabled = hasPreviousInQueue
+        center.changePlaybackPositionCommand.isEnabled = durationSeconds > 0
+        center.playCommand.isEnabled = nowPlaying != nil
+        center.pauseCommand.isEnabled = nowPlaying != nil
+        center.togglePlayPauseCommand.isEnabled = nowPlaying != nil
+    }
+
+    /// Push latest Now Playing to the system (e.g. on entering background).
+    func publishNowPlaying() {
+        updateNowPlayingInfo()
     }
 
     private func updateNowPlayingInfo() {
         guard let nowPlaying else {
             MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+            refreshRemoteCommandEnabled()
             return
         }
-        MPNowPlayingInfoCenter.default().nowPlayingInfo = [
+        loadArtworkIfNeeded(for: nowPlaying)
+        var info: [String: Any] = [
             MPMediaItemPropertyTitle: nowPlaying.title,
             MPMediaItemPropertyArtist: nowPlaying.channelName,
             MPNowPlayingInfoPropertyElapsedPlaybackTime: positionSeconds,
             MPMediaItemPropertyPlaybackDuration: durationSeconds,
             MPNowPlayingInfoPropertyPlaybackRate: isPlaying ? Double(playbackSpeed) : 0,
+            MPNowPlayingInfoPropertyDefaultPlaybackRate: Double(playbackSpeed),
         ]
+        if let artworkImage {
+            info[MPMediaItemPropertyArtwork] = MPMediaItemArtwork(boundsSize: artworkImage.size) { _ in
+                artworkImage
+            }
+        }
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = info
+        refreshRemoteCommandEnabled()
+    }
+
+    /// Lightweight elapsed/rate refresh for the periodic time observer (avoids rebuilding artwork).
+    private func updateNowPlayingElapsed() {
+        guard var info = MPNowPlayingInfoCenter.default().nowPlayingInfo, nowPlaying != nil else {
+            updateNowPlayingInfo()
+            return
+        }
+        info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = positionSeconds
+        info[MPMediaItemPropertyPlaybackDuration] = durationSeconds
+        info[MPNowPlayingInfoPropertyPlaybackRate] = isPlaying ? Double(playbackSpeed) : 0
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = info
+        // Duration may become available after readyToPlay; keep scrub command in sync.
+        let center = MPRemoteCommandCenter.shared()
+        let seekEnabled = durationSeconds > 0
+        if center.changePlaybackPositionCommand.isEnabled != seekEnabled {
+            refreshRemoteCommandEnabled()
+        }
+    }
+
+    private func loadArtworkIfNeeded(for item: NowPlayingItem) {
+        guard let url = item.thumbnailURL else {
+            if artworkVideoId != item.videoId {
+                artworkGeneration += 1
+                artworkTask?.cancel()
+                artworkTask = nil
+                artworkImage = nil
+                artworkVideoId = item.videoId
+            }
+            return
+        }
+        if artworkVideoId == item.videoId {
+            if artworkImage != nil { return }
+            if artworkTask != nil { return }
+        } else {
+            artworkGeneration += 1
+            artworkTask?.cancel()
+            artworkImage = nil
+            artworkVideoId = item.videoId
+        }
+        artworkGeneration += 1
+        let generation = artworkGeneration
+        let videoId = item.videoId
+        artworkTask = Task { [weak self] in
+            do {
+                let (data, _) = try await URLSession.shared.data(from: url)
+                guard !Task.isCancelled else { return }
+                guard let image = UIImage(data: data) else { return }
+                await MainActor.run {
+                    guard let self,
+                          self.artworkGeneration == generation,
+                          self.nowPlaying?.videoId == videoId
+                    else { return }
+                    self.artworkImage = image
+                    self.artworkVideoId = videoId
+                    self.artworkTask = nil
+                    self.updateNowPlayingInfo()
+                }
+            } catch {
+                await MainActor.run {
+                    guard let self, self.artworkGeneration == generation else { return }
+                    self.artworkTask = nil
+                }
+            }
+        }
     }
 
     // MARK: - Session persistence (Android PlaybackSessionStore)

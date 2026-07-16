@@ -38,6 +38,7 @@ struct YTLiteApp: App {
                 .onChange(of: scenePhase) { _, phase in
                     if phase == .background || phase == .inactive {
                         playback.flushSession()
+                        playback.publishNowPlaying()
                     }
                 }
         }
