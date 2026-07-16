@@ -6,6 +6,7 @@ struct RootView: View {
     @EnvironmentObject private var playback: PlaybackController
     @EnvironmentObject private var auth: AuthService
     @EnvironmentObject private var appModel: AppModel
+    @EnvironmentObject private var review: ReviewPromptCoordinator
     @Environment(\.modelContext) private var modelContext
     @State private var selectedTab: AppTab = .home
     @State private var libraryStore: LibraryStore?
@@ -113,6 +114,18 @@ struct RootView: View {
                 if tab == .shorts, playback.isPlaying {
                     playback.togglePlayPause()
                 }
+            }
+            .onChange(of: appModel.isLibrarySyncing) { _, syncing in
+                review.setBusy("librarySync", syncing)
+            }
+            .onChange(of: auth.isBusy) { _, busy in
+                review.setBusy("auth", busy)
+            }
+            .sheet(isPresented: $review.showSheet) {
+                ReviewPromptSheet()
+                    .presentationDetents([.height(280)])
+                    .presentationDragIndicator(.hidden)
+                    .presentationBackground(YTLiteColor.surfaceElevated)
             }
         }
     }

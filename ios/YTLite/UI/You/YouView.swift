@@ -434,6 +434,13 @@ final class YouViewModel: ObservableObject {
         likedPlaylistId = snap.likedPlaylistId
         needsYoutubeReauth = snap.needsYoutubeReauth
         errorMessage = snap.errorMessage
+
+        if !snap.needsYoutubeReauth {
+            let hasContent = !snap.subscriptions.isEmpty
+                || !snap.playlists.isEmpty
+                || !snap.liked.isEmpty
+            ReviewPromptCoordinator.shared.recordYouShelfSuccess(hasContent: hasContent)
+        }
     }
 }
 

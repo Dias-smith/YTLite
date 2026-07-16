@@ -597,6 +597,7 @@ final class LibraryStore {
             fav.entries.append(entry)
             fav.updatedAt = .now
             fav.isSynced = false
+            ReviewPromptCoordinator.shared.recordPositiveAction()
         }
         save()
     }
@@ -609,6 +610,7 @@ final class LibraryStore {
         )
         modelContext.insert(playlist)
         save()
+        ReviewPromptCoordinator.shared.recordPositiveAction()
         return playlist
     }
 

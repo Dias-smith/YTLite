@@ -5,6 +5,7 @@ import UIKit
 struct MiniPlayerBar: View {
     @EnvironmentObject private var playback: PlaybackController
     @EnvironmentObject private var progressClock: PlaybackProgressModel
+    @EnvironmentObject private var review: ReviewPromptCoordinator
     @State private var showPlayer = false
 
     private var progress: CGFloat {
@@ -25,6 +26,15 @@ struct MiniPlayerBar: View {
             .sheet(isPresented: $showPlayer) {
                 NavigationStack {
                     PlayerDetailView()
+                }
+            }
+            .onChange(of: showPlayer) { _, presented in
+                review.setBusy("player", presented)
+            }
+            .onDisappear {
+                if showPlayer {
+                    showPlayer = false
+                    review.setBusy("player", false)
                 }
             }
         }

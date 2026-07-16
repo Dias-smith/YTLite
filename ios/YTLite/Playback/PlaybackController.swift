@@ -854,6 +854,9 @@ final class PlaybackController: ObservableObject {
 
     /// Android `GlobalPlaybackViewModel.handlePlaybackEnded`.
     private func handlePlaybackEnded() {
+        if let videoId = nowPlaying?.videoId {
+            ReviewPromptCoordinator.shared.recordCompletedPlay(videoId: videoId)
+        }
         if repeatMode == .one {
             seek(to: 0)
             player?.playImmediately(atRate: playbackSpeed)

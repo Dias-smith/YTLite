@@ -25,6 +25,7 @@ struct YTLiteApp: App {
                 .environmentObject(playback.progress)
                 .environmentObject(appModel)
                 .environmentObject(authService)
+                .environmentObject(ReviewPromptCoordinator.shared)
                 .environment(\.locale, appModel.resolvedLocale)
                 .environment(\.layoutDirection, appModel.layoutDirection)
                 .id(appModel.languageCode)
@@ -32,6 +33,7 @@ struct YTLiteApp: App {
                 .task {
                     ExtractorRemoteConfigStore.restoreFromDisk()
                     appModel.syncAuth(authService)
+                    ReviewPromptCoordinator.shared.recordActiveDay()
                     // Defer extractor WKWebView warm-up so first frame stays responsive.
                     Task(priority: .utility) {
                         try? await Task.sleep(nanoseconds: 800_000_000)
@@ -48,6 +50,9 @@ struct YTLiteApp: App {
                     }
                 }
                 .onChange(of: scenePhase) { _, phase in
+                    if phase == .active {
+                        ReviewPromptCoordinator.shared.recordActiveDay()
+                    }
                     if phase == .background || phase == .inactive {
                         playback.flushSession()
                         playback.publishNowPlaying()
