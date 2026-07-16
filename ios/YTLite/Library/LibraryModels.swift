@@ -2,6 +2,7 @@ import Foundation
 import SwiftData
 
 /// Local catalogue row — mirrors Android `TrackEntity` / Supabase `tracks`.
+/// Shared across owners (not bucketed).
 @Model
 final class LibraryTrack {
     @Attribute(.unique) var trackId: String
@@ -48,7 +49,6 @@ final class LibraryTrack {
         self.updatedAt = updatedAt
     }
 
-    /// Compatibility aliases used across UI / playback.
     var videoId: String { trackId }
     var channelName: String { primaryArtistName ?? "" }
     var thumbnailURLString: String? { thumbnailHigh ?? thumbnailMedium ?? thumbnailLow }
@@ -68,23 +68,25 @@ final class LibraryTrack {
     }
 }
 
-/// Mirrors Android `PlaylistEntity` sync fields / Supabase `playlists`.
+/// Mirrors Android `PlaylistEntity` — uniqueness is `(ownerKey, playlistId)` enforced in store.
 @Model
 final class LibraryPlaylist {
-    @Attribute(.unique) var playlistId: String
+    /// Empty until first boot migration assigns guest/user.
+    var ownerKey: String = ""
+    var playlistId: String
     var name: String
     var coverUrlOrPath: String?
     var descriptionText: String?
     var systemType: String?
     var isPinned: Bool
     var isSynced: Bool
-    /// Optional so schema evolves without wiping the store. Falls back to `updatedAt` when sorting.
     var createdAt: Date?
     var updatedAt: Date
     @Relationship(deleteRule: .cascade, inverse: \LibraryPlaylistEntry.playlist)
     var entries: [LibraryPlaylistEntry]
 
     init(
+        ownerKey: String,
         playlistId: String = UUID().uuidString,
         name: String,
         coverUrlOrPath: String? = nil,
@@ -96,6 +98,7 @@ final class LibraryPlaylist {
         updatedAt: Date = .now,
         entries: [LibraryPlaylistEntry] = []
     ) {
+        self.ownerKey = ownerKey
         self.playlistId = playlistId
         self.name = name
         self.coverUrlOrPath = coverUrlOrPath
@@ -109,12 +112,9 @@ final class LibraryPlaylist {
     }
 
     var trackCount: Int { entries.count }
-
-    /// Stable sort key: creation time, else last update.
     var sortCreatedAt: Date { createdAt ?? updatedAt }
 }
 
-/// Mirrors Android `PlaylistTrackEntity` / Supabase `playlist_track_cross_ref`.
 @Model
 final class LibraryPlaylistEntry {
     var position: Int
@@ -136,11 +136,10 @@ final class LibraryPlaylistEntry {
     }
 }
 
-/// Mirrors Android `PlaybackHistoryEntity` / Supabase `playback_history`.
-/// Display metadata lives on `LibraryTrack`, not denormalized here.
 @Model
 final class PlaybackHistoryItem {
     @Attribute(.unique) var historyId: String
+    var ownerKey: String = ""
     var trackId: String
     var playedAt: Date
     var progressMs: Int64
@@ -148,12 +147,14 @@ final class PlaybackHistoryItem {
 
     init(
         historyId: String = UUID().uuidString,
+        ownerKey: String,
         trackId: String,
         playedAt: Date = .now,
         progressMs: Int64 = 0,
         isSynced: Bool = false
     ) {
         self.historyId = historyId
+        self.ownerKey = ownerKey
         self.trackId = trackId
         self.playedAt = playedAt
         self.progressMs = progressMs
@@ -161,20 +162,22 @@ final class PlaybackHistoryItem {
     }
 }
 
-/// Mirrors Android `UserTrackLastPlayedEntity` / Supabase `user_track_last_played`.
 @Model
 final class UserTrackLastPlayed {
-    @Attribute(.unique) var trackId: String
+    var ownerKey: String = ""
+    var trackId: String
     var lastPlayedAt: Date
     var progressMs: Int64
     var isSynced: Bool
 
     init(
+        ownerKey: String,
         trackId: String,
         lastPlayedAt: Date = .now,
         progressMs: Int64 = 0,
         isSynced: Bool = false
     ) {
+        self.ownerKey = ownerKey
         self.trackId = trackId
         self.lastPlayedAt = lastPlayedAt
         self.progressMs = progressMs
@@ -182,10 +185,10 @@ final class UserTrackLastPlayed {
     }
 }
 
-/// Mirrors Android `UserTrackMetadataEntity` / Supabase `user_track_metadata`.
 @Model
 final class UserTrackMetadata {
-    @Attribute(.unique) var trackId: String
+    var ownerKey: String = ""
+    var trackId: String
     var customTitle: String?
     var customArtistName: String?
     var customThumbnailUrl: String?
@@ -195,6 +198,7 @@ final class UserTrackMetadata {
     var isSynced: Bool
 
     init(
+        ownerKey: String,
         trackId: String,
         customTitle: String? = nil,
         customArtistName: String? = nil,
@@ -204,6 +208,7 @@ final class UserTrackMetadata {
         updatedAt: Date = .now,
         isSynced: Bool = false
     ) {
+        self.ownerKey = ownerKey
         self.trackId = trackId
         self.customTitle = customTitle
         self.customArtistName = customArtistName
@@ -215,10 +220,10 @@ final class UserTrackMetadata {
     }
 }
 
-/// Mirrors Android `UserSubscribedChannelEntity` / Supabase `user_subscribed_channels`.
 @Model
 final class UserSubscribedChannel {
-    @Attribute(.unique) var channelId: String
+    var ownerKey: String = ""
+    var channelId: String
     var title: String
     var handle: String?
     var avatarUrl: String?
@@ -228,6 +233,7 @@ final class UserSubscribedChannel {
     var isSynced: Bool
 
     init(
+        ownerKey: String,
         channelId: String,
         title: String,
         handle: String? = nil,
@@ -237,6 +243,7 @@ final class UserSubscribedChannel {
         subscribedAt: Date = .now,
         isSynced: Bool = false
     ) {
+        self.ownerKey = ownerKey
         self.channelId = channelId
         self.title = title
         self.handle = handle
@@ -248,13 +255,14 @@ final class UserSubscribedChannel {
     }
 }
 
-/// Local-only hide list — mirrors Android `NotInterestedEntity` (not synced).
 @Model
 final class NotInterestedItem {
-    @Attribute(.unique) var videoId: String
+    var ownerKey: String = ""
+    var videoId: String
     var createdAt: Date
 
-    init(videoId: String, createdAt: Date = .now) {
+    init(ownerKey: String, videoId: String, createdAt: Date = .now) {
+        self.ownerKey = ownerKey
         self.videoId = videoId
         self.createdAt = createdAt
     }
@@ -265,5 +273,4 @@ enum SystemPlaylistType {
     static let watchLater = "watch_later"
 }
 
-/// Backward-compatible name used by older call sites.
 typealias PlayHistoryItem = PlaybackHistoryItem

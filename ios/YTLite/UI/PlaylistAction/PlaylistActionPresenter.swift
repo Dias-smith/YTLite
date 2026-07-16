@@ -24,19 +24,30 @@ final class PlaylistActionPresenter: ObservableObject {
 
     func openRename() {
         showActions = false
-        showRename = true
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 320_000_000)
+            showRename = true
+        }
     }
 
     /// Open rename alert without flashing the action sheet.
     func presentRename(_ context: PlaylistActionContext) {
         self.context = context
         showActions = false
-        showRename = true
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 320_000_000)
+            showRename = true
+        }
     }
 
     func openDeleteConfirm() {
         showActions = false
-        showDeleteConfirm = true
+        Task { @MainActor in
+            // Wait for the action sheet to finish dismissing; presenting another
+            // sheet in the same turn often yields a broken, non-interactive sheet.
+            try? await Task.sleep(nanoseconds: 320_000_000)
+            showDeleteConfirm = true
+        }
     }
 
     func notifyListsChanged() {

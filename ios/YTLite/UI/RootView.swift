@@ -43,7 +43,8 @@ struct RootView: View {
             .preferredColorScheme(.dark)
             .onAppear {
                 if libraryStore == nil {
-                    let store = LibraryStore(modelContext: modelContext)
+                    let ownerKey = OwnerKeyStore.current(auth: auth)
+                    let store = LibraryStore(modelContext: modelContext, ownerKey: ownerKey)
                     libraryStore = store
                     playback.libraryStore = store
                     let sync = LibrarySyncService(auth: auth)
@@ -54,22 +55,48 @@ struct RootView: View {
                     store.onUnsubscribeChannel = { channelId in
                         Task { await sync.deleteSubscribedChannel(channelId: channelId) }
                     }
+                    if auth.isAuthenticated {
+                        Task {
+                            appModel.beginLibrarySync()
+                            defer { appModel.endLibrarySync() }
+                            await sync.syncBidirectional(store: store)
+                        }
+                    }
                 }
             }
             .onChange(of: auth.session?.user.id) { previous, next in
                 appModel.syncAuth(auth)
                 guard let libraryStore else { return }
-                guard auth.isAuthenticated, next != nil else {
-                    appModel.bumpLibraryRevision()
-                    return
-                }
+
                 Task {
-                    if let previous, previous != next {
-                        await syncService?.adoptRemoteLibrary(store: libraryStore)
+                    // Any auth transition (login / logout / switch) shows Library spinner.
+                    appModel.beginLibrarySync()
+                    defer { appModel.endLibrarySync() }
+
+                    guard let next else {
+                        // Sign out → guest bucket (keep prior user buckets).
+                        libraryStore.setOwnerKey(OwnerKeyStore.stableGuestOwnerKey)
+                        return
+                    }
+
+                    let userKey = OwnerKeyStore.userOwnerKey(userId: next.uuidString)
+                    let guestKey = OwnerKeyStore.stableGuestOwnerKey
+
+                    if previous == nil {
+                        // Guest → User: merge guest into this user, then sync.
+                        await syncService?.mergeGuestIntoUserAndSync(
+                            store: libraryStore,
+                            guestKey: guestKey,
+                            userKey: userKey
+                        )
+                    } else if previous != next {
+                        // User A → User B: switch bucket only (keep A cached).
+                        libraryStore.setOwnerKey(userKey)
+                        await syncService?.syncBidirectional(store: libraryStore)
                     } else {
+                        libraryStore.setOwnerKey(userKey)
                         await syncService?.syncBidirectional(store: libraryStore)
                     }
-                    appModel.bumpLibraryRevision()
                 }
             }
             .onChange(of: selectedTab) { _, tab in

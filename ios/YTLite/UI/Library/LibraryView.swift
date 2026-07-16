@@ -110,6 +110,30 @@ struct LibraryView: View {
                     }
                     .padding(.trailing, YTLiteLayout.screenPadding)
                     .padding(.bottom, YTLiteLayout.screenPadding)
+                    .disabled(appModel.isLibrarySyncing)
+                }
+            }
+            .overlay {
+                if appModel.isLibrarySyncing {
+                    ZStack {
+                        Color.black.opacity(0.35)
+                            .ignoresSafeArea()
+                        VStack(spacing: 12) {
+                            ProgressView()
+                                .tint(YTLiteColor.accent)
+                                .scaleEffect(1.15)
+                            Text("Syncing library…")
+                                .font(YTLiteType.meta.weight(.semibold))
+                                .foregroundStyle(YTLiteColor.onSurface)
+                        }
+                        .padding(.horizontal, 28)
+                        .padding(.vertical, 22)
+                        .background(
+                            YTLiteColor.surfaceElevated,
+                            in: RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        )
+                    }
+                    .allowsHitTesting(true)
                 }
             }
             .background(YTLiteColor.background)
@@ -340,10 +364,8 @@ struct LibraryView: View {
                     Task {
                         await auth.signInWithGoogle()
                         appModel.syncAuth(auth)
-                        if let store, auth.isAuthenticated {
-                            await LibrarySyncService(auth: auth).syncBidirectional(store: store)
-                            reload()
-                        }
+                        // RootView onChange drives merge/sync + spinner; avoid a duplicate sync here.
+                        reload()
                     }
                 } label: {
                     Image(systemName: "person.crop.circle")

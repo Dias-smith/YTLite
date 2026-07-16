@@ -16,27 +16,30 @@ final class LibrarySyncService {
     }
 
     func syncBidirectional(store: LibraryStore) async {
-        await pushAll(store: store)
-        await pullPlaylists(into: store)
-        await pullLastPlayed(into: store)
-        await pullMetadata(into: store)
-        await pullSubscribedChannels(into: store)
-        store.save()
-    }
-
-    /// Replace local library with the current user's remote data (no push).
-    /// Used when switching Google accounts so the previous user's rows never upload.
-    func adoptRemoteLibrary(store: LibraryStore) async {
         let previousMutate = store.onMutate
         store.onMutate = nil
         defer { store.onMutate = previousMutate }
 
-        store.clearUserLibraryForAccountSwitch()
-        await pullPlaylists(into: store)
-        await pullLastPlayed(into: store)
-        await pullMetadata(into: store)
-        await pullSubscribedChannels(into: store)
+        // Pull first so Library can refresh quickly; push only dirty rows after.
+        await pullRemote(into: store)
         store.saveLocalOnly()
+        await pushDirty(store: store)
+        store.saveLocalOnly()
+    }
+
+    /// Guest → first login: re-home guest bucket into the user bucket, then sync that user.
+    func mergeGuestIntoUserAndSync(
+        store: LibraryStore,
+        guestKey: String,
+        userKey: String
+    ) async {
+        let previousMutate = store.onMutate
+        store.onMutate = nil
+        defer { store.onMutate = previousMutate }
+
+        store.mergeGuestIntoUser(guestKey: guestKey, userKey: userKey)
+        store.setOwnerKey(userKey)
+        await syncBidirectional(store: store)
     }
 
     func deleteSubscribedChannel(channelId: String) async {
@@ -49,14 +52,34 @@ final class LibrarySyncService {
             .execute()
     }
 
+    /// Incremental upload used by `onMutate` and auth sync — skips already-synced rows.
     func pushAll(store: LibraryStore) async {
+        await pushDirty(store: store)
+        // Persist sync flags without re-entering onMutate.
+        store.saveLocalOnly()
+    }
+
+    private func pushDirty(store: LibraryStore) async {
         guard let client = auth.supabaseClient(), let userId = auth.userId else { return }
 
+        var pushedTrackIds = Set<String>()
+
         for playlist in store.allPlaylists() {
-            let playlistSynced = await upsertPlaylist(client: client, userId: userId, playlist: playlist)
-            for entry in playlist.entries {
+            let dirtyEntries = playlist.entries.filter { !$0.isSynced }
+            let needsPlaylistUpsert = !playlist.isSynced
+            guard needsPlaylistUpsert || !dirtyEntries.isEmpty else { continue }
+
+            var playlistSynced = true
+            if needsPlaylistUpsert {
+                playlistSynced = await upsertPlaylist(client: client, userId: userId, playlist: playlist)
+            }
+
+            for entry in dirtyEntries {
                 guard let track = entry.track else { continue }
-                await upsertTrack(client: client, track: track)
+                if !pushedTrackIds.contains(track.trackId) {
+                    await upsertTrack(client: client, track: track)
+                    pushedTrackIds.insert(track.trackId)
+                }
                 await upsertPlaylistTrack(
                     client: client,
                     playlistId: playlist.playlistId,
@@ -66,23 +89,25 @@ final class LibrarySyncService {
                 )
                 entry.isSynced = true
             }
-            // Keep dirty if a local cover still needs Storage upload.
+
             if playlistSynced {
                 playlist.isSynced = true
             }
         }
 
         for item in store.playbackHistory(limit: 100) where !item.isSynced {
-            if let track = store.track(id: item.trackId) {
+            if let track = store.track(id: item.trackId), !pushedTrackIds.contains(track.trackId) {
                 await upsertTrack(client: client, track: track)
+                pushedTrackIds.insert(track.trackId)
             }
             await insertPlaybackHistory(client: client, userId: userId, item: item)
             item.isSynced = true
         }
 
         for row in store.lastPlayed(limit: 100) where !row.isSynced {
-            if let track = store.track(id: row.trackId) {
+            if let track = store.track(id: row.trackId), !pushedTrackIds.contains(track.trackId) {
                 await upsertTrack(client: client, track: track)
+                pushedTrackIds.insert(track.trackId)
             }
             await upsertLastPlayed(client: client, userId: userId, row: row)
             row.isSynced = true
@@ -97,8 +122,17 @@ final class LibrarySyncService {
             await upsertSubscribedChannel(client: client, userId: userId, channel: channel)
             channel.isSynced = true
         }
+    }
 
-        store.save()
+    private func pullRemote(into store: LibraryStore) async {
+        guard auth.supabaseClient() != nil, auth.userId != nil else { return }
+
+        // Playlists first (owns the heavy track fetch); then lighter tables in parallel.
+        await pullPlaylists(into: store)
+        async let lastPlayedDone: Void = pullLastPlayed(into: store)
+        async let metadataDone: Void = pullMetadata(into: store)
+        async let channelsDone: Void = pullSubscribedChannels(into: store)
+        _ = await (lastPlayedDone, metadataDone, channelsDone)
     }
 
     func pullPlaylists(into store: LibraryStore) async {
@@ -119,16 +153,21 @@ final class LibrarySyncService {
                 .eq("user_id", value: userId)
                 .execute()
                 .value
+
+            var targets: [(remoteId: String, local: LibraryPlaylist)] = []
+            targets.reserveCapacity(rows.count)
+
             for row in rows {
                 if let system = row.system_type {
-                    if let local = store.allPlaylists().first(where: { $0.systemType == system }) {
-                        local.name = row.name
-                        Self.applyRemoteCover(row.cover_url_or_path, to: local)
-                        local.descriptionText = row.description
-                        local.isPinned = row.is_pinned ?? local.isPinned
-                        local.isSynced = true
-                        await pullTracks(client: client, store: store, remotePlaylistId: row.playlist_id, into: local)
+                    guard let local = store.allPlaylists().first(where: { $0.systemType == system }) else {
+                        continue
                     }
+                    local.name = row.name
+                    Self.applyRemoteCover(row.cover_url_or_path, to: local)
+                    local.descriptionText = row.description
+                    local.isPinned = row.is_pinned ?? local.isPinned
+                    local.isSynced = true
+                    targets.append((row.playlist_id, local))
                     continue
                 }
                 if let existing = store.allPlaylists().first(where: { $0.playlistId == row.playlist_id }) {
@@ -137,10 +176,11 @@ final class LibrarySyncService {
                     existing.descriptionText = row.description
                     existing.isPinned = row.is_pinned ?? existing.isPinned
                     existing.isSynced = true
-                    await pullTracks(client: client, store: store, remotePlaylistId: row.playlist_id, into: existing)
+                    targets.append((row.playlist_id, existing))
                     continue
                 }
                 let playlist = LibraryPlaylist(
+                    ownerKey: store.ownerKey,
                     playlistId: row.playlist_id,
                     name: row.name,
                     coverUrlOrPath: row.cover_url_or_path,
@@ -149,9 +189,11 @@ final class LibrarySyncService {
                     isPinned: row.is_pinned ?? false,
                     isSynced: true
                 )
-                store.insertImportedPlaylist(playlist)
-                await pullTracks(client: client, store: store, remotePlaylistId: row.playlist_id, into: playlist)
+                store.insertImportedPlaylist(playlist, persist: false)
+                targets.append((row.playlist_id, playlist))
             }
+
+            await pullTracksBatched(client: client, store: store, targets: targets)
         } catch {
             // Soft-fail
         }
@@ -206,6 +248,7 @@ final class LibrarySyncService {
             for row in rows {
                 store.upsertMetadata(
                     UserTrackMetadata(
+                        ownerKey: store.ownerKey,
                         trackId: row.track_id,
                         customTitle: row.custom_title,
                         customArtistName: row.custom_artist_name,
@@ -245,6 +288,7 @@ final class LibrarySyncService {
             for row in rows {
                 store.upsertSubscribedChannel(
                     UserSubscribedChannel(
+                        ownerKey: store.ownerKey,
                         channelId: row.channel_id,
                         title: row.title,
                         handle: row.handle,
@@ -259,30 +303,50 @@ final class LibrarySyncService {
         } catch {}
     }
 
-    private func pullTracks(
+    private func pullTracksBatched(
         client: SupabaseClient,
         store: LibraryStore,
-        remotePlaylistId: String,
-        into playlist: LibraryPlaylist
+        targets: [(remoteId: String, local: LibraryPlaylist)]
     ) async {
+        guard !targets.isEmpty else { return }
         struct RemoteTrackRef: Decodable {
+            let playlist_id: String
             let track_id: String
             let position: Int
         }
-        do {
-            let refs: [RemoteTrackRef] = try await client
-                .from("playlist_track_cross_ref")
-                .select()
-                .eq("playlist_id", value: remotePlaylistId)
-                .execute()
-                .value
-            let trackIds = refs.map(\.track_id)
-            await pullTracksByIds(client: client, store: store, trackIds: trackIds)
-            for ref in refs.sorted(by: { $0.position < $1.position }) {
+
+        let remoteIds = targets.map(\.remoteId)
+        var refs: [RemoteTrackRef] = []
+        for chunk in remoteIds.chunked(into: 80) {
+            do {
+                let part: [RemoteTrackRef] = try await client
+                    .from("playlist_track_cross_ref")
+                    .select()
+                    .in("playlist_id", values: chunk)
+                    .execute()
+                    .value
+                refs.append(contentsOf: part)
+            } catch {}
+        }
+
+        let allTrackIds = Array(Set(refs.map(\.track_id)))
+        await pullTracksByIds(client: client, store: store, trackIds: allTrackIds)
+
+        let localByRemoteId = Dictionary(uniqueKeysWithValues: targets.map { ($0.remoteId, $0.local) })
+        let refsByPlaylist = Dictionary(grouping: refs, by: \.playlist_id)
+
+        for (remoteId, playlist) in localByRemoteId {
+            let playlistRefs = (refsByPlaylist[remoteId] ?? []).sorted { $0.position < $1.position }
+            for ref in playlistRefs {
                 guard let track = store.track(id: ref.track_id) else { continue }
-                store.add(item: track.asVideoItem, to: playlist)
+                store.add(
+                    item: track.asVideoItem,
+                    to: playlist,
+                    persist: false,
+                    markDirty: false
+                )
             }
-        } catch {}
+        }
     }
 
     private func pullTracksByIds(
@@ -305,32 +369,34 @@ final class LibrarySyncService {
             let primary_artist_id: String?
             let primary_artist_name: String?
         }
-        do {
-            let tracks: [RemoteTrack] = try await client
-                .from("tracks")
-                .select()
-                .in("track_id", values: trackIds)
-                .execute()
-                .value
-            for t in tracks {
-                store.upsertTrackEntity(
-                    LibraryTrack(
-                        trackId: t.track_id,
-                        title: t.title,
-                        durationSeconds: t.duration_seconds ?? 0,
-                        durationText: t.duration_text,
-                        thumbnailLow: t.thumbnail_low,
-                        thumbnailMedium: t.thumbnail_medium,
-                        thumbnailHigh: t.thumbnail_high,
-                        viewCount: t.view_count ?? 0,
-                        viewCountText: t.view_count_text,
-                        publishedText: t.published_text,
-                        primaryArtistId: t.primary_artist_id,
-                        primaryArtistName: t.primary_artist_name
+        for chunk in trackIds.chunked(into: 100) {
+            do {
+                let tracks: [RemoteTrack] = try await client
+                    .from("tracks")
+                    .select()
+                    .in("track_id", values: chunk)
+                    .execute()
+                    .value
+                for t in tracks {
+                    store.upsertTrackEntity(
+                        LibraryTrack(
+                            trackId: t.track_id,
+                            title: t.title,
+                            durationSeconds: t.duration_seconds ?? 0,
+                            durationText: t.duration_text,
+                            thumbnailLow: t.thumbnail_low,
+                            thumbnailMedium: t.thumbnail_medium,
+                            thumbnailHigh: t.thumbnail_high,
+                            viewCount: t.view_count ?? 0,
+                            viewCountText: t.view_count_text,
+                            publishedText: t.published_text,
+                            primaryArtistId: t.primary_artist_id,
+                            primaryArtistName: t.primary_artist_name
+                        )
                     )
-                )
-            }
-        } catch {}
+                }
+            } catch {}
+        }
     }
 
     /// Upserts playlist row. Returns `false` if a local cover still failed to upload (keep dirty).
@@ -684,5 +750,20 @@ final class LibrarySyncService {
             return
         }
         playlist.coverUrlOrPath = remote
+    }
+}
+
+private extension Array {
+    func chunked(into size: Int) -> [[Element]] {
+        guard size > 0, !isEmpty else { return isEmpty ? [] : [self] }
+        var result: [[Element]] = []
+        result.reserveCapacity((count + size - 1) / size)
+        var index = startIndex
+        while index < endIndex {
+            let next = self.index(index, offsetBy: size, limitedBy: endIndex) ?? endIndex
+            result.append(Array(self[index..<next]))
+            index = next
+        }
+        return result
     }
 }

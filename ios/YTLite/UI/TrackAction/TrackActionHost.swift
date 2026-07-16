@@ -63,39 +63,11 @@ struct TrackActionHost<Content: View>: View {
                 }
             }
             .sheet(isPresented: $playlistPresenter.showDeleteConfirm) {
-                NavigationStack {
-                    VStack(alignment: .leading, spacing: YTLiteLayout.stackLoose) {
-                        Text("Delete \"\(playlistPresenter.context?.title ?? "playlist")\"? This can't be undone.")
-                            .font(YTLiteType.body)
-                            .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                        Spacer()
-                        Button(role: .destructive) {
-                            commitDelete()
-                        } label: {
-                            Text("Delete")
-                                .font(YTLiteType.labelEmphasized)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 12)
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .tint(YTLiteColor.danger)
-                        Button {
-                            playlistPresenter.showDeleteConfirm = false
-                        } label: {
-                            Text("Cancel")
-                                .font(YTLiteType.labelEmphasized)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 12)
-                        }
-                        .buttonStyle(.bordered)
-                    }
-                    .padding(YTLiteLayout.screenPadding)
-                    .background(YTLiteColor.background)
-                    .navigationTitle("Delete playlist?")
-                    .navigationBarTitleDisplayMode(.inline)
-                }
-                .preferredColorScheme(.dark)
-                .presentationDetents([.medium])
+                PlaylistDeleteConfirmSheet()
+                    .environmentObject(playlistPresenter)
+                    .environment(\.libraryStore, libraryStore)
+                    .preferredColorScheme(.dark)
+                    .presentationDetents([.medium])
             }
             .overlay(alignment: .bottom) {
                 if let message = presenter.toastMessage ?? playlistPresenter.toastMessage {
@@ -116,18 +88,63 @@ struct TrackActionHost<Content: View>: View {
         guard let context = playlistPresenter.context,
               context.canEdit,
               let playlist = libraryStore?.playlist(id: context.playlistId)
-        else { return }
+        else {
+            playlistPresenter.showRename = false
+            return
+        }
         libraryStore?.renamePlaylist(playlist, name: renameText)
+        playlistPresenter.showRename = false
         playlistPresenter.showToast("Playlist updated")
         playlistPresenter.notifyListsChanged()
     }
+}
+
+/// Isolated sheet so delete uses `libraryStore` from the environment (not a stale capture).
+private struct PlaylistDeleteConfirmSheet: View {
+    @Environment(\.libraryStore) private var store
+    @EnvironmentObject private var playlistPresenter: PlaylistActionPresenter
+
+    var body: some View {
+        NavigationStack {
+            VStack(alignment: .leading, spacing: YTLiteLayout.stackLoose) {
+                Text("Delete \"\(playlistPresenter.context?.title ?? "playlist")\"? This can't be undone.")
+                    .font(YTLiteType.body)
+                    .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                Spacer()
+                Button {
+                    commitDelete()
+                } label: {
+                    Text("Delete")
+                        .font(YTLiteType.labelEmphasized)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(YTLiteColor.danger)
+                Button {
+                    playlistPresenter.showDeleteConfirm = false
+                } label: {
+                    Text("Cancel")
+                        .font(YTLiteType.labelEmphasized)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                }
+                .buttonStyle(.bordered)
+            }
+            .padding(YTLiteLayout.screenPadding)
+            .background(YTLiteColor.background)
+            .navigationTitle("Delete playlist?")
+            .navigationBarTitleDisplayMode(.inline)
+        }
+    }
 
     private func commitDelete() {
-        guard let context = playlistPresenter.context,
-              context.canDelete,
-              let playlist = libraryStore?.playlist(id: context.playlistId)
-        else { return }
-        libraryStore?.deletePlaylist(playlist)
+        defer {
+            playlistPresenter.showDeleteConfirm = false
+        }
+        guard let context = playlistPresenter.context, context.canDelete else { return }
+        let deleted = store?.deletePlaylist(id: context.playlistId) ?? false
+        guard deleted else { return }
         playlistPresenter.showToast("Playlist deleted")
         playlistPresenter.notifyListsChanged()
     }

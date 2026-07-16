@@ -7,31 +7,283 @@ import UIKit
 @Observable
 final class LibraryStore {
     private let modelContext: ModelContext
+    /// Active account bucket (`guest:…` / `user:…`).
+    private(set) var ownerKey: String
     var onMutate: (() -> Void)?
     /// Fired after a channel is removed locally so sync can delete the remote row.
     var onUnsubscribeChannel: ((String) -> Void)?
 
-    init(modelContext: ModelContext) {
+    init(
+        modelContext: ModelContext,
+        ownerKey: String = OwnerKeyStore.stableGuestOwnerKey
+    ) {
         self.modelContext = modelContext
+        self.ownerKey = ownerKey
+        migrateUnscopedRowsIfNeeded(to: ownerKey)
         ensureSystemPlaylists()
         migrateLegacyPlaylistCovers()
     }
 
+    /// Switch active bucket without deleting other owners' data.
+    func setOwnerKey(_ key: String) {
+        guard key != ownerKey else {
+            ensureSystemPlaylists()
+            return
+        }
+        ownerKey = key
+        ensureSystemPlaylists()
+    }
+
     func ensureSystemPlaylists() {
-        // Names match Supabase seed_system_playlists() / Android.
-        ensureSystemPlaylist(name: "Liked videos", systemType: SystemPlaylistType.favorites)
-        ensureSystemPlaylist(name: "Watch later", systemType: SystemPlaylistType.watchLater)
+        ensureSystemPlaylists(for: ownerKey)
+    }
+
+    func ensureSystemPlaylists(for key: String) {
+        ensureSystemPlaylist(for: key, name: "Liked videos", systemType: SystemPlaylistType.favorites)
+        ensureSystemPlaylist(for: key, name: "Watch later", systemType: SystemPlaylistType.watchLater)
         try? modelContext.save()
     }
 
-    private func ensureSystemPlaylist(name: String, systemType: String) {
+    private func ensureSystemPlaylist(for key: String, name: String, systemType: String) {
         var descriptor = FetchDescriptor<LibraryPlaylist>(
-            predicate: #Predicate { $0.systemType == systemType }
+            predicate: #Predicate { $0.ownerKey == key && $0.systemType == systemType }
         )
         descriptor.fetchLimit = 1
         if (try? modelContext.fetch(descriptor))?.first != nil { return }
-        modelContext.insert(LibraryPlaylist(name: name, systemType: systemType, isPinned: true))
+        modelContext.insert(
+            LibraryPlaylist(ownerKey: key, name: name, systemType: systemType, isPinned: true)
+        )
     }
+
+    // MARK: - Owner migration / guest merge
+
+    /// Rows created before ownerKey existed (or wiped empty) inherit the boot owner.
+    private func migrateUnscopedRowsIfNeeded(to key: String) {
+        let empty = ""
+        var changed = false
+
+        let playlists = (try? modelContext.fetch(
+            FetchDescriptor<LibraryPlaylist>(predicate: #Predicate { $0.ownerKey == empty })
+        )) ?? []
+        for row in playlists {
+            row.ownerKey = key
+            changed = true
+        }
+
+        let history = (try? modelContext.fetch(
+            FetchDescriptor<PlaybackHistoryItem>(predicate: #Predicate { $0.ownerKey == empty })
+        )) ?? []
+        for row in history {
+            row.ownerKey = key
+            changed = true
+        }
+
+        let lastPlayed = (try? modelContext.fetch(
+            FetchDescriptor<UserTrackLastPlayed>(predicate: #Predicate { $0.ownerKey == empty })
+        )) ?? []
+        for row in lastPlayed {
+            row.ownerKey = key
+            changed = true
+        }
+
+        let metadata = (try? modelContext.fetch(
+            FetchDescriptor<UserTrackMetadata>(predicate: #Predicate { $0.ownerKey == empty })
+        )) ?? []
+        for row in metadata {
+            row.ownerKey = key
+            changed = true
+        }
+
+        let channels = (try? modelContext.fetch(
+            FetchDescriptor<UserSubscribedChannel>(predicate: #Predicate { $0.ownerKey == empty })
+        )) ?? []
+        for row in channels {
+            row.ownerKey = key
+            changed = true
+        }
+
+        let notInterested = (try? modelContext.fetch(
+            FetchDescriptor<NotInterestedItem>(predicate: #Predicate { $0.ownerKey == empty })
+        )) ?? []
+        for row in notInterested {
+            row.ownerKey = key
+            changed = true
+        }
+
+        if changed {
+            try? modelContext.save()
+        }
+    }
+
+    /// Re-home guest bucket into `userKey`, merging system playlists; conflict prefers existing user rows.
+    func mergeGuestIntoUser(guestKey: String, userKey: String) {
+        guard guestKey != userKey else { return }
+        let previousMutate = onMutate
+        onMutate = nil
+        defer { onMutate = previousMutate }
+
+        ensureSystemPlaylists(for: guestKey)
+
+        let guestSystem = fetchPlaylists(ownerKey: guestKey).filter { $0.systemType != nil }
+        for playlist in guestSystem {
+            playlist.ownerKey = userKey
+            playlist.isSynced = false
+            playlist.updatedAt = .now
+        }
+
+        ensureSystemPlaylists(for: userKey)
+        deduplicateSystemPlaylists(for: userKey)
+
+        mergeLastPlayed(from: guestKey, to: userKey)
+        mergeHistory(from: guestKey, to: userKey)
+        mergeMetadata(from: guestKey, to: userKey)
+        mergeChannels(from: guestKey, to: userKey)
+        mergeNotInterested(from: guestKey, to: userKey)
+
+        for playlist in fetchPlaylists(ownerKey: guestKey).filter({ $0.systemType == nil }) {
+            if let userPlaylist = fetchPlaylists(ownerKey: userKey)
+                .first(where: { $0.playlistId == playlist.playlistId }) {
+                mergeEntries(from: playlist, into: userPlaylist)
+                modelContext.delete(playlist)
+            } else {
+                playlist.ownerKey = userKey
+                playlist.isSynced = false
+                playlist.updatedAt = .now
+            }
+        }
+
+        ownerKey = userKey
+        deduplicateSystemPlaylists(for: userKey)
+        try? modelContext.save()
+    }
+
+    private func mergeLastPlayed(from guestKey: String, to userKey: String) {
+        let guestRows = (try? modelContext.fetch(
+            FetchDescriptor<UserTrackLastPlayed>(predicate: #Predicate { $0.ownerKey == guestKey })
+        )) ?? []
+        let userRows = (try? modelContext.fetch(
+            FetchDescriptor<UserTrackLastPlayed>(predicate: #Predicate { $0.ownerKey == userKey })
+        )) ?? []
+        let userById = Dictionary(uniqueKeysWithValues: userRows.map { ($0.trackId, $0) })
+        for guest in guestRows {
+            if let user = userById[guest.trackId] {
+                if guest.lastPlayedAt > user.lastPlayedAt {
+                    user.lastPlayedAt = guest.lastPlayedAt
+                    user.progressMs = guest.progressMs
+                    user.isSynced = false
+                }
+                modelContext.delete(guest)
+            } else {
+                guest.ownerKey = userKey
+                guest.isSynced = false
+            }
+        }
+    }
+
+    private func mergeHistory(from guestKey: String, to userKey: String) {
+        let rows = (try? modelContext.fetch(
+            FetchDescriptor<PlaybackHistoryItem>(predicate: #Predicate { $0.ownerKey == guestKey })
+        )) ?? []
+        for row in rows {
+            row.ownerKey = userKey
+            row.isSynced = false
+        }
+    }
+
+    private func mergeMetadata(from guestKey: String, to userKey: String) {
+        let guestRows = (try? modelContext.fetch(
+            FetchDescriptor<UserTrackMetadata>(predicate: #Predicate { $0.ownerKey == guestKey })
+        )) ?? []
+        let userRows = (try? modelContext.fetch(
+            FetchDescriptor<UserTrackMetadata>(predicate: #Predicate { $0.ownerKey == userKey })
+        )) ?? []
+        let userById = Dictionary(uniqueKeysWithValues: userRows.map { ($0.trackId, $0) })
+        for guest in guestRows {
+            if userById[guest.trackId] != nil {
+                modelContext.delete(guest)
+            } else {
+                guest.ownerKey = userKey
+                guest.isSynced = false
+            }
+        }
+    }
+
+    private func mergeChannels(from guestKey: String, to userKey: String) {
+        let guestRows = (try? modelContext.fetch(
+            FetchDescriptor<UserSubscribedChannel>(predicate: #Predicate { $0.ownerKey == guestKey })
+        )) ?? []
+        let userRows = (try? modelContext.fetch(
+            FetchDescriptor<UserSubscribedChannel>(predicate: #Predicate { $0.ownerKey == userKey })
+        )) ?? []
+        let userById = Dictionary(uniqueKeysWithValues: userRows.map { ($0.channelId, $0) })
+        for guest in guestRows {
+            if userById[guest.channelId] != nil {
+                modelContext.delete(guest)
+            } else {
+                guest.ownerKey = userKey
+                guest.isSynced = false
+            }
+        }
+    }
+
+    private func mergeNotInterested(from guestKey: String, to userKey: String) {
+        let guestRows = (try? modelContext.fetch(
+            FetchDescriptor<NotInterestedItem>(predicate: #Predicate { $0.ownerKey == guestKey })
+        )) ?? []
+        let userRows = (try? modelContext.fetch(
+            FetchDescriptor<NotInterestedItem>(predicate: #Predicate { $0.ownerKey == userKey })
+        )) ?? []
+        let userById = Dictionary(uniqueKeysWithValues: userRows.map { ($0.videoId, $0) })
+        for guest in guestRows {
+            if userById[guest.videoId] != nil {
+                modelContext.delete(guest)
+            } else {
+                guest.ownerKey = userKey
+            }
+        }
+    }
+
+    private func deduplicateSystemPlaylists(for key: String) {
+        for systemType in [SystemPlaylistType.favorites, SystemPlaylistType.watchLater] {
+            let duplicates = fetchPlaylists(ownerKey: key).filter { $0.systemType == systemType }
+            guard duplicates.count > 1 else { continue }
+            let canonical = duplicates.max { a, b in
+                if a.isSynced != b.isSynced { return !a.isSynced && b.isSynced }
+                if a.entries.count != b.entries.count { return a.entries.count < b.entries.count }
+                return a.updatedAt < b.updatedAt
+            }!
+            for dup in duplicates where dup.playlistId != canonical.playlistId {
+                mergeEntries(from: dup, into: canonical)
+                modelContext.delete(dup)
+            }
+            canonical.isSynced = false
+            canonical.updatedAt = .now
+        }
+    }
+
+    private func mergeEntries(from source: LibraryPlaylist, into target: LibraryPlaylist) {
+        let existingIds = Set(target.entries.compactMap { $0.track?.trackId })
+        var nextPos = target.entries.count
+        for entry in source.entries.sorted(by: { $0.position < $1.position }) {
+            guard let track = entry.track, !existingIds.contains(track.trackId) else { continue }
+            let copy = LibraryPlaylistEntry(
+                position: nextPos,
+                track: track,
+                createdAt: entry.createdAt,
+                isSynced: false
+            )
+            target.entries.append(copy)
+            nextPos += 1
+        }
+    }
+
+    private func fetchPlaylists(ownerKey key: String) -> [LibraryPlaylist] {
+        (try? modelContext.fetch(
+            FetchDescriptor<LibraryPlaylist>(predicate: #Predicate { $0.ownerKey == key })
+        )) ?? []
+    }
+
+    // MARK: - Tracks (global catalogue)
 
     func upsertTrack(from item: VideoItem, durationSeconds: Int = 0) -> LibraryTrack {
         let resolvedDuration = durationSeconds > 0
@@ -115,7 +367,10 @@ final class LibraryStore {
 
     /// Library tab / Save-to-library picker: Liked → Watch later → custom (oldest → newest).
     func playlistsInLibraryOrder() -> [LibraryPlaylist] {
-        let all = (try? modelContext.fetch(FetchDescriptor<LibraryPlaylist>())) ?? []
+        let key = ownerKey
+        let all = (try? modelContext.fetch(
+            FetchDescriptor<LibraryPlaylist>(predicate: #Predicate { $0.ownerKey == key })
+        )) ?? []
         let liked = all.first { $0.systemType == SystemPlaylistType.favorites }
         let watchLater = all.first { $0.systemType == SystemPlaylistType.watchLater }
         let custom = all
@@ -124,7 +379,6 @@ final class LibraryStore {
         return [liked, watchLater].compactMap { $0 } + custom
     }
 
-    /// Recent plays (resolved via tracks). Used for History playlist / session restore.
     func historyVideos(limit: Int = 100) -> [VideoItem] {
         lastPlayed(limit: limit).compactMap { row in
             track(id: row.trackId)?.asVideoItem
@@ -138,8 +392,6 @@ final class LibraryStore {
         case duration
     }
 
-    /// Library → Songs: union of tracks across all local playlists (deduped), plus history-only plays.
-    /// Aligns with Android `observeLocalSongs` + history merge.
     func librarySongs(sort: LibrarySongSort = .recentActivity) -> [VideoItem] {
         struct Acc {
             var item: VideoItem
@@ -199,10 +451,10 @@ final class LibraryStore {
         }
     }
 
-    /// Remove tracks from every local playlist and clear last-played (Android `removeTracksFromLocalLibrary`).
     func removeTracksFromLocalLibrary(trackIds: [String]) {
         let ids = Set(trackIds)
         guard !ids.isEmpty else { return }
+        let key = ownerKey
         for playlist in allPlaylists() {
             let doomed = playlist.entries.filter { entry in
                 guard let tid = entry.track?.trackId else { return false }
@@ -220,7 +472,7 @@ final class LibraryStore {
         }
         for id in ids {
             var descriptor = FetchDescriptor<UserTrackLastPlayed>(
-                predicate: #Predicate { $0.trackId == id }
+                predicate: #Predicate { $0.ownerKey == key && $0.trackId == id }
             )
             descriptor.fetchLimit = 1
             if let row = try? modelContext.fetch(descriptor).first {
@@ -231,20 +483,23 @@ final class LibraryStore {
     }
 
     func playbackHistory(limit: Int = 50) -> [PlaybackHistoryItem] {
+        let key = ownerKey
         var descriptor = FetchDescriptor<PlaybackHistoryItem>(
+            predicate: #Predicate { $0.ownerKey == key },
             sortBy: [SortDescriptor(\.playedAt, order: .reverse)]
         )
         descriptor.fetchLimit = limit
         return (try? modelContext.fetch(descriptor)) ?? []
     }
 
-    /// Legacy name used by sync / older call sites.
     func history(limit: Int = 100) -> [PlaybackHistoryItem] {
         playbackHistory(limit: limit)
     }
 
     func lastPlayed(limit: Int = 100) -> [UserTrackLastPlayed] {
+        let key = ownerKey
         var descriptor = FetchDescriptor<UserTrackLastPlayed>(
+            predicate: #Predicate { $0.ownerKey == key },
             sortBy: [SortDescriptor(\.lastPlayedAt, order: .reverse)]
         )
         descriptor.fetchLimit = limit
@@ -252,11 +507,16 @@ final class LibraryStore {
     }
 
     func allMetadata() -> [UserTrackMetadata] {
-        (try? modelContext.fetch(FetchDescriptor<UserTrackMetadata>())) ?? []
+        let key = ownerKey
+        return (try? modelContext.fetch(
+            FetchDescriptor<UserTrackMetadata>(predicate: #Predicate { $0.ownerKey == key })
+        )) ?? []
     }
 
     func allSubscribedChannels() -> [UserSubscribedChannel] {
+        let key = ownerKey
         let descriptor = FetchDescriptor<UserSubscribedChannel>(
+            predicate: #Predicate { $0.ownerKey == key },
             sortBy: [SortDescriptor(\.subscribedAt, order: .reverse)]
         )
         return (try? modelContext.fetch(descriptor)) ?? []
@@ -264,25 +524,19 @@ final class LibraryStore {
 
     func isSubscribed(channelId: String) -> Bool {
         guard ChannelID.isBrowsable(channelId) else { return false }
-        let id = channelId.trimmingCharacters(in: .whitespacesAndNewlines)
-        var descriptor = FetchDescriptor<UserSubscribedChannel>(
-            predicate: #Predicate { $0.channelId == id }
-        )
-        descriptor.fetchLimit = 1
-        return (try? modelContext.fetch(descriptor).first) != nil
+        return subscribedChannel(id: channelId) != nil
     }
 
     func subscribedChannel(id channelId: String) -> UserSubscribedChannel? {
         let id = channelId.trimmingCharacters(in: .whitespacesAndNewlines)
+        let key = ownerKey
         var descriptor = FetchDescriptor<UserSubscribedChannel>(
-            predicate: #Predicate { $0.channelId == id }
+            predicate: #Predicate { $0.ownerKey == key && $0.channelId == id }
         )
         descriptor.fetchLimit = 1
         return try? modelContext.fetch(descriptor).first
     }
 
-    /// Toggle local subscribe — mirrors Android `toggleSubscribeChannel`.
-    /// Returns `true` when subscribed after the call, `false` when unsubscribed / invalid.
     @discardableResult
     func toggleSubscribeChannel(
         channelId: String,
@@ -301,6 +555,7 @@ final class LibraryStore {
             return false
         }
         let channel = UserSubscribedChannel(
+            ownerKey: ownerKey,
             channelId: id,
             title: title.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty ?? id,
             handle: handle,
@@ -336,6 +591,7 @@ final class LibraryStore {
 
     func createPlaylist(name: String, playlistId: String = UUID().uuidString) -> LibraryPlaylist {
         let playlist = LibraryPlaylist(
+            ownerKey: ownerKey,
             playlistId: playlistId,
             name: name.trimmingCharacters(in: .whitespacesAndNewlines)
         )
@@ -344,22 +600,39 @@ final class LibraryStore {
         return playlist
     }
 
-    func insertImportedPlaylist(_ playlist: LibraryPlaylist) {
+    func insertImportedPlaylist(_ playlist: LibraryPlaylist, persist: Bool = true) {
+        if playlist.ownerKey.isEmpty {
+            playlist.ownerKey = ownerKey
+        }
         if allPlaylists().contains(where: { $0.playlistId == playlist.playlistId }) { return }
         modelContext.insert(playlist)
-        save()
+        if persist { save() }
     }
 
-    func add(item: VideoItem, to playlist: LibraryPlaylist) {
+    /// - Parameters:
+    ///   - persist: when false, skips save/onMutate (used by bulk sync pull).
+    ///   - markDirty: when false, keeps playlist sync flags (remote pull).
+    func add(
+        item: VideoItem,
+        to playlist: LibraryPlaylist,
+        persist: Bool = true,
+        markDirty: Bool = true
+    ) {
         if playlist.entries.contains(where: { $0.track?.trackId == item.videoId }) {
             return
         }
         let track = upsertTrack(from: item)
-        let entry = LibraryPlaylistEntry(position: playlist.entries.count, track: track)
+        let entry = LibraryPlaylistEntry(
+            position: playlist.entries.count,
+            track: track,
+            isSynced: !markDirty
+        )
         playlist.entries.append(entry)
-        playlist.updatedAt = .now
-        playlist.isSynced = false
-        save()
+        if markDirty {
+            playlist.updatedAt = .now
+            playlist.isSynced = false
+        }
+        if persist { save() }
     }
 
     func recordPlayback(_ item: NowPlayingItem, durationSeconds: Int = 0, progressMs: Int64 = 0) {
@@ -380,7 +653,9 @@ final class LibraryStore {
             track.primaryArtistName = item.channelName
         }
 
+        let key = ownerKey
         let history = PlaybackHistoryItem(
+            ownerKey: key,
             trackId: item.videoId,
             progressMs: progressMs,
             isSynced: false
@@ -389,7 +664,7 @@ final class LibraryStore {
 
         let trackId = item.videoId
         var descriptor = FetchDescriptor<UserTrackLastPlayed>(
-            predicate: #Predicate { $0.trackId == trackId }
+            predicate: #Predicate { $0.ownerKey == key && $0.trackId == trackId }
         )
         descriptor.fetchLimit = 1
         if let existing = try? modelContext.fetch(descriptor).first {
@@ -398,7 +673,12 @@ final class LibraryStore {
             existing.isSynced = false
         } else {
             modelContext.insert(
-                UserTrackLastPlayed(trackId: trackId, progressMs: progressMs, isSynced: false)
+                UserTrackLastPlayed(
+                    ownerKey: key,
+                    trackId: trackId,
+                    progressMs: progressMs,
+                    isSynced: false
+                )
             )
         }
         save()
@@ -409,8 +689,9 @@ final class LibraryStore {
         lastPlayedAt: Date,
         progressMs: Int64
     ) {
+        let key = ownerKey
         var descriptor = FetchDescriptor<UserTrackLastPlayed>(
-            predicate: #Predicate { $0.trackId == trackId }
+            predicate: #Predicate { $0.ownerKey == key && $0.trackId == trackId }
         )
         descriptor.fetchLimit = 1
         if let existing = try? modelContext.fetch(descriptor).first {
@@ -422,6 +703,7 @@ final class LibraryStore {
         } else {
             modelContext.insert(
                 UserTrackLastPlayed(
+                    ownerKey: key,
                     trackId: trackId,
                     lastPlayedAt: lastPlayedAt,
                     progressMs: progressMs,
@@ -432,9 +714,13 @@ final class LibraryStore {
     }
 
     func upsertMetadata(_ meta: UserTrackMetadata) {
+        if meta.ownerKey.isEmpty {
+            meta.ownerKey = ownerKey
+        }
+        let key = meta.ownerKey
         let trackId = meta.trackId
         var descriptor = FetchDescriptor<UserTrackMetadata>(
-            predicate: #Predicate { $0.trackId == trackId }
+            predicate: #Predicate { $0.ownerKey == key && $0.trackId == trackId }
         )
         descriptor.fetchLimit = 1
         if let existing = try? modelContext.fetch(descriptor).first {
@@ -451,9 +737,13 @@ final class LibraryStore {
     }
 
     func upsertSubscribedChannel(_ channel: UserSubscribedChannel) {
+        if channel.ownerKey.isEmpty {
+            channel.ownerKey = ownerKey
+        }
+        let key = channel.ownerKey
         let channelId = channel.channelId
         var descriptor = FetchDescriptor<UserSubscribedChannel>(
-            predicate: #Predicate { $0.channelId == channelId }
+            predicate: #Predicate { $0.ownerKey == key && $0.channelId == channelId }
         )
         descriptor.fetchLimit = 1
         if let existing = try? modelContext.fetch(descriptor).first {
@@ -469,7 +759,6 @@ final class LibraryStore {
         }
     }
 
-    /// Delete a subscribed channel locally without calling `onUnsubscribeChannel` / cloud delete.
     func removeSubscribedChannelLocally(channelId: String) {
         guard let existing = subscribedChannel(id: channelId) else { return }
         modelContext.delete(existing)
@@ -479,6 +768,22 @@ final class LibraryStore {
         guard playlist.systemType == nil else { return }
         modelContext.delete(playlist)
         save()
+    }
+
+    /// Delete by id within the current owner bucket (safe from sheet/action capture).
+    @discardableResult
+    func deletePlaylist(id playlistId: String) -> Bool {
+        let key = ownerKey
+        var descriptor = FetchDescriptor<LibraryPlaylist>(
+            predicate: #Predicate { $0.ownerKey == key && $0.playlistId == playlistId }
+        )
+        descriptor.fetchLimit = 1
+        guard let playlist = try? modelContext.fetch(descriptor).first,
+              playlist.systemType == nil
+        else { return false }
+        modelContext.delete(playlist)
+        save()
+        return true
     }
 
     func renamePlaylist(_ playlist: LibraryPlaylist, name: String) {
@@ -491,12 +796,9 @@ final class LibraryStore {
         save()
     }
 
-    /// Set playlist cover to a remote URL or local cover token/path.
     func updatePlaylistCover(_ playlist: LibraryPlaylist, coverUrlOrPath: String?) {
         guard playlist.systemType == nil else { return }
         let previous = playlist.coverUrlOrPath
-        // Never delete the file we are about to keep (same token/path) — that caused
-        // covers to vanish after a second write or duplicate PhotosPicker callback.
         if let previous, previous != coverUrlOrPath {
             PlaylistCoverStorage.deleteIfLocal(previous)
         }
@@ -506,14 +808,12 @@ final class LibraryStore {
         save()
     }
 
-    /// Persist a chosen image as the playlist cover (device-local file).
     func setPlaylistCoverImage(_ playlist: LibraryPlaylist, image: UIImage) {
         guard playlist.systemType == nil else { return }
         guard let token = PlaylistCoverStorage.save(image, playlistId: playlist.playlistId) else { return }
         updatePlaylistCover(playlist, coverUrlOrPath: token)
     }
 
-    /// Persist manual track order (Android `reorderPlaylistTracks`).
     func reorderPlaylistTracks(_ playlist: LibraryPlaylist, orderedTrackIds: [String]) {
         let byId = Dictionary(
             uniqueKeysWithValues: playlist.entries.compactMap { entry -> (String, LibraryPlaylistEntry)? in
@@ -533,9 +833,10 @@ final class LibraryStore {
 
     func removeLastPlayed(trackIds: [String]) {
         guard !trackIds.isEmpty else { return }
+        let key = ownerKey
         for id in trackIds {
             var descriptor = FetchDescriptor<UserTrackLastPlayed>(
-                predicate: #Predicate { $0.trackId == id }
+                predicate: #Predicate { $0.ownerKey == key && $0.trackId == id }
             )
             descriptor.fetchLimit = 1
             if let row = try? modelContext.fetch(descriptor).first {
@@ -563,8 +864,9 @@ final class LibraryStore {
     // MARK: - Not interested
 
     func isNotInterested(videoId: String) -> Bool {
+        let key = ownerKey
         var descriptor = FetchDescriptor<NotInterestedItem>(
-            predicate: #Predicate { $0.videoId == videoId }
+            predicate: #Predicate { $0.ownerKey == key && $0.videoId == videoId }
         )
         descriptor.fetchLimit = 1
         return (try? modelContext.fetch(descriptor))?.first != nil
@@ -572,8 +874,9 @@ final class LibraryStore {
 
     @discardableResult
     func toggleNotInterested(videoId: String) -> Bool {
+        let key = ownerKey
         var descriptor = FetchDescriptor<NotInterestedItem>(
-            predicate: #Predicate { $0.videoId == videoId }
+            predicate: #Predicate { $0.ownerKey == key && $0.videoId == videoId }
         )
         descriptor.fetchLimit = 1
         if let existing = try? modelContext.fetch(descriptor).first {
@@ -581,14 +884,15 @@ final class LibraryStore {
             save()
             return false
         }
-        modelContext.insert(NotInterestedItem(videoId: videoId))
+        modelContext.insert(NotInterestedItem(ownerKey: key, videoId: videoId))
         save()
         return true
     }
 
     func removeNotInterested(videoId: String) {
+        let key = ownerKey
         var descriptor = FetchDescriptor<NotInterestedItem>(
-            predicate: #Predicate { $0.videoId == videoId }
+            predicate: #Predicate { $0.ownerKey == key && $0.videoId == videoId }
         )
         descriptor.fetchLimit = 1
         if let existing = try? modelContext.fetch(descriptor).first {
@@ -600,8 +904,9 @@ final class LibraryStore {
     // MARK: - Metadata
 
     func metadata(for trackId: String) -> UserTrackMetadata? {
+        let key = ownerKey
         var descriptor = FetchDescriptor<UserTrackMetadata>(
-            predicate: #Predicate { $0.trackId == trackId }
+            predicate: #Predicate { $0.ownerKey == key && $0.trackId == trackId }
         )
         descriptor.fetchLimit = 1
         return try? modelContext.fetch(descriptor).first
@@ -622,6 +927,7 @@ final class LibraryStore {
         let cleanedYear = customYear?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
         upsertMetadata(
             UserTrackMetadata(
+                ownerKey: ownerKey,
                 trackId: trackId,
                 customTitle: cleanedTitle,
                 customArtistName: cleanedArtist,
@@ -635,7 +941,6 @@ final class LibraryStore {
         save()
     }
 
-    /// Apply local metadata overrides onto a display VideoItem.
     func displayItem(for item: VideoItem) -> VideoItem {
         guard let meta = metadata(for: item.videoId) else { return item }
         return VideoItem(
@@ -660,62 +965,24 @@ final class LibraryStore {
         onMutate?()
     }
 
-    /// Persist without notifying cloud push (used during account-switch pull).
     func saveLocalOnly() {
         try? modelContext.save()
     }
 
-    /// Drop user-scoped local rows so a newly signed-in account can pull a clean remote library.
-    /// Does not fire `onMutate` (avoids pushing the previous account's data).
-    func clearUserLibraryForAccountSwitch() {
-        let previousMutate = onMutate
-        onMutate = nil
-        defer { onMutate = previousMutate }
-
-        for channel in allSubscribedChannels() {
-            modelContext.delete(channel)
-        }
-
-        for playlist in allPlaylists() {
-            if playlist.systemType == nil {
-                if let cover = playlist.coverUrlOrPath {
-                    PlaylistCoverStorage.deleteIfLocal(cover)
-                }
-                modelContext.delete(playlist)
-            } else {
-                for entry in Array(playlist.entries) {
-                    modelContext.delete(entry)
-                }
-                playlist.entries = []
-                playlist.updatedAt = .now
-                playlist.isSynced = true
-            }
-        }
-
-        let history = (try? modelContext.fetch(FetchDescriptor<PlaybackHistoryItem>())) ?? []
-        for item in history { modelContext.delete(item) }
-
-        let lastPlayed = (try? modelContext.fetch(FetchDescriptor<UserTrackLastPlayed>())) ?? []
-        for row in lastPlayed { modelContext.delete(row) }
-
-        for meta in allMetadata() {
-            modelContext.delete(meta)
-        }
-
-        try? modelContext.save()
-        ensureSystemPlaylists()
-    }
-
     private func fetchPlaylist(systemType: String) -> LibraryPlaylist? {
+        let key = ownerKey
         var descriptor = FetchDescriptor<LibraryPlaylist>(
-            predicate: #Predicate { $0.systemType == systemType }
+            predicate: #Predicate { $0.ownerKey == key && $0.systemType == systemType }
         )
         descriptor.fetchLimit = 1
         return try? modelContext.fetch(descriptor).first
     }
 
     private func migrateLegacyPlaylistCovers() {
-        let all = (try? modelContext.fetch(FetchDescriptor<LibraryPlaylist>())) ?? []
+        let key = ownerKey
+        let all = (try? modelContext.fetch(
+            FetchDescriptor<LibraryPlaylist>(predicate: #Predicate { $0.ownerKey == key })
+        )) ?? []
         var changed = false
         for playlist in all where playlist.systemType == nil {
             let before = playlist.coverUrlOrPath
@@ -729,9 +996,6 @@ final class LibraryStore {
 }
 
 /// Local playlist cover files under Application Support.
-///
-/// Persisted value is a stable token `localcover:{playlistId}` (not an absolute path),
-/// so covers survive container path changes. Legacy absolute/`file://` paths are still resolved.
 enum PlaylistCoverStorage {
     private static let tokenPrefix = "localcover:"
 
@@ -765,14 +1029,12 @@ enum PlaylistCoverStorage {
         raw.hasPrefix(tokenPrefix) || raw.hasPrefix("/") || raw.hasPrefix("file://")
     }
 
-    /// Only remote http(s) covers are meaningful for Supabase sync.
     static func syncableCover(_ raw: String?) -> String? {
         guard let raw, !raw.isEmpty else { return nil }
         if raw.hasPrefix("http://") || raw.hasPrefix("https://") { return raw }
         return nil
     }
 
-    /// Writes JPEG and returns a stable `localcover:` token (not an absolute path).
     static func save(_ image: UIImage, playlistId: String) -> String? {
         guard let data = image.jpegData(compressionQuality: 0.88) else { return nil }
         let dir = coversDirectory()
@@ -801,7 +1063,6 @@ enum PlaylistCoverStorage {
         }
     }
 
-    /// Rewrite legacy absolute cover paths to stable tokens when the file still exists.
     static func migrateLegacyIfNeeded(_ playlist: LibraryPlaylist) {
         guard let raw = playlist.coverUrlOrPath, !raw.isEmpty else { return }
         if playlistId(fromLocalToken: raw) != nil { return }
@@ -844,7 +1105,6 @@ enum PlaylistCoverStorage {
     }
 }
 
-/// Android `LibraryItemMapper.isBrowsableChannelId` — nonisolated for network helpers.
 enum ChannelID {
     static func isBrowsable(_ channelId: String?) -> Bool {
         guard let channelId else { return false }

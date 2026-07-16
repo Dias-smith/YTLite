@@ -12,6 +12,8 @@ final class AppModel: ObservableObject {
     @Published var isAuthenticated: Bool = false
     /// Bumped after library sync / account-switch adopt so Subs & Library reload.
     @Published private(set) var libraryRevision: Int = 0
+    /// True after login / logout / account switch until library bucket sync finishes.
+    @Published private(set) var isLibrarySyncing: Bool = false
 
     let config = AppConfig.fromBundle()
 
@@ -29,6 +31,15 @@ final class AppModel: ObservableObject {
     }
 
     func bumpLibraryRevision() {
+        libraryRevision += 1
+    }
+
+    func beginLibrarySync() {
+        isLibrarySyncing = true
+    }
+
+    func endLibrarySync() {
+        isLibrarySyncing = false
         libraryRevision += 1
     }
 }

@@ -13,6 +13,7 @@
 		1416F31DD3C8F32D5F655843 /* CaptionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E18CD28AA17FA185B077C5E2 /* CaptionService.swift */; };
 		155523AA5ACE86E47C08C2AF /* TrackActionContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2636192842BC76B345106015 /* TrackActionContext.swift */; };
 		1650ADADA2A34FC0700C38C6 /* LibraryModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7A48A97E56F72E6C058051D /* LibraryModels.swift */; };
+		F0A1B2C3D4E5F60718293A4B /* OwnerKeyStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0A1B2C3D4E5F60718293A4C /* OwnerKeyStore.swift */; };
 		1C210BBBB2506247D4CAE222 /* MiniPlayerBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 810DCEABC066DAF9AA39EB6B /* MiniPlayerBar.swift */; };
 		2016F531F2C583A556F3E03C /* VideoItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82F8E26AA33C8BCEF1EC7A42 /* VideoItem.swift */; };
 		26F5FF4E219FCB0817AFA818 /* ExtractorAssets in Resources */ = {isa = PBXBuildFile; fileRef = C3CE997A0518482CF4D9FD61 /* ExtractorAssets */; };
@@ -95,6 +96,7 @@
 		BFC27F0F09C186AC380D7C63 /* PlaylistPickerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistPickerSheet.swift; sourceTree = "<group>"; };
 		C3CE997A0518482CF4D9FD61 /* ExtractorAssets */ = {isa = PBXFileReference; lastKnownFileType = folder; name = ExtractorAssets; path = ../shared/extractor; sourceTree = SOURCE_ROOT; };
 		C7A48A97E56F72E6C058051D /* LibraryModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryModels.swift; sourceTree = "<group>"; };
+		F0A1B2C3D4E5F60718293A4C /* OwnerKeyStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OwnerKeyStore.swift; sourceTree = "<group>"; };
 		CD793EE4155858FEFE389C69 /* ExtractorBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtractorBridge.swift; sourceTree = "<group>"; };
 		D2604D4FEBF8E477C2661E52 /* SearchMemoryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchMemoryStore.swift; sourceTree = "<group>"; };
 		D36539F7B8580F83FE3B4756 /* TrackActionHost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackActionHost.swift; sourceTree = "<group>"; };
@@ -188,6 +190,7 @@
 			children = (
 				C7A48A97E56F72E6C058051D /* LibraryModels.swift */,
 				20A50ADAC7C794FA13EF2533 /* LibraryStore.swift */,
+				F0A1B2C3D4E5F60718293A4C /* OwnerKeyStore.swift */,
 			);
 			path = Library;
 			sourceTree = "<group>";
@@ -476,6 +479,7 @@
 				E6C1694D0E07F9369B1A75F2 /* HomeView.swift in Sources */,
 				84CEB04446E705C0D3F63EE6 /* InnerTubeClient.swift in Sources */,
 				1650ADADA2A34FC0700C38C6 /* LibraryModels.swift in Sources */,
+				F0A1B2C3D4E5F60718293A4B /* OwnerKeyStore.swift in Sources */,
 				BBC8F08DC5CBB521277C50EC /* LibraryStore.swift in Sources */,
 				8DF42706E7A623593FF1DC5D /* LibrarySyncService.swift in Sources */,
 				96C22C7C115AE15C68F55E6E /* LibraryView.swift in Sources */,
