@@ -12,7 +12,9 @@ final class ImageStore: @unchecked Sendable {
     private let folder: URL
     private let ioQueue = DispatchQueue(label: "com.ytlite.image-store", qos: .utility)
     private let stateLock = NSLock()
+    /// Waiters for an in-flight load of the same cache key.
     private var inFlight: [String: [CheckedContinuation<UIImage?, Never>]] = [:]
+    private var leaders: Set<String> = []
 
     private init() {
         memory.countLimit = 250
@@ -39,25 +41,69 @@ final class ImageStore: @unchecked Sendable {
             return mem
         }
 
-        if let existing: UIImage? = await joinInFlight(key: key) {
-            return existing
+        if let joined = await joinOrLead(key: key) {
+            return joined
         }
 
-        if url.isFileURL {
-            let local = await decodeFile(url: url, maxPixelSize: maxPixelSize)
-            finishInFlight(key: key, image: local)
-            if let local {
-                memory.setObject(local, forKey: key as NSString, cost: local.approximateCost)
+        var loaded: UIImage?
+        defer { finishInFlight(key: key, image: loaded) }
+        loaded = await loadUncached(url: url, maxPixelSize: maxPixelSize)
+        if let loaded {
+            memory.setObject(loaded, forKey: key as NSString, cost: loaded.approximateCost)
+        }
+        return loaded
+    }
+
+    /// Returns `nil` when this caller should perform the load (leader).
+    /// Returns `Optional.some(image)` when this caller waited for another load.
+    private func joinOrLead(key: String) async -> UIImage?? {
+        let shouldLead: Bool = {
+            stateLock.lock()
+            defer { stateLock.unlock() }
+            if leaders.contains(key) {
+                return false
             }
-            return local
+            leaders.insert(key)
+            inFlight[key] = []
+            return true
+        }()
+
+        if shouldLead {
+            // Distinct from "waiter got a nil image": outer nil means lead.
+            return nil
         }
 
+        let image: UIImage? = await withCheckedContinuation { cont in
+            stateLock.lock()
+            if !leaders.contains(key) {
+                // Leader already finished between our check and now — shouldn't happen often.
+                stateLock.unlock()
+                cont.resume(returning: memory.object(forKey: key as NSString))
+                return
+            }
+            inFlight[key, default: []].append(cont)
+            stateLock.unlock()
+        }
+        return .some(image)
+    }
+
+    private func finishInFlight(key: String, image: UIImage?) {
+        stateLock.lock()
+        let waiters = inFlight.removeValue(forKey: key) ?? []
+        leaders.remove(key)
+        stateLock.unlock()
+        for waiter in waiters {
+            waiter.resume(returning: image)
+        }
+    }
+
+    private func loadUncached(url: URL, maxPixelSize: Int?) async -> UIImage? {
+        if url.isFileURL {
+            return await decodeFile(url: url, maxPixelSize: maxPixelSize)
+        }
         if let disk = await loadFromDisk(url: url, maxPixelSize: maxPixelSize) {
-            finishInFlight(key: key, image: disk)
-            memory.setObject(disk, forKey: key as NSString, cost: disk.approximateCost)
             return disk
         }
-
         do {
             var request = URLRequest(url: url)
             request.setValue(
@@ -69,43 +115,12 @@ final class ImageStore: @unchecked Sendable {
             }
             let (data, response) = try await session.data(for: request)
             guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-                finishInFlight(key: key, image: nil)
                 return nil
             }
             saveToDisk(data: data, url: url)
-            let image = Self.decodeImage(data: data, maxPixelSize: maxPixelSize)
-            finishInFlight(key: key, image: image)
-            if let image {
-                memory.setObject(image, forKey: key as NSString, cost: image.approximateCost)
-            }
-            return image
+            return Self.decodeImage(data: data, maxPixelSize: maxPixelSize)
         } catch {
-            finishInFlight(key: key, image: nil)
             return nil
-        }
-    }
-
-    private func joinInFlight(key: String) async -> UIImage?? {
-        await withCheckedContinuation { cont in
-            stateLock.lock()
-            if var waiters = inFlight[key] {
-                waiters.append(cont)
-                inFlight[key] = waiters
-                stateLock.unlock()
-                return
-            }
-            inFlight[key] = []
-            stateLock.unlock()
-            cont.resume(returning: nil)
-        }
-    }
-
-    private func finishInFlight(key: String, image: UIImage?) {
-        stateLock.lock()
-        let waiters = inFlight.removeValue(forKey: key) ?? []
-        stateLock.unlock()
-        for waiter in waiters {
-            waiter.resume(returning: image)
         }
     }
 
@@ -149,7 +164,7 @@ final class ImageStore: @unchecked Sendable {
         return folder.appendingPathComponent(name)
     }
 
-    private func cacheKey(url: URL, maxPixelSize: Int?) -> String {
+    func cacheKey(url: URL, maxPixelSize: Int?) -> String {
         if let maxPixelSize, maxPixelSize > 0 {
             return "\(url.absoluteString)#\(maxPixelSize)"
         }
@@ -226,6 +241,7 @@ struct RemoteImage: View {
             return
         }
         let loaded = await ImageStore.shared.image(for: url, maxPixelSize: maxPixelSize)
+        guard !Task.isCancelled else { return }
         image = loaded
         loadFailed = loaded == nil
     }

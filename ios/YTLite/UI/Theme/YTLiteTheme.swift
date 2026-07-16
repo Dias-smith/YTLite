@@ -352,6 +352,8 @@ struct FeedChannelAvatar: View {
             image = mem
             return
         }
-        image = await ImageStore.shared.image(for: url, maxPixelSize: maxPx)
+        let loaded = await ImageStore.shared.image(for: url, maxPixelSize: maxPx)
+        guard !Task.isCancelled else { return }
+        image = loaded
     }
 }
