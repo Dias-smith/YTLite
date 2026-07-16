@@ -351,10 +351,9 @@ struct LibraryView: View {
                 .presentationBackground(YTLiteColor.surface)
                 .preferredColorScheme(.dark)
             }
-            .confirmationDialog(
+            .alert(
                 "Delete account?",
-                isPresented: $showDeleteAccountConfirm,
-                titleVisibility: .visible
+                isPresented: $showDeleteAccountConfirm
             ) {
                 Button("Delete account", role: .destructive) {
                     Task { await performDeleteAccount() }
