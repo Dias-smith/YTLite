@@ -1,6 +1,8 @@
-# YTLite iOS
+# YouLite iOS
 
 Specs: [`prd/IOS_MVP_SCOPE.md`](../prd/IOS_MVP_SCOPE.md)
+
+Display name: **YouLite** (`CFBundleDisplayName`). Bundle ID remains `com.ytlite.player`.
 
 ## Setup
 

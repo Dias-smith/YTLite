@@ -8173,7 +8173,7 @@
         }
       }
     },
-    "This permanently deletes your YTLite account and cloud library data (playlists, history, subscriptions, and metadata). This can't be undone.": {},
+    "This permanently deletes your YouLite account and cloud library data (playlists, history, subscriptions, and metadata). This can't be undone.": {},
     "toast.added_to_queue": {
       "extractionState": "manual",
       "localizations": {
@@ -9664,49 +9664,49 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "YTLite Suggestions"
+            "value": "YouLite Suggestions"
           }
         },
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sugestões YTLite"
+            "value": "Sugestões YouLite"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sugerencias de YTLite"
+            "value": "Sugerencias de YouLite"
           }
         },
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "اقتراحات YTLite"
+            "value": "اقتراحات YouLite"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Suggestions YTLite"
+            "value": "Suggestions YouLite"
           }
         },
         "hi": {
           "stringUnit": {
             "state": "translated",
-            "value": "YTLite सुझाव"
+            "value": "YouLite सुझाव"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "YTLite 意见反馈"
+            "value": "YouLite 意见反馈"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "YTLite 意見回饋"
+            "value": "YouLite 意見回饋"
           }
         }
       }

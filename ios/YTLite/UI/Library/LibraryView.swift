@@ -366,7 +366,7 @@ struct LibraryView: View {
                 Button(L("common.cancel"), role: .cancel) {}
             } message: {
                 Text(
-                    "This permanently deletes your YTLite account and cloud library data (playlists, history, subscriptions, and metadata). This can't be undone."
+                    "This permanently deletes your YouLite account and cloud library data (playlists, history, subscriptions, and metadata). This can't be undone."
                 )
             }
             .alert(
