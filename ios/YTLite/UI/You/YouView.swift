@@ -27,14 +27,10 @@ struct YouView: View {
             .navigationBarHidden(true)
             .task(id: auth.userId) {
                 guard auth.isAuthenticated else { return }
-                viewModel.reload(store: store)
-            }
-            .onChange(of: appModel.libraryRevision) { _, _ in
-                guard auth.isAuthenticated else { return }
-                viewModel.reload(store: store)
-            }
-            .onChange(of: trackActions.listEpoch) { _, _ in
-                viewModel.reload(store: store)
+                await viewModel.loadYouTubeShelves(
+                    token: auth.googleAccessToken,
+                    apiKey: appModel.config.youtubeDataAPIKey
+                )
             }
             .sheet(isPresented: $showPlayer) {
                 NavigationStack {
@@ -68,11 +64,15 @@ struct YouView: View {
                 Task {
                     await auth.signInWithGoogle()
                     appModel.syncAuth(auth)
-                    viewModel.reload(store: store)
-                    if let store, auth.isAuthenticated {
-                        Task {
-                            await LibrarySyncService(auth: auth).syncBidirectional(store: store)
-                            viewModel.reload(store: store)
+                    if auth.isAuthenticated {
+                        await viewModel.loadYouTubeShelves(
+                            token: auth.googleAccessToken,
+                            apiKey: appModel.config.youtubeDataAPIKey
+                        )
+                        if let store {
+                            Task {
+                                await LibrarySyncService(auth: auth).syncBidirectional(store: store)
+                            }
                         }
                     }
                 }
@@ -105,10 +105,23 @@ struct YouView: View {
             VStack(alignment: .leading, spacing: 12) {
                 profileHeader
 
+                if viewModel.needsYoutubeReauth {
+                    youtubeReauthBanner
+                }
+
+                if let err = viewModel.errorMessage, !err.isEmpty {
+                    Text(err)
+                        .font(YTLiteType.meta)
+                        .foregroundStyle(YTLiteColor.danger)
+                        .padding(.horizontal, 16)
+                }
+
                 youSection(
                     title: "Subscriptions",
                     isEmpty: viewModel.channels.isEmpty,
-                    emptyText: "Channels you subscribe to in the player show up here",
+                    emptyText: viewModel.needsYoutubeReauth
+                        ? "Sign in again to grant YouTube access"
+                        : "No channel subscriptions on this YouTube account",
                     emptySystemImage: "person.2",
                     showViewAll: !viewModel.channels.isEmpty
                 ) {
@@ -118,7 +131,7 @@ struct YouView: View {
                 } content: {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 12) {
-                            ForEach(viewModel.channels, id: \.channelId) { channel in
+                            ForEach(viewModel.channels) { channel in
                                 NavigationLink {
                                     ChannelVideosView(channel: channel.asChannelItem)
                                 } label: {
@@ -134,7 +147,9 @@ struct YouView: View {
                 youSection(
                     title: "Playlists",
                     isEmpty: viewModel.playlists.isEmpty,
-                    emptyText: "Playlists you create appear here",
+                    emptyText: viewModel.needsYoutubeReauth
+                        ? "Sign in again to grant YouTube access"
+                        : "No playlists on this YouTube account",
                     emptySystemImage: "list.bullet.rectangle",
                     showViewAll: !viewModel.playlists.isEmpty
                 ) {
@@ -153,16 +168,18 @@ struct YouView: View {
                 } content: {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 12) {
-                            ForEach(viewModel.playlists, id: \.playlistId) { playlist in
+                            ForEach(viewModel.playlists) { playlist in
                                 NavigationLink {
-                                    PlaylistDetailView(playlist: playlist) {
-                                        viewModel.reload(store: store)
-                                    }
+                                    YoutubePlaylistItemsView(
+                                        playlistId: playlist.playlistId,
+                                        title: playlist.title
+                                    )
                                 } label: {
                                     YouPlaylistCard(
-                                        title: playlistDisplayName(playlist),
-                                        coverURL: playlistCoverURL(playlist),
-                                        subtitle: playlistSubtitle(playlist)
+                                        title: playlist.title,
+                                        coverURL: playlist.thumbnailUrl.flatMap(URL.init(string:)),
+                                        subtitle: playlist.itemCount.map { $0 == 1 ? "1 video" : "\($0) videos" }
+                                            ?? "Playlist"
                                     )
                                 }
                                 .buttonStyle(.plain)
@@ -175,21 +192,18 @@ struct YouView: View {
                 youSection(
                     title: "Liked videos",
                     isEmpty: viewModel.liked.isEmpty,
-                    emptyText: "Videos you like will show up here",
+                    emptyText: viewModel.needsYoutubeReauth
+                        ? "Sign in again to grant YouTube access"
+                        : "No liked videos on this YouTube account",
                     emptySystemImage: "hand.thumbsup",
-                    showViewAll: viewModel.likedPlaylist != nil && !viewModel.liked.isEmpty
+                    showViewAll: !viewModel.liked.isEmpty
                 ) {
                     EmptyView()
                 } viewAll: {
-                    Group {
-                        if let liked = viewModel.likedPlaylist {
-                            PlaylistDetailView(playlist: liked) {
-                                viewModel.reload(store: store)
-                            }
-                        } else {
-                            EmptyView()
-                        }
-                    }
+                    YoutubePlaylistItemsView(
+                        playlistId: viewModel.likedPlaylistId ?? "LL",
+                        title: "Liked videos"
+                    )
                 } content: {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 12) {
@@ -203,7 +217,7 @@ struct YouView: View {
                                     playback.play(
                                         items: viewModel.liked,
                                         startAt: index,
-                                        sourcePlaylistId: viewModel.likedPlaylist?.playlistId
+                                        sourcePlaylistId: viewModel.likedPlaylistId
                                     )
                                     showPlayer = true
                                 }
@@ -216,16 +230,45 @@ struct YouView: View {
             .padding(.bottom, 24)
         }
         .refreshable {
-            // Reload shelves immediately — full Supabase push/pull can take a long time
-            // (many tracks) and would leave the system refresh spinner stuck.
-            viewModel.reload(store: store)
-            guard let store, auth.isAuthenticated else { return }
-            let sync = LibrarySyncService(auth: auth)
-            Task { @MainActor in
-                await sync.syncBidirectional(store: store)
-                viewModel.reload(store: store)
-            }
+            await viewModel.loadYouTubeShelves(
+                token: auth.googleAccessToken,
+                apiKey: appModel.config.youtubeDataAPIKey
+            )
         }
+    }
+
+    private var youtubeReauthBanner: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("YouTube access needed")
+                .font(YTLiteType.rowTitle)
+                .foregroundStyle(YTLiteColor.onSurface)
+            Text("Switch account or sign in again to grant YouTube readonly access for subscriptions.")
+                .font(YTLiteType.meta)
+                .foregroundStyle(YTLiteColor.onSurfaceVariant)
+            Button {
+                Task {
+                    await auth.switchGoogleAccount()
+                    appModel.syncAuth(auth)
+                    await viewModel.loadYouTubeShelves(
+                        token: auth.googleAccessToken,
+                        apiKey: appModel.config.youtubeDataAPIKey
+                    )
+                }
+            } label: {
+                Text("Grant access")
+                    .font(YTLiteType.labelEmphasized)
+                    .foregroundStyle(YTLiteColor.onSurface)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .background(YTLiteColor.signInBlue, in: Capsule())
+            }
+            .buttonStyle(.plain)
+            .disabled(auth.isBusy)
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(YTLiteColor.surfaceVariant, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .padding(.horizontal, 16)
     }
 
     private var profileHeader: some View {
@@ -257,8 +300,10 @@ struct YouView: View {
                     Task {
                         await auth.switchGoogleAccount()
                         appModel.syncAuth(auth)
-                        // RootView adopts remote library + bumps libraryRevision for shelf reload.
-                        viewModel.reload(store: store)
+                        await viewModel.loadYouTubeShelves(
+                            token: auth.googleAccessToken,
+                            apiKey: appModel.config.youtubeDataAPIKey
+                        )
                     }
                 } label: {
                     Text("Switch account")
@@ -275,7 +320,7 @@ struct YouView: View {
                     Task {
                         await auth.signOut()
                         appModel.syncAuth(auth)
-                        viewModel.reload(store: store)
+                        viewModel.clear()
                     }
                 } label: {
                     Text("Sign out")
@@ -349,65 +394,54 @@ struct YouView: View {
         }
         .padding(.bottom, 4)
     }
-
-    private func playlistDisplayName(_ playlist: LibraryPlaylist) -> String {
-        if playlist.systemType == SystemPlaylistType.favorites { return "Liked videos" }
-        if playlist.systemType == SystemPlaylistType.watchLater { return "Watch later" }
-        return playlist.name
-    }
-
-    private func playlistSubtitle(_ playlist: LibraryPlaylist) -> String {
-        let count = playlist.entries.count
-        return count == 1 ? "1 video" : "\(count) videos"
-    }
-
-    private func playlistCoverURL(_ playlist: LibraryPlaylist) -> URL? {
-        if let url = PlaylistCoverStorage.resolveURL(playlist.coverUrlOrPath) {
-            return url
-        }
-        return playlist.entries
-            .sorted { $0.position < $1.position }
-            .compactMap { entry in
-                let item = entry.track.map(\.asVideoItem)
-                return item.flatMap { store?.displayItem(for: $0).thumbnailURL ?? $0.thumbnailURL }
-            }
-            .first
-    }
 }
 
 // MARK: - View model
 
 @MainActor
 final class YouViewModel: ObservableObject {
-    @Published private(set) var channels: [UserSubscribedChannel] = []
-    @Published private(set) var playlists: [LibraryPlaylist] = []
+    @Published private(set) var channels: [YoutubeDataApiClient.SubscriptionChannel] = []
+    @Published private(set) var playlists: [YoutubeDataApiClient.PlaylistPreview] = []
     @Published private(set) var liked: [VideoItem] = []
-    @Published private(set) var likedPlaylist: LibraryPlaylist?
+    @Published private(set) var likedPlaylistId: String?
+    @Published private(set) var needsYoutubeReauth = false
+    @Published private(set) var errorMessage: String?
     @Published private(set) var hasLoadedOnce = false
+    @Published private(set) var isLoading = false
 
-    func reload(store: LibraryStore?) {
-        // Synchronous local read — do not leave isLoading true across awaits.
-        channels = store?.allSubscribedChannels()
-            .sorted { $0.subscribedAt > $1.subscribedAt } ?? []
-        // Custom playlists only — Liked / Watch later have their own shelves on Android.
-        playlists = (store?.allPlaylists() ?? []).filter { $0.systemType == nil }
-        likedPlaylist = store?.favoritesPlaylist()
-        if let fav = likedPlaylist {
-            liked = fav.entries
-                .sorted { $0.position < $1.position }
-                .compactMap { $0.track?.asVideoItem }
-                .map { store?.displayItem(for: $0) ?? $0 }
-        } else {
-            liked = []
-        }
+    func clear() {
+        channels = []
+        playlists = []
+        liked = []
+        likedPlaylistId = nil
+        needsYoutubeReauth = false
+        errorMessage = nil
         hasLoadedOnce = true
+    }
+
+    func loadYouTubeShelves(token: String?, apiKey: String) async {
+        isLoading = true
+        defer {
+            isLoading = false
+            hasLoadedOnce = true
+        }
+        let snap = await YoutubeDataApiClient.loadYouPage(
+            oauthAccessToken: token,
+            apiKey: apiKey
+        )
+        channels = snap.subscriptions
+        playlists = snap.playlists
+        liked = snap.liked
+        likedPlaylistId = snap.likedPlaylistId
+        needsYoutubeReauth = snap.needsYoutubeReauth
+        errorMessage = snap.errorMessage
     }
 }
 
 // MARK: - Cards
 
 private struct YouChannelCard: View {
-    let channel: UserSubscribedChannel
+    let channel: YoutubeDataApiClient.SubscriptionChannel
 
     var body: some View {
         VStack(spacing: 8) {
@@ -489,7 +523,7 @@ private struct YouVideoShelfCard: View {
 // MARK: - View all pages
 
 struct SubscriptionChannelsListView: View {
-    let channels: [UserSubscribedChannel]
+    let channels: [YoutubeDataApiClient.SubscriptionChannel]
 
     var body: some View {
         Group {
@@ -497,10 +531,10 @@ struct SubscriptionChannelsListView: View {
                 ContentUnavailableView(
                     "No subscriptions",
                     systemImage: "person.2",
-                    description: Text("Subscribe to a channel from the player")
+                    description: Text("Channels from your YouTube account appear here")
                 )
             } else {
-                List(channels, id: \.channelId) { channel in
+                List(channels) { channel in
                     NavigationLink {
                         ChannelVideosView(channel: channel.asChannelItem)
                     } label: {
@@ -515,7 +549,7 @@ struct SubscriptionChannelsListView: View {
                                     .font(YTLiteType.rowTitle)
                                     .foregroundStyle(YTLiteColor.onSurface)
                                     .lineLimit(1)
-                                Text(channelListSubtitle(channel))
+                                Text("Channel")
                                     .font(YTLiteType.meta)
                                     .foregroundStyle(YTLiteColor.onSurfaceVariant)
                                     .lineLimit(1)
@@ -533,19 +567,10 @@ struct SubscriptionChannelsListView: View {
         .toolbarBackground(YTLiteColor.background, for: .navigationBar)
         .toolbarColorScheme(.dark, for: .navigationBar)
     }
-
-    private func channelListSubtitle(_ channel: UserSubscribedChannel) -> String {
-        if let subscriberCountText = channel.subscriberCountText, !subscriberCountText.isEmpty {
-            return subscriberCountText
-        }
-        if let handle = channel.handle, !handle.isEmpty { return handle }
-        return "Channel"
-    }
 }
 
 struct YouPlaylistsListView: View {
-    let playlists: [LibraryPlaylist]
-    @Environment(\.libraryStore) private var store
+    let playlists: [YoutubeDataApiClient.PlaylistPreview]
 
     var body: some View {
         Group {
@@ -553,24 +578,30 @@ struct YouPlaylistsListView: View {
                 ContentUnavailableView(
                     "No playlists",
                     systemImage: "list.bullet.rectangle",
-                    description: Text("Create a playlist from Library")
+                    description: Text("Playlists from your YouTube account appear here")
                 )
             } else {
-                List(playlists, id: \.playlistId) { playlist in
+                List(playlists) { playlist in
                     NavigationLink {
-                        PlaylistDetailView(playlist: playlist, onChange: {})
+                        YoutubePlaylistItemsView(
+                            playlistId: playlist.playlistId,
+                            title: playlist.title
+                        )
                     } label: {
                         HStack(spacing: 12) {
-                            RemoteImage(url: coverURL(playlist))
+                            RemoteImage(url: playlist.thumbnailUrl.flatMap(URL.init(string:)))
                                 .frame(width: 64, height: 36)
                                 .clipped()
                                 .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(playlist.name)
+                                Text(playlist.title)
                                     .font(YTLiteType.rowTitle)
                                     .foregroundStyle(YTLiteColor.onSurface)
                                     .lineLimit(1)
-                                Text("\(playlist.entries.count) videos")
+                                Text(
+                                    playlist.itemCount.map { $0 == 1 ? "1 video" : "\($0) videos" }
+                                        ?? "Playlist"
+                                )
                                     .font(YTLiteType.meta)
                                     .foregroundStyle(YTLiteColor.onSurfaceVariant)
                             }
@@ -587,13 +618,110 @@ struct YouPlaylistsListView: View {
         .toolbarBackground(YTLiteColor.background, for: .navigationBar)
         .toolbarColorScheme(.dark, for: .navigationBar)
     }
+}
 
-    private func coverURL(_ playlist: LibraryPlaylist) -> URL? {
-        if let url = PlaylistCoverStorage.resolveURL(playlist.coverUrlOrPath) { return url }
-        return playlist.entries
-            .sorted { $0.position < $1.position }
-            .compactMap { $0.track?.asVideoItem.thumbnailURL }
-            .first
+/// Remote YouTube playlist items via Data API (not local LibraryStore).
+struct YoutubePlaylistItemsView: View {
+    let playlistId: String
+    let title: String
+
+    @EnvironmentObject private var auth: AuthService
+    @EnvironmentObject private var appModel: AppModel
+    @EnvironmentObject private var playback: PlaybackController
+    @State private var items: [VideoItem] = []
+    @State private var isLoading = true
+    @State private var errorMessage: String?
+    @State private var showPlayer = false
+
+    var body: some View {
+        Group {
+            if isLoading {
+                ProgressView()
+                    .tint(YTLiteColor.accent)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if let errorMessage {
+                ContentUnavailableView(
+                    "Couldn't load playlist",
+                    systemImage: "exclamationmark.triangle",
+                    description: Text(errorMessage)
+                )
+            } else if items.isEmpty {
+                ContentUnavailableView(
+                    "No videos",
+                    systemImage: "play.rectangle",
+                    description: Text("This playlist has no videos")
+                )
+            } else {
+                List(Array(items.enumerated()), id: \.element.id) { index, item in
+                    Button {
+                        playback.play(items: items, startAt: index, sourcePlaylistId: playlistId)
+                        showPlayer = true
+                    } label: {
+                        HStack(spacing: 12) {
+                            RemoteImage(url: item.thumbnailURL)
+                                .frame(width: 120, height: 68)
+                                .clipped()
+                                .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(item.title)
+                                    .font(YTLiteType.rowTitle)
+                                    .foregroundStyle(YTLiteColor.onSurface)
+                                    .lineLimit(2)
+                                    .multilineTextAlignment(.leading)
+                                Text(item.channelName)
+                                    .font(YTLiteType.meta)
+                                    .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                                    .lineLimit(1)
+                            }
+                            Spacer(minLength: 0)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .listRowBackground(YTLiteColor.background)
+                }
+                .scrollContentBackground(.hidden)
+            }
+        }
+        .background(YTLiteColor.background)
+        .navigationTitle(title)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(YTLiteColor.background, for: .navigationBar)
+        .toolbarColorScheme(.dark, for: .navigationBar)
+        .task {
+            await load()
+        }
+        .sheet(isPresented: $showPlayer) {
+            NavigationStack {
+                PlayerDetailView()
+                    .preferredColorScheme(.dark)
+            }
+        }
+    }
+
+    private func load() async {
+        isLoading = true
+        errorMessage = nil
+        defer { isLoading = false }
+        guard let token = auth.googleAccessToken else {
+            errorMessage = "Sign in again to grant YouTube access"
+            items = []
+            return
+        }
+        let key = appModel.config.youtubeDataAPIKey
+        guard !key.isEmpty else {
+            errorMessage = "YouTube Data API key is not configured"
+            items = []
+            return
+        }
+        items = await YoutubeDataApiClient.listPlaylistItems(
+            token: token,
+            apiKey: key,
+            playlistId: playlistId,
+            maxResults: 50
+        ) ?? []
+        if items.isEmpty {
+            errorMessage = nil
+        }
     }
 }
 
@@ -843,20 +971,5 @@ struct PlaylistVideosBrowserView: View {
         .sheet(isPresented: $showPlayer) {
             NavigationStack { PlayerDetailView().preferredColorScheme(.dark) }
         }
-    }
-}
-
-private extension UserSubscribedChannel {
-    var asChannelItem: ChannelItem {
-        ChannelItem(
-            channelId: channelId,
-            title: title,
-            subtitle: {
-                if let subscriberCountText, !subscriberCountText.isEmpty { return subscriberCountText }
-                if let handle, !handle.isEmpty { return handle }
-                return "Channel"
-            }(),
-            thumbnailURL: avatarUrl.flatMap(URL.init(string:))
-        )
     }
 }

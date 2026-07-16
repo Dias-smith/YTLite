@@ -29,6 +29,7 @@
 		851939A3DB608B78BD6AE447 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1E29FF55D17C97ACE61342E /* SettingsView.swift */; };
 		85FB72072901FE9C6474A5C5 /* AuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0D829B6D0AECE937F00F00B /* AuthService.swift */; };
 		A9C0D1E2F3A4B5C6D7E8F9A0 /* AccountMenuSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9C0D1E2F3A4B5C6D7E8F9A1 /* AccountMenuSheet.swift */; };
+		B1C2D3E4F5061728394A5B07 /* YoutubeDataApiClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E4F5061728394A5B08 /* YoutubeDataApiClient.swift */; };
 		885197C2AA8B674B041A6337 /* SearchMemoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2604D4FEBF8E477C2661E52 /* SearchMemoryStore.swift */; };
 		8DF42706E7A623593FF1DC5D /* LibrarySyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB87027CCC60DA905FB7A4E8 /* LibrarySyncService.swift */; };
 		96C22C7C115AE15C68F55E6E /* LibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3EC77F988D8FEBB7F2CF01F9 /* LibraryView.swift */; };
@@ -86,6 +87,7 @@
 		95BB5987A01CB83F34EC4732 /* LyricsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricsSheet.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A4B5C /* MusicAlbumRelease.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicAlbumRelease.swift; sourceTree = "<group>"; };
 		A9C0D1E2F3A4B5C6D7E8F9A1 /* AccountMenuSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountMenuSheet.swift; sourceTree = "<group>"; };
+		B1C2D3E4F5061728394A5B08 /* YoutubeDataApiClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YoutubeDataApiClient.swift; sourceTree = "<group>"; };
 		A1E29FF55D17C97ACE61342E /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		AC4BC0290DBF96C47203AFD9 /* SearchHit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchHit.swift; sourceTree = "<group>"; };
 		B70A93BD5CE828D414CF8BBE /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
@@ -195,6 +197,7 @@
 			children = (
 				E8FF10C05E51CE4916A20549 /* InnerTubeClient.swift */,
 				770E66C46620B9C80B71FB27 /* YouTubeHTTPClient.swift */,
+				B1C2D3E4F5061728394A5B08 /* YoutubeDataApiClient.swift */,
 			);
 			path = Network;
 			sourceTree = "<group>";
@@ -465,6 +468,7 @@
 				F32CAC193DB54AAEF185C300 /* AppModel.swift in Sources */,
 				85FB72072901FE9C6474A5C5 /* AuthService.swift in Sources */,
 				A9C0D1E2F3A4B5C6D7E8F9A0 /* AccountMenuSheet.swift in Sources */,
+				B1C2D3E4F5061728394A5B07 /* YoutubeDataApiClient.swift in Sources */,
 				1416F31DD3C8F32D5F655843 /* CaptionService.swift in Sources */,
 				BAAE4BAA3C318ACE54DE33BE /* EditTrackMetadataSheet.swift in Sources */,
 				7E5A9D75F8FAE96D0D19CC4B /* ExtractorBridge.swift in Sources */,

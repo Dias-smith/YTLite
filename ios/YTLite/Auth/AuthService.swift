@@ -33,6 +33,14 @@ final class AuthService: ObservableObject {
         (metaString("avatar_url") ?? metaString("picture")).flatMap(URL.init(string:))
     }
 
+    /// Google OAuth access token from Supabase (needs `youtube.readonly` scope).
+    var googleAccessToken: String? {
+        session?.providerToken
+    }
+
+    private static let googleOAuthScopes =
+        "openid email profile https://www.googleapis.com/auth/youtube.readonly"
+
     init(config: AppConfig) {
         guard config.isConfigured,
               let url = URL(string: config.supabaseURL)
@@ -65,7 +73,8 @@ final class AuthService: ObservableObject {
         do {
             let newSession = try await client.auth.signInWithOAuth(
                 provider: .google,
-                redirectTo: URL(string: "ytlite://auth-callback")
+                redirectTo: URL(string: "ytlite://auth-callback"),
+                scopes: Self.googleOAuthScopes
             ) { (webSession: ASWebAuthenticationSession) in
                 webSession.prefersEphemeralWebBrowserSession = false
             }
@@ -101,6 +110,7 @@ final class AuthService: ObservableObject {
             let newSession = try await client.auth.signInWithOAuth(
                 provider: .google,
                 redirectTo: URL(string: "ytlite://auth-callback"),
+                scopes: Self.googleOAuthScopes,
                 queryParams: [(name: "prompt", value: "select_account")]
             ) { (webSession: ASWebAuthenticationSession) in
                 webSession.prefersEphemeralWebBrowserSession = true
