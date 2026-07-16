@@ -94,7 +94,7 @@ struct LibraryView: View {
                     }
                 } else {
                     ScrollView {
-                        VStack(alignment: .leading, spacing: YTLiteLayout.screenPadding) {
+                        LazyVStack(alignment: .leading, spacing: YTLiteLayout.screenPadding) {
                             if isSelectionMode {
                                 selectionHeader
                             } else {

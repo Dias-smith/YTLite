@@ -197,7 +197,11 @@ struct VideoThumbnail: View {
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
-            RemoteImage(url: url, contentMode: contentMode)
+            RemoteImage(
+                url: url,
+                contentMode: contentMode,
+                maxPointSize: max(width ?? height, height)
+            )
                 .frame(width: width, height: height)
                 .frame(maxWidth: width == nil ? .infinity : width)
                 .clipped()
@@ -241,7 +245,7 @@ struct FeedVideoCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             ZStack(alignment: .bottomTrailing) {
-                RemoteImage(url: item.thumbnailURL)
+                RemoteImage(url: item.thumbnailURL, maxPointSize: 420)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .clipped()
 
@@ -343,10 +347,11 @@ struct FeedChannelAvatar: View {
     private func load() async {
         image = nil
         guard let url else { return }
-        if let mem = ImageStore.shared.memoryHit(url) {
+        let maxPx = max(1, Int(size * UIScreen.main.scale))
+        if let mem = ImageStore.shared.memoryHit(url, maxPixelSize: maxPx) {
             image = mem
             return
         }
-        image = await ImageStore.shared.image(for: url)
+        image = await ImageStore.shared.image(for: url, maxPixelSize: maxPx)
     }
 }

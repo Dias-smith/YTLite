@@ -53,7 +53,10 @@ enum InnerTubeClient {
             clientVersion: YouTubeConstants.musicClientVersion,
             origin: YouTubeConstants.musicBaseURL
         )
-        return VideoJSONParser.parseMusicSongs(from: json)
+        nonisolated(unsafe) let payload = json
+        return await parseOffMain {
+            VideoJSONParser.parseMusicSongs(from: payload)
+        }
     }
 
     private static func searchYouTube(query: String, tab: SearchResultTab) async throws -> [SearchHit] {
@@ -69,7 +72,10 @@ enum InnerTubeClient {
             body: body,
             label: "search_\(tab.rawValue)"
         )
-        return VideoJSONParser.parseSearchHits(from: json, tab: tab)
+        nonisolated(unsafe) let payload = json
+        return await parseOffMain {
+            VideoJSONParser.parseSearchHits(from: payload, tab: tab)
+        }
     }
 
     /// Google Suggest autocomplete for YouTube (`ds=yt`), same as Android `fetchSuggestQueries`.
@@ -123,7 +129,11 @@ enum InnerTubeClient {
             "browseId": homeBrowseId,
         ]
         let json = try await postJSON(url: browseURL, body: body, label: "home")
-        let videos = VideoJSONParser.parseVideos(from: json)
+        // `Any` from JSON is not Sendable; transfer intentionally for background parse.
+        nonisolated(unsafe) let payload = json
+        let videos = await parseOffMain {
+            VideoJSONParser.parseVideos(from: payload)
+        }
         if !videos.isEmpty { return videos }
         return try await searchVideos(query: "music")
     }
@@ -147,7 +157,10 @@ enum InnerTubeClient {
             clientVersion: YouTubeConstants.musicClientVersion,
             origin: YouTubeConstants.musicBaseURL
         )
-        return VideoJSONParser.parseMusicRelated(from: json, excludeVideoId: id)
+        nonisolated(unsafe) let payload = json
+        return await parseOffMain {
+            VideoJSONParser.parseMusicRelated(from: payload, excludeVideoId: id)
+        }
     }
 
     /// YouTube Music browse (`WEB_REMIX`).
@@ -172,7 +185,10 @@ enum InnerTubeClient {
     /// New-release album/EP/single cards from Music.
     static func fetchMusicNewReleaseAlbums() async throws -> [MusicAlbumRelease] {
         let json = try await browseMusic(browseId: YouTubeConstants.musicBrowseIdNewReleaseAlbums)
-        return VideoJSONParser.parseMusicAlbumReleases(from: json)
+        nonisolated(unsafe) let payload = json
+        return await parseOffMain {
+            VideoJSONParser.parseMusicAlbumReleases(from: payload)
+        }
     }
 
     /// Tracks inside a Music album browse page (`MPRE…`).
@@ -183,47 +199,64 @@ enum InnerTubeClient {
         thumbnailFallback: URL? = nil
     ) async throws -> [VideoItem] {
         let json = try await browseMusic(browseId: browseId)
-        return VideoJSONParser.parseMusicAlbumTracks(
-            from: json,
-            albumTitle: albumTitle,
-            artistFallback: artistFallback,
-            thumbnailFallback: thumbnailFallback
-        )
+        nonisolated(unsafe) let payload = json
+        return await parseOffMain {
+            VideoJSONParser.parseMusicAlbumTracks(
+                from: payload,
+                albumTitle: albumTitle,
+                artistFallback: artistFallback,
+                thumbnailFallback: thumbnailFallback
+            )
+        }
     }
 
     /// Android `fetchMusicNewReleaseAlbumsFeed` first page: singles → track, albums → album card.
     static func fetchMusicNewReleaseFeed(limit: Int = 20) async throws -> [HomeFeedEntry] {
         let albums = try await fetchMusicNewReleaseAlbums()
         let page = Array(albums.prefix(max(limit, 0)))
+        let maxConcurrent = 4
         return await withTaskGroup(of: (Int, HomeFeedEntry?).self) { group in
-            for (index, release) in page.enumerated() {
-                group.addTask {
-                    if release.isSingle {
-                        let tracks = try? await fetchMusicAlbumTracks(
-                            browseId: release.browseId,
-                            albumTitle: release.title,
-                            artistFallback: release.artistName,
-                            thumbnailFallback: release.thumbnailURL
-                        )
-                        guard var track = tracks?.first else { return (index, nil) }
-                        track = VideoItem(
-                            videoId: track.videoId,
-                            title: track.title,
-                            channelName: release.artistName.isEmpty ? track.channelName : release.artistName,
-                            thumbnailURL: release.thumbnailURL ?? track.thumbnailURL,
-                            channelAvatarURL: track.channelAvatarURL,
-                            durationText: track.durationText,
-                            viewCountText: track.viewCountText,
-                            publishedTimeText: release.releaseType.isEmpty ? "Single" : release.releaseType
-                        )
-                        return (index, .track(track))
+            var nextIndex = 0
+            var inFlight = 0
+            var paired: [(Int, HomeFeedEntry)] = []
+
+            func enqueue() {
+                while inFlight < maxConcurrent && nextIndex < page.count {
+                    let index = nextIndex
+                    let release = page[index]
+                    nextIndex += 1
+                    inFlight += 1
+                    group.addTask {
+                        if release.isSingle {
+                            let tracks = try? await fetchMusicAlbumTracks(
+                                browseId: release.browseId,
+                                albumTitle: release.title,
+                                artistFallback: release.artistName,
+                                thumbnailFallback: release.thumbnailURL
+                            )
+                            guard var track = tracks?.first else { return (index, nil) }
+                            track = VideoItem(
+                                videoId: track.videoId,
+                                title: track.title,
+                                channelName: release.artistName.isEmpty ? track.channelName : release.artistName,
+                                thumbnailURL: release.thumbnailURL ?? track.thumbnailURL,
+                                channelAvatarURL: track.channelAvatarURL,
+                                durationText: track.durationText,
+                                viewCountText: track.viewCountText,
+                                publishedTimeText: release.releaseType.isEmpty ? "Single" : release.releaseType
+                            )
+                            return (index, .track(track))
+                        }
+                        return (index, .album(release))
                     }
-                    return (index, .album(release))
                 }
             }
-            var paired: [(Int, HomeFeedEntry)] = []
+
+            enqueue()
             for await (index, entry) in group {
+                inFlight -= 1
                 if let entry { paired.append((index, entry)) }
+                enqueue()
             }
             return paired.sorted { $0.0 < $1.0 }.map(\.1)
         }
@@ -277,8 +310,27 @@ enum InnerTubeClient {
         if byId.count < 5 {
             let shelf = try await fetchChannelShelf(channelId: id)
             absorb(shelf.videos)
-            for playlistId in shelf.playlistIds.prefix(12) {
-                absorb(try await fetchPlaylistVideos(playlistId: playlistId))
+            let playlistIds = Array(shelf.playlistIds.prefix(12))
+            let maxConcurrent = 3
+            await withTaskGroup(of: [VideoItem].self) { group in
+                var next = 0
+                var inFlight = 0
+                func enqueue() {
+                    while inFlight < maxConcurrent && next < playlistIds.count {
+                        let playlistId = playlistIds[next]
+                        next += 1
+                        inFlight += 1
+                        group.addTask {
+                            (try? await fetchPlaylistVideos(playlistId: playlistId)) ?? []
+                        }
+                    }
+                }
+                enqueue()
+                for await items in group {
+                    inFlight -= 1
+                    absorb(items)
+                    enqueue()
+                }
             }
         }
 
@@ -521,7 +573,19 @@ enum InnerTubeClient {
                 result.errMsg.isEmpty ? "\(label) failed" : result.errMsg
             )
         }
-        return try JSONSerialization.jsonObject(with: data)
+        // Decode off the caller's executor (often MainActor via ViewModels).
+        return try await Task.detached(priority: .userInitiated) {
+            try JSONSerialization.jsonObject(with: data)
+        }.value
+    }
+
+    /// Run heavy InnerTube tree walks off the main actor.
+    private static func parseOffMain<T: Sendable>(
+        _ work: @Sendable @escaping () -> T
+    ) async -> T {
+        await Task.detached(priority: .userInitiated) {
+            work()
+        }.value
     }
 }
 
@@ -913,10 +977,17 @@ enum VideoJSONParser {
 
     private static func walk(_ root: Any, limit: Int = 8_000, visit: ([String: Any]) -> Void) {
         var queue: [Any] = [root]
+        var head = 0
         var visited = 0
-        while !queue.isEmpty && visited < limit {
-            let node = queue.removeFirst()
+        while head < queue.count && visited < limit {
+            let node = queue[head]
+            head += 1
             visited += 1
+            // Periodically compact to keep memory bounded on huge trees.
+            if head > 1_024 && head * 2 > queue.count {
+                queue.removeFirst(head)
+                head = 0
+            }
             if let dict = node as? [String: Any] {
                 visit(dict)
                 // Prefer content branches so video lockups are reached before chrome noise.

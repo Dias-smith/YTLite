@@ -4,11 +4,12 @@ import UIKit
 /// Bottom mini player — aligned with Android `MiniPlayerBar`.
 struct MiniPlayerBar: View {
     @EnvironmentObject private var playback: PlaybackController
+    @EnvironmentObject private var progressClock: PlaybackProgressModel
     @State private var showPlayer = false
 
     private var progress: CGFloat {
-        guard playback.durationSeconds > 0 else { return 0 }
-        return CGFloat(playback.positionSeconds / playback.durationSeconds).clamped(to: 0...1)
+        guard progressClock.durationSeconds > 0 else { return 0 }
+        return CGFloat(progressClock.positionSeconds / progressClock.durationSeconds).clamped(to: 0...1)
     }
 
     var body: some View {

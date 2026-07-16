@@ -21,8 +21,10 @@ final class PlaybackController: ObservableObject {
             updateNowPlayingInfo()
         }
     }
-    @Published private(set) var positionSeconds: Double = 0
-    @Published private(set) var durationSeconds: Double = 0
+    /// Progress clock lives here so list tabs observing `PlaybackController` are not
+    /// invalidated every 0.5s. Inject `progress` as its own `environmentObject`.
+    let progress = PlaybackProgressModel()
+
     @Published private(set) var isBuffering: Bool = false
     @Published var lastError: String?
     @Published private(set) var isFavorite: Bool = false
@@ -34,11 +36,20 @@ final class PlaybackController: ObservableObject {
     @Published private(set) var sleepTimerEndsAt: Date?
     /// Preset minutes that started the current timer (`nil` = Off).
     @Published private(set) var sleepTimerMinutes: Int?
-    /// Bumps every second while sleep timer is active so UI remaining time refreshes.
-    @Published private(set) var sleepTimerTick: Date = .distantPast
 
     static let speedOptions: [Float] = [0.5, 0.75, 1, 1.25, 1.5, 2, 3, 5, 8]
     private static let speedKey = "playback_speed"
+
+    /// Forwards to `progress` without publishing on this object.
+    var positionSeconds: Double {
+        get { progress.positionSeconds }
+        set { progress.setPosition(newValue) }
+    }
+
+    var durationSeconds: Double {
+        get { progress.durationSeconds }
+        set { progress.setDuration(newValue) }
+    }
 
     private(set) var player: AVPlayer?
     private var timeObserver: Any?
@@ -74,7 +85,7 @@ final class PlaybackController: ObservableObject {
 
     var sleepTimerRemaining: TimeInterval? {
         guard let sleepTimerEndsAt else { return nil }
-        _ = sleepTimerTick
+        _ = progress.sleepTimerTick
         return max(0, sleepTimerEndsAt.timeIntervalSinceNow)
     }
 
@@ -631,7 +642,7 @@ final class PlaybackController: ObservableObject {
         }
         sleepTimerMinutes = minutes
         sleepTimerEndsAt = Date().addingTimeInterval(TimeInterval(minutes * 60))
-        sleepTimerTick = Date()
+        progress.bumpSleepTimerTick()
         startSleepTimerTicker()
     }
 
@@ -795,10 +806,12 @@ final class PlaybackController: ObservableObject {
         timeObserver = player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] time in
             Task { @MainActor in
                 guard let self else { return }
-                self.positionSeconds = time.seconds.isFinite ? time.seconds : 0
-                if let duration = player.currentItem?.duration.seconds, duration.isFinite {
-                    self.durationSeconds = duration
-                }
+                let position = time.seconds.isFinite ? time.seconds : 0
+                let duration: Double? = {
+                    guard let d = player.currentItem?.duration.seconds, d.isFinite else { return nil }
+                    return d
+                }()
+                self.progress.setPositionAndDuration(position: position, duration: duration)
                 self.checkSleepTimerExpired()
                 self.updateNowPlayingElapsed()
                 self.persistSession(immediate: false)
@@ -812,7 +825,7 @@ final class PlaybackController: ObservableObject {
             .autoconnect()
             .sink { [weak self] now in
                 guard let self else { return }
-                self.sleepTimerTick = now
+                self.progress.bumpSleepTimerTick(now)
                 self.checkSleepTimerExpired()
             }
     }
@@ -1009,24 +1022,18 @@ final class PlaybackController: ObservableObject {
         let generation = artworkGeneration
         let videoId = item.videoId
         artworkTask = Task { [weak self] in
-            do {
-                let (data, _) = try await URLSession.shared.data(from: url)
-                guard !Task.isCancelled else { return }
-                guard let image = UIImage(data: data) else { return }
-                await MainActor.run {
-                    guard let self,
-                          self.artworkGeneration == generation,
-                          self.nowPlaying?.videoId == videoId
-                    else { return }
-                    self.artworkImage = image
-                    self.artworkVideoId = videoId
-                    self.artworkTask = nil
+            let image = await ImageStore.shared.image(for: url, maxPixelSize: 640)
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                guard let self,
+                      self.artworkGeneration == generation,
+                      self.nowPlaying?.videoId == videoId
+                else { return }
+                self.artworkImage = image
+                self.artworkVideoId = videoId
+                self.artworkTask = nil
+                if image != nil {
                     self.updateNowPlayingInfo()
-                }
-            } catch {
-                await MainActor.run {
-                    guard let self, self.artworkGeneration == generation else { return }
-                    self.artworkTask = nil
                 }
             }
         }

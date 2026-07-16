@@ -380,9 +380,21 @@ final class LibraryStore {
     }
 
     func historyVideos(limit: Int = 100) -> [VideoItem] {
-        lastPlayed(limit: limit).compactMap { row in
-            track(id: row.trackId)?.asVideoItem
-        }
+        let rows = lastPlayed(limit: limit)
+        guard !rows.isEmpty else { return [] }
+        let ids = rows.map(\.trackId)
+        let tracksById = Dictionary(
+            uniqueKeysWithValues: tracks(ids: ids).map { ($0.trackId, $0) }
+        )
+        return rows.compactMap { tracksById[$0.trackId]?.asVideoItem }
+    }
+
+    private func tracks(ids: [String]) -> [LibraryTrack] {
+        guard !ids.isEmpty else { return [] }
+        let wanted = ids
+        return (try? modelContext.fetch(
+            FetchDescriptor<LibraryTrack>(predicate: #Predicate { wanted.contains($0.trackId) })
+        )) ?? []
     }
 
     enum LibrarySongSort {
@@ -943,7 +955,11 @@ final class LibraryStore {
 
     func displayItem(for item: VideoItem) -> VideoItem {
         guard let meta = metadata(for: item.videoId) else { return item }
-        return VideoItem(
+        return applyMetadata(meta, to: item)
+    }
+
+    private func applyMetadata(_ meta: UserTrackMetadata, to item: VideoItem) -> VideoItem {
+        VideoItem(
             videoId: item.videoId,
             title: meta.customTitle ?? item.title,
             channelName: meta.customArtistName ?? item.channelName,
@@ -957,7 +973,23 @@ final class LibraryStore {
     }
 
     func filterNotInterested(_ items: [VideoItem]) -> [VideoItem] {
-        items.filter { !isNotInterested(videoId: $0.videoId) }.map { displayItem(for: $0) }
+        guard !items.isEmpty else { return [] }
+        let key = ownerKey
+        let blocked = Set(
+            ((try? modelContext.fetch(
+                FetchDescriptor<NotInterestedItem>(predicate: #Predicate { $0.ownerKey == key })
+            )) ?? []).map(\.videoId)
+        )
+        let metaById = Dictionary(
+            uniqueKeysWithValues: allMetadata().map { ($0.trackId, $0) }
+        )
+        return items.compactMap { item in
+            guard !blocked.contains(item.videoId) else { return nil }
+            if let meta = metaById[item.videoId] {
+                return applyMetadata(meta, to: item)
+            }
+            return item
+        }
     }
 
     func save() {

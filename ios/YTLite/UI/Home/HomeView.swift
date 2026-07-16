@@ -53,9 +53,12 @@ final class HomeViewModel: ObservableObject {
     @Published var isRefreshing = false
     @Published var errorMessage: String?
     @Published var selectedCategoryId: String = HomeCategory.all[0].id
+    /// Playable tracks for queue play — updated with `entries`, not recomputed per row.
+    @Published private(set) var playableVideos: [VideoItem] = []
 
     private var loadGeneration = 0
     private var rawEntries: [HomeFeedEntry] = []
+    private var playableIndexById: [String: Int] = [:]
     weak var libraryStore: LibraryStore?
 
     init() {
@@ -67,8 +70,10 @@ final class HomeViewModel: ObservableObject {
     }
 
     /// Playable tracks currently listed (album cards excluded).
-    var videos: [VideoItem] {
-        rawEntries.compactMap(\.asVideoItem)
+    var videos: [VideoItem] { playableVideos }
+
+    func playIndex(for item: VideoItem) -> Int {
+        playableIndexById[item.videoId] ?? 0
     }
 
     func selectCategory(_ category: HomeCategory) {
@@ -86,6 +91,18 @@ final class HomeViewModel: ObservableObject {
 
     func refilter() {
         entries = applyLibraryFilter(rawEntries)
+        rebuildPlayableIndex(from: entries)
+    }
+
+    private func rebuildPlayableIndex(from items: [HomeFeedEntry]) {
+        let videos = items.compactMap(\.asVideoItem)
+        playableVideos = videos
+        var map: [String: Int] = [:]
+        map.reserveCapacity(videos.count)
+        for (i, v) in videos.enumerated() {
+            map[v.videoId] = i
+        }
+        playableIndexById = map
     }
 
     private func refreshIfNeeded() {
@@ -123,6 +140,7 @@ final class HomeViewModel: ObservableObject {
             guard generation == loadGeneration, requestId == selectedCategoryId else { return }
             rawEntries = fetched
             entries = applyLibraryFilter(fetched)
+            rebuildPlayableIndex(from: entries)
             if fetched.isEmpty {
                 errorMessage = "No videos in feed"
             } else {
@@ -164,6 +182,7 @@ final class HomeViewModel: ObservableObject {
             rawEntries = []
         }
         entries = applyLibraryFilter(rawEntries)
+        rebuildPlayableIndex(from: entries)
     }
 
     private func applyLibraryFilter(_ items: [HomeFeedEntry]) -> [HomeFeedEntry] {
@@ -260,11 +279,11 @@ struct HomeView: View {
                     ForEach(viewModel.entries) { entry in
                         switch entry {
                         case .track(let item):
-                            let queue = viewModel.videos
-                            let index = queue.firstIndex(of: item) ?? 0
                             FeedVideoCard(
                                 item: item,
                                 onTap: {
+                                    let queue = viewModel.playableVideos
+                                    let index = viewModel.playIndex(for: item)
                                     playback.play(items: queue.isEmpty ? [item] : queue, startAt: index)
                                     showPlayer = true
                                 },
@@ -294,7 +313,7 @@ private struct HomeAlbumCard: View {
 
     var body: some View {
         HStack(alignment: .center, spacing: YTLiteLayout.feedAvatarTextGap) {
-            RemoteImage(url: album.thumbnailURL)
+            RemoteImage(url: album.thumbnailURL, maxPointSize: 88)
                 .frame(width: 88, height: 88)
                 .clipShape(RoundedRectangle(cornerRadius: YTLiteLayout.thumbRadius, style: .continuous))
 

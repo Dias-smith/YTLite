@@ -22,6 +22,7 @@ struct YTLiteApp: App {
         WindowGroup {
             RootView()
                 .environmentObject(playback)
+                .environmentObject(playback.progress)
                 .environmentObject(appModel)
                 .environmentObject(authService)
                 .environment(\.locale, appModel.resolvedLocale)
@@ -31,7 +32,11 @@ struct YTLiteApp: App {
                 .task {
                     ExtractorRemoteConfigStore.restoreFromDisk()
                     appModel.syncAuth(authService)
-                    _ = try? await ExtractorBridge.shared.ensureReady()
+                    // Defer extractor WKWebView warm-up so first frame stays responsive.
+                    Task(priority: .utility) {
+                        try? await Task.sleep(nanoseconds: 800_000_000)
+                        _ = try? await ExtractorBridge.shared.ensureReady()
+                    }
                 }
                 .onOpenURL { url in
                     Task {

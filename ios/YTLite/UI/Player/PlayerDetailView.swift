@@ -32,6 +32,7 @@ private enum PlayerListSort: String, CaseIterable {
 
 struct PlayerDetailView: View {
     @EnvironmentObject private var playback: PlaybackController
+    @EnvironmentObject private var progressClock: PlaybackProgressModel
     @EnvironmentObject private var trackActions: TrackActionPresenter
     @EnvironmentObject private var appModel: AppModel
     @Environment(\.libraryStore) private var store
@@ -75,7 +76,7 @@ struct PlayerDetailView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(YTLiteColor.surface)
             ScrollView {
-                VStack(alignment: .leading, spacing: YTLiteLayout.screenPadding) {
+                LazyVStack(alignment: .leading, spacing: YTLiteLayout.screenPadding) {
                     channelRow
                     if let error = playback.lastError, !playback.isPlaying {
                         Text(error)
@@ -272,15 +273,21 @@ struct PlayerDetailView: View {
                     bumpOverlayAutoHide()
                 } label: {
                     Group {
-                        if let remaining = playback.sleepTimerRemaining,
-                           playback.sleepTimerEndsAt != nil
-                        {
-                            Text(SleepTimerOptions.formatRemaining(remaining))
-                                .font(YTLiteType.badge)
-                                .foregroundStyle(YTLiteColor.accent)
-                                .frame(minWidth: 36)
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, YTLiteLayout.rowVertical)
+                        if playback.sleepTimerEndsAt != nil {
+                            let _ = progressClock.sleepTimerTick
+                            if let remaining = playback.sleepTimerRemaining {
+                                Text(SleepTimerOptions.formatRemaining(remaining))
+                                    .font(YTLiteType.badge)
+                                    .foregroundStyle(YTLiteColor.accent)
+                                    .frame(minWidth: 36)
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, YTLiteLayout.rowVertical)
+                            } else {
+                                Image(systemName: "moon.zzz")
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundStyle(YTLiteColor.onSurface)
+                                    .frame(width: 36, height: 36)
+                            }
                         } else {
                             Image(systemName: "moon.zzz")
                                 .font(.system(size: 14, weight: .semibold))
@@ -341,20 +348,20 @@ struct PlayerDetailView: View {
 
     private var overlayProgress: some View {
         HStack(spacing: 10) {
-            Text(formatTime(playback.positionSeconds))
+            Text(formatTime(progressClock.positionSeconds))
                 .font(YTLiteType.tabLabel.monospacedDigit())
                 .foregroundStyle(YTLiteColor.onSurface)
                 .frame(minWidth: 36, alignment: .leading)
 
             OrangeProgressBar(
-                value: playback.positionSeconds,
-                total: max(playback.durationSeconds, 1)
+                value: progressClock.positionSeconds,
+                total: max(progressClock.durationSeconds, 1)
             ) { seconds in
                 playback.seek(to: seconds)
                 bumpOverlayAutoHide()
             }
 
-            Text(formatTime(playback.durationSeconds))
+            Text(formatTime(progressClock.durationSeconds))
                 .font(YTLiteType.tabLabel.monospacedDigit())
                 .foregroundStyle(YTLiteColor.onSurface)
                 .frame(minWidth: 36, alignment: .trailing)
@@ -1003,7 +1010,11 @@ private struct OrangeProgressBar: View {
     let total: Double
     var onSeek: (Double) -> Void
 
+    @State private var dragFraction: CGFloat?
+    @State private var lastSeekAt: Date = .distantPast
+
     private var fraction: CGFloat {
+        if let dragFraction { return dragFraction }
         guard total > 0 else { return 0 }
         return CGFloat(value / total).clamped(to: 0...1)
     }
@@ -1030,7 +1041,17 @@ private struct OrangeProgressBar: View {
             .gesture(
                 DragGesture(minimumDistance: 0)
                     .onChanged { drag in
+                        let f = CGFloat(drag.location.x / max(width, 1)).clamped(to: 0...1)
+                        dragFraction = f
+                        let now = Date()
+                        if now.timeIntervalSince(lastSeekAt) >= 0.08 {
+                            lastSeekAt = now
+                            onSeek(Double(f) * total)
+                        }
+                    }
+                    .onEnded { drag in
                         let f = Double(drag.location.x / max(width, 1)).clamped(to: 0...1)
+                        dragFraction = nil
                         onSeek(f * total)
                     }
             )
