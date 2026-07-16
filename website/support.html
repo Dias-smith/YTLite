@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Support — YTLite</title>
+    <meta name="description" content="Help and FAQ for YTLite." />
+    <link rel="icon" href="assets/icon.png" type="image/png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,600&family=Syne:wght@700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body>
+    <header class="site-header" style="position: relative">
+      <a class="brand-mark" href="index.html">
+        <img src="assets/icon.png" width="32" height="32" alt="" />
+        YTLite
+      </a>
+      <nav class="nav-links" aria-label="Site">
+        <a href="index.html">Home</a>
+        <a href="privacy.html">Privacy</a>
+        <a href="terms.html">Terms</a>
+      </nav>
+    </header>
+
+    <article class="page-shell">
+      <h1>Support</h1>
+      <p class="page-meta">Common questions about signing in, sync, language, and your account.</p>
+
+      <div class="faq">
+        <details open>
+          <summary>How do I sign in?</summary>
+          <p>
+            Open Library or the You / Subs tab and choose Sign in. Follow the Google / Supabase auth
+            flow in the app. Some YouTube features need an extra read-only YouTube permission —
+            grant it when prompted, or switch accounts and sign in again.
+          </p>
+        </details>
+        <details>
+          <summary>Why isn’t my library syncing?</summary>
+          <p>
+            Sync runs after you sign in. Check your network, pull to refresh Library, and confirm
+            you’re on the same account you used before. Guest data stays on-device until you sign in.
+          </p>
+        </details>
+        <details>
+          <summary>How do I change language or night mode?</summary>
+          <p>
+            Open Settings in the app. Night mode and Language are under Appearance. Language options
+            include system default plus several locales (for example English, 简体中文, Português
+            Brasil).
+          </p>
+        </details>
+        <details>
+          <summary>How do I delete my account?</summary>
+          <p>
+            When signed in, open the account menu from Library and choose Delete account. This
+            removes account-linked library data from our backend according to the Privacy Policy.
+            Uninstalling alone does not always delete cloud data — use Delete account when offered.
+          </p>
+        </details>
+        <details>
+          <summary>Playback failed or a video won’t start</summary>
+          <p>
+            Upstream stream formats change often. Try Retry, another network, or update the app.
+            Some videos may be region- or age-restricted and cannot play in YTLite.
+          </p>
+        </details>
+      </div>
+
+      <h2>Contact</h2>
+      <p>
+        Email
+        <a href="mailto:jimo.cgg@gmail.com">jimo.cgg@gmail.com</a>
+        with your platform (iOS / Android), app version, and a short description.
+      </p>
+
+      <div class="lang-block" lang="zh-Hans">
+        <h2>中文提示</h2>
+        <p>
+          登录、同步、语言与夜间模式均可在应用内设置。删除账号请使用资料库页的账号菜单。若播放失败，可重试或检查网络与地区限制。联系邮箱：
+          jimo.cgg@gmail.com。
+        </p>
+      </div>
+    </article>
+
+    <footer class="site-footer">
+      <p>© <span id="y"></span> YTLite</p>
+      <nav aria-label="Legal">
+        <a href="privacy.html">Privacy</a>
+        <a href="terms.html">Terms</a>
+        <a href="support.html">Support</a>
+      </nav>
+    </footer>
+    <script>
+      document.getElementById("y").textContent = new Date().getFullYear();
+    </script>
+  </body>
+</html>

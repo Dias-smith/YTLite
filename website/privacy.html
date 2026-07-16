@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Privacy Policy — YTLite</title>
+    <meta name="description" content="Privacy Policy for the YTLite mobile apps." />
+    <link rel="icon" href="assets/icon.png" type="image/png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,600&family=Syne:wght@700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body>
+    <header class="site-header" style="position: relative">
+      <a class="brand-mark" href="index.html">
+        <img src="assets/icon.png" width="32" height="32" alt="" />
+        YTLite
+      </a>
+      <nav class="nav-links" aria-label="Site">
+        <a href="index.html">Home</a>
+        <a href="support.html">Support</a>
+        <a href="terms.html">Terms</a>
+      </nav>
+    </header>
+
+    <article class="page-shell">
+      <h1>Privacy Policy</h1>
+      <p class="page-meta">Last updated: July 16, 2026 · Template for review — not legal advice.</p>
+
+      <p>
+        YTLite (“we”, “the app”) is a hybrid YouTube / music-style client for iOS and Android. This
+        policy describes what information the apps may process and why. We do not sell your personal
+        data.
+      </p>
+
+      <h2>Information we process</h2>
+      <ul>
+        <li>
+          <strong>Account data.</strong> If you sign in (for example with Google via our backend), we
+          may store identifiers needed for authentication and profile display (such as display name
+          and avatar URL) through our cloud provider (Supabase).
+        </li>
+        <li>
+          <strong>Library &amp; preferences.</strong> Playlists, likes, history, subscribed channels,
+          language, and night-mode settings may be stored on device and, when you are signed in,
+          synced to your account.
+        </li>
+        <li>
+          <strong>YouTube access.</strong> Optional YouTube read-only scopes may be used to show
+          subscriptions and related YouTube data you authorize. We do not post or modify your
+          YouTube content through these scopes.
+        </li>
+        <li>
+          <strong>Diagnostics.</strong> Crash and performance reports (for example Firebase
+          Crashlytics) may be collected in release builds to improve stability. You can limit
+          diagnostic sharing through your device OS settings where available.
+        </li>
+      </ul>
+
+      <h2>How we use information</h2>
+      <p>
+        To provide playback, library sync, sign-in, and to fix bugs. We do not use your library
+        content for advertising profiles, and we do not sell personal information.
+      </p>
+
+      <h2>Third parties</h2>
+      <p>
+        The app relies on third-party services such as Google (sign-in / YouTube APIs), Supabase
+        (backend), and Apple / Google for distribution. Their policies apply to data they process.
+        Streamed media and metadata come from YouTube and remain subject to YouTube’s terms.
+      </p>
+
+      <h2>Data retention &amp; deletion</h2>
+      <p>
+        Local data remains on your device until you clear app data or uninstall. Account-linked
+        library data can be removed by using in-app account deletion (where available) or by
+        contacting us. Backups on our servers are purged according to our operational retention
+        windows after a valid deletion request.
+      </p>
+
+      <h2>Children</h2>
+      <p>
+        YTLite is not directed at children under 13 (or the minimum age required in your country).
+        We do not knowingly collect personal information from children.
+      </p>
+
+      <h2>Contact</h2>
+      <p>
+        Privacy questions:
+        <a href="mailto:jimo.cgg@gmail.com">jimo.cgg@gmail.com</a>.
+      </p>
+
+      <div class="lang-block" lang="zh-Hans">
+        <h2>中文摘要</h2>
+        <p>
+          YTLite 是一款面向 iOS / Android 的 YouTube 音乐风格客户端。我们可能处理账号信息（如通过
+          Google / Supabase 登录）、本地与云端同步的媒体库与偏好设置，以及你授权的 YouTube
+          只读数据。我们不会出售你的个人信息。诊断数据（如崩溃报告）可能用于改进稳定性。第三方（Google、Supabase、YouTube
+          等）按其自身政策处理数据。你可通过卸载应用、清除数据或应用内删除账号（如提供）移除相关数据。隐私问题请联系
+          jimo.cgg@gmail.com。
+        </p>
+      </div>
+    </article>
+
+    <footer class="site-footer">
+      <p>© <span id="y"></span> YTLite</p>
+      <nav aria-label="Legal">
+        <a href="privacy.html">Privacy</a>
+        <a href="terms.html">Terms</a>
+        <a href="support.html">Support</a>
+      </nav>
+    </footer>
+    <script>
+      document.getElementById("y").textContent = new Date().getFullYear();
+    </script>
+  </body>
+</html>
