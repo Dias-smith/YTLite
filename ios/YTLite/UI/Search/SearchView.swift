@@ -13,15 +13,28 @@ final class SearchViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published private(set) var phase: SearchPhase = .hub
     @Published private(set) var activeResultsQuery: String = ""
+    /// Data API mostPopular Music titles — Android `SearchUiState.hotKeywords`.
+    @Published private(set) var hotKeywords: [String] = []
 
     private var searchTask: Task<Void, Never>?
     private var suggestTask: Task<Void, Never>?
     private var debounceTask: Task<Void, Never>?
+    private var hotKeywordsTask: Task<Void, Never>?
     private weak var memory: SearchMemoryStore?
     private var suppressQuerySideEffects = false
 
     func bind(memory: SearchMemoryStore) {
         self.memory = memory
+    }
+
+    func loadHotKeywordsIfNeeded() {
+        guard hotKeywords.isEmpty, hotKeywordsTask == nil else { return }
+        hotKeywordsTask = Task {
+            let keywords = await InnerTubeClient.fetchHotKeywords()
+            guard !Task.isCancelled else { return }
+            hotKeywords = keywords
+            hotKeywordsTask = nil
+        }
     }
 
     /// Submit search and go straight to results (never via suggestions).
@@ -196,7 +209,10 @@ struct SearchView: View {
             }
             .background(YTLiteColor.background)
             .navigationBarHidden(true)
-            .onAppear { viewModel.bind(memory: memory) }
+            .onAppear {
+                viewModel.bind(memory: memory)
+                viewModel.loadHotKeywordsIfNeeded()
+            }
             .sheet(isPresented: $showPlayer) {
                 NavigationStack {
                     PlayerDetailView()
@@ -453,17 +469,19 @@ struct SearchView: View {
                     }
                 }
 
-                VStack(alignment: .leading, spacing: YTLiteLayout.stackLoose) {
-                    Text("Trending searches")
-                        .font(YTLiteType.sectionTitle)
-                        .foregroundStyle(YTLiteColor.onSurface)
-                        .padding(.horizontal, YTLiteLayout.screenPadding)
+                if !viewModel.hotKeywords.isEmpty {
+                    VStack(alignment: .leading, spacing: YTLiteLayout.stackLoose) {
+                        Text("Trending searches")
+                            .font(YTLiteType.sectionTitle)
+                            .foregroundStyle(YTLiteColor.onSurface)
+                            .padding(.horizontal, YTLiteLayout.screenPadding)
 
-                    FlowChips(items: SearchMemoryStore.trendingDefaults) { tag in
-                        viewModel.submit(memory: memory, query: tag)
-                        searchFocused = false
+                        FlowChips(items: viewModel.hotKeywords) { tag in
+                            viewModel.submit(memory: memory, query: tag)
+                            searchFocused = false
+                        }
+                        .padding(.horizontal, YTLiteLayout.screenPadding)
                     }
-                    .padding(.horizontal, YTLiteLayout.screenPadding)
                 }
             }
             .padding(.bottom, YTLiteLayout.sectionGap)
@@ -575,10 +593,8 @@ struct FlowChips: View {
     let items: [String]
     var onTap: (String) -> Void
 
-    private let columns = [GridItem(.adaptive(minimum: 72), spacing: YTLiteLayout.stackDefault, alignment: .leading)]
-
     var body: some View {
-        LazyVGrid(columns: columns, alignment: .leading, spacing: YTLiteLayout.stackDefault) {
+        ChipFlowLayout(spacing: YTLiteLayout.stackDefault) {
             ForEach(items, id: \.self) { title in
                 Button {
                     onTap(title)
@@ -586,12 +602,69 @@ struct FlowChips: View {
                     Text(title)
                         .font(YTLiteType.label)
                         .foregroundStyle(YTLiteColor.onSurface)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
                         .padding(.horizontal, YTLiteLayout.chipHorizontal)
                         .padding(.vertical, YTLiteLayout.chipVertical)
                         .background(YTLiteColor.surfaceChip, in: Capsule())
                 }
                 .buttonStyle(.plain)
             }
+        }
+    }
+}
+
+/// Horizontal wrapping chip row sized to each label (Android `FlowRow`).
+private struct ChipFlowLayout: Layout {
+    var spacing: CGFloat = 8
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let maxWidth = proposal.width ?? .infinity
+        var x: CGFloat = 0
+        var y: CGFloat = 0
+        var rowHeight: CGFloat = 0
+        var widthUsed: CGFloat = 0
+
+        for subview in subviews {
+            let ideal = subview.sizeThatFits(.unspecified)
+            let chipWidth = maxWidth.isFinite ? min(ideal.width, maxWidth) : ideal.width
+            let size = chipWidth < ideal.width
+                ? subview.sizeThatFits(ProposedViewSize(width: chipWidth, height: nil))
+                : ideal
+            if x > 0, x + size.width > maxWidth {
+                x = 0
+                y += rowHeight + spacing
+                rowHeight = 0
+            }
+            rowHeight = max(rowHeight, size.height)
+            x += size.width + spacing
+            widthUsed = max(widthUsed, x - spacing)
+        }
+        return CGSize(width: maxWidth.isFinite ? maxWidth : widthUsed, height: y + rowHeight)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var x = bounds.minX
+        var y = bounds.minY
+        var rowHeight: CGFloat = 0
+
+        for subview in subviews {
+            let ideal = subview.sizeThatFits(.unspecified)
+            let chipWidth = min(ideal.width, bounds.width)
+            let size = chipWidth < ideal.width
+                ? subview.sizeThatFits(ProposedViewSize(width: chipWidth, height: nil))
+                : ideal
+            if x > bounds.minX, x + size.width > bounds.maxX {
+                x = bounds.minX
+                y += rowHeight + spacing
+                rowHeight = 0
+            }
+            subview.place(
+                at: CGPoint(x: x, y: y),
+                proposal: ProposedViewSize(width: size.width, height: size.height)
+            )
+            rowHeight = max(rowHeight, size.height)
+            x += size.width + spacing
         }
     }
 }

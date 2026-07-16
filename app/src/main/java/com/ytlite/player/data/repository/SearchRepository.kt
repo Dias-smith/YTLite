@@ -17,6 +17,7 @@ import com.ytlite.player.data.network.YoutubeDataApiConfig
 import com.ytlite.player.data.parser.BrowsePage
 import com.ytlite.player.data.parser.BrowseParser
 import com.ytlite.player.data.parser.SearchResultParser
+import com.ytlite.player.data.search.HotKeywordTitle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
@@ -137,8 +138,10 @@ class SearchRepository(
         }
 
     private fun fetchYoutubeMostPopularMusicTitles(limit: Int): List<String> {
+        // Request extra rows so parenthesis/noise stripping still fills `limit` after dedupe.
+        val maxResults = minOf(50, maxOf(limit * 3, limit))
         val result = httpClient.request(
-            url = YoutubeDataApiConfig.mostPopularMusicVideosUrl(maxResults = limit),
+            url = YoutubeDataApiConfig.mostPopularMusicVideosUrl(maxResults = maxResults),
             method = "GET",
             headers = emptyMap(),
             body = null,
@@ -152,13 +155,12 @@ class SearchRepository(
         val seen = LinkedHashSet<String>()
         for (index in 0 until items.length()) {
             if (titles.size >= limit) break
-            val title = items.optJSONObject(index)
-                ?.optJSONObject("snippet")
-                ?.optString("title")
-                ?.trim()
-                ?.replace(Regex("\\s+"), " ")
-                ?.takeIf { it.isNotBlank() }
-                ?: continue
+            val title = HotKeywordTitle.clean(
+                items.optJSONObject(index)
+                    ?.optJSONObject("snippet")
+                    ?.optString("title")
+                    .orEmpty(),
+            ) ?: continue
             if (!seen.add(title.lowercase())) continue
             titles.add(title)
         }

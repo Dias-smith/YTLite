@@ -182,7 +182,9 @@ struct PlayerDetailView: View {
                 PipPlayerView(
                     player: player,
                     pipRequestID: pipRequestID,
-                    fullscreenRequestID: fullscreenRequestID
+                    fullscreenRequestID: fullscreenRequestID,
+                    isPlaying: playback.isPlaying,
+                    playbackSpeed: playback.playbackSpeed
                 )
                 .allowsHitTesting(false)
             } else if let url = playback.nowPlaying?.thumbnailURL {

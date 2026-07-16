@@ -8,10 +8,6 @@ final class SearchMemoryStore: ObservableObject {
     private let queriesKey = "search_history_queries"
     private let videosKey = "search_recent_videos"
 
-    static let trendingDefaults = [
-        "podcast", "lofi", "jazz", "rock", "indie", "classical", "asmr", "ost",
-    ]
-
     init() {
         recentQueries = UserDefaults.standard.stringArray(forKey: queriesKey) ?? []
         if let data = UserDefaults.standard.data(forKey: videosKey),

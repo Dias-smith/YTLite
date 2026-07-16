@@ -345,6 +345,132 @@ enum InnerTubeClient {
         }
     }
 
+    /// Hot keywords from Data API `videos.list` mostPopular Music titles — Android `SearchRepository.fetchHotKeywords`.
+    static func fetchHotKeywords(limit: Int = YouTubeConstants.hotKeywordsLimit) async -> [String] {
+        await HotKeywordsCache.shared.keywords(limit: limit)
+    }
+
+    private static func fetchYoutubeMostPopularMusicTitles(limit: Int) async -> [String] {
+        let key = YouTubeConstants.hotKeywordsApiKey
+        guard !key.isEmpty, limit > 0 else { return [] }
+        // Request extra rows so parenthesis/noise stripping still fills `limit` after dedupe.
+        let maxResults = min(50, max(limit * 3, limit))
+        let url =
+            "https://www.googleapis.com/youtube/v3/videos?part=snippet"
+            + "&chart=mostPopular"
+            + "&videoCategoryId=10"
+            + "&maxResults=\(maxResults)"
+            + "&key=\(key)"
+        let result = await YouTubeHTTPClient.shared.request(
+            url: url,
+            method: "GET",
+            headers: ["Accept": "application/json"],
+            body: nil
+        )
+        guard result.success,
+              let data = result.body.data(using: .utf8),
+              let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let items = root["items"] as? [[String: Any]]
+        else {
+            return []
+        }
+        var titles: [String] = []
+        var seen = Set<String>()
+        for item in items {
+            guard titles.count < limit else { break }
+            guard let snippet = item["snippet"] as? [String: Any],
+                  let raw = snippet["title"] as? String,
+                  let title = HotKeywordTitle.clean(raw)
+            else { continue }
+            let keyLower = title.lowercased()
+            guard seen.insert(keyLower).inserted else { continue }
+            titles.append(title)
+        }
+        return titles
+    }
+
+    private actor HotKeywordsCache {
+        static let shared = HotKeywordsCache()
+        private let ttl: TimeInterval = 3 * 60 * 60
+        private var cached: [String] = []
+        private var fetchedAt: Date?
+
+        func keywords(limit: Int) async -> [String] {
+            if let fetchedAt, Date().timeIntervalSince(fetchedAt) < ttl, !cached.isEmpty {
+                return Array(cached.prefix(limit))
+            }
+            let derived = await InnerTubeClient.fetchYoutubeMostPopularMusicTitles(limit: limit)
+            if !derived.isEmpty {
+                cached = derived
+                fetchedAt = Date()
+            }
+            return derived
+        }
+    }
+
+    /// Normalizes Data API music titles into short search-chip keywords.
+    private enum HotKeywordTitle {
+        static func clean(_ raw: String) -> String? {
+            var text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !text.isEmpty else { return nil }
+
+            let bracketPatterns = [
+                #"\([^)]*\)"#,
+                #"\[[^\]]*\]"#,
+                #"【[^】]*】"#,
+                #"（[^）]*）"#,
+            ]
+            for _ in 0..<4 {
+                var next = text
+                for pattern in bracketPatterns {
+                    next = next.replacingOccurrences(
+                        of: pattern,
+                        with: " ",
+                        options: .regularExpression
+                    )
+                }
+                next = collapseSpaces(next)
+                if next == text { break }
+                text = next
+            }
+
+            let noiseSegment =
+                #"^(?i)(official(\s+(music|lyric|audio))?(\s+video)?|lyrics?(\s+video)?|audio|mv|hd|4k|8k|remaster(ed)?|visualizer|theme\s+song)$"#
+            let sepPattern = #"\s*[|\-–—]\s*"#
+            while let regex = try? NSRegularExpression(pattern: sepPattern),
+                  let match = regex.matches(
+                      in: text,
+                      range: NSRange(text.startIndex..., in: text)
+                  ).last,
+                  let fullRange = Range(match.range, in: text)
+            {
+                let tail = String(text[fullRange.upperBound...])
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                if tail.range(of: noiseSegment, options: .regularExpression) != nil {
+                    text = String(text[..<fullRange.lowerBound])
+                        .trimmingCharacters(in: .whitespacesAndNewlines)
+                } else {
+                    break
+                }
+            }
+
+            text = text.replacingOccurrences(
+                of: #"[\s|\-–—:·]+$"#,
+                with: "",
+                options: .regularExpression
+            )
+            text = collapseSpaces(text)
+            guard text.count >= 2 else { return nil }
+            return text
+        }
+
+        private static func collapseSpaces(_ value: String) -> String {
+            value
+                .replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+    }
+
     private static func clientContext() -> [String: Any] {
         [
             "client": [

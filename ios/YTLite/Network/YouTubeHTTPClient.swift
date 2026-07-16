@@ -60,6 +60,9 @@ enum YouTubeURL {
 enum YouTubeConstants {
     static let apiKey = "AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8"
     static let musicApiKey = "AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30"
+    /// Data API key for Search hot keywords (`videos.list` mostPopular Music) — Android `YoutubeDataApiConfig.HOT_KEYWORDS_API_KEY`.
+    static let hotKeywordsApiKey = "AIzaSyAbMOfstY2zu-C9zxHBbtXRh9ybYcbpeYc"
+    static let hotKeywordsLimit = 10
     static let baseURL = "https://www.youtube.com"
     static let musicBaseURL = "https://music.youtube.com"
     static let searchURL = "\(baseURL)/youtubei/v1/search?key=\(apiKey)"

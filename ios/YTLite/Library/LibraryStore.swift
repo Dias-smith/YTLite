@@ -637,7 +637,7 @@ final class LibraryStore {
             title: meta.customTitle ?? item.title,
             channelName: meta.customArtistName ?? item.channelName,
             subtitle: item.subtitle,
-            thumbnailURL: meta.customThumbnailUrl.flatMap(URL.init(string:)) ?? item.thumbnailURL,
+            thumbnailURL: TrackThumbnailStorage.resolveURL(meta.customThumbnailUrl) ?? item.thumbnailURL,
             channelAvatarURL: item.channelAvatarURL,
             durationText: item.durationText,
             viewCountText: item.viewCountText,
