@@ -3,6 +3,7 @@ import SwiftUI
 struct SettingsView: View {
     @EnvironmentObject private var appModel: AppModel
     @EnvironmentObject private var playback: PlaybackController
+    @State private var rateUnavailableAlert = false
 
     var body: some View {
         Form {
@@ -44,17 +45,49 @@ struct SettingsView: View {
                 }
             }
 
-            Section(L("settings.about")) {
-                LabeledContent(L("settings.bundle"), value: Bundle.main.bundleIdentifier ?? "—")
-                LabeledContent(
-                    L("settings.supabase"),
-                    value: appModel.config.isConfigured ? L("settings.configured") : L("settings.missing_secrets")
-                )
+            Section(L("settings.support_section")) {
+                Button(L("settings.support_us")) {
+                    if let url = AppLinks.writeReviewURL {
+                        AppLinks.open(url)
+                    } else {
+                        rateUnavailableAlert = true
+                    }
+                }
+
+                Button(L("settings.privacy_policy")) {
+                    AppLinks.open(AppLinks.privacyPolicy)
+                }
+
+                Button(L("settings.terms_of_service")) {
+                    AppLinks.open(AppLinks.termsOfService)
+                }
+
+                Button(L("settings.suggestions")) {
+                    if let url = AppLinks.suggestionsMailtoURL(subject: L("settings.suggestions_subject")) {
+                        AppLinks.open(url)
+                    }
+                }
+
+                LabeledContent(L("settings.about"), value: appVersionLabel)
             }
         }
         .scrollContentBackground(.hidden)
         .background(YTLiteColor.background)
         .navigationTitle(L("settings.title"))
+        .alert(L("settings.support_us"), isPresented: $rateUnavailableAlert) {
+            Button(L("common.ok"), role: .cancel) {}
+        } message: {
+            Text(L("settings.rate_unavailable"))
+        }
+    }
+
+    private var appVersionLabel: String {
+        let short = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—"
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String
+        if let build, !build.isEmpty, build != short {
+            return "\(short) (\(build))"
+        }
+        return short
     }
 
     private var sleepTimerSelection: Binding<Int?> {

@@ -23,6 +23,8 @@ import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.Policy
 import androidx.compose.material.icons.outlined.SentimentSatisfied
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -145,6 +147,30 @@ fun SettingsScreen(
                             ),
                         )
                     }
+                },
+            )
+            SettingsNavRow(
+                icon = Icons.Outlined.Policy,
+                label = stringResource(R.string.settings_privacy_policy),
+                onClick = {
+                    context.startActivity(
+                        Intent(
+                            Intent.ACTION_VIEW,
+                            Uri.parse(context.getString(R.string.settings_privacy_url)),
+                        ),
+                    )
+                },
+            )
+            SettingsNavRow(
+                icon = Icons.Outlined.Description,
+                label = stringResource(R.string.settings_terms_of_service),
+                onClick = {
+                    context.startActivity(
+                        Intent(
+                            Intent.ACTION_VIEW,
+                            Uri.parse(context.getString(R.string.settings_terms_url)),
+                        ),
+                    )
                 },
             )
             SettingsNavRow(
