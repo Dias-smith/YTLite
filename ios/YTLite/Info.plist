@@ -74,7 +74,7 @@
 	<string>$(GOOGLE_CLIENT_ID)</string>
 	<key>YOUTUBE_DATA_API_KEY</key>
 	<string>$(YOUTUBE_DATA_API_KEY)</string>
-	<!-- Numeric App Store ID for “Write a Review” (leave empty until listed). -->
+	<!-- Numeric App Store ID for “Write a Review”. -->
 	<key>APP_STORE_ID</key>
 	<string>$(APP_STORE_ID)</string>
 	<key>CFBundleURLTypes</key>
