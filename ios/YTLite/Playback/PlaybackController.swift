@@ -27,6 +27,8 @@ final class PlaybackController: ObservableObject {
 
     @Published private(set) var isBuffering: Bool = false
     @Published var lastError: String?
+    /// True when extract failed because YouTube asked for a signed-in session.
+    @Published private(set) var needsLoginForPlayback: Bool = false
     @Published private(set) var isFavorite: Bool = false
     /// Local Not interested (Android player dislike) — mutually exclusive with Like.
     @Published private(set) var isDisliked: Bool = false
@@ -373,6 +375,7 @@ final class PlaybackController: ObservableObject {
     private func playCurrentQueueItem() {
         let item = queue[queueIndex]
         lastError = nil
+        needsLoginForPlayback = false
         captionTracks = []
         PlayProbe.log(
             "play.request",
@@ -481,10 +484,11 @@ final class PlaybackController: ObservableObject {
                 isBuffering = false
                 isPlaying = false
                 lastError = Self.userFacingExtractError(error)
+                needsLoginForPlayback = Self.isLoginRequiredExtractError(error)
                 PlayProbe.log(
                     "play.fail",
                     videoId: expectedVideoId,
-                    "raw=\(error.localizedDescription) ui=\(lastError ?? "-")"
+                    "raw=\(error.localizedDescription) ui=\(lastError ?? "-") needsLogin=\(needsLoginForPlayback)"
                 )
                 updateNowPlayingInfo()
                 refreshRemoteCommandEnabled()
@@ -517,6 +521,9 @@ final class PlaybackController: ObservableObject {
             .replacingOccurrences(of: "__notRetry@", with: "")
             .trimmingCharacters(in: .whitespacesAndNewlines)
         let lower = raw.lowercased()
+        if isLoginRequiredMessage(lower) {
+            return "Sign in required to play"
+        }
         if lower == "unplayable" || lower.contains("unplayable") {
             return "This video can't be played"
         }
@@ -524,6 +531,23 @@ final class PlaybackController: ObservableObject {
             return "Unable to extract playable stream"
         }
         return raw
+    }
+
+    private static func isLoginRequiredExtractError(_ error: Error) -> Bool {
+        isLoginRequiredMessage(error.localizedDescription.lowercased())
+    }
+
+    private static func isLoginRequiredMessage(_ lower: String) -> Bool {
+        lower.contains("login required")
+            || lower.contains("login_required")
+            || lower.contains("sign in to confirm")
+            || lower.contains("sign in required")
+    }
+
+    /// Re-run extraction for the current queue item (e.g. after Google sign-in).
+    func retryCurrentAfterAuth() {
+        guard !queue.isEmpty, queue.indices.contains(queueIndex) else { return }
+        playCurrentQueueItem()
     }
 
     func play(url: URL) {
@@ -542,6 +566,7 @@ final class PlaybackController: ObservableObject {
             attachEndObserver()
         }
         lastError = nil
+        needsLoginForPlayback = false
         isBuffering = false
         applySpeed()
         player?.play()

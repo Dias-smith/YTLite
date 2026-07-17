@@ -35,6 +35,7 @@ struct PlayerDetailView: View {
     @EnvironmentObject private var progressClock: PlaybackProgressModel
     @EnvironmentObject private var trackActions: TrackActionPresenter
     @EnvironmentObject private var appModel: AppModel
+    @EnvironmentObject private var auth: AuthService
     @Environment(\.libraryStore) private var store
     @Environment(\.dismiss) private var dismiss
 
@@ -54,6 +55,7 @@ struct PlayerDetailView: View {
     @State private var relatedLoading = false
     @State private var relatedError: String?
     @State private var subscribeToast: String?
+    @State private var showPlaybackSignIn = false
 
     @State private var showSortMenu = false
     @State private var listSort: PlayerListSort = .original
@@ -78,7 +80,10 @@ struct PlayerDetailView: View {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: YTLiteLayout.screenPadding) {
                     channelRow
-                    if let error = playback.lastError, !playback.isPlaying {
+                    if let error = playback.lastError,
+                       !playback.isPlaying,
+                       !playback.needsLoginForPlayback
+                    {
                         Text(error)
                             .font(YTLiteType.meta)
                             .foregroundStyle(YTLiteColor.danger)
@@ -100,6 +105,39 @@ struct PlayerDetailView: View {
         }
         .background(YTLiteColor.surface.ignoresSafeArea())
         .navigationBarHidden(true)
+        .sheet(isPresented: $showPlaybackSignIn) {
+            NavigationStack {
+                VStack(spacing: 20) {
+                    Text("Sign in to play")
+                        .font(YTLiteType.sectionTitle)
+                        .foregroundStyle(YTLiteColor.onSurface)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, YTLiteLayout.screenPadding)
+                        .padding(.top, 8)
+                    Text("This video needs a Google account. Signing in also unlocks Subs and Library sync.")
+                        .font(YTLiteType.meta)
+                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, YTLiteLayout.screenPadding)
+                    SignInOptionsView(auth: auth) {
+                        appModel.syncAuth(auth)
+                        showPlaybackSignIn = false
+                        playback.retryCurrentAfterAuth()
+                    }
+                    Spacer(minLength: 0)
+                }
+                .background(YTLiteColor.surface)
+                .navigationTitle(L("common.sign_in"))
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button(L("common.cancel")) { showPlaybackSignIn = false }
+                    }
+                }
+            }
+            .presentationDetents([.medium])
+            .presentationDragIndicator(.visible)
+        }
         .sheet(isPresented: $showSpeedSheet) {
             SpeedPickerSheet(selected: $playback.playbackSpeed)
                 .presentationDetents([.medium])
@@ -209,13 +247,50 @@ struct PlayerDetailView: View {
                     .background(.black.opacity(0.55), in: RoundedRectangle(cornerRadius: YTLiteLayout.stackLoose))
             }
 
+            if playback.needsLoginForPlayback && !playback.isBuffering {
+                Button {
+                    if auth.isAuthenticated {
+                        playback.retryCurrentAfterAuth()
+                    } else {
+                        showPlaybackSignIn = true
+                    }
+                } label: {
+                    VStack(spacing: 10) {
+                        Image(systemName: auth.isAuthenticated
+                              ? "arrow.clockwise.circle"
+                              : "person.crop.circle.badge.exclamationmark")
+                            .font(.system(size: 28, weight: .semibold))
+                        if auth.isAuthenticated {
+                            Text("播放失败，点击重试")
+                                .font(YTLiteType.labelEmphasized)
+                            Text(L("common.retry"))
+                                .font(YTLiteType.meta)
+                                .opacity(0.85)
+                        } else {
+                            Text("Sign in to play")
+                                .font(YTLiteType.labelEmphasized)
+                            Text(L("common.sign_in"))
+                                .font(YTLiteType.meta)
+                                .opacity(0.85)
+                        }
+                    }
+                    .foregroundStyle(YTLiteColor.onMedia)
+                    .padding(.horizontal, 22)
+                    .padding(.vertical, 18)
+                    .background(Color.black.opacity(0.62), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                }
+                .buttonStyle(.plain)
+                .zIndex(2)
+            }
+
             // Tap catcher under overlay so control buttons keep priority.
             Color.clear
                 .contentShape(Rectangle())
                 .onTapGesture { toggleOverlay() }
+                .allowsHitTesting(!playback.needsLoginForPlayback)
 
             // Hide controls while the loading spinner is up; reveal after buffering ends.
-            if overlayVisible && !playback.isBuffering {
+            if overlayVisible && !playback.isBuffering && !playback.needsLoginForPlayback {
                 canvasOverlay
                     .transition(.opacity)
             }

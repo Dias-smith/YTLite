@@ -112,6 +112,11 @@ final class ExtractorBridge: NSObject, WKScriptMessageHandler {
             || msg.contains("extractor not downloaded")
             || msg.contains("extractor download failed")
             || msg.contains("bundle")
+            || msg.contains("login required")
+            || msg.contains("login_required")
+            || msg.contains("sign in to confirm")
+            || msg.contains("confirm you're not a bot")
+            || msg.contains("confirm you")
     }
 
     private func extractPlaybackViaBridge(videoId: String) async throws -> VideoPlayback {
