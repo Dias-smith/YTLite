@@ -118,6 +118,14 @@ struct HttpStringResult: Sendable {
     var body: String
     var errCode: Int
     var errMsg: String
+
+    /// URLSession / Swift concurrency cancellation — must not clear UI or force reauth.
+    var isCancellation: Bool {
+        if errCode == URLError.cancelled.rawValue { return true }
+        let lower = errMsg.lowercased()
+        if lower == "cancelled" || lower.contains("cancel") { return true }
+        return false
+    }
 }
 
 enum ChannelAvatarFetcher {
@@ -202,7 +210,23 @@ actor YouTubeHTTPClient {
                 errCode: status,
                 errMsg: "HTTP \(status)"
             )
+        } catch let error as URLError where error.code == .cancelled {
+            return HttpStringResult(
+                success: false,
+                body: "",
+                errCode: URLError.cancelled.rawValue,
+                errMsg: "cancelled"
+            )
         } catch {
+            let ns = error as NSError
+            if ns.domain == NSURLErrorDomain, ns.code == URLError.cancelled.rawValue {
+                return HttpStringResult(
+                    success: false,
+                    body: "",
+                    errCode: URLError.cancelled.rawValue,
+                    errMsg: "cancelled"
+                )
+            }
             return HttpStringResult(
                 success: false,
                 body: "",

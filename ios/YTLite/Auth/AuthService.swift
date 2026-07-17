@@ -52,9 +52,40 @@ final class AuthService: ObservableObject {
     }
 
     /// Google OAuth access token. Nil for Apple-only sessions.
+    /// Falls back to a per-user cached token when Supabase session refresh drops `providerToken`.
     var googleAccessToken: String? {
         guard authProvider != .apple else { return nil }
-        return session?.providerToken
+        if let live = session?.providerToken?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !live.isEmpty
+        {
+            cacheProviderToken(live)
+            return live
+        }
+        return cachedProviderToken()
+    }
+
+    private static let providerTokenKey = "auth.cachedGoogleProviderToken"
+    private static let providerTokenUserKey = "auth.cachedGoogleProviderTokenUser"
+
+    private func cacheProviderToken(_ token: String) {
+        guard let userId else { return }
+        UserDefaults.standard.set(token, forKey: Self.providerTokenKey)
+        UserDefaults.standard.set(userId, forKey: Self.providerTokenUserKey)
+    }
+
+    private func cachedProviderToken() -> String? {
+        guard let userId,
+              UserDefaults.standard.string(forKey: Self.providerTokenUserKey) == userId,
+              let token = UserDefaults.standard.string(forKey: Self.providerTokenKey)?
+                .trimmingCharacters(in: .whitespacesAndNewlines),
+              !token.isEmpty
+        else { return nil }
+        return token
+    }
+
+    private func clearCachedProviderToken() {
+        UserDefaults.standard.removeObject(forKey: Self.providerTokenKey)
+        UserDefaults.standard.removeObject(forKey: Self.providerTokenUserKey)
     }
 
     private static let googleOAuthScopes =
@@ -93,11 +124,19 @@ final class AuthService: ObservableObject {
             let newSession = try await client.auth.signInWithOAuth(
                 provider: .google,
                 redirectTo: URL(string: "ytlite://auth-callback"),
-                scopes: Self.googleOAuthScopes
+                scopes: Self.googleOAuthScopes,
+                queryParams: [
+                    // Ensure youtube.readonly is (re)granted — incremental auth / stale sessions often omit it.
+                    (name: "prompt", value: "consent"),
+                    (name: "access_type", value: "offline"),
+                ]
             ) { (webSession: ASWebAuthenticationSession) in
                 webSession.prefersEphemeralWebBrowserSession = false
             }
             session = newSession
+            if let token = newSession.providerToken, !token.isEmpty {
+                cacheProviderToken(token)
+            }
         } catch {
             if isOAuthCancel(error) {
                 lastError = nil
@@ -215,11 +254,17 @@ final class AuthService: ObservableObject {
                 provider: .google,
                 redirectTo: URL(string: "ytlite://auth-callback"),
                 scopes: Self.googleOAuthScopes,
-                queryParams: [(name: "prompt", value: "select_account")]
+                queryParams: [
+                    (name: "prompt", value: "select_account consent"),
+                    (name: "access_type", value: "offline"),
+                ]
             ) { (webSession: ASWebAuthenticationSession) in
                 webSession.prefersEphemeralWebBrowserSession = true
             }
             session = newSession
+            if let token = newSession.providerToken, !token.isEmpty {
+                cacheProviderToken(token)
+            }
         } catch {
             await restoreSession(previous)
             if isOAuthCancel(error) {
@@ -290,6 +335,8 @@ final class AuthService: ObservableObject {
            authError.code == .canceledLogin {
             return true
         }
+        let text = error.localizedDescription.lowercased()
+        if text.contains("cancel") { return true }
         return false
     }
 
@@ -316,6 +363,7 @@ final class AuthService: ObservableObject {
         do {
             try await client.auth.signOut()
             session = nil
+            clearCachedProviderToken()
         } catch {
             lastError = error.localizedDescription
         }
@@ -346,6 +394,7 @@ final class AuthService: ObservableObject {
             )
             try? await client.auth.signOut(scope: .local)
             session = nil
+            clearCachedProviderToken()
             return true
         } catch {
             lastError = error.localizedDescription

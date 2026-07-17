@@ -359,6 +359,104 @@ enum InnerTubeClient {
         return VideoJSONParser.parseVideos(from: json)
     }
 
+    /// Library playlists via InnerTube `FEmy_youtube` (+ Music liked playlists), using OAuth Bearer.
+    static func browseLibraryPlaylists(oauthAccessToken: String) async -> [YoutubeDataApiClient.PlaylistPreview] {
+        var collected: [String: YoutubeDataApiClient.PlaylistPreview] = [:]
+
+        if let www = try? await browseAuthenticated(
+            browseId: "FEmy_youtube",
+            oauthAccessToken: oauthAccessToken,
+            label: "library_playlists",
+            music: false
+        ) {
+            for item in VideoJSONParser.parsePlaylists(from: www) {
+                collected[item.playlistId] = YoutubeDataApiClient.PlaylistPreview(
+                    playlistId: item.playlistId,
+                    title: item.title,
+                    thumbnailUrl: item.thumbnailURL?.absoluteString,
+                    itemCount: nil
+                )
+            }
+        }
+
+        if collected.isEmpty,
+           let music = try? await browseAuthenticated(
+            browseId: "FEmusic_liked_playlists",
+            oauthAccessToken: oauthAccessToken,
+            label: "music_library_playlists",
+            music: true
+           )
+        {
+            for item in VideoJSONParser.parsePlaylists(from: music) {
+                collected[item.playlistId] = YoutubeDataApiClient.PlaylistPreview(
+                    playlistId: item.playlistId,
+                    title: item.title,
+                    thumbnailUrl: item.thumbnailURL?.absoluteString,
+                    itemCount: nil
+                )
+            }
+        }
+
+        return Array(collected.values.filter {
+            $0.playlistId != "LL" && $0.playlistId != "WL" && $0.playlistId != "HL"
+                && !$0.playlistId.hasPrefix("UU")
+        }.prefix(12))
+    }
+
+    /// Liked videos via InnerTube `VLLL` with OAuth Bearer.
+    static func browseLikedVideos(oauthAccessToken: String) async -> [VideoItem] {
+        guard let json = try? await browseAuthenticated(
+            browseId: "VLLL",
+            oauthAccessToken: oauthAccessToken,
+            label: "liked_videos",
+            music: false
+        ) else { return [] }
+        return Array(VideoJSONParser.parseVideos(from: json).prefix(50))
+    }
+
+    private static func browseAuthenticated(
+        browseId: String,
+        oauthAccessToken: String,
+        label: String,
+        music: Bool,
+        depth: Int = 0
+    ) async throws -> Any {
+        let body: [String: Any] = [
+            "context": music ? musicClientContext() : clientContext(),
+            "browseId": browseId,
+        ]
+        let json = try await postJSON(
+            url: music ? YouTubeConstants.musicBrowseURL : browseURL,
+            body: body,
+            label: label,
+            clientNameHeader: music ? YouTubeConstants.musicClientNameHeader : YouTubeConstants.webClientNameHeader,
+            clientVersion: music ? YouTubeConstants.musicClientVersion : YouTubeConstants.webClientVersion,
+            origin: music ? YouTubeConstants.musicBaseURL : YouTubeConstants.baseURL,
+            authorizationBearer: oauthAccessToken
+        )
+        guard depth < 3,
+              let dict = json as? [String: Any],
+              let actions = dict["onResponseReceivedActions"] as? [[String: Any]]
+        else { return json }
+
+        for action in actions {
+            guard let navigate = action["navigateAction"] as? [String: Any],
+                  let endpoint = navigate["endpoint"] as? [String: Any],
+                  let browse = endpoint["browseEndpoint"] as? [String: Any],
+                  let nextId = browse["browseId"] as? String,
+                  !nextId.isEmpty
+            else { continue }
+            return try await browseAuthenticated(
+                browseId: nextId,
+                oauthAccessToken: oauthAccessToken,
+                label: "\(label)_nav",
+                music: music,
+                depth: depth + 1
+            )
+        }
+        return json
+    }
+
     static func fetchTrendingMusic(apiKey: String) async throws -> [VideoItem] {
         guard !apiKey.isEmpty else {
             return try await searchVideos(query: "music")
@@ -551,23 +649,31 @@ enum InnerTubeClient {
         label: String,
         clientNameHeader: String = YouTubeConstants.webClientNameHeader,
         clientVersion: String = YouTubeConstants.webClientVersion,
-        origin: String = YouTubeConstants.baseURL
+        origin: String = YouTubeConstants.baseURL,
+        authorizationBearer: String? = nil
     ) async throws -> Any {
         let bodyData = try JSONSerialization.data(withJSONObject: body)
         let bodyString = String(data: bodyData, encoding: .utf8) ?? "{}"
+        var headers: [String: String] = [
+            "User-Agent": YouTubeConstants.userAgent,
+            "Content-Type": "application/json",
+            "X-YouTube-Client-Name": clientNameHeader,
+            "X-YouTube-Client-Version": clientVersion,
+            "Origin": origin,
+            "Referer": "\(origin)/",
+        ]
+        if let authorizationBearer, !authorizationBearer.isEmpty {
+            headers["Authorization"] = "Bearer \(authorizationBearer)"
+        }
         let result = await YouTubeHTTPClient.shared.request(
             url: url,
             method: "POST",
-            headers: [
-                "User-Agent": YouTubeConstants.userAgent,
-                "Content-Type": "application/json",
-                "X-YouTube-Client-Name": clientNameHeader,
-                "X-YouTube-Client-Version": clientVersion,
-                "Origin": origin,
-                "Referer": "\(origin)/",
-            ],
+            headers: headers,
             body: bodyString
         )
+        if result.isCancellation {
+            throw CancellationError()
+        }
         guard result.success, let data = result.body.data(using: .utf8) else {
             throw ExtractorBridge.ExtractorError.extractFailed(
                 result.errMsg.isEmpty ? "\(label) failed" : result.errMsg

@@ -278,8 +278,10 @@ struct YouView: View {
                 .foregroundStyle(YTLiteColor.onSurfaceVariant)
             Button {
                 Task {
-                    await auth.switchGoogleAccount()
+                    // Prefer re-consent without local sign-out dance (avoids wiping shelves on cancel).
+                    await auth.signInWithGoogle()
                     appModel.syncAuth(auth)
+                    guard auth.lastError == nil else { return }
                     await viewModel.loadYouTubeShelves(
                         token: auth.googleAccessToken,
                         apiKey: appModel.config.youtubeDataAPIKey
@@ -460,12 +462,34 @@ final class YouViewModel: ObservableObject {
             oauthAccessToken: token,
             apiKey: apiKey
         )
+
+        // Pull-to-refresh cancellation must not wipe a good shelf.
+        if snap.wasCancelled {
+            errorMessage = nil
+            return
+        }
+
+        let incomingEmpty = snap.subscriptions.isEmpty
+            && snap.playlists.isEmpty
+            && snap.liked.isEmpty
+        let hadContent = !channels.isEmpty || !playlists.isEmpty || !liked.isEmpty
+
+        if snap.needsYoutubeReauth {
+            needsYoutubeReauth = true
+            errorMessage = nil
+            // Keep previous shelves visible while prompting reauth.
+            if incomingEmpty, hadContent {
+                return
+            }
+        } else {
+            needsYoutubeReauth = false
+            errorMessage = snap.errorMessage
+        }
+
         channels = snap.subscriptions
         playlists = snap.playlists
         liked = snap.liked
         likedPlaylistId = snap.likedPlaylistId
-        needsYoutubeReauth = snap.needsYoutubeReauth
-        errorMessage = snap.errorMessage
 
         if !snap.needsYoutubeReauth {
             let hasContent = !snap.subscriptions.isEmpty
