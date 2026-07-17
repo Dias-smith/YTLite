@@ -34,8 +34,9 @@ struct YouView: View {
                     }
                     return
                 }
+                let token = await auth.ensureFreshGoogleAccessToken()
                 await viewModel.loadYouTubeShelves(
-                    token: auth.googleAccessToken,
+                    token: token,
                     apiKey: appModel.config.youtubeDataAPIKey
                 )
             }
@@ -261,8 +262,9 @@ struct YouView: View {
             .padding(.bottom, 24)
         }
         .refreshable {
+            let token = await auth.ensureFreshGoogleAccessToken()
             await viewModel.loadYouTubeShelves(
-                token: auth.googleAccessToken,
+                token: token,
                 apiKey: appModel.config.youtubeDataAPIKey
             )
         }
@@ -453,50 +455,58 @@ final class YouViewModel: ObservableObject {
     }
 
     func loadYouTubeShelves(token: String?, apiKey: String) async {
-        isLoading = true
-        defer {
-            isLoading = false
-            hasLoadedOnce = true
+        // Run fetch outside the caller's cancellation domain (SwiftUI `.refreshable`
+        // often cancels when `@Published` flips, aborting URLSession mid-flight).
+        let token = token
+        let apiKey = apiKey
+        await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
+            Task.detached(priority: .userInitiated) {
+                let snap = await YoutubeDataApiClient.loadYouPage(
+                    oauthAccessToken: token,
+                    apiKey: apiKey
+                )
+                await MainActor.run {
+                    self.applySnapshot(snap)
+                    cont.resume()
+                }
+            }
         }
-        let snap = await YoutubeDataApiClient.loadYouPage(
-            oauthAccessToken: token,
-            apiKey: apiKey
-        )
+    }
 
-        // Pull-to-refresh cancellation must not wipe a good shelf.
+    func applySnapshot(_ snap: YoutubeDataApiClient.YouPageSnapshot) {
+        hasLoadedOnce = true
+        isLoading = false
+
+        // Detached fetch should not surface UI-cancel noise.
         if snap.wasCancelled {
             errorMessage = nil
             return
         }
 
-        let incomingEmpty = snap.subscriptions.isEmpty
-            && snap.playlists.isEmpty
-            && snap.liked.isEmpty
-        let hadContent = !channels.isEmpty || !playlists.isEmpty || !liked.isEmpty
-
         if snap.needsYoutubeReauth {
             needsYoutubeReauth = true
             errorMessage = nil
-            // Keep previous shelves visible while prompting reauth.
-            if incomingEmpty, hadContent {
-                return
+            // Still apply any partial shelves (e.g. InnerTube liked) when present.
+            if !snap.subscriptions.isEmpty { channels = snap.subscriptions }
+            if !snap.playlists.isEmpty { playlists = snap.playlists }
+            if !snap.liked.isEmpty {
+                liked = snap.liked
+                likedPlaylistId = snap.likedPlaylistId
             }
-        } else {
-            needsYoutubeReauth = false
-            errorMessage = snap.errorMessage
+            return
         }
 
+        needsYoutubeReauth = false
+        errorMessage = snap.errorMessage
         channels = snap.subscriptions
         playlists = snap.playlists
         liked = snap.liked
         likedPlaylistId = snap.likedPlaylistId
 
-        if !snap.needsYoutubeReauth {
-            let hasContent = !snap.subscriptions.isEmpty
-                || !snap.playlists.isEmpty
-                || !snap.liked.isEmpty
-            ReviewPromptCoordinator.shared.recordYouShelfSuccess(hasContent: hasContent)
-        }
+        let hasContent = !snap.subscriptions.isEmpty
+            || !snap.playlists.isEmpty
+            || !snap.liked.isEmpty
+        ReviewPromptCoordinator.shared.recordYouShelfSuccess(hasContent: hasContent)
     }
 }
 

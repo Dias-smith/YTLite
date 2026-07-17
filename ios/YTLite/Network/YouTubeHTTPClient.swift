@@ -185,6 +185,8 @@ actor YouTubeHTTPClient {
         }
         var request = URLRequest(url: requestURL)
         request.httpMethod = method.uppercased()
+        // YouTube Data API / InnerTube must not reuse stale likes/playlist responses.
+        request.cachePolicy = .reloadIgnoringLocalCacheData
         let enriched = enrichYouTubeHeaders(url: url, method: method, headers: headers)
         for (key, value) in enriched where !key.isEmpty && !value.isEmpty {
             request.setValue(value, forHTTPHeaderField: key)

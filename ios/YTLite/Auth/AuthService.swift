@@ -66,10 +66,17 @@ final class AuthService: ObservableObject {
 
     private static let providerTokenKey = "auth.cachedGoogleProviderToken"
     private static let providerTokenUserKey = "auth.cachedGoogleProviderTokenUser"
+    private static let providerRefreshKey = "auth.cachedGoogleProviderRefreshToken"
 
     private func cacheProviderToken(_ token: String) {
         guard let userId else { return }
         UserDefaults.standard.set(token, forKey: Self.providerTokenKey)
+        UserDefaults.standard.set(userId, forKey: Self.providerTokenUserKey)
+    }
+
+    private func cacheRefreshToken(_ token: String) {
+        guard let userId else { return }
+        UserDefaults.standard.set(token, forKey: Self.providerRefreshKey)
         UserDefaults.standard.set(userId, forKey: Self.providerTokenUserKey)
     }
 
@@ -83,9 +90,83 @@ final class AuthService: ObservableObject {
         return token
     }
 
+    private func cachedRefreshToken() -> String? {
+        guard let userId,
+              UserDefaults.standard.string(forKey: Self.providerTokenUserKey) == userId,
+              let token = UserDefaults.standard.string(forKey: Self.providerRefreshKey)?
+                .trimmingCharacters(in: .whitespacesAndNewlines),
+              !token.isEmpty
+        else { return nil }
+        return token
+    }
+
     private func clearCachedProviderToken() {
         UserDefaults.standard.removeObject(forKey: Self.providerTokenKey)
         UserDefaults.standard.removeObject(forKey: Self.providerTokenUserKey)
+        UserDefaults.standard.removeObject(forKey: Self.providerRefreshKey)
+    }
+
+    /// Refreshes the Google provider access token when possible so You-page pulls see fresh likes.
+    @discardableResult
+    func ensureFreshGoogleAccessToken() async -> String? {
+        guard authProvider != .apple else { return nil }
+
+        if let rt = session?.providerRefreshToken?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !rt.isEmpty
+        {
+            cacheRefreshToken(rt)
+        }
+        if let live = session?.providerToken?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !live.isEmpty
+        {
+            cacheProviderToken(live)
+        }
+
+        let refresh = session?.providerRefreshToken ?? cachedRefreshToken()
+        if let refresh, !refresh.isEmpty,
+           let fresh = await refreshGoogleAccessToken(using: refresh)
+        {
+            cacheProviderToken(fresh)
+            return fresh
+        }
+        return googleAccessToken
+    }
+
+    private func refreshGoogleAccessToken(using refreshToken: String) async -> String? {
+        let clientId = AppConfig.fromBundle().googleClientID.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !clientId.isEmpty else { return nil }
+        guard let url = URL(string: "https://oauth2.googleapis.com/token") else { return nil }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.cachePolicy = .reloadIgnoringLocalCacheData
+        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+        let body = [
+            "client_id": clientId,
+            "refresh_token": refreshToken,
+            "grant_type": "refresh_token",
+        ]
+        request.httpBody = body
+            .map { key, value in
+                "\(key)=\(value.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? value)"
+            }
+            .joined(separator: "&")
+            .data(using: .utf8)
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode),
+                  let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let access = json["access_token"] as? String,
+                  !access.isEmpty
+            else { return nil }
+            if let newRefresh = json["refresh_token"] as? String, !newRefresh.isEmpty {
+                cacheRefreshToken(newRefresh)
+            }
+            return access
+        } catch {
+            return nil
+        }
     }
 
     private static let googleOAuthScopes =
@@ -136,6 +217,9 @@ final class AuthService: ObservableObject {
             session = newSession
             if let token = newSession.providerToken, !token.isEmpty {
                 cacheProviderToken(token)
+            }
+            if let refresh = newSession.providerRefreshToken, !refresh.isEmpty {
+                cacheRefreshToken(refresh)
             }
         } catch {
             if isOAuthCancel(error) {
@@ -264,6 +348,9 @@ final class AuthService: ObservableObject {
             session = newSession
             if let token = newSession.providerToken, !token.isEmpty {
                 cacheProviderToken(token)
+            }
+            if let refresh = newSession.providerRefreshToken, !refresh.isEmpty {
+                cacheRefreshToken(refresh)
             }
         } catch {
             await restoreSession(previous)
