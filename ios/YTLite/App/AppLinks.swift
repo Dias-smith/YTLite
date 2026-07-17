@@ -17,9 +17,11 @@ enum AppLinks {
     }
 
     /// Opens the App Store “Write a Review” page when `APP_STORE_ID` is configured.
+    /// Uses `https://apps.apple.com` (not `itms-apps://`) so Simulator can open Safari;
+    /// on device iOS still hands off to the App Store app.
     static var writeReviewURL: URL? {
         guard let id = appStoreId else { return nil }
-        return URL(string: "itms-apps://itunes.apple.com/app/id\(id)?action=write-review")
+        return URL(string: "https://apps.apple.com/app/id\(id)?action=write-review")
     }
 
     /// Public App Store product page.
@@ -41,5 +43,15 @@ enum AppLinks {
     @MainActor
     static func open(_ url: URL) {
         UIApplication.shared.open(url, options: [:], completionHandler: nil)
+    }
+
+    /// Prefer opening `url`; if the scheme cannot be handled (e.g. Simulator + itms-apps), try `fallback`.
+    @MainActor
+    static func open(_ url: URL, fallback: URL?) {
+        UIApplication.shared.open(url, options: [:]) { success in
+            if !success, let fallback {
+                UIApplication.shared.open(fallback, options: [:], completionHandler: nil)
+            }
+        }
     }
 }
