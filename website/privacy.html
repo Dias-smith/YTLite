@@ -32,9 +32,8 @@
       <p class="page-meta">Last updated: July 17, 2026</p>
 
       <p>
-        YouLite (“we”, “the app”) is a hybrid YouTube / music-style client for iOS and Android. This
-        policy describes what information the apps may process and why. We do not sell your personal
-        data.
+        YouLite (“we”, “the app”) is an online video player for iOS and Android. This policy
+        describes what information the apps may process and why. We do not sell your personal data.
       </p>
 
       <h2>Information we process</h2>
@@ -47,20 +46,20 @@
           address with us if you choose Hide My Email.
         </li>
         <li>
-          <strong>Library &amp; preferences.</strong> Playlists, likes, history, subscribed channels,
+          <strong>Library &amp; preferences.</strong> Playlists, likes, history, followed channels,
           language, and night-mode settings may be stored on device and, when you are signed in,
           synced to your account.
         </li>
         <li>
-          <strong>YouTube / Google user data.</strong> When you choose Google sign-in and grant
+          <strong>Google user data (optional).</strong> When you choose Google sign-in and grant
           access, we request the OAuth scope
           <code>https://www.googleapis.com/auth/youtube.readonly</code>
           (plus standard OpenID sign-in scopes such as <code>openid</code>, <code>email</code>, and
-          <code>profile</code>). This allows the app to <strong>view</strong> your YouTube account
-          data you authorize—such as subscriptions, playlists, and liked videos—so we can display
-          them in the You / YouTube tab. We do <strong>not</strong> post, upload, delete, or otherwise
-          modify your YouTube content. Apple-only accounts do not receive YouTube OAuth tokens unless
-          you also link Google access where offered.
+          <code>profile</code>). This allows the app to <strong>view</strong> Google user data you
+          authorize—such as subscriptions, playlists, and liked videos linked to that Google
+          account—so we can display them inside YouLite. We do <strong>not</strong> post, upload,
+          delete, or otherwise modify that content on your behalf. Apple-only accounts do not receive
+          these Google OAuth tokens unless you also link Google access where offered.
         </li>
         <li>
           <strong>Analytics.</strong> We use Firebase Analytics to understand aggregated app usage
@@ -76,39 +75,39 @@
 
       <h2>How we use information</h2>
       <p>
-        To provide playback, library sync, sign-in, YouTube account browsing you authorize, product
-        analytics, and to fix bugs. We do not use your library content or Google / YouTube user data
-        for advertising profiles, and we do not sell personal information.
+        To provide playback, library sync, sign-in, optional Google-linked library browsing you
+        authorize, product analytics, and to fix bugs. We do not use your library content or Google
+        user data for advertising profiles, and we do not sell personal information.
       </p>
 
       <h2>Sharing, transfer, and disclosure of Google user data</h2>
       <p>
-        Limited Google / YouTube-related data may be shared with or processed by the following
-        parties, solely to operate YouLite:
+        Limited Google user data may be shared with or processed by the following parties, solely to
+        operate YouLite:
       </p>
       <ul>
         <li>
-          <strong>Google (YouTube Data API).</strong> When you grant access, the app sends your
-          OAuth access token from the device to Google’s YouTube Data API to retrieve the read-only
-          YouTube data described above. Google processes that request under Google’s terms and
-          privacy policies.
+          <strong>Google APIs.</strong> When you grant access, the app sends your OAuth access token
+          from the device to Google’s APIs (including the API associated with the
+          <code>youtube.readonly</code> scope) to retrieve the read-only Google user data described
+          above. Google processes that request under Google’s terms and privacy policies.
         </li>
         <li>
           <strong>Supabase (our backend).</strong> Basic Google account profile information used for
           authentication (for example user id, display name, email when provided, avatar URL) may be
           stored in Supabase so we can create and sync your YouLite account. We do
-          <strong>not</strong> upload your YouTube OAuth access token to Supabase or other servers;
-          that token is kept on your device only.
+          <strong>not</strong> upload your Google OAuth access token used for that read-only API
+          access to Supabase or other servers; that token is kept on your device only.
         </li>
         <li>
           <strong>Google Firebase (Analytics &amp; Crashlytics).</strong> Aggregated usage and crash
-          diagnostics may be processed by Firebase. These services are not used to sell your YouTube
+          diagnostics may be processed by Firebase. These services are not used to sell your
           subscriptions, playlists, or liked-video contents to third parties.
         </li>
         <li>
           <strong>Apple.</strong> If you use Sign in with Apple or install via the App Store, Apple
           may process account or device data under Apple’s policies. That flow is separate from
-          YouTube OAuth unless you also connect Google.
+          Google OAuth unless you also connect Google.
         </li>
       </ul>
       <p>
@@ -123,22 +122,22 @@
       </p>
 
       <h2>Data protection mechanisms</h2>
-      <p>We apply the following safeguards to personal and Google / YouTube-related data:</p>
+      <p>We apply the following safeguards to personal and Google user data:</p>
       <ul>
         <li>
           <strong>Encryption in transit.</strong> Network communication with our backend (Supabase),
           Google APIs, and Firebase uses HTTPS / TLS.
         </li>
         <li>
-          <strong>Least privilege.</strong> YouTube access is limited to the read-only
-          <code>youtube.readonly</code> scope. We do not request write or manage scopes for your
-          YouTube channel.
+          <strong>Least privilege.</strong> Optional Google library access is limited to the
+          read-only <code>youtube.readonly</code> scope. We do not request write or manage scopes for
+          your Google-linked channel content.
         </li>
         <li>
-          <strong>Token handling.</strong> YouTube / Google OAuth access tokens used for YouTube Data
-          API calls are stored only on the user’s device (local app storage such as iOS UserDefaults
-          for the signed-in session) and are not synced to our servers. Tokens are cleared when you
-          sign out or delete the account where applicable.
+          <strong>Token handling.</strong> Google OAuth access tokens used for those API calls are
+          stored only on the user’s device (local app storage such as iOS UserDefaults for the
+          signed-in session) and are not synced to our servers. Tokens are cleared when you sign out
+          or delete the account where applicable.
         </li>
         <li>
           <strong>Access control.</strong> Account-linked library data in Supabase is scoped to the
@@ -149,17 +148,17 @@
           <strong>Retention and deletion.</strong> Local data remains on your device until you clear
           app data or uninstall. You can delete your YouLite account in the app (where available) or
           contact us; we then remove account-linked data from our systems according to our retention
-          windows. Revoking Google access stops further YouTube API use with that grant.
+          windows. Revoking Google access stops further API use with that grant.
         </li>
       </ul>
 
       <h2>Third parties</h2>
       <p>
         The app relies on third-party services such as Apple (Sign in with Apple / App Store), Google
-        (sign-in / YouTube APIs / Firebase Analytics &amp; Crashlytics), and Supabase (backend). Their
+        (sign-in / Google APIs / Firebase Analytics &amp; Crashlytics), and Supabase (backend). Their
         policies apply to data they process on their platforms. Streamed media and metadata come from
-        YouTube and remain subject to YouTube’s terms. See also the sharing section above for how
-        Google user data is disclosed to these processors.
+        upstream online video services and remain subject to those services’ terms. See also the
+        sharing section above for how Google user data is disclosed to these processors.
       </p>
 
       <h2>Data retention &amp; deletion</h2>
@@ -187,13 +186,12 @@
       <div class="lang-block" lang="zh-Hans">
         <h2>中文摘要</h2>
         <p>
-          YouLite 是一款面向 iOS / Android 的 YouTube 音乐风格客户端。我们可能处理通过
-          <strong>Sign in with Apple</strong>或 <strong>Google</strong>（经 Supabase）产生的账号信息、本地与云端同步的媒体库与偏好设置，以及你授权的 YouTube
-          只读数据（<code>youtube.readonly</code>）。Google / YouTube 用户数据仅用于在应用内展示你授权查看的订阅、播放列表与喜欢的视频；OAuth
-          访问令牌<strong>仅保存在设备本地</strong>，不会上传到我们的服务器。我们可能与 Google（YouTube
-          Data API）、Supabase（账号与资料库同步）、Firebase（分析与崩溃诊断）及 Apple（登录 / App
-          Store）共享或由其处理相关数据，以运行本应用；我们<strong>不会出售</strong> Google
-          用户数据，也不会将其提供给广告商或数据经纪人。传输使用 HTTPS/TLS；账号数据按用户隔离；你可在
+          YouLite 是一款面向 iOS / Android 的在线视频播放器。我们可能处理通过
+          <strong>Sign in with Apple</strong>或 <strong>Google</strong>（经 Supabase）产生的账号信息、本地与云端同步的媒体库与偏好设置，以及你授权的 Google
+          只读用户数据（含 <code>youtube.readonly</code> scope，用于展示订阅、播放列表与喜欢的视频等）。OAuth
+          访问令牌<strong>仅保存在设备本地</strong>，不会上传到我们的服务器。我们可能与 Google
+          API、Supabase、Firebase 及 Apple 共享或由其处理相关数据，以运行本应用；我们<strong>不会出售</strong>
+          Google 用户数据，也不会将其提供给广告商或数据经纪人。传输使用 HTTPS/TLS；账号数据按用户隔离；你可在
           Google 账号权限中撤销授权，或在应用内退出 / 删除账号。隐私问题请联系
           jimo.cgg@gmail.com。
         </p>
