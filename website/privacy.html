@@ -29,7 +29,7 @@
 
     <article class="page-shell">
       <h1>Privacy Policy</h1>
-      <p class="page-meta">Last updated: July 16, 2026 · Template for review — not legal advice.</p>
+      <p class="page-meta">Last updated: July 17, 2026</p>
 
       <p>
         YouLite (“we”, “the app”) is a hybrid YouTube / music-style client for iOS and Android. This
@@ -40,9 +40,11 @@
       <h2>Information we process</h2>
       <ul>
         <li>
-          <strong>Account data.</strong> If you sign in (for example with Google via our backend), we
-          may store identifiers needed for authentication and profile display (such as display name
-          and avatar URL) through our cloud provider (Supabase).
+          <strong>Account data.</strong> If you sign in with <strong>Sign in with Apple</strong> or
+          <strong>Google</strong> (via our backend), we may store identifiers needed for authentication
+          and profile display (such as a user id, display name, and avatar URL when provided) through
+          our cloud provider (Supabase). Apple may share a private relay email address with us if you
+          choose Hide My Email.
         </li>
         <li>
           <strong>Library &amp; preferences.</strong> Playlists, likes, history, subscribed channels,
@@ -50,28 +52,35 @@
           synced to your account.
         </li>
         <li>
-          <strong>YouTube access.</strong> Optional YouTube read-only scopes may be used to show
-          subscriptions and related YouTube data you authorize. We do not post or modify your
-          YouTube content through these scopes.
+          <strong>YouTube access.</strong> Optional YouTube read-only scopes (Google sign-in) may be
+          used to show subscriptions and related YouTube data you authorize. We do not post or modify
+          your YouTube content through these scopes. Apple-only accounts do not receive YouTube OAuth
+          tokens unless you also link Google access where offered.
         </li>
         <li>
-          <strong>Diagnostics.</strong> Crash and performance reports (for example Firebase
-          Crashlytics) may be collected in release builds to improve stability. You can limit
-          diagnostic sharing through your device OS settings where available.
+          <strong>Analytics.</strong> We use Firebase Analytics to understand aggregated app usage
+          (for example feature engagement and session metrics) so we can improve the product. This
+          data is processed by Google Firebase under their terms and privacy policy.
+        </li>
+        <li>
+          <strong>Diagnostics.</strong> Crash and performance reports (Firebase Crashlytics) may be
+          collected in release builds to improve stability. You can limit diagnostic sharing through
+          your device OS settings where available.
         </li>
       </ul>
 
       <h2>How we use information</h2>
       <p>
-        To provide playback, library sync, sign-in, and to fix bugs. We do not use your library
-        content for advertising profiles, and we do not sell personal information.
+        To provide playback, library sync, sign-in, product analytics, and to fix bugs. We do not use
+        your library content for advertising profiles, and we do not sell personal information.
       </p>
 
       <h2>Third parties</h2>
       <p>
-        The app relies on third-party services such as Google (sign-in / YouTube APIs), Supabase
-        (backend), and Apple / Google for distribution. Their policies apply to data they process.
-        Streamed media and metadata come from YouTube and remain subject to YouTube’s terms.
+        The app relies on third-party services such as Apple (Sign in with Apple / App Store), Google
+        (sign-in / YouTube APIs / Firebase Analytics &amp; Crashlytics), and Supabase (backend). Their
+        policies apply to data they process. Streamed media and metadata come from YouTube and remain
+        subject to YouTube’s terms.
       </p>
 
       <h2>Data retention &amp; deletion</h2>
@@ -92,14 +101,17 @@
       <p>
         Privacy questions:
         <a href="mailto:jimo.cgg@gmail.com">jimo.cgg@gmail.com</a>.
+        Support:
+        <a href="support.html">ytlite.cc/support.html</a>.
       </p>
 
       <div class="lang-block" lang="zh-Hans">
         <h2>中文摘要</h2>
         <p>
-          YouLite 是一款面向 iOS / Android 的 YouTube 音乐风格客户端。我们可能处理账号信息（如通过
-          Google / Supabase 登录）、本地与云端同步的媒体库与偏好设置，以及你授权的 YouTube
-          只读数据。我们不会出售你的个人信息。诊断数据（如崩溃报告）可能用于改进稳定性。第三方（Google、Supabase、YouTube
+          YouLite 是一款面向 iOS / Android 的 YouTube 音乐风格客户端。我们可能处理通过
+          <strong>Sign in with Apple</strong>或 <strong>Google</strong>（经 Supabase）产生的账号信息、本地与云端同步的媒体库与偏好设置，以及你授权的 YouTube
+          只读数据。我们使用 <strong>Firebase Analytics</strong> 了解汇总使用情况以改进产品，并可能在正式版收集
+          <strong>Crashlytics</strong> 诊断数据以提升稳定性。我们不会出售你的个人信息。第三方（Apple、Google、Firebase、Supabase、YouTube
           等）按其自身政策处理数据。你可通过卸载应用、清除数据或应用内删除账号（如提供）移除相关数据。隐私问题请联系
           jimo.cgg@gmail.com。
         </p>

@@ -261,42 +261,45 @@ struct FeedVideoCard: View {
             .onTapGesture { onTap?() }
 
             HStack(alignment: .top, spacing: YTLiteLayout.feedAvatarTextGap) {
-                feedAvatar
-                    .onTapGesture { onTap?() }
+                Button {
+                    onTap?()
+                } label: {
+                    HStack(alignment: .top, spacing: YTLiteLayout.feedAvatarTextGap) {
+                        feedAvatar
 
-                HStack(alignment: .center, spacing: 4) {
-                    VStack(alignment: .leading, spacing: YTLiteLayout.feedTitleMetaGap) {
-                        Text(item.title)
-                            .font(YTLiteType.feedTitle)
-                            .foregroundStyle(YTLiteColor.onSurface)
-                            .lineLimit(2)
-                            .lineSpacing(YTLiteLayout.feedTitleLineSpacing)
-                            .multilineTextAlignment(.leading)
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                        VStack(alignment: .leading, spacing: YTLiteLayout.feedTitleMetaGap) {
+                            Text(item.title)
+                                .font(YTLiteType.feedTitle)
+                                .foregroundStyle(YTLiteColor.onSurface)
+                                .lineLimit(2)
+                                .lineSpacing(YTLiteLayout.feedTitleLineSpacing)
+                                .multilineTextAlignment(.leading)
+                                .frame(maxWidth: .infinity, alignment: .leading)
 
-                        Text(item.feedMetaLine)
-                            .font(YTLiteType.feedMeta)
-                            .foregroundStyle(YTLiteColor.feedMeta)
-                            .lineLimit(2)
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                            Text(item.feedMetaLine)
+                                .font(YTLiteType.feedMeta)
+                                .foregroundStyle(YTLiteColor.feedMeta)
+                                .lineLimit(2)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
                     .contentShape(Rectangle())
-                    .onTapGesture { onTap?() }
-
-                    Button {
-                        onMore?()
-                    } label: {
-                        Image(systemName: "ellipsis")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                            .rotationEffect(.degrees(90))
-                            .frame(width: 32, height: 32)
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.borderless)
-                    .accessibilityLabel(L("common.more"))
                 }
+                .buttonStyle(.plain)
+
+                Button {
+                    onMore?()
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                        .rotationEffect(.degrees(90))
+                        .frame(width: 32, height: 32)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.borderless)
+                .accessibilityLabel(L("common.more"))
             }
             .padding(.horizontal, YTLiteLayout.feedInfoHorizontal)
             .padding(.top, YTLiteLayout.feedInfoTop)

@@ -54,6 +54,10 @@ struct SettingsView: View {
                     }
                 }
 
+                Button(L("settings.help_support")) {
+                    AppLinks.open(AppLinks.support)
+                }
+
                 Button(L("settings.privacy_policy")) {
                     AppLinks.open(AppLinks.privacyPolicy)
                 }

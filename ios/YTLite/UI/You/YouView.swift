@@ -592,7 +592,9 @@ struct SubscriptionChannelsListView: View {
                                     .foregroundStyle(YTLiteColor.onSurfaceVariant)
                                     .lineLimit(1)
                             }
+                            Spacer(minLength: 0)
                         }
+                        .contentShape(Rectangle())
                     }
                     .listRowBackground(YTLiteColor.background)
                 }
@@ -642,7 +644,9 @@ struct YouPlaylistsListView: View {
                                     .font(YTLiteType.meta)
                                     .foregroundStyle(YTLiteColor.onSurfaceVariant)
                             }
+                            Spacer(minLength: 0)
                         }
+                        .contentShape(Rectangle())
                     }
                     .listRowBackground(YTLiteColor.background)
                 }
@@ -711,6 +715,7 @@ struct YoutubePlaylistItemsView: View {
                             }
                             Spacer(minLength: 0)
                         }
+                        .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .listRowBackground(YTLiteColor.background)
@@ -808,7 +813,9 @@ struct ChannelSearchView: View {
                             .font(YTLiteType.meta)
                             .foregroundStyle(YTLiteColor.onSurfaceVariant)
                     }
+                    Spacer(minLength: 0)
                 }
+                .contentShape(Rectangle())
                 .listRowBackground(YTLiteColor.background)
             }
         }
@@ -837,14 +844,19 @@ struct PlaylistSearchView: View {
             NavigationLink {
                 PlaylistVideosBrowserView(playlist: playlist)
             } label: {
-                VStack(alignment: .leading, spacing: YTLiteLayout.stackTight) {
-                    Text(playlist.title)
-                        .font(YTLiteType.rowTitle)
-                        .foregroundStyle(YTLiteColor.onSurface)
-                    Text(playlist.subtitle)
-                        .font(YTLiteType.meta)
-                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                HStack(spacing: 0) {
+                    VStack(alignment: .leading, spacing: YTLiteLayout.stackTight) {
+                        Text(playlist.title)
+                            .font(YTLiteType.rowTitle)
+                            .foregroundStyle(YTLiteColor.onSurface)
+                        Text(playlist.subtitle)
+                            .font(YTLiteType.meta)
+                            .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                    }
+                    Spacer(minLength: 0)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
                 .listRowBackground(YTLiteColor.background)
             }
         }

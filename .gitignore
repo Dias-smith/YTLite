@@ -37,8 +37,15 @@ supabase/.temp/
 ios/**/xcuserdata/
 ios/**/DerivedData/
 ios/DerivedData/
+ios/.derivedData/
+ios/.spm/
 ios/*.xcworkspace/xcuserdata/
 **/Secrets.xcconfig.local
 **/xcuserdata/
 *.xcuserstate
 .DS_Store
+
+# Apple Sign In / App Store Connect private keys — never commit
+AuthKey_*.p8
+*.p8
+**/AuthKey_*.p8

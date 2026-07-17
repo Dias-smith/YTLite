@@ -1573,7 +1573,7 @@ struct LibrarySongRow: View {
                     .foregroundStyle(YTLiteColor.onSurfaceVariant)
                     .lineLimit(1)
             }
-            Spacer()
+            Spacer(minLength: 0)
             Button {
                 onMore?()
             } label: {
@@ -1587,6 +1587,7 @@ struct LibrarySongRow: View {
         .padding(.leading, compactLeading ? 0 : YTLiteLayout.screenPadding)
         .padding(.trailing, YTLiteLayout.screenPadding)
         .padding(.vertical, YTLiteLayout.rowVertical)
+        .contentShape(Rectangle())
     }
 }
 

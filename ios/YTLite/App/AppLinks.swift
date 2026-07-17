@@ -5,6 +5,7 @@ import UIKit
 enum AppLinks {
     static let privacyPolicy = URL(string: "https://ytlite.cc/privacy.html")!
     static let termsOfService = URL(string: "https://ytlite.cc/terms.html")!
+    static let support = URL(string: "https://ytlite.cc/support.html")!
     static let suggestionsEmail = "jimo.cgg@gmail.com"
 
     /// Numeric App Store ID (no “id” prefix). Set `APP_STORE_ID` in Info.plist when listed.

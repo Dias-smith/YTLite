@@ -148,10 +148,19 @@ struct PlayerDetailView: View {
         .onAppear {
             playback.libraryStore = store ?? playback.libraryStore
             playback.refreshFavoriteState()
-            bumpOverlayAutoHide()
+            if !playback.isBuffering {
+                bumpOverlayAutoHide()
+            }
         }
         .onChange(of: playback.isPlaying) { _, playing in
-            if playing { bumpOverlayAutoHide() }
+            if playing, !playback.isBuffering { bumpOverlayAutoHide() }
+        }
+        .onChange(of: playback.isBuffering) { _, buffering in
+            if buffering {
+                hideTask?.cancel()
+            } else if overlayVisible {
+                bumpOverlayAutoHide()
+            }
         }
         .onChange(of: playback.nowPlaying?.videoId) { _, _ in
             related = []
@@ -205,7 +214,8 @@ struct PlayerDetailView: View {
                 .contentShape(Rectangle())
                 .onTapGesture { toggleOverlay() }
 
-            if overlayVisible {
+            // Hide controls while the loading spinner is up; reveal after buffering ends.
+            if overlayVisible && !playback.isBuffering {
                 canvasOverlay
                     .transition(.opacity)
             }
@@ -216,6 +226,7 @@ struct PlayerDetailView: View {
     }
 
     private func toggleOverlay() {
+        guard !playback.isBuffering else { return }
         withAnimation(.easeInOut(duration: 0.15)) {
             overlayVisible.toggle()
         }
@@ -396,11 +407,12 @@ struct PlayerDetailView: View {
 
     private func bumpOverlayAutoHide() {
         hideTask?.cancel()
-        guard playback.isPlaying else { return }
+        guard playback.isPlaying, !playback.isBuffering else { return }
         hideTask = Task {
             try? await Task.sleep(nanoseconds: overlayAutoHideSeconds)
             guard !Task.isCancelled else { return }
             await MainActor.run {
+                guard !playback.isBuffering else { return }
                 withAnimation(.easeInOut(duration: 0.2)) {
                     overlayVisible = false
                 }
@@ -454,18 +466,12 @@ struct PlayerDetailView: View {
             } label: {
                 Text(subscribed ? L("player.subscribed") : L("player.subscribe"))
                     .font(YTLiteType.badge)
-                    .foregroundStyle(subscribed ? YTLiteColor.onSurfaceVariant : YTLiteColor.onSurface)
+                    .foregroundStyle(subscribed ? YTLiteColor.onSurfaceVariant : YTLiteColor.onAccent)
                     .padding(.horizontal, YTLiteLayout.stackLoose)
                     .padding(.vertical, 6)
                     .background(
-                        subscribed ? YTLiteColor.surfaceVariant : YTLiteColor.surfaceElevated,
+                        subscribed ? YTLiteColor.surfaceVariant : YTLiteColor.accent,
                         in: Capsule()
-                    )
-                    .overlay(
-                        Capsule().strokeBorder(
-                            subscribed ? Color.clear : YTLiteColor.chromeDivider,
-                            lineWidth: 1
-                        )
                     )
                     .opacity(canSubscribe ? 1 : 0.4)
             }

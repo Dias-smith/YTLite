@@ -538,6 +538,7 @@ private struct SearchVideoResultRow: View {
         }
         .padding(.horizontal, YTLiteLayout.screenPadding)
         .padding(.vertical, YTLiteLayout.rowVertical)
+        .contentShape(Rectangle())
     }
 }
 
@@ -560,13 +561,14 @@ private struct SearchChannelResultRow: View {
                     .foregroundStyle(YTLiteColor.onSurfaceVariant)
                     .lineLimit(1)
             }
-            Spacer()
+            Spacer(minLength: 0)
             Image(systemName: "chevron.right")
                 .font(YTLiteType.meta)
                 .foregroundStyle(YTLiteColor.onSurfaceVariant)
         }
         .padding(.horizontal, YTLiteLayout.screenPadding)
         .padding(.vertical, YTLiteLayout.rowVertical)
+        .contentShape(Rectangle())
     }
 }
 
@@ -589,10 +591,11 @@ private struct SearchPlaylistResultRow: View {
                     .foregroundStyle(YTLiteColor.onSurfaceVariant)
                     .lineLimit(1)
             }
-            Spacer()
+            Spacer(minLength: 0)
         }
         .padding(.horizontal, YTLiteLayout.screenPadding)
         .padding(.vertical, YTLiteLayout.rowVertical)
+        .contentShape(Rectangle())
     }
 }
 
