@@ -60,10 +60,18 @@ enum YTLiteColor {
     )
     static let danger = Color.red
     static let onAccent = Color.black.opacity(0.85)
+    /// Icons / labels drawn on video, photos, or dimmed media overlays (always light).
+    static let onMedia = Color.white
+    static let onMediaMuted = Color.white.opacity(0.78)
     /// Hairline divider for light chrome (tab bar / mini player)
     static let chromeDivider = adaptive(
         light: UIColor(white: 0.85, alpha: 1),
         dark: UIColor(white: 1, alpha: 0.08)
+    )
+    /// Search field / inset control fill — must contrast with `background` in both schemes.
+    static let searchField = adaptive(
+        light: UIColor(white: 0.91, alpha: 1), // #E8E8E8
+        dark: UIColor(red: 0.118, green: 0.118, blue: 0.118, alpha: 1) // #1E1E1E
     )
 
     private static func adaptive(light: UIColor, dark: UIColor) -> Color {
@@ -157,7 +165,7 @@ struct YTLiteChip: View {
         Button(action: action) {
             Text(title)
                 .font(selected ? YTLiteType.labelEmphasized : YTLiteType.label)
-                .foregroundStyle(YTLiteColor.onSurface)
+                .foregroundStyle(selected ? YTLiteColor.onAccent : YTLiteColor.onSurface)
                 .padding(.horizontal, YTLiteLayout.chipHorizontal)
                 .padding(.vertical, YTLiteLayout.chipVertical)
                 .background(

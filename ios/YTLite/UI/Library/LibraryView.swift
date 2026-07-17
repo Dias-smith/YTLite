@@ -115,7 +115,7 @@ struct LibraryView: View {
                     } label: {
                         Text(L("library.new"))
                             .font(YTLiteType.labelEmphasized)
-                            .foregroundStyle(YTLiteColor.onSurface)
+                            .foregroundStyle(YTLiteColor.onAccent)
                             .padding(.horizontal, 18)
                             .padding(.vertical, YTLiteLayout.stackLoose)
                             .background(YTLiteColor.accent, in: Capsule())

@@ -3,6 +3,7 @@ import Foundation
 /// Persisted home category payloads (memory + disk) for fast reopen / chip switch.
 enum HomeFeedStore {
     private static let folderName = "home_feed"
+    private static let selectedCategoryKey = "home_selected_category_id"
     private static let maxMemoryEntries = 8
     private static var memory: [String: Snapshot] = [:]
     private static let lock = NSLock()
@@ -49,6 +50,15 @@ enum HomeFeedStore {
                 publishedTimeText: publishedTimeText
             )
         }
+    }
+
+    /// Last selected home chip (mirrors Android `HomePreferences`).
+    static func loadSelectedCategoryId() -> String? {
+        UserDefaults.standard.string(forKey: selectedCategoryKey)
+    }
+
+    static func saveSelectedCategoryId(_ categoryId: String) {
+        UserDefaults.standard.set(categoryId, forKey: selectedCategoryKey)
     }
 
     static func loadVideos(categoryId: String) -> [VideoItem]? {

@@ -110,7 +110,7 @@ struct YouView: View {
                     } label: {
                         Text(L("you.sign_in_with_google_for_youtube"))
                             .font(YTLiteType.labelEmphasized)
-                            .foregroundStyle(YTLiteColor.onSurface)
+                            .foregroundStyle(Color.white)
                             .padding(.horizontal, 16)
                             .padding(.vertical, 10)
                             .frame(maxWidth: .infinity)
@@ -292,7 +292,7 @@ struct YouView: View {
             } label: {
                 Text(L("you.grant_access"))
                     .font(YTLiteType.labelEmphasized)
-                    .foregroundStyle(YTLiteColor.onSurface)
+                    .foregroundStyle(Color.white)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 8)
                     .background(YTLiteColor.signInBlue, in: Capsule())

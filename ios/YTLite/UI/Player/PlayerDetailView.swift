@@ -204,7 +204,7 @@ struct PlayerDetailView: View {
 
             if playback.isBuffering {
                 ProgressView()
-                    .tint(YTLiteColor.onSurface)
+                    .tint(YTLiteColor.onMedia)
                     .padding(YTLiteLayout.screenPadding)
                     .background(.black.opacity(0.55), in: RoundedRectangle(cornerRadius: YTLiteLayout.stackLoose))
             }
@@ -296,13 +296,13 @@ struct PlayerDetailView: View {
                             } else {
                                 Image(systemName: "moon.zzz")
                                     .font(.system(size: 14, weight: .semibold))
-                                    .foregroundStyle(YTLiteColor.onSurface)
+                                    .foregroundStyle(YTLiteColor.onMedia)
                                     .frame(width: 36, height: 36)
                             }
                         } else {
                             Image(systemName: "moon.zzz")
                                 .font(.system(size: 14, weight: .semibold))
-                                .foregroundStyle(YTLiteColor.onSurface)
+                                .foregroundStyle(YTLiteColor.onMedia)
                                 .frame(width: 36, height: 36)
                         }
                     }
@@ -317,7 +317,7 @@ struct PlayerDetailView: View {
                 } label: {
                     Text(PlaybackSpeeds.formatLabel(playback.playbackSpeed))
                         .font(YTLiteType.badge)
-                        .foregroundStyle(YTLiteColor.onSurface)
+                        .foregroundStyle(YTLiteColor.onMedia)
                         .frame(minWidth: 36)
                         .padding(.horizontal, 10)
                         .padding(.vertical, YTLiteLayout.rowVertical)
@@ -361,12 +361,13 @@ struct PlayerDetailView: View {
         HStack(spacing: 10) {
             Text(formatTime(progressClock.positionSeconds))
                 .font(YTLiteType.tabLabel.monospacedDigit())
-                .foregroundStyle(YTLiteColor.onSurface)
+                .foregroundStyle(YTLiteColor.onMedia)
                 .frame(minWidth: 36, alignment: .leading)
 
             OrangeProgressBar(
                 value: progressClock.positionSeconds,
-                total: max(progressClock.durationSeconds, 1)
+                total: max(progressClock.durationSeconds, 1),
+                trackColor: YTLiteColor.onMedia.opacity(0.35)
             ) { seconds in
                 playback.seek(to: seconds)
                 bumpOverlayAutoHide()
@@ -374,7 +375,7 @@ struct PlayerDetailView: View {
 
             Text(formatTime(progressClock.durationSeconds))
                 .font(YTLiteType.tabLabel.monospacedDigit())
-                .foregroundStyle(YTLiteColor.onSurface)
+                .foregroundStyle(YTLiteColor.onMedia)
                 .frame(minWidth: 36, alignment: .trailing)
         }
     }
@@ -383,7 +384,7 @@ struct PlayerDetailView: View {
         Button(action: action) {
             Image(systemName: systemName)
                 .font(.body.weight(.semibold))
-                .foregroundStyle(YTLiteColor.onSurface)
+                .foregroundStyle(YTLiteColor.onMedia)
                 .frame(width: 40, height: 40)
                 .background(Color.black.opacity(0.5), in: Circle())
         }
@@ -398,7 +399,7 @@ struct PlayerDetailView: View {
         Button(action: action) {
             Image(systemName: systemName)
                 .font(.system(size: size, weight: .semibold))
-                .foregroundStyle(YTLiteColor.onSurface)
+                .foregroundStyle(YTLiteColor.onMedia)
                 .frame(width: 44, height: 44)
                 .contentShape(Rectangle())
         }
@@ -488,7 +489,7 @@ struct PlayerDetailView: View {
                     .foregroundStyle(YTLiteColor.onSurface)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 8)
-                    .background(YTLiteColor.surfaceElevated, in: Capsule())
+                    .background(YTLiteColor.surfaceVariant, in: Capsule())
                     .offset(y: 36)
                     .transition(.opacity)
                     .task(id: subscribeToast) {
@@ -601,10 +602,12 @@ struct PlayerDetailView: View {
             Spacer()
             Button { playback.togglePlayPause() } label: {
                 ZStack {
-                    Circle().fill(Color.white).frame(width: 64, height: 64)
+                    Circle()
+                        .fill(YTLiteColor.onSurface)
+                        .frame(width: 64, height: 64)
                     Image(systemName: playback.isPlaying ? "pause.fill" : "play.fill")
                         .font(.title2.weight(.bold))
-                        .foregroundStyle(YTLiteColor.surface)
+                        .foregroundStyle(YTLiteColor.background)
                         .offset(x: playback.isPlaying ? 0 : 2)
                 }
             }
@@ -1014,6 +1017,7 @@ struct PlayerDetailView: View {
 private struct OrangeProgressBar: View {
     let value: Double
     let total: Double
+    var trackColor: Color = YTLiteColor.onSurface.opacity(0.35)
     var onSeek: (Double) -> Void
 
     @State private var dragFraction: CGFloat?
@@ -1032,7 +1036,7 @@ private struct OrangeProgressBar: View {
             let trackH: CGFloat = 3
             ZStack(alignment: .leading) {
                 Capsule()
-                    .fill(YTLiteColor.onSurface.opacity(0.35))
+                    .fill(trackColor)
                     .frame(height: trackH)
                 Capsule()
                     .fill(YTLiteColor.accent)

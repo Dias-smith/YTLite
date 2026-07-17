@@ -254,7 +254,7 @@ struct SearchView: View {
         }
         .padding(.horizontal, YTLiteLayout.screenPadding)
         .padding(.vertical, YTLiteLayout.stackLoose)
-        .background(YTLiteColor.surfaceElevated, in: Capsule())
+        .background(YTLiteColor.searchField, in: Capsule())
     }
 
     private var resultsPane: some View {

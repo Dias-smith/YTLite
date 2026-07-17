@@ -243,10 +243,10 @@ struct ShortsView: View {
                 VStack(spacing: YTLiteLayout.screenPadding) {
                     Text(L("shorts.title"))
                         .font(YTLiteType.emptyTitle)
-                        .foregroundStyle(YTLiteColor.onSurface)
+                        .foregroundStyle(YTLiteColor.onMedia)
                     Text(L("shorts.unmute_hint"))
                         .font(YTLiteType.body)
-                        .foregroundStyle(YTLiteColor.onSurface.opacity(0.85))
+                        .foregroundStyle(YTLiteColor.onMediaMuted)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 32)
                     Button {
@@ -263,7 +263,7 @@ struct ShortsView: View {
                     } label: {
                         Image(systemName: "play.fill")
                             .font(.title)
-                            .foregroundStyle(YTLiteColor.onSurface)
+                            .foregroundStyle(YTLiteColor.onAccent)
                             .frame(width: 72, height: 72)
                             .background(YTLiteColor.accent, in: Circle())
                     }

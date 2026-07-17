@@ -6,6 +6,7 @@ struct SignInOptionsView: View {
     @ObservedObject var auth: AuthService
     var onSignedIn: (() async -> Void)?
 
+    @Environment(\.colorScheme) private var colorScheme
     @State private var appleNonce: String?
 
     var body: some View {
@@ -23,7 +24,7 @@ struct SignInOptionsView: View {
                     }
                 }
             }
-            .signInWithAppleButtonStyle(.white)
+            .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
             .frame(maxWidth: 280)
             .frame(height: 44)
             .disabled(auth.isBusy || !auth.isConfigured)
@@ -38,7 +39,7 @@ struct SignInOptionsView: View {
             } label: {
                 Text(auth.isBusy ? L("common.signing_in") : L("auth.continue_with_google"))
                     .font(YTLiteType.labelEmphasized)
-                    .foregroundStyle(YTLiteColor.onSurface)
+                    .foregroundStyle(Color.white)
                     .frame(maxWidth: 280)
                     .frame(height: 44)
                     .background(YTLiteColor.signInBlue, in: Capsule())

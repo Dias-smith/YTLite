@@ -99,7 +99,7 @@ struct YTLiteSheetPrimaryButton: View {
         Button(action: action) {
             Text(title)
                 .font(YTLiteType.labelEmphasized)
-                .foregroundStyle(enabled ? YTLiteColor.onSurface : YTLiteColor.onSurfaceVariant)
+                .foregroundStyle(enabled ? YTLiteColor.onAccent : YTLiteColor.onSurfaceVariant)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 14)
                 .background(

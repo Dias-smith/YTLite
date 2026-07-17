@@ -213,7 +213,7 @@ struct PlaylistDetailView: View {
                 Button(action: playOrToggle) {
                     Image(systemName: showPause ? "pause.fill" : "play.fill")
                         .font(.system(size: 28, weight: .semibold))
-                        .foregroundStyle(YTLiteColor.onSurface)
+                        .foregroundStyle(YTLiteColor.onAccent)
                         .frame(width: 72, height: 72)
                         .background(YTLiteColor.accent, in: Circle())
                 }

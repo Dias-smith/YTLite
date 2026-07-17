@@ -62,6 +62,10 @@ final class HomeViewModel: ObservableObject {
     weak var libraryStore: LibraryStore?
 
     init() {
+        if let saved = HomeFeedStore.loadSelectedCategoryId(),
+           HomeCategory.all.contains(where: { $0.id == saved }) {
+            selectedCategoryId = saved
+        }
         applyStoredFeed(for: selectedCategoryId)
     }
 
@@ -79,6 +83,7 @@ final class HomeViewModel: ObservableObject {
     func selectCategory(_ category: HomeCategory) {
         guard category.id != selectedCategoryId else { return }
         selectedCategoryId = category.id
+        HomeFeedStore.saveSelectedCategoryId(category.id)
         errorMessage = nil
         applyStoredFeed(for: category.id)
         refreshIfNeeded()
@@ -234,19 +239,30 @@ struct HomeView: View {
     }
 
     private var categoryChips: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: YTLiteLayout.stackDefault) {
-                ForEach(HomeCategory.all) { cat in
-                    YTLiteChip(
-                        title: cat.title,
-                        selected: viewModel.selectedCategoryId == cat.id
-                    ) {
-                        viewModel.selectCategory(cat)
+        ScrollViewReader { proxy in
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: YTLiteLayout.stackDefault) {
+                    ForEach(HomeCategory.all) { cat in
+                        YTLiteChip(
+                            title: cat.title,
+                            selected: viewModel.selectedCategoryId == cat.id
+                        ) {
+                            viewModel.selectCategory(cat)
+                        }
+                        .id(cat.id)
                     }
                 }
+                .padding(.horizontal, YTLiteLayout.screenPadding)
+                .padding(.vertical, YTLiteLayout.stackLoose)
             }
-            .padding(.horizontal, YTLiteLayout.screenPadding)
-            .padding(.vertical, YTLiteLayout.stackLoose)
+            .onAppear {
+                proxy.scrollTo(viewModel.selectedCategoryId, anchor: .center)
+            }
+            .onChange(of: viewModel.selectedCategoryId) { _, id in
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    proxy.scrollTo(id, anchor: .center)
+                }
+            }
         }
     }
 

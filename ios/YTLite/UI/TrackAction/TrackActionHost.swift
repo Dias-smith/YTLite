@@ -62,7 +62,7 @@ struct TrackActionHost<Content: View>: View {
                         .foregroundStyle(YTLiteColor.onSurface)
                         .padding(.horizontal, 16)
                         .padding(.vertical, 10)
-                        .background(YTLiteColor.surfaceElevated, in: Capsule())
+                        .background(YTLiteColor.surfaceVariant, in: Capsule())
                         .padding(.bottom, 88)
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                         .animation(.easeOut(duration: 0.2), value: message)
