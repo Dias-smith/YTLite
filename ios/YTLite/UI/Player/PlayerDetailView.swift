@@ -385,6 +385,7 @@ struct PlayerDetailView: View {
     private var overlayTopBar: some View {
         HStack(spacing: YTLiteLayout.stackDefault) {
             overlayIconButton(systemName: "chevron.down") {
+                AdSceneLifecycle.onPlayerDetailClosed()
                 dismiss()
             }
             Spacer()

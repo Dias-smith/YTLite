@@ -67,6 +67,12 @@ struct SettingsView: View {
                     AppLinks.open(AppLinks.support)
                 }
 
+                if AdMobConfig.adsEnabled && AdConsentManager.isPrivacyOptionsRequired {
+                    Button(L("settings.ad_privacy_choices")) {
+                        Task { await AdConsentManager.presentPrivacyOptions() }
+                    }
+                }
+
                 Button(L("settings.privacy_policy")) {
                     AppLinks.open(AppLinks.privacyPolicy)
                 }

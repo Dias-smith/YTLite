@@ -44,6 +44,10 @@ struct RootView: View {
             }
             .environment(\.selectAppTab) { tab in
                 selectedTab = tab
+                AdSceneLifecycle.recordFirstInteraction(source: "tab")
+            }
+            .onChange(of: selectedTab) { _, _ in
+                AdSceneLifecycle.recordFirstInteraction(source: "tab")
             }
             .background(YTLiteColor.background.ignoresSafeArea())
             .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in

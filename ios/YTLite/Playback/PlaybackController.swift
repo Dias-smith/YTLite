@@ -245,6 +245,7 @@ final class PlaybackController: ObservableObject {
 
     @discardableResult
     func toggleShuffle() -> Bool {
+        let previousPrefetchTargetId = nextPrefetchQueueItem()?.videoId
         shuffleEnabled.toggle()
         if shuffleEnabled {
             originalOrder = originalOrder ?? queue
@@ -267,14 +268,17 @@ final class PlaybackController: ObservableObject {
         }
         persistSession(immediate: true)
         refreshRemoteCommandEnabled()
+        rescheduleNextTrackPreparation(previousTargetId: previousPrefetchTargetId)
         return shuffleEnabled
     }
 
     @discardableResult
     func cycleRepeatMode() -> QueueRepeatMode {
+        let previousPrefetchTargetId = nextPrefetchQueueItem()?.videoId
         repeatMode.cycle()
         persistSession(immediate: true)
         refreshRemoteCommandEnabled()
+        rescheduleNextTrackPreparation(previousTargetId: previousPrefetchTargetId)
         return repeatMode
     }
 
@@ -473,6 +477,8 @@ final class PlaybackController: ObservableObject {
         )
         clearHLSQualityState()
         cancelScheduledNextPrefetch()
+        AdSceneLifecycle.cancelPlayStartInterstitial()
+        AdSceneLifecycle.recordFirstInteraction(source: "play_request")
         PlaybackPrefetcher.shared.retainOnly(videoId: item.videoId)
         isSeekInProgress = false
         seekGeneration += 1
@@ -625,10 +631,13 @@ final class PlaybackController: ObservableObject {
                 persistSession(immediate: true)
                 PlayProbe.log("play.ok", videoId: expectedVideoId)
                 // Prefetch next only after googlevideo is actually ready (see stream.ready).
+                AdSceneLifecycle.schedulePlayStartInterstitial(videoId: expectedVideoId)
             } catch is CancellationError {
+                AdSceneLifecycle.cancelPlayStartInterstitial()
                 PlayProbe.log("play.cancelled", videoId: expectedVideoId)
                 return
             } catch {
+                AdSceneLifecycle.cancelPlayStartInterstitial()
                 guard generation == extractGeneration,
                       !Task.isCancelled,
                       isCurrentExtractTarget(expectedVideoId)
@@ -909,6 +918,8 @@ final class PlaybackController: ObservableObject {
     /// Next queue item for prefetch (honors Repeat All wrap).
     private func nextPrefetchQueueItem() -> VideoItem? {
         guard !queue.isEmpty else { return nil }
+        // Repeat One replays the already-loaded current item and has no next target.
+        guard repeatMode != .one else { return nil }
         if queueIndex + 1 < queue.count {
             return queue[queueIndex + 1]
         }
@@ -916,6 +927,32 @@ final class PlaybackController: ObservableObject {
             return queue[0]
         }
         return nil
+    }
+
+    /// Reconcile extract prefetch and AVPlayerItem warm-up after repeat/shuffle changes.
+    private func rescheduleNextTrackPreparation(previousTargetId: String?) {
+        cancelScheduledNextPrefetch()
+        nearEndPrefetchVerifiedVideoId = nil
+        lastNearEndPrefetchCheckAt = nil
+
+        let next = nextPrefetchQueueItem()
+        let nextId = next?.videoId
+        if let previousTargetId, previousTargetId != nextId {
+            PlaybackPrefetcher.shared.invalidate(videoId: previousTargetId)
+        }
+
+        guard let currentId = nowPlaying?.videoId,
+              player?.currentItem?.status == .readyToPlay,
+              let next,
+              !next.isLive
+        else { return }
+
+        PlayProbe.log(
+            "prefetch.mode_change",
+            videoId: next.videoId,
+            "repeat=\(repeatMode.rawValue) shuffle=\(shuffleEnabled)"
+        )
+        scheduleNextTrackPrefetch(afterCurrentVideoId: currentId)
     }
 
     /// Prefetch next VOD extract, then warm its AVPlayerItem when ready.

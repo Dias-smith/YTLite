@@ -192,10 +192,10 @@ final class PlaybackPrefetcher {
     }
 
     func invalidate(videoId: String) {
-        guard let entry = entries.removeValue(forKey: videoId) else { return }
-        if case .loading(_, let task) = entry {
+        if case .loading(_, let task) = entries.removeValue(forKey: videoId) {
             task.cancel()
         }
+        // Warm-up can outlive the extract cache entry after it was consumed.
         NextTrackWarmup.shared.invalidate(videoId: videoId)
     }
 

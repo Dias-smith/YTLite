@@ -39,7 +39,10 @@ struct YTLiteApp: App {
                         await Task.yield()
                         _ = try? await ExtractorBridge.shared.ensureReady()
                     }
+                    // UMP (+ ATT via IDFA Explainer) then Mobile Ads — before review prompts.
+                    await AdBootstrap.startIfNeeded()
                 }
+                .adSceneLifecycle()
                 .onOpenURL { url in
                     Task {
                         if let client = authService.supabaseClient() {
