@@ -110,11 +110,6 @@ struct RootView: View {
                     }
                 }
             }
-            .onChange(of: selectedTab) { _, tab in
-                if tab == .shorts, playback.isPlaying {
-                    playback.togglePlayPause()
-                }
-            }
             .onChange(of: appModel.isLibrarySyncing) { _, syncing in
                 review.setBusy("librarySync", syncing)
             }
