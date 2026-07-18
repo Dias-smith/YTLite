@@ -1,5 +1,15 @@
 import SwiftUI
 
+/// Temporary probe for home pull-to-refresh (filter Console: `YTLite.HomeFeed`).
+enum HomeFeedProbe {
+    static let tag = "YTLite.HomeFeed"
+
+    static func log(_ stage: String, _ detail: String = "") {
+        let detailPart = detail.isEmpty ? "" : " | \(detail)"
+        print("[\(tag)] [\(stage)]\(detailPart)")
+    }
+}
+
 enum HomeCategorySource: Hashable {
     case homeBrowse
     case musicNewReleaseAlbums
@@ -153,6 +163,9 @@ final class HomeViewModel: ObservableObject {
     private var dynamicChips: [HomeDynamicChip]
     private var didRequestDynamicChips = false
     private var continuation: String?
+    /// Re-entrancy guard — not @Published. Publishing `isRefreshing` during pull-to-refresh
+    /// rebuilds the ScrollView and cancels SwiftUI's `.refreshable` task mid-request.
+    private var isRefreshInFlight = false
     weak var libraryStore: LibraryStore?
 
     init() {
@@ -248,38 +261,94 @@ final class HomeViewModel: ObservableObject {
         }
     }
 
-    /// Pull-to-refresh: prefer next page via continuation, else cold first page.
+    /// Pull-to-refresh entry. Detach from SwiftUI cancellation so gesture/view
+    /// teardown cannot abort the in-flight InnerTube request.
     func refresh() async {
-        await refresh(force: true)
+        HomeFeedProbe.log("refresh.public", "category=\(selectedCategoryId)")
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            Task { @MainActor in
+                await self.refresh(force: true)
+                continuation.resume()
+            }
+        }
     }
 
     private func refresh(force: Bool) async {
-        if isRefreshing { return }
+        if isRefreshInFlight {
+            HomeFeedProbe.log(
+                "refresh.skip",
+                "reason=already_refreshing force=\(force) category=\(selectedCategoryId)"
+            )
+            return
+        }
         let category = selectedCategory
         let requestId = category.id
         // Non-force with existing UI content is a no-op (cache already shown).
-        if !force, !entries.isEmpty { return }
+        if !force, !entries.isEmpty {
+            HomeFeedProbe.log(
+                "refresh.skip",
+                "reason=cache_hit force=false count=\(entries.count) category=\(requestId)"
+            )
+            return
+        }
 
+        let previousIds = entries.map(\.id)
+        let hadContinuation = !(continuation ?? "").isEmpty
         loadGeneration += 1
         let generation = loadGeneration
 
-        isRefreshing = true
-        errorMessage = nil
+        HomeFeedProbe.log(
+            "refresh.start",
+            "force=\(force) gen=\(generation) category=\(requestId) source=\(String(describing: category.source)) prevCount=\(previousIds.count) hasCont=\(hadContinuation) contPrefix=\(continuationPrefix(continuation))"
+        )
+
+        isRefreshInFlight = true
+        // Only publish loading for empty-state ProgressView. Publishing during pull-to-refresh
+        // with existing rows cancels the `.refreshable` task (see refresh.cancelled logs).
+        let publishLoading = entries.isEmpty
+        if publishLoading {
+            isRefreshing = true
+        }
+        // Avoid no-op @Published writes — they still rebuild the view and cancel refreshable.
+        if errorMessage != nil {
+            errorMessage = nil
+        }
         defer {
+            isRefreshInFlight = false
             if generation == loadGeneration {
-                isRefreshing = false
+                if publishLoading {
+                    isRefreshing = false
+                }
+                HomeFeedProbe.log("refresh.end", "gen=\(generation) category=\(requestId)")
             }
         }
 
         do {
             let page = try await fetchPage(for: category, preferContinuation: force)
-            guard generation == loadGeneration, requestId == selectedCategoryId else { return }
+            guard generation == loadGeneration, requestId == selectedCategoryId else {
+                HomeFeedProbe.log(
+                    "refresh.stale",
+                    "gen=\(generation)/\(loadGeneration) req=\(requestId) selected=\(selectedCategoryId)"
+                )
+                return
+            }
+            let newIds = page.entries.map(\.id)
+            let overlap = Set(previousIds).intersection(newIds).count
+            let sameOrder = previousIds == newIds
+            HomeFeedProbe.log(
+                "refresh.result",
+                "count=\(page.entries.count) overlap=\(overlap)/\(previousIds.count) sameOrder=\(sameOrder) newCont=\(!(page.continuation ?? "").isEmpty) contPrefix=\(continuationPrefix(page.continuation)) first=\(newIds.prefix(3).joined(separator: ","))"
+            )
             rawEntries = page.entries
             entries = applyLibraryFilter(page.entries)
             rebuildPlayableIndex(from: entries)
             continuation = page.continuation
+            if let chips = page.chips {
+                acceptDynamicChips(chips)
+            }
             if page.entries.isEmpty {
                 errorMessage = "No videos in feed"
+                HomeFeedProbe.log("refresh.empty", "category=\(requestId)")
             } else {
                 errorMessage = nil
                 HomeFeedStore.save(
@@ -289,15 +358,27 @@ final class HomeViewModel: ObservableObject {
                 )
                 if force {
                     scrollToTopToken += 1
+                    HomeFeedProbe.log("refresh.scrollTop", "token=\(scrollToTopToken)")
                 }
             }
         } catch is CancellationError {
+            HomeFeedProbe.log("refresh.cancelled", "gen=\(generation) category=\(requestId)")
             return
         } catch {
             guard generation == loadGeneration, requestId == selectedCategoryId else { return }
-            if Task.isCancelled { return }
+            if Task.isCancelled {
+                HomeFeedProbe.log("refresh.taskCancelled", "gen=\(generation)")
+                return
+            }
             let ns = error as NSError
-            if ns.domain == NSURLErrorDomain, ns.code == NSURLErrorCancelled { return }
+            if ns.domain == NSURLErrorDomain, ns.code == NSURLErrorCancelled {
+                HomeFeedProbe.log("refresh.urlCancelled", "gen=\(generation)")
+                return
+            }
+            HomeFeedProbe.log(
+                "refresh.error",
+                "category=\(requestId) err=\(error.localizedDescription)"
+            )
             errorMessage = error.localizedDescription
             if entries.isEmpty {
                 applyStoredFeed(for: requestId)
@@ -305,9 +386,15 @@ final class HomeViewModel: ObservableObject {
         }
     }
 
+    private func continuationPrefix(_ token: String?) -> String {
+        guard let token, !token.isEmpty else { return "nil" }
+        return String(token.prefix(16))
+    }
+
     private struct FeedPage {
         let entries: [HomeFeedEntry]
         let continuation: String?
+        var chips: [HomeDynamicChip]? = nil
     }
 
     private func fetchPage(
@@ -316,11 +403,28 @@ final class HomeViewModel: ObservableObject {
     ) async throws -> FeedPage {
         let token = preferContinuation ? continuation : nil
         if let token, !token.isEmpty {
+            HomeFeedProbe.log(
+                "fetch.tryCont",
+                "category=\(category.id) contPrefix=\(continuationPrefix(token))"
+            )
             if let page = try? await fetchPage(for: category, continuation: token),
                !page.entries.isEmpty
             {
+                HomeFeedProbe.log(
+                    "fetch.cont.ok",
+                    "category=\(category.id) count=\(page.entries.count) nextCont=\(!(page.continuation ?? "").isEmpty)"
+                )
                 return page
             }
+            HomeFeedProbe.log(
+                "fetch.cont.fallback",
+                "category=\(category.id) reason=empty_or_error → cold"
+            )
+        } else {
+            HomeFeedProbe.log(
+                "fetch.cold",
+                "category=\(category.id) preferCont=\(preferContinuation)"
+            )
         }
         return try await fetchPage(for: category, continuation: nil)
     }
@@ -332,12 +436,10 @@ final class HomeViewModel: ObservableObject {
         switch category.source {
         case .homeBrowse:
             let page = try await InnerTubeClient.fetchHomeFeedPage(continuation: token)
-            if token == nil {
-                acceptDynamicChips(page.chips)
-            }
             return FeedPage(
                 entries: page.videos.map { .track($0) },
-                continuation: page.continuation
+                continuation: page.continuation,
+                chips: token == nil ? page.chips : nil
             )
         case .search(let query):
             let page = try await InnerTubeClient.searchVideosPage(
@@ -381,9 +483,14 @@ final class HomeViewModel: ObservableObject {
         if let stored = HomeFeedStore.loadFeed(categoryId: categoryId) {
             rawEntries = stored.entries
             continuation = stored.continuation
+            HomeFeedProbe.log(
+                "cache.load",
+                "category=\(categoryId) count=\(stored.entries.count) hasCont=\(!(stored.continuation ?? "").isEmpty)"
+            )
         } else {
             rawEntries = []
             continuation = nil
+            HomeFeedProbe.log("cache.miss", "category=\(categoryId)")
         }
         entries = applyLibraryFilter(rawEntries)
         rebuildPlayableIndex(from: entries)
@@ -552,7 +659,10 @@ struct HomeView: View {
                 .foregroundStyle(YTLiteColor.onSurface)
                 .frame(maxWidth: .infinity, minHeight: 420)
             }
-            .refreshable { await viewModel.refresh() }
+            .refreshable {
+                HomeFeedProbe.log("ui.refreshable", "path=empty category=\(viewModel.selectedCategoryId)")
+                await viewModel.refresh()
+            }
         } else {
             ScrollViewReader { proxy in
                 ScrollView {
@@ -593,8 +703,15 @@ struct HomeView: View {
                     }
                     .padding(.bottom, YTLiteLayout.rowVertical)
                 }
-                .refreshable { await viewModel.refresh() }
-                .onChange(of: viewModel.scrollToTopToken) { _, _ in
+                .refreshable {
+                    HomeFeedProbe.log(
+                        "ui.refreshable",
+                        "path=list category=\(viewModel.selectedCategoryId) count=\(viewModel.entries.count)"
+                    )
+                    await viewModel.refresh()
+                }
+                .onChange(of: viewModel.scrollToTopToken) { _, token in
+                    HomeFeedProbe.log("ui.scrollTop", "token=\(token)")
                     withAnimation(.easeOut(duration: 0.2)) {
                         proxy.scrollTo("home_feed_top", anchor: .top)
                     }

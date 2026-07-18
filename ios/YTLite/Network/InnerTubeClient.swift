@@ -62,6 +62,10 @@ enum InnerTubeClient {
         return await parseOffMain {
             let videos = VideoJSONParser.parseVideos(from: payload)
             let token = VideoJSONParser.parseContinuation(from: payload)
+            HomeFeedProbe.log(
+                "net.search",
+                "q=\(query) cont=\(continuation != nil) videos=\(videos.count) nextCont=\(token != nil)"
+            )
             return HomeFeedPageResult(videos: videos, continuation: token)
         }
     }
@@ -117,9 +121,19 @@ enum InnerTubeClient {
                 let token = VideoJSONParser.parseContinuation(from: payload)
                 return HomeFeedPageResult(videos: videos, continuation: token)
             }
-            if !page.videos.isEmpty { return page }
+            if !page.videos.isEmpty {
+                HomeFeedProbe.log(
+                    "net.news.browse",
+                    "cont=\(continuation != nil) videos=\(page.videos.count) nextCont=\(page.continuation != nil)"
+                )
+                return page
+            }
+            HomeFeedProbe.log("net.news.browse.empty", "cont=\(continuation != nil)")
         } catch {
-            // Invalid browse / stale continuation → search below.
+            HomeFeedProbe.log(
+                "net.news.browse.fail",
+                "cont=\(continuation != nil) err=\(error.localizedDescription)"
+            )
         }
         if let continuation, !continuation.isEmpty {
             // Browse continuation may be invalid after FEnews → hub migration; try search next page,
@@ -273,6 +287,10 @@ enum InnerTubeClient {
         let videos = await videosTask
         let chips = await chipsTask
         let token = await tokenTask
+        HomeFeedProbe.log(
+            "net.home",
+            "cont=\(continuation != nil) videos=\(videos.count) chips=\(chips.count) nextCont=\(token != nil)"
+        )
         if !videos.isEmpty {
             return HomeBrowsePage(videos: videos, chips: chips, continuation: token)
         }
