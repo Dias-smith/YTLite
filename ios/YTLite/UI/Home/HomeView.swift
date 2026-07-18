@@ -517,7 +517,6 @@ struct HomeView: View {
     @Environment(\.libraryStore) private var libraryStore
     @State private var showPlayer = false
     @State private var showCategoryReorder = false
-    @State private var reorderCategories: [HomeCategory] = []
 
     var body: some View {
         NavigationStack {
@@ -544,7 +543,16 @@ struct HomeView: View {
                 }
             }
             .sheet(isPresented: $showCategoryReorder) {
-                categoryReorderSheet
+                CategoryReorderSheet(
+                    categories: viewModel.orderedCategories,
+                    onDone: { ordered in
+                        viewModel.applyCategoryOrder(ordered)
+                        showCategoryReorder = false
+                    },
+                    onCancel: {
+                        showCategoryReorder = false
+                    }
+                )
             }
         }
     }
@@ -570,7 +578,6 @@ struct HomeView: View {
                 }
 
                 Button {
-                    reorderCategories = viewModel.orderedCategories
                     showCategoryReorder = true
                 } label: {
                     Image(systemName: "arrow.up.arrow.down")
@@ -592,55 +599,6 @@ struct HomeView: View {
                 }
             }
         }
-    }
-
-    private var categoryReorderSheet: some View {
-        NavigationStack {
-            List {
-                ForEach(reorderCategories) { category in
-                    HStack(spacing: YTLiteLayout.stackDefault) {
-                        Image(systemName: category.id == "all" ? "pin.fill" : "line.3.horizontal")
-                            .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                            .frame(width: 24)
-                        Text(category.title)
-                            .font(YTLiteType.body)
-                            .foregroundStyle(YTLiteColor.onSurface)
-                    }
-                    .listRowBackground(YTLiteColor.surface)
-                    .moveDisabled(category.id == "all")
-                }
-                .onMove { source, destination in
-                    let movable = IndexSet(source.filter { $0 != 0 })
-                    guard !movable.isEmpty else { return }
-                    reorderCategories.move(
-                        fromOffsets: movable,
-                        toOffset: max(1, destination)
-                    )
-                }
-            }
-            .listStyle(.plain)
-            .scrollContentBackground(.hidden)
-            .background(YTLiteColor.surface)
-            .environment(\.editMode, .constant(.active))
-            .navigationTitle(L("home.category.reorder"))
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button(L("common.done")) {
-                        viewModel.applyCategoryOrder(reorderCategories)
-                        showCategoryReorder = false
-                    }
-                    .font(YTLiteType.labelEmphasized)
-                }
-                ToolbarItem(placement: .cancellationAction) {
-                    Button(L("common.cancel")) {
-                        showCategoryReorder = false
-                    }
-                }
-            }
-        }
-        .presentationDetents([.medium, .large])
-        .presentationDragIndicator(.visible)
     }
 
     @ViewBuilder
@@ -718,6 +676,70 @@ struct HomeView: View {
                 }
             }
         }
+    }
+}
+
+/// Standalone sheet so `@State` is seeded from current categories at presentation time
+/// (parent `@State` + `isPresented` often opened with an empty list).
+private struct CategoryReorderSheet: View {
+    @State private var categories: [HomeCategory]
+    let onDone: ([HomeCategory]) -> Void
+    let onCancel: () -> Void
+
+    init(
+        categories: [HomeCategory],
+        onDone: @escaping ([HomeCategory]) -> Void,
+        onCancel: @escaping () -> Void
+    ) {
+        _categories = State(initialValue: categories)
+        self.onDone = onDone
+        self.onCancel = onCancel
+    }
+
+    var body: some View {
+        NavigationStack {
+            List {
+                ForEach(categories) { category in
+                    HStack(spacing: YTLiteLayout.stackDefault) {
+                        Image(systemName: category.id == "all" ? "pin.fill" : "line.3.horizontal")
+                            .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                            .frame(width: 24)
+                        Text(category.title)
+                            .font(YTLiteType.body)
+                            .foregroundStyle(YTLiteColor.onSurface)
+                    }
+                    .listRowBackground(YTLiteColor.surface)
+                    .moveDisabled(category.id == "all")
+                }
+                .onMove { source, destination in
+                    let movable = IndexSet(source.filter { $0 != 0 })
+                    guard !movable.isEmpty else { return }
+                    categories.move(
+                        fromOffsets: movable,
+                        toOffset: max(1, destination)
+                    )
+                }
+            }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .background(YTLiteColor.surface)
+            .environment(\.editMode, .constant(.active))
+            .navigationTitle(L("home.category.reorder"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(L("common.done")) {
+                        onDone(categories)
+                    }
+                    .font(YTLiteType.labelEmphasized)
+                }
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(L("common.cancel"), action: onCancel)
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
     }
 }
 
