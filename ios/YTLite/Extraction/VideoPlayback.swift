@@ -370,6 +370,21 @@ enum ExtractResultMapper {
 /// 1) ANDROID `/youtubei/v1/player` with `signatureTimestamp` (direct googlevideo URLs, no nsig)
 /// 2) scrape `ytInitialPlayerResponse` from watch HTML (often 403 without nsig — last resort)
 enum WatchPagePlayerFallback {
+    /// One-request fast path using the configured Android client and STS.
+    /// Falls back to the WKWebView extractor when YouTube rejects this client.
+    static func extractFast(videoId: String) async -> VideoPlayback? {
+        let id = videoId.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !id.isEmpty else { return nil }
+        let cfg = ExtractorRemoteConfigStore.current
+        guard cfg.enableAndroidPlayerFallback else { return nil }
+        PlayProbe.log("extract.fast.begin", videoId: id)
+        return await extractViaAndroidPlayer(
+            videoId: id,
+            signatureTimestamp: cfg.signatureTimestamp,
+            clientVersion: cfg.androidClientVersion
+        )
+    }
+
     static func extract(videoId: String) async throws -> VideoPlayback {
         let id = videoId.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !id.isEmpty else {

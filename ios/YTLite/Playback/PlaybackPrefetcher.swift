@@ -79,6 +79,35 @@ final class PlaybackPrefetcher {
         entries[videoId] = .loading(requestId, task)
     }
 
+    /// Non-destructive read of a fresh ready entry (for AVPlayerItem warm-up).
+    func peekReady(videoId: String) -> VideoPlayback? {
+        guard !videoId.isEmpty else { return nil }
+        guard case .ready(let cached) = entries[videoId], isFresh(cached) else { return nil }
+        return cached.playback
+    }
+
+    /// Wait until extract finishes without consuming the cache entry.
+    func waitUntilReady(videoId: String) async -> VideoPlayback? {
+        guard !videoId.isEmpty else { return nil }
+        guard let entry = entries[videoId] else { return nil }
+        switch entry {
+        case .ready(let cached):
+            return isFresh(cached) ? cached.playback : nil
+        case .loading(_, let task):
+            guard let playback = await task.value else { return nil }
+            if case .ready(let cached) = entries[videoId] {
+                return isFresh(cached) ? cached.playback : nil
+            }
+            // Entry may have been consumed while we awaited; still validate the payload.
+            let cached = Cached(
+                playback: playback,
+                extractedAt: Date(),
+                expireAt: Self.expireDate(from: playback)
+            )
+            return isFresh(cached) ? playback : nil
+        }
+    }
+
     /// Take a fresh result for playback. Awaits in-flight extract when needed.
     func consume(videoId: String) async -> VideoPlayback? {
         guard !videoId.isEmpty else { return nil }
@@ -123,7 +152,39 @@ final class PlaybackPrefetcher {
             "age=\(Int(age))s"
         )
         entries.removeValue(forKey: videoId)
+        NextTrackWarmup.shared.invalidate(videoId: videoId)
         prefetch(videoId: videoId, preferLiveHLS: preferLiveHLS)
+    }
+
+    /// Near-end health check. Returns true only when extraction has completed and
+    /// the cached stream URL is still usable. Missing/stale entries are restarted.
+    @discardableResult
+    func ensureCompletedAndValid(
+        videoId: String,
+        preferLiveHLS: Bool = false
+    ) -> Bool {
+        guard !videoId.isEmpty else { return false }
+        guard let entry = entries[videoId] else {
+            PlayProbe.log("prefetch.near_end.missing", videoId: videoId)
+            prefetch(videoId: videoId, preferLiveHLS: preferLiveHLS)
+            return false
+        }
+
+        switch entry {
+        case .loading:
+            PlayProbe.log("prefetch.near_end.pending", videoId: videoId)
+            return false
+        case .ready(let cached):
+            guard isFresh(cached) else {
+                PlayProbe.log("prefetch.near_end.invalid", videoId: videoId)
+                entries.removeValue(forKey: videoId)
+                NextTrackWarmup.shared.invalidate(videoId: videoId)
+                prefetch(videoId: videoId, preferLiveHLS: preferLiveHLS)
+                return false
+            }
+            PlayProbe.log("prefetch.near_end.valid", videoId: videoId)
+            return true
+        }
     }
 
     func invalidate(videoId: String) {
@@ -131,6 +192,7 @@ final class PlaybackPrefetcher {
         if case .loading(_, let task) = entry {
             task.cancel()
         }
+        NextTrackWarmup.shared.invalidate(videoId: videoId)
     }
 
     /// Keep at most one entry (the track about to play); drop everything else.
@@ -139,6 +201,7 @@ final class PlaybackPrefetcher {
         for key in keys where key != videoId {
             invalidate(videoId: key)
         }
+        NextTrackWarmup.shared.retainOnly(videoId: videoId)
     }
 
     func clear() {
@@ -148,6 +211,7 @@ final class PlaybackPrefetcher {
             }
         }
         entries.removeAll()
+        NextTrackWarmup.shared.clear()
     }
 
     // MARK: - Freshness

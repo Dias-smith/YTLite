@@ -34,9 +34,9 @@ struct YTLiteApp: App {
                     ExtractorRemoteConfigStore.restoreFromDisk()
                     appModel.syncAuth(authService)
                     ReviewPromptCoordinator.shared.recordActiveDay()
-                    // Defer extractor WKWebView warm-up so first frame stays responsive.
+                    // Start after the first cooperative yield so early taps do not pay WKWebView startup.
                     Task(priority: .utility) {
-                        try? await Task.sleep(nanoseconds: 800_000_000)
+                        await Task.yield()
                         _ = try? await ExtractorBridge.shared.ensureReady()
                     }
                 }

@@ -605,7 +605,7 @@ struct PlayerDetailView: View {
             } label: {
                 Text(subscribed ? L("player.subscribed") : L("player.subscribe"))
                     .font(YTLiteType.badge)
-                    .foregroundStyle(subscribed ? YTLiteColor.onSurfaceVariant : YTLiteColor.onAccent)
+                    .foregroundStyle(subscribed ? YTLiteColor.onSurface : YTLiteColor.onMedia)
                     .padding(.horizontal, YTLiteLayout.stackLoose)
                     .padding(.vertical, 6)
                     .background(
@@ -980,7 +980,7 @@ struct PlayerDetailView: View {
                     if isSelectionMode {
                         toggleSelection(item.videoId)
                     } else {
-                        playback.play(items: playback.queue, startAt: index)
+                        playback.playQueueIndex(index)
                     }
                 }
             }

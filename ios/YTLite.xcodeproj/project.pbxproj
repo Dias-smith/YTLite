@@ -54,6 +54,7 @@
 		9BA2A97B4E399A8DE578DC68 /* SearchHit.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC4BC0290DBF96C47203AFD9 /* SearchHit.swift */; };
 		A10BB1987728C2EBC73EDC5B /* SearchSuggestionItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 785F0DBABA94995BF9801E53 /* SearchSuggestionItem.swift */; };
 		A3F7C1E28B4D9A60E5F1D2C0 /* PlaybackPrefetcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8E4D2A17C6F5B90D3A0E1F4 /* PlaybackPrefetcher.swift */; };
+		A4E8B2C39D5F7A10E6F2D3B1 /* NextTrackWarmup.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7F1A8D24E6B9C50F2A3E4D5 /* NextTrackWarmup.swift */; };
 		AD70B6E4A962301570BF6A75 /* TrackActionHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = D36539F7B8580F83FE3B4756 /* TrackActionHost.swift */; };
 		B19A0548C73F27801320D382 /* YTLiteApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37556EF2BFFC392D74790365 /* YTLiteApp.swift */; };
 		B2479042A405753375DFFF80 /* TrackActionSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2507497952E4DBF5107AAB37 /* TrackActionSheet.swift */; };
@@ -126,6 +127,7 @@
 		B70A93BD5CE828D414CF8BBE /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		B8CE7E52ECFFEE4E9D9F3BBD /* PlaylistActionSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistActionSheet.swift; sourceTree = "<group>"; };
 		B8E4D2A17C6F5B90D3A0E1F4 /* PlaybackPrefetcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackPrefetcher.swift; sourceTree = "<group>"; };
+		C7F1A8D24E6B9C50F2A3E4D5 /* NextTrackWarmup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NextTrackWarmup.swift; sourceTree = "<group>"; };
 		BAAC16F100525461930D06E4 /* MusicAlbumRelease.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicAlbumRelease.swift; sourceTree = "<group>"; };
 		BCF093D73F22FDA34058B5CC /* PlaylistActionPresenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistActionPresenter.swift; sourceTree = "<group>"; };
 		BE239ADAEF6BDAECA1B2404A /* Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Debug.xcconfig; sourceTree = "<group>"; };
@@ -219,6 +221,7 @@
 			isa = PBXGroup;
 			children = (
 				75CAA6841345006D2B609D51 /* PipPlayerView.swift */,
+				C7F1A8D24E6B9C50F2A3E4D5 /* NextTrackWarmup.swift */,
 				4F148613909F22D6432E97CD /* PlaybackController.swift */,
 				B8E4D2A17C6F5B90D3A0E1F4 /* PlaybackPrefetcher.swift */,
 				6DA6324F90A27DDA7AC262F5 /* PlaybackProgressModel.swift */,
@@ -551,6 +554,7 @@
 				306A6B80DF8C915340C677FE /* OwnerKeyStore.swift in Sources */,
 				2E39CB7A265038BB757B2849 /* PipPlayerView.swift in Sources */,
 				55CD33F6A1B849732AD310DF /* PlaybackController.swift in Sources */,
+				A4E8B2C39D5F7A10E6F2D3B1 /* NextTrackWarmup.swift in Sources */,
 				A3F7C1E28B4D9A60E5F1D2C0 /* PlaybackPrefetcher.swift in Sources */,
 				49A7947FC79A9434EC92558F /* PlaybackProgressModel.swift in Sources */,
 				7E9F961C70588D8A61B9CA88 /* PlaybackSessionStore.swift in Sources */,

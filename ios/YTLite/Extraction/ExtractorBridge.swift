@@ -27,11 +27,14 @@ final class ExtractorBridge: NSObject, WKScriptMessageHandler {
     static let shared = ExtractorBridge()
 
     private var webView: WKWebView?
-    private var readyContinuation: CheckedContinuation<Void, Error>?
+    private var readyContinuations: [CheckedContinuation<Void, Error>] = []
     private var isReady = false
     private var isPreparing = false
     private var pendingResults: [String: CheckedContinuation<[String: Any], Error>] = [:]
     private let invokeTimeoutSeconds: TimeInterval = 45
+    private let visitorTTL: TimeInterval = 30 * 60
+    private var visitorData: String?
+    private var visitorFetchedAt: Date?
 
     func ensureReady() async throws {
         if isReady { return }
@@ -49,7 +52,7 @@ final class ExtractorBridge: NSObject, WKScriptMessageHandler {
             if isReady {
                 cont.resume()
             } else {
-                readyContinuation = cont
+                readyContinuations.append(cont)
             }
         }
     }
@@ -87,6 +90,16 @@ final class ExtractorBridge: NSObject, WKScriptMessageHandler {
                     error.localizedDescription
                 )
             }
+        }
+        if !preferLiveHLS,
+           let fast = await WatchPagePlayerFallback.extractFast(videoId: id)
+        {
+            PlayProbe.log(
+                "extract.fast.ok",
+                videoId: fast.videoId,
+                "formats=\(fast.formats.count)"
+            )
+            return fast
         }
         do {
             let result = try await extractPlaybackViaBridge(videoId: videoId)
@@ -166,8 +179,6 @@ final class ExtractorBridge: NSObject, WKScriptMessageHandler {
         PlayProbe.log("extract.bridge.ensureReady", videoId: videoId)
         try await ensureReady()
         PlayProbe.log("extract.bridge.ready", videoId: videoId)
-        // Match Android VsPlayerBridge.getVisitorData(): ensure fresh visitor before player calls.
-        await refreshVisitorData()
         // Always extract via canonical watch URL (Shorts URLs → /watch?v=…).
         let id = YouTubeURL.videoId(from: videoId) ?? videoId
         let watchURL = YouTubeURL.canonicalWatchURL(YouTubeURL.watchURL(videoId: id))
@@ -289,10 +300,6 @@ final class ExtractorBridge: NSObject, WKScriptMessageHandler {
         view.isHidden = true
         webView = view
         view.loadFileURL(bridgeURL, allowingReadAccessTo: dir)
-
-        Task {
-            await refreshVisitorData()
-        }
     }
 
     private func injectExtractorConfig() async {
@@ -307,8 +314,9 @@ final class ExtractorBridge: NSObject, WKScriptMessageHandler {
     private func markReady() {
         isReady = true
         isPreparing = false
-        readyContinuation?.resume()
-        readyContinuation = nil
+        let waiters = readyContinuations
+        readyContinuations.removeAll()
+        waiters.forEach { $0.resume() }
         Task {
             await injectExtractorConfig()
             await refreshVisitorData()
@@ -318,8 +326,9 @@ final class ExtractorBridge: NSObject, WKScriptMessageHandler {
     private func markFailed(_ message: String) {
         isPreparing = false
         let error = ExtractorError.extractFailed(message)
-        readyContinuation?.resume(throwing: error)
-        readyContinuation = nil
+        let waiters = readyContinuations
+        readyContinuations.removeAll()
+        waiters.forEach { $0.resume(throwing: error) }
         for (_, cont) in pendingResults {
             cont.resume(throwing: error)
         }
@@ -412,6 +421,13 @@ final class ExtractorBridge: NSObject, WKScriptMessageHandler {
     }
 
     private func refreshVisitorData() async {
+        if let visitorData,
+           let visitorFetchedAt,
+           Date().timeIntervalSince(visitorFetchedAt) < visitorTTL
+        {
+            await setVisitorData(visitorData)
+            return
+        }
         let result = await YouTubeHTTPClient.shared.request(
             url: "\(YouTubeConstants.baseURL)/",
             method: "GET",
@@ -424,7 +440,10 @@ final class ExtractorBridge: NSObject, WKScriptMessageHandler {
            let match = regex.firstMatch(in: result.body, range: NSRange(result.body.startIndex..., in: result.body)),
            let range = Range(match.range(at: 1), in: result.body)
         {
-            await setVisitorData(String(result.body[range]))
+            let value = String(result.body[range])
+            visitorData = value
+            visitorFetchedAt = Date()
+            await setVisitorData(value)
         }
     }
 

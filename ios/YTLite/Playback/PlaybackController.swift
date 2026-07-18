@@ -67,6 +67,8 @@ final class PlaybackController: ObservableObject {
     private var extractTask: Task<Void, Never>?
     private var hlsVariantsTask: Task<Void, Never>?
     private var nextPrefetchScheduleTask: Task<Void, Never>?
+    private var nearEndPrefetchVerifiedVideoId: String?
+    private var lastNearEndPrefetchCheckAt: Date?
     private var currentHLSMasterURL: URL?
     /// True when the current AVPlayer item came from `PlaybackPrefetcher` (one-shot retry on fail).
     private var playingFromPrefetch = false
@@ -161,6 +163,21 @@ final class PlaybackController: ObservableObject {
             queue = items
             queueIndex = start
         }
+        pendingSeekSeconds = 0
+        playCurrentQueueItem()
+        persistSession(immediate: true)
+    }
+
+    /// Jump within the existing Up next queue without rebuilding or reshuffling the list.
+    func playQueueIndex(_ index: Int) {
+        guard !queue.isEmpty else { return }
+        let target = index.clamped(to: 0...(queue.count - 1))
+        let item = queue[target]
+        if nowPlaying?.videoId == item.videoId, queueIndex == target {
+            resumeCurrentPlaybackIfNeeded()
+            return
+        }
+        queueIndex = target
         pendingSeekSeconds = 0
         playCurrentQueueItem()
         persistSession(immediate: true)
@@ -432,6 +449,8 @@ final class PlaybackController: ObservableObject {
         needsLoginForPlayback = false
         captionTracks = []
         playingFromPrefetch = false
+        nearEndPrefetchVerifiedVideoId = nil
+        lastNearEndPrefetchCheckAt = nil
         PlayProbe.log(
             "play.request",
             videoId: item.videoId,
@@ -476,8 +495,17 @@ final class PlaybackController: ObservableObject {
                 )
                 let playback: VideoPlayback
                 var usedPrefetch = false
+                var warmedPlayerItem: AVPlayerItem?
                 if canConsumePrefetch,
-                   let prefetched = await PlaybackPrefetcher.shared.consume(videoId: expectedVideoId)
+                   let warmed = NextTrackWarmup.shared.consume(videoId: expectedVideoId)
+                {
+                    playback = warmed.playback
+                    warmedPlayerItem = warmed.playerItem
+                    usedPrefetch = true
+                    // Drop extract cache; playback metadata came from the warm bundle.
+                    PlaybackPrefetcher.shared.invalidate(videoId: expectedVideoId)
+                } else if canConsumePrefetch,
+                          let prefetched = await PlaybackPrefetcher.shared.consume(videoId: expectedVideoId)
                 {
                     playback = prefetched
                     usedPrefetch = true
@@ -490,7 +518,7 @@ final class PlaybackController: ObservableObject {
                 PlayProbe.log(
                     "play.extract.ok",
                     videoId: playback.videoId,
-                    "formats=\(playback.formats.count) hls=\(playback.hlsManifestURL != nil) prefetch=\(usedPrefetch)"
+                    "formats=\(playback.formats.count) hls=\(playback.hlsManifestURL != nil) prefetch=\(usedPrefetch) warm=\(warmedPlayerItem != nil)"
                 )
                 guard generation == extractGeneration,
                       !Task.isCancelled,
@@ -538,8 +566,16 @@ final class PlaybackController: ObservableObject {
                 if usedPrefetch {
                     prefetchPlaybackRetryUsed = false
                 }
-                PlayProbe.log("play.avplayer.start", videoId: expectedVideoId)
-                play(url: url)
+                PlayProbe.log(
+                    "play.avplayer.start",
+                    videoId: expectedVideoId,
+                    warmedPlayerItem != nil ? "warm" : "cold"
+                )
+                if let warmedPlayerItem {
+                    play(playerItem: warmedPlayerItem, resumePlaying: true, seekTo: nil)
+                } else {
+                    play(url: url)
+                }
                 if let master = playback.hlsManifestURL, url == master {
                     beginHLSQualityLoading(
                         masterURL: master,
@@ -685,6 +721,10 @@ final class PlaybackController: ObservableObject {
             options: ["AVURLAssetHTTPHeaderFieldsKey": YouTubeConstants.streamPlaybackHeaders]
         )
         let avItem = AVPlayerItem(asset: asset)
+        play(playerItem: avItem, resumePlaying: resumePlaying, seekTo: seekTo)
+    }
+
+    private func play(playerItem avItem: AVPlayerItem, resumePlaying: Bool, seekTo: Double?) {
         observePlayerItem(avItem, videoId: nowPlaying?.videoId)
         if let player {
             player.replaceCurrentItem(with: avItem)
@@ -784,7 +824,7 @@ final class PlaybackController: ObservableObject {
         return nil
     }
 
-    /// After current track is playing, wait 5s then prefetch the next VOD stream.
+    /// Prefetch next VOD extract, then warm its AVPlayerItem when ready.
     private func scheduleNextTrackPrefetch(afterCurrentVideoId currentId: String) {
         cancelScheduledNextPrefetch()
         // Live HLS current track: skip (bridge busy / next may also be live).
@@ -792,7 +832,6 @@ final class PlaybackController: ObservableObject {
         guard let next = nextPrefetchQueueItem(), !next.isLive else { return }
         let nextId = next.videoId
         nextPrefetchScheduleTask = Task { [weak self] in
-            try? await Task.sleep(nanoseconds: 5_000_000_000)
             guard let self, !Task.isCancelled else { return }
             guard self.nowPlaying?.videoId == currentId else { return }
             guard !self.isPlayingHLS else { return }
@@ -801,7 +840,17 @@ final class PlaybackController: ObservableObject {
                   !stillNext.isLive
             else { return }
             PlaybackPrefetcher.shared.prefetch(videoId: nextId, preferLiveHLS: false)
+            await self.warmNextTrackIfPossible(videoId: nextId, currentId: currentId)
         }
+    }
+
+    private func warmNextTrackIfPossible(videoId nextId: String, currentId: String) async {
+        guard let playback = await PlaybackPrefetcher.shared.waitUntilReady(videoId: nextId)
+        else { return }
+        guard !Task.isCancelled else { return }
+        guard nowPlaying?.videoId == currentId else { return }
+        guard nextPrefetchQueueItem()?.videoId == nextId else { return }
+        NextTrackWarmup.shared.warm(videoId: nextId, playback: playback)
     }
 
     private func cancelScheduledNextPrefetch() {
@@ -812,7 +861,60 @@ final class PlaybackController: ObservableObject {
     private func refreshNextPrefetchIfNeeded() {
         guard !isPlayingHLS else { return }
         guard let next = nextPrefetchQueueItem(), !next.isLive else { return }
-        PlaybackPrefetcher.shared.refreshIfStale(videoId: next.videoId, preferLiveHLS: false)
+        let nextId = next.videoId
+        let warmBefore = NextTrackWarmup.shared.readyVideoId
+        PlaybackPrefetcher.shared.refreshIfStale(videoId: nextId, preferLiveHLS: false)
+        // After a mid-song refresh, rebuild the warm item when extract finishes.
+        if warmBefore == nextId, NextTrackWarmup.shared.readyVideoId != nextId,
+           let currentId = nowPlaying?.videoId
+        {
+            nextPrefetchScheduleTask?.cancel()
+            nextPrefetchScheduleTask = Task { [weak self] in
+                await self?.warmNextTrackIfPossible(videoId: nextId, currentId: currentId)
+            }
+        }
+    }
+
+    /// During the final minute, ensure next extract is fresh and its AVPlayerItem is warmed.
+    private func checkNextPrefetchNearEnd(position: Double, duration: Double?) {
+        guard !isPlayingHLS,
+              let duration,
+              duration.isFinite,
+              duration > 0,
+              position.isFinite,
+              duration - position <= 60,
+              let next = nextPrefetchQueueItem(),
+              !next.isLive
+        else { return }
+
+        let nextId = next.videoId
+        if NextTrackWarmup.shared.readyVideoId == nextId {
+            nearEndPrefetchVerifiedVideoId = nextId
+            return
+        }
+
+        let now = Date()
+        if let last = lastNearEndPrefetchCheckAt,
+           now.timeIntervalSince(last) < 3
+        {
+            return
+        }
+        lastNearEndPrefetchCheckAt = now
+
+        if PlaybackPrefetcher.shared.ensureCompletedAndValid(
+            videoId: nextId,
+            preferLiveHLS: false
+        ), let playback = PlaybackPrefetcher.shared.peekReady(videoId: nextId) {
+            NextTrackWarmup.shared.warm(videoId: nextId, playback: playback)
+            if NextTrackWarmup.shared.readyVideoId == nextId {
+                nearEndPrefetchVerifiedVideoId = nextId
+            }
+        } else if let currentId = nowPlaying?.videoId {
+            nextPrefetchScheduleTask?.cancel()
+            nextPrefetchScheduleTask = Task { [weak self] in
+                await self?.warmNextTrackIfPossible(videoId: nextId, currentId: currentId)
+            }
+        }
     }
 
     /// Seekable VOD/DVR window position; nil for open live edge (no restore).
@@ -1126,6 +1228,7 @@ final class PlaybackController: ObservableObject {
                 self.progress.setPositionAndDuration(position: position, duration: duration)
                 self.checkSleepTimerExpired()
                 self.refreshNextPrefetchIfNeeded()
+                self.checkNextPrefetchNearEnd(position: position, duration: duration)
                 self.updateNowPlayingElapsed()
                 self.persistSession(immediate: false)
             }
