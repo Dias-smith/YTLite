@@ -217,6 +217,10 @@ struct PlayerDetailView: View {
         .onChange(of: playback.isBuffering) { _, buffering in
             if buffering {
                 hideTask?.cancel()
+                // Keep chrome out of the way so the canvas spinner is obvious during re-extract.
+                withAnimation(.easeInOut(duration: 0.15)) {
+                    overlayVisible = false
+                }
             } else if overlayVisible {
                 bumpOverlayAutoHide()
             }
@@ -263,9 +267,11 @@ struct PlayerDetailView: View {
 
             if playback.isBuffering {
                 ProgressView()
-                    .tint(YTLiteColor.onMedia)
-                    .padding(YTLiteLayout.screenPadding)
-                    .background(.black.opacity(0.55), in: RoundedRectangle(cornerRadius: YTLiteLayout.stackLoose))
+                    .progressViewStyle(.circular)
+                    .controlSize(.large)
+                    .tint(.white)
+                    .padding(20)
+                    .background(.black.opacity(0.45), in: Circle())
             }
 
             if playback.needsLoginForPlayback && !playback.isBuffering {

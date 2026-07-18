@@ -40,8 +40,21 @@ final class ExtractorBridge: NSObject, WKScriptMessageHandler {
     private var bridgeLocked = false
     private var bridgeWaiters: [CheckedContinuation<Void, Never>] = []
 
+    /// Probe-only: which bridge invoke is currently running (for correlating HTTP logs).
+    private var probeActiveInvokeUID: String?
+    private var probeActiveInvokeVideoId: String?
+    private var probeActiveInvokeStartedAt: CFAbsoluteTime?
+
     func ensureReady() async throws {
-        if isReady { return }
+        if isReady {
+            PlayProbe.log("extract.bridge.ensureReady.hit", "alreadyReady=1")
+            return
+        }
+        let t0 = PlayProbe.now()
+        PlayProbe.log(
+            "extract.bridge.ensureReady.wait",
+            "preparing=\(isPreparing) waiters=\(readyContinuations.count)"
+        )
         if !isPreparing {
             isPreparing = true
             Task { @MainActor in
@@ -59,17 +72,34 @@ final class ExtractorBridge: NSObject, WKScriptMessageHandler {
                 readyContinuations.append(cont)
             }
         }
+        PlayProbe.log(
+            "extract.bridge.ensureReady.done",
+            "ms=\(PlayProbe.ms(since: t0)) ready=\(isReady)"
+        )
     }
 
     func extractPlayback(videoId: String, preferLiveHLS: Bool = false) async throws -> VideoPlayback {
         let id = YouTubeURL.videoId(from: videoId) ?? videoId
+        let trace = PlayProbe.newTraceId()
+        let t0 = PlayProbe.now()
+        let inflight = PlayProbe.markExtractEnter()
         PlayProbe.log(
             "extract.start",
             videoId: id,
-            "raw=\(videoId) preferLiveHLS=\(preferLiveHLS)"
+            trace: trace,
+            "raw=\(videoId) preferLiveHLS=\(preferLiveHLS) inflight=\(inflight) \(PlayProbe.concurrencySnapshot())"
         )
+        defer {
+            let left = PlayProbe.markExtractLeave()
+            PlayProbe.log(
+                "extract.end",
+                videoId: id,
+                trace: trace,
+                "ms=\(PlayProbe.ms(since: t0)) inflightLeft=\(left)"
+            )
+        }
         if preferLiveHLS {
-            PlayProbe.log("extract.live.preferFallback", videoId: id)
+            PlayProbe.log("extract.live.preferFallback", videoId: id, trace: trace)
             do {
                 let fallback = try await WatchPagePlayerFallback.extract(videoId: id)
                 if fallback.hlsManifestURL != nil
@@ -78,46 +108,61 @@ final class ExtractorBridge: NSObject, WKScriptMessageHandler {
                     PlayProbe.log(
                         "extract.live.fallback.ok",
                         videoId: fallback.videoId,
-                        "formats=\(fallback.formats.count) hls=\(fallback.hlsManifestURL != nil)"
+                        trace: trace,
+                        "formats=\(fallback.formats.count) hls=\(fallback.hlsManifestURL != nil) ms=\(PlayProbe.ms(since: t0))"
                     )
                     return fallback
                 }
                 PlayProbe.log(
                     "extract.live.fallback.weak",
                     videoId: id,
+                    trace: trace,
                     "no hls/muxed → try bridge"
                 )
             } catch {
                 PlayProbe.log(
                     "extract.live.fallback.fail",
                     videoId: id,
+                    trace: trace,
                     error.localizedDescription
                 )
             }
         }
-        if !preferLiveHLS,
-           let fast = await WatchPagePlayerFallback.extractFast(videoId: id)
-        {
+        if !preferLiveHLS {
+            let fastT0 = PlayProbe.now()
+            PlayProbe.log("extract.path.fast.try", videoId: id, trace: trace)
+            if let fast = await WatchPagePlayerFallback.extractFast(videoId: id) {
+                PlayProbe.log(
+                    "extract.fast.ok",
+                    videoId: fast.videoId,
+                    trace: trace,
+                    "formats=\(fast.formats.count) ms=\(PlayProbe.ms(since: fastT0)) totalMs=\(PlayProbe.ms(since: t0))"
+                )
+                return fast
+            }
             PlayProbe.log(
-                "extract.fast.ok",
-                videoId: fast.videoId,
-                "formats=\(fast.formats.count)"
+                "extract.path.fast.miss",
+                videoId: id,
+                trace: trace,
+                "ms=\(PlayProbe.ms(since: fastT0)) → bridge"
             )
-            return fast
         }
         do {
-            let result = try await extractPlaybackViaBridge(videoId: videoId)
+            let bridgeT0 = PlayProbe.now()
+            PlayProbe.log("extract.path.bridge.try", videoId: id, trace: trace)
+            let result = try await extractPlaybackViaBridge(videoId: videoId, trace: trace)
             PlayProbe.log(
                 "extract.bridge.ok",
                 videoId: result.videoId,
-                "formats=\(result.formats.count) hls=\(result.hlsManifestURL != nil)"
+                trace: trace,
+                "formats=\(result.formats.count) hls=\(result.hlsManifestURL != nil) ms=\(PlayProbe.ms(since: bridgeT0)) totalMs=\(PlayProbe.ms(since: t0))"
             )
             // Live / HLS-only: bridge may still return empty muxed — fall through to player.
             if preferLiveHLS,
                result.hlsManifestURL == nil,
                !result.formats.contains(where: \.isMuxed)
             {
-                PlayProbe.log("extract.live.bridge.noHls", videoId: id, "try fallback")
+                PlayProbe.log("extract.live.bridge.noHls", videoId: id, trace: trace, "try fallback")
                 if let fallback = try? await WatchPagePlayerFallback.extract(videoId: id),
                    fallback.hlsManifestURL != nil || fallback.formats.contains(where: \.isMuxed)
                 {
@@ -126,33 +171,51 @@ final class ExtractorBridge: NSObject, WKScriptMessageHandler {
             }
             return result
         } catch is CancellationError {
-            PlayProbe.log("extract.cancelled", videoId: id)
+            PlayProbe.log(
+                "extract.cancelled",
+                videoId: id,
+                trace: trace,
+                "ms=\(PlayProbe.ms(since: t0))"
+            )
             throw CancellationError()
         } catch {
+            let isTimeout: Bool = {
+                if case ExtractorError.timeout = error { return true }
+                let lower = error.localizedDescription.lowercased()
+                return lower.contains("timed out") || lower.contains("timeout")
+            }()
             PlayProbe.log(
-                "extract.bridge.fail",
+                isTimeout ? "extract.timeout" : "extract.bridge.fail",
                 videoId: id,
-                error.localizedDescription
+                trace: trace,
+                "err=\(error.localizedDescription) ms=\(PlayProbe.ms(since: t0)) \(PlayProbe.concurrencySnapshot()) visitor=\(visitorData != nil) ready=\(isReady) locked=\(bridgeLocked) waiters=\(bridgeWaiters.count) pending=\(pendingResults.count)"
             )
             if Self.shouldTryWatchPageFallback(error) || preferLiveHLS {
-                PlayProbe.log("extract.fallback.eligible", videoId: id)
+                PlayProbe.log("extract.fallback.eligible", videoId: id, trace: trace)
                 do {
                     let fallback = try await WatchPagePlayerFallback.extract(videoId: id)
                     PlayProbe.log(
                         "extract.fallback.return",
                         videoId: fallback.videoId,
-                        "formats=\(fallback.formats.count) hls=\(fallback.hlsManifestURL != nil)"
+                        trace: trace,
+                        "formats=\(fallback.formats.count) hls=\(fallback.hlsManifestURL != nil) ms=\(PlayProbe.ms(since: t0))"
                     )
                     return fallback
                 } catch {
                     PlayProbe.log(
                         "extract.fallback.throw",
                         videoId: id,
+                        trace: trace,
                         error.localizedDescription
                     )
                 }
             } else {
-                PlayProbe.log("extract.fallback.skip", videoId: id, "error not eligible")
+                PlayProbe.log(
+                    "extract.fallback.skip",
+                    videoId: id,
+                    trace: trace,
+                    "error not eligible timeout=\(isTimeout)"
+                )
             }
             throw error
         }
@@ -181,19 +244,43 @@ final class ExtractorBridge: NSObject, WKScriptMessageHandler {
             || msg.contains("confirm you")
     }
 
-    private func extractPlaybackViaBridge(videoId: String) async throws -> VideoPlayback {
-        PlayProbe.log("extract.bridge.ensureReady", videoId: videoId)
+    private func extractPlaybackViaBridge(
+        videoId: String,
+        trace: String? = nil
+    ) async throws -> VideoPlayback {
+        let phaseT0 = PlayProbe.now()
+        PlayProbe.log("extract.bridge.ensureReady", videoId: videoId, trace: trace)
         try await ensureReady()
+        PlayProbe.log(
+            "extract.bridge.ensureReady.elapsed",
+            videoId: videoId,
+            trace: trace,
+            "ms=\(PlayProbe.ms(since: phaseT0))"
+        )
         // Inject cached visitor (or refresh briefly) before JS InnerTube — avoids per-song
         // homepage fetch races and empty-visitor hangs inside the bridge.
-        await ensureVisitorData()
-        await acquireBridgeLock()
-        defer { releaseBridgeLock() }
-        PlayProbe.log("extract.bridge.ready", videoId: videoId)
+        let visitorT0 = PlayProbe.now()
+        await ensureVisitorData(trace: trace, videoId: videoId)
+        PlayProbe.log(
+            "extract.bridge.visitor.elapsed",
+            videoId: videoId,
+            trace: trace,
+            "ms=\(PlayProbe.ms(since: visitorT0)) hasVisitor=\(visitorData != nil)"
+        )
+        let lockT0 = PlayProbe.now()
+        await acquireBridgeLock(trace: trace, videoId: videoId)
+        defer { releaseBridgeLock(trace: trace, videoId: videoId) }
+        PlayProbe.log(
+            "extract.bridge.lock.acquired",
+            videoId: videoId,
+            trace: trace,
+            "waitMs=\(PlayProbe.ms(since: lockT0)) waitersLeft=\(bridgeWaiters.count)"
+        )
+        PlayProbe.log("extract.bridge.ready", videoId: videoId, trace: trace)
         // Always extract via canonical watch URL (Shorts URLs → /watch?v=…).
         let id = YouTubeURL.videoId(from: videoId) ?? videoId
         let watchURL = YouTubeURL.canonicalWatchURL(YouTubeURL.watchURL(videoId: id))
-        PlayProbe.log("extract.normalize", videoId: id, "url=\(watchURL)")
+        PlayProbe.log("extract.normalize", videoId: id, trace: trace, "url=\(watchURL)")
         let uid = UUID().uuidString
         let envelope: [String: Any] = [
             "uid": uid,
@@ -207,7 +294,25 @@ final class ExtractorBridge: NSObject, WKScriptMessageHandler {
         }
 
         do {
-            PlayProbe.log("extract.bridge.invoke", videoId: id, "uid=\(uid)")
+            let invokeT0 = PlayProbe.now()
+            let bridgeInflight = PlayProbe.markBridgeInvokeEnter()
+            probeActiveInvokeUID = uid
+            probeActiveInvokeVideoId = id
+            probeActiveInvokeStartedAt = invokeT0
+            PlayProbe.log(
+                "extract.bridge.invoke",
+                videoId: id,
+                trace: trace,
+                "uid=\(uid) timeoutSec=\(Int(invokeTimeoutSeconds)) bridgeInflight=\(bridgeInflight) \(PlayProbe.concurrencySnapshot())"
+            )
+            defer {
+                if probeActiveInvokeUID == uid {
+                    probeActiveInvokeUID = nil
+                    probeActiveInvokeVideoId = nil
+                    probeActiveInvokeStartedAt = nil
+                }
+                PlayProbe.markBridgeInvokeLeave()
+            }
             let response: [String: Any] = try await withThrowingTaskGroup(of: [String: Any].self) { group in
                 group.addTask { @MainActor in
                     try await withTaskCancellationHandler {
@@ -236,34 +341,79 @@ final class ExtractorBridge: NSObject, WKScriptMessageHandler {
                 return first
             }
             let dataKeys = (response["data"] as? [String: Any])?.keys.sorted().joined(separator: ",") ?? "-"
-            PlayProbe.log("extract.bridge.response", videoId: id, "dataKeys=\(dataKeys)")
+            PlayProbe.log(
+                "extract.bridge.response",
+                videoId: id,
+                trace: trace,
+                "uid=\(uid) dataKeys=\(dataKeys) invokeMs=\(PlayProbe.ms(since: invokeT0))"
+            )
             return try ExtractResultMapper.map(envelope: response, fallbackVideoId: id)
         } catch {
             if let cont = pendingResults.removeValue(forKey: uid) {
                 cont.resume(throwing: error)
             }
-            PlayProbe.log("extract.bridge.invoke.fail", videoId: id, error.localizedDescription)
+            let isTimeout: Bool = {
+                if case ExtractorError.timeout = error { return true }
+                let lower = error.localizedDescription.lowercased()
+                return lower.contains("timed out") || lower.contains("timeout")
+            }()
+            let invokeMs = probeActiveInvokeStartedAt.map { PlayProbe.ms(since: $0) } ?? -1
+            PlayProbe.log(
+                isTimeout ? "extract.bridge.invoke.timeout" : "extract.bridge.invoke.fail",
+                videoId: id,
+                trace: trace,
+                "uid=\(uid) err=\(error.localizedDescription) invokeMs=\(invokeMs) timeoutSec=\(Int(invokeTimeoutSeconds)) pending=\(pendingResults.count) \(PlayProbe.concurrencySnapshot())"
+            )
             throw error
         }
     }
 
-    private func acquireBridgeLock() async {
+    private func acquireBridgeLock(trace: String? = nil, videoId: String? = nil) async {
         if !bridgeLocked {
             bridgeLocked = true
+            PlayProbe.log(
+                "extract.bridge.lock.free",
+                videoId: videoId,
+                trace: trace,
+                "waiters=\(bridgeWaiters.count)"
+            )
             return
         }
-        PlayProbe.log("extract.bridge.wait")
+        let waitT0 = PlayProbe.now()
+        PlayProbe.log(
+            "extract.bridge.wait",
+            videoId: videoId,
+            trace: trace,
+            "queueDepth=\(bridgeWaiters.count) activeUid=\(probeActiveInvokeUID ?? "-") activeId=\(probeActiveInvokeVideoId ?? "-")"
+        )
         await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
             bridgeWaiters.append(cont)
         }
+        PlayProbe.log(
+            "extract.bridge.wait.done",
+            videoId: videoId,
+            trace: trace,
+            "waitMs=\(PlayProbe.ms(since: waitT0))"
+        )
     }
 
-    private func releaseBridgeLock() {
+    private func releaseBridgeLock(trace: String? = nil, videoId: String? = nil) {
         if let next = bridgeWaiters.first {
             bridgeWaiters.removeFirst()
+            PlayProbe.log(
+                "extract.bridge.lock.handoff",
+                videoId: videoId,
+                trace: trace,
+                "waitersLeft=\(bridgeWaiters.count)"
+            )
             next.resume()
         } else {
             bridgeLocked = false
+            PlayProbe.log(
+                "extract.bridge.lock.release",
+                videoId: videoId,
+                trace: trace
+            )
         }
     }
 
@@ -371,7 +521,19 @@ final class ExtractorBridge: NSObject, WKScriptMessageHandler {
               let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let uid = obj["uid"] as? String,
               let cont = pendingResults.removeValue(forKey: uid)
-        else { return }
+        else {
+            PlayProbe.log(
+                "extract.bridge.message.drop",
+                "activeUid=\(probeActiveInvokeUID ?? "-") pending=\(pendingResults.count) bytes=\(messageJson.utf8.count)"
+            )
+            return
+        }
+        let invokeMs = probeActiveInvokeStartedAt.map { PlayProbe.ms(since: $0) } ?? -1
+        PlayProbe.log(
+            "extract.bridge.message",
+            videoId: probeActiveInvokeVideoId,
+            "uid=\(uid) invokeMs=\(invokeMs) pendingLeft=\(pendingResults.count)"
+        )
         cont.resume(returning: obj)
     }
 
@@ -384,7 +546,14 @@ final class ExtractorBridge: NSObject, WKScriptMessageHandler {
         let headers = Self.parseHeaders(headersJson)
 
         let shortURL = url.count > 120 ? String(url.prefix(120)) + "…" : url
-        PlayProbe.log("extract.http.req", "\(method) \(shortURL)")
+        let kind = PlayProbe.httpKind(url: url)
+        let httpInflight = PlayProbe.markHTTPEnter()
+        let t0 = PlayProbe.now()
+        PlayProbe.log(
+            "extract.http.req",
+            videoId: probeActiveInvokeVideoId,
+            "\(method) kind=\(kind) \(shortURL) cb=\(callbackId.prefix(8)) activeUid=\(probeActiveInvokeUID ?? "-") httpInflight=\(httpInflight) \(PlayProbe.concurrencySnapshot())"
+        )
 
         let result = await YouTubeHTTPClient.shared.request(
             url: url,
@@ -392,9 +561,11 @@ final class ExtractorBridge: NSObject, WKScriptMessageHandler {
             headers: headers,
             body: requestBody.isEmpty ? nil : requestBody
         )
+        PlayProbe.markHTTPLeave()
         PlayProbe.log(
             "extract.http.res",
-            "ok=\(result.success) code=\(result.errCode) bytes=\(result.body.utf8.count) err=\(result.errMsg)"
+            videoId: probeActiveInvokeVideoId,
+            "ok=\(result.success) code=\(result.errCode) bytes=\(result.body.utf8.count) ms=\(PlayProbe.ms(since: t0)) kind=\(kind) err=\(result.errMsg) activeUid=\(probeActiveInvokeUID ?? "-")"
         )
         await completeHTTPCallback(callbackId: callbackId, result: result)
     }
@@ -451,14 +622,28 @@ final class ExtractorBridge: NSObject, WKScriptMessageHandler {
         }
     }
 
-    private func ensureVisitorData() async {
+    private func ensureVisitorData(trace: String? = nil, videoId: String? = nil) async {
         if let visitorData,
            let visitorFetchedAt,
            Date().timeIntervalSince(visitorFetchedAt) < visitorTTL
         {
+            let age = Int(Date().timeIntervalSince(visitorFetchedAt))
+            PlayProbe.log(
+                "extract.visitor.cache",
+                videoId: videoId,
+                trace: trace,
+                "ageSec=\(age) ttlSec=\(Int(visitorTTL))"
+            )
             await setVisitorData(visitorData)
             return
         }
+        PlayProbe.log(
+            "extract.visitor.refresh",
+            videoId: videoId,
+            trace: trace,
+            "deadlineSec=\(Int(visitorRefreshDeadlineSeconds))"
+        )
+        let t0 = PlayProbe.now()
         await withTaskGroup(of: Void.self) { group in
             let deadline = visitorRefreshDeadlineSeconds
             group.addTask { @MainActor in
@@ -470,6 +655,12 @@ final class ExtractorBridge: NSObject, WKScriptMessageHandler {
             await group.next()
             group.cancelAll()
         }
+        PlayProbe.log(
+            "extract.visitor.done",
+            videoId: videoId,
+            trace: trace,
+            "ms=\(PlayProbe.ms(since: t0)) hasVisitor=\(visitorData != nil)"
+        )
     }
 
     private func refreshVisitorData() async {
@@ -480,6 +671,7 @@ final class ExtractorBridge: NSObject, WKScriptMessageHandler {
             await setVisitorData(visitorData)
             return
         }
+        let t0 = PlayProbe.now()
         let result = await YouTubeHTTPClient.shared.request(
             url: "\(YouTubeConstants.baseURL)/",
             method: "GET",
@@ -487,7 +679,13 @@ final class ExtractorBridge: NSObject, WKScriptMessageHandler {
             body: nil,
             timeout: visitorRefreshDeadlineSeconds
         )
-        guard result.success else { return }
+        guard result.success else {
+            PlayProbe.log(
+                "extract.visitor.http.fail",
+                "ms=\(PlayProbe.ms(since: t0)) code=\(result.errCode) err=\(result.errMsg)"
+            )
+            return
+        }
         let pattern = #"VISITOR_DATA":"([^"]+)""#
         if let regex = try? NSRegularExpression(pattern: pattern),
            let match = regex.firstMatch(in: result.body, range: NSRange(result.body.startIndex..., in: result.body)),
@@ -496,7 +694,16 @@ final class ExtractorBridge: NSObject, WKScriptMessageHandler {
             let value = String(result.body[range])
             visitorData = value
             visitorFetchedAt = Date()
+            PlayProbe.log(
+                "extract.visitor.http.ok",
+                "ms=\(PlayProbe.ms(since: t0)) bytes=\(result.body.utf8.count)"
+            )
             await setVisitorData(value)
+        } else {
+            PlayProbe.log(
+                "extract.visitor.parse.miss",
+                "ms=\(PlayProbe.ms(since: t0)) bytes=\(result.body.utf8.count)"
+            )
         }
     }
 

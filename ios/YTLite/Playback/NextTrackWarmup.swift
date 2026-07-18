@@ -49,7 +49,12 @@ final class NextTrackWarmup {
         warmingVideoId = videoId
         generation += 1
         let gen = generation
-        PlayProbe.log("warmup.start", videoId: videoId, "host=\(url.host ?? "?")")
+        let t0 = PlayProbe.now()
+        PlayProbe.log(
+            "warmup.start",
+            videoId: videoId,
+            PlayProbe.streamSummary(url: url)
+        )
 
         warmTask = Task { [weak self] in
             guard let self else { return }
@@ -61,7 +66,11 @@ final class NextTrackWarmup {
                 let isPlayable = try await asset.load(.isPlayable)
                 guard !Task.isCancelled, gen == self.generation else { return }
                 guard isPlayable else {
-                    PlayProbe.log("warmup.fail", videoId: videoId, "not playable")
+                    PlayProbe.log(
+                        "warmup.fail",
+                        videoId: videoId,
+                        "not playable ms=\(PlayProbe.ms(since: t0)) isTimeout=0 \(PlayProbe.streamSummary(url: url))"
+                    )
                     self.finishWarming(videoId: videoId)
                     return
                 }
@@ -75,12 +84,20 @@ final class NextTrackWarmup {
                     playerItem: item
                 )
                 self.finishWarming(videoId: videoId)
-                PlayProbe.log("warmup.ready", videoId: videoId)
+                PlayProbe.log(
+                    "warmup.ready",
+                    videoId: videoId,
+                    "ms=\(PlayProbe.ms(since: t0)) \(PlayProbe.streamSummary(url: url))"
+                )
             } catch is CancellationError {
                 return
             } catch {
                 guard gen == self.generation else { return }
-                PlayProbe.log("warmup.fail", videoId: videoId, error.localizedDescription)
+                PlayProbe.log(
+                    "warmup.fail",
+                    videoId: videoId,
+                    "\(PlayProbe.networkFailFlags(error)) ms=\(PlayProbe.ms(since: t0)) err=\(error.localizedDescription) \(PlayProbe.streamSummary(url: url))"
+                )
                 self.finishWarming(videoId: videoId)
             }
         }

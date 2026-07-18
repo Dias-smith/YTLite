@@ -37,7 +37,11 @@ final class PlaybackPrefetcher {
         if case .loading = entries[videoId] {
             return
         }
-        PlayProbe.log("prefetch.start", videoId: videoId, preferLiveHLS ? "liveHLS" : "vod")
+        PlayProbe.log(
+            "prefetch.start",
+            videoId: videoId,
+            "\(preferLiveHLS ? "liveHLS" : "vod") \(PlayProbe.concurrencySnapshot())"
+        )
         let requestId = UUID()
         let task = Task { () -> VideoPlayback? in
             do {

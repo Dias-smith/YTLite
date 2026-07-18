@@ -1,13 +1,164 @@
 import Foundation
 
 /// Temporary stage probe for diagnosing playback failures (filter Console: `YTLite.PlayProbe`).
+/// Timing / concurrency counters are observe-only — they must not drive control flow.
 enum PlayProbe {
     static let tag = "YTLite.PlayProbe"
+
+    private static let stateLock = NSLock()
+    private static var inflightExtracts = 0
+    private static var inflightBridgeInvokes = 0
+    private static var inflightHTTP = 0
+
+    static func now() -> CFAbsoluteTime { CFAbsoluteTimeGetCurrent() }
+
+    static func ms(since start: CFAbsoluteTime) -> Int {
+        max(0, Int(((CFAbsoluteTimeGetCurrent() - start) * 1000).rounded()))
+    }
+
+    static func newTraceId() -> String {
+        String(UUID().uuidString.prefix(8))
+    }
+
+    @discardableResult
+    static func markExtractEnter() -> Int {
+        stateLock.lock()
+        inflightExtracts += 1
+        let n = inflightExtracts
+        stateLock.unlock()
+        return n
+    }
+
+    @discardableResult
+    static func markExtractLeave() -> Int {
+        stateLock.lock()
+        inflightExtracts = max(0, inflightExtracts - 1)
+        let n = inflightExtracts
+        stateLock.unlock()
+        return n
+    }
+
+    @discardableResult
+    static func markBridgeInvokeEnter() -> Int {
+        stateLock.lock()
+        inflightBridgeInvokes += 1
+        let n = inflightBridgeInvokes
+        stateLock.unlock()
+        return n
+    }
+
+    @discardableResult
+    static func markBridgeInvokeLeave() -> Int {
+        stateLock.lock()
+        inflightBridgeInvokes = max(0, inflightBridgeInvokes - 1)
+        let n = inflightBridgeInvokes
+        stateLock.unlock()
+        return n
+    }
+
+    @discardableResult
+    static func markHTTPEnter() -> Int {
+        stateLock.lock()
+        inflightHTTP += 1
+        let n = inflightHTTP
+        stateLock.unlock()
+        return n
+    }
+
+    @discardableResult
+    static func markHTTPLeave() -> Int {
+        stateLock.lock()
+        inflightHTTP = max(0, inflightHTTP - 1)
+        let n = inflightHTTP
+        stateLock.unlock()
+        return n
+    }
+
+    static func concurrencySnapshot() -> String {
+        stateLock.lock()
+        let e = inflightExtracts
+        let b = inflightBridgeInvokes
+        let h = inflightHTTP
+        stateLock.unlock()
+        return "inflightExtract=\(e) inflightBridge=\(b) inflightHTTP=\(h)"
+    }
+
+    /// Classify extractor HTTP URLs for timeout diagnosis.
+    static func httpKind(url: String) -> String {
+        let u = url.lowercased()
+        if u.contains("/youtubei/v1/player") { return "player" }
+        if u.contains("/youtubei/v1/next") { return "next" }
+        if u.contains("/youtubei/v1/") { return "innertube" }
+        if u.contains("googlevideo.com") { return "googlevideo" }
+        if u.contains("youtube.com/") || u.contains("youtu.be/") { return "html" }
+        return "other"
+    }
+
+    /// Compact stream URL identity for playback probes.
+    static func streamSummary(url: URL) -> String {
+        let host = url.host ?? "?"
+        let path = String(url.path.prefix(48))
+        var itag = "-"
+        var expire = "-"
+        if let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems {
+            if let v = items.first(where: { $0.name == "itag" })?.value { itag = v }
+            if let v = items.first(where: { $0.name == "expire" })?.value { expire = v }
+        }
+        let kind: String
+        if url.pathExtension.lowercased() == "m3u8" || url.absoluteString.contains("manifest/hls") {
+            kind = "hls"
+        } else if host.contains("googlevideo") {
+            kind = "googlevideo"
+        } else {
+            kind = "other"
+        }
+        return "kind=\(kind) host=\(host) itag=\(itag) expire=\(expire) path=\(path)"
+    }
+
+    /// NSURLErrorTimedOut (-1001) and close cousins for stream open failures.
+    static func networkFailFlags(_ error: Error?) -> String {
+        guard let error else { return "isTimeout=0 isCancel=0 code=- errDomain=-" }
+        let ns = error as NSError
+        var code = ns.code
+        var domain = ns.domain
+        if let underlying = ns.userInfo[NSUnderlyingErrorKey] as? NSError {
+            // Prefer URL-layer code when AVFoundation wraps it.
+            if underlying.domain == NSURLErrorDomain {
+                code = underlying.code
+                domain = underlying.domain
+            }
+        }
+        let timedOutCode = URLError.timedOut.rawValue
+        let cancelledCode = URLError.cancelled.rawValue
+        let desc = ns.localizedDescription.lowercased()
+        let isTimeout = (domain == NSURLErrorDomain && code == timedOutCode)
+            || code == -1001
+            || desc.contains("timed out")
+            || desc.contains("timeout")
+        let isCancel = domain == NSURLErrorDomain && code == cancelledCode
+        return "isTimeout=\(isTimeout ? 1 : 0) isCancel=\(isCancel ? 1 : 0) code=\(code) errDomain=\(domain)"
+    }
+
+    static func isNetworkTimeout(_ error: Error?) -> Bool {
+        networkFailFlags(error).contains("isTimeout=1")
+    }
 
     static func log(_ stage: String, videoId: String? = nil, _ detail: String = "") {
         let idPart = videoId.map { " id=\($0)" } ?? ""
         let detailPart = detail.isEmpty ? "" : " | \(detail)"
         print("[\(tag)] [\(stage)]\(idPart)\(detailPart)")
+    }
+
+    static func log(
+        _ stage: String,
+        videoId: String? = nil,
+        trace: String?,
+        _ detail: String = ""
+    ) {
+        let tracePart = trace.map { " t=\($0)" } ?? ""
+        let idPart = videoId.map { " id=\($0)" } ?? ""
+        let detailPart = detail.isEmpty ? "" : " | \(detail)"
+        print("[\(tag)] [\(stage)]\(idPart)\(tracePart)\(detailPart)")
     }
 }
 
@@ -381,27 +532,57 @@ enum WatchPagePlayerFallback {
         let id = videoId.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !id.isEmpty else { return nil }
         let cfg = ExtractorRemoteConfigStore.current
-        guard cfg.enableAndroidPlayerFallback else { return nil }
-        PlayProbe.log("extract.fast.begin", videoId: id)
+        guard cfg.enableAndroidPlayerFallback else {
+            PlayProbe.log("extract.fast.skip", videoId: id, "androidFallbackDisabled")
+            return nil
+        }
+        let t0 = PlayProbe.now()
+        PlayProbe.log(
+            "extract.fast.begin",
+            videoId: id,
+            "deadlineSec=\(Int(fastPathDeadlineSeconds)) sts=\(cfg.signatureTimestamp)"
+        )
         return await withTaskGroup(of: VideoPlayback?.self) { group in
             group.addTask {
-                await extractViaAndroidPlayer(
+                let androidT0 = PlayProbe.now()
+                let result = await extractViaAndroidPlayer(
                     videoId: id,
                     signatureTimestamp: cfg.signatureTimestamp,
                     clientVersion: cfg.androidClientVersion,
                     requestTimeout: fastPathDeadlineSeconds
                 )
+                PlayProbe.log(
+                    "extract.fast.android.done",
+                    videoId: id,
+                    "ms=\(PlayProbe.ms(since: androidT0)) hit=\(result != nil)"
+                )
+                return result
             }
             group.addTask {
                 try? await Task.sleep(
                     nanoseconds: UInt64(fastPathDeadlineSeconds * 1_000_000_000)
                 )
+                PlayProbe.log(
+                    "extract.fast.deadline.fire",
+                    videoId: id,
+                    "limitMs=\(Int(fastPathDeadlineSeconds * 1000))"
+                )
                 return nil
             }
             let first = await group.next() ?? nil
             group.cancelAll()
-            if first == nil {
-                PlayProbe.log("extract.fast.miss", videoId: id, "deadline_or_reject")
+            if let first {
+                PlayProbe.log(
+                    "extract.fast.hit",
+                    videoId: id,
+                    "ms=\(PlayProbe.ms(since: t0)) formats=\(first.formats.count)"
+                )
+            } else {
+                PlayProbe.log(
+                    "extract.fast.miss",
+                    videoId: id,
+                    "ms=\(PlayProbe.ms(since: t0)) deadline_or_reject"
+                )
             }
             return first
         }
@@ -506,8 +687,9 @@ enum WatchPagePlayerFallback {
         PlayProbe.log(
             "extract.fallback.android.begin",
             videoId: videoId,
-            "sts=\(signatureTimestamp) ver=\(clientVersion)"
+            "sts=\(signatureTimestamp) ver=\(clientVersion) timeout=\(requestTimeout.map { String(Int($0)) } ?? "default")"
         )
+        let androidT0 = PlayProbe.now()
         let body: [String: Any] = [
             "context": [
                 "client": [
@@ -552,6 +734,11 @@ enum WatchPagePlayerFallback {
             body: bodyText,
             timeout: requestTimeout
         )
+        PlayProbe.log(
+            "extract.android.http",
+            videoId: videoId,
+            "ok=\(result.success) code=\(result.errCode) bytes=\(result.body.utf8.count) ms=\(PlayProbe.ms(since: androidT0)) timeout=\(requestTimeout.map { String(Int($0)) } ?? "default") err=\(result.errMsg)"
+        )
         guard result.success,
               let raw = result.body.data(using: .utf8),
               let player = try? JSONSerialization.jsonObject(with: raw) as? [String: Any]
@@ -559,7 +746,7 @@ enum WatchPagePlayerFallback {
             PlayProbe.log(
                 "extract.fallback.android.fail",
                 videoId: videoId,
-                "http code=\(result.errCode) \(result.errMsg)"
+                "http code=\(result.errCode) ms=\(PlayProbe.ms(since: androidT0)) \(result.errMsg)"
             )
             return nil
         }
@@ -569,16 +756,21 @@ enum WatchPagePlayerFallback {
                 PlayProbe.log(
                     "extract.fallback.android.fail",
                     videoId: videoId,
-                    "no muxed/hls"
+                    "no muxed/hls ms=\(PlayProbe.ms(since: androidT0))"
                 )
                 return nil
             }
+            PlayProbe.log(
+                "extract.fallback.android.ok",
+                videoId: videoId,
+                "formats=\(mapped.formats.count) ms=\(PlayProbe.ms(since: androidT0))"
+            )
             return mapped
         } catch {
             PlayProbe.log(
                 "extract.fallback.android.fail",
                 videoId: videoId,
-                error.localizedDescription
+                "\(error.localizedDescription) ms=\(PlayProbe.ms(since: androidT0))"
             )
             return nil
         }
