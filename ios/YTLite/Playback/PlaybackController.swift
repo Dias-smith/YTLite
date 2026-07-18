@@ -1328,6 +1328,12 @@ final class PlaybackController: ObservableObject {
         }
     }
 
+    /// Relative seek for overlay skip controls (e.g. −15s / +30s). No-op for live HLS.
+    func seekRelative(by deltaSeconds: Double) {
+        guard !isPlayingHLS else { return }
+        seek(to: positionSeconds + deltaSeconds)
+    }
+
     private func applySpeed() {
         guard isPlaying else {
             player?.rate = 0

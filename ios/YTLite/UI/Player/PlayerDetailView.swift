@@ -453,8 +453,14 @@ struct PlayerDetailView: View {
     }
 
     private var overlayTransport: some View {
-        HStack(spacing: YTLiteLayout.stackDefault) {
-            overlayPlainIcon("backward.fill", size: 22) {
+        HStack(spacing: YTLiteLayout.stackTight) {
+            if !playback.isPlayingHLS {
+                overlayPlainIcon("gobackward.15", size: 20) {
+                    playback.seekRelative(by: -15)
+                    bumpOverlayAutoHide()
+                }
+            }
+            overlayPlainIcon("backward.fill", size: 20) {
                 playback.playPrevious()
                 bumpOverlayAutoHide()
             }
@@ -462,9 +468,15 @@ struct PlayerDetailView: View {
                 playback.togglePlayPause()
                 bumpOverlayAutoHide()
             }
-            overlayPlainIcon("forward.fill", size: 22) {
+            overlayPlainIcon("forward.fill", size: 20) {
                 playback.playNext()
                 bumpOverlayAutoHide()
+            }
+            if !playback.isPlayingHLS {
+                overlayPlainIcon("goforward.30", size: 20) {
+                    playback.seekRelative(by: 30)
+                    bumpOverlayAutoHide()
+                }
             }
         }
         .padding(.horizontal, YTLiteLayout.stackDefault)
