@@ -28,8 +28,8 @@ struct YTLiteApp: App {
                 .environmentObject(ReviewPromptCoordinator.shared)
                 .environment(\.locale, appModel.resolvedLocale)
                 .environment(\.layoutDirection, appModel.layoutDirection)
-                .id(appModel.languageCode)
-                .preferredColorScheme(appModel.nightModeEnabled ? .dark : .light)
+                .id("\(appModel.languageCode)-\(appModel.themeRevision)")
+                .preferredColorScheme(appModel.themeColorScheme)
                 .task {
                     ExtractorRemoteConfigStore.restoreFromDisk()
                     appModel.syncAuth(authService)

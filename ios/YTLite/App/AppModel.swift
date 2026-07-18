@@ -4,9 +4,13 @@ import SwiftUI
 
 @MainActor
 final class AppModel: ObservableObject {
-    @Published var nightModeEnabled: Bool {
-        didSet { UserDefaults.standard.set(nightModeEnabled, forKey: "night_mode_enabled") }
-    }
+    /// Theme selection is owned by `ThemeStore` (persisted). Forward revision for view rebuilds.
+    var themeStore: ThemeStore { ThemeStore.shared }
+
+    var themeColorScheme: ColorScheme { themeStore.colorScheme }
+    var themeRevision: Int { themeStore.themeRevision }
+    var themeDisplayName: String { themeStore.activeDisplayName }
+
     @Published var languageCode: String {
         didSet {
             // Persist migrated code only — do not reassign `languageCode` here (would recurse).
@@ -23,6 +27,8 @@ final class AppModel: ObservableObject {
 
     let config = AppConfig.fromBundle()
 
+    private var themeCancellable: AnyCancellable?
+
     var appLanguage: AppLanguage {
         AppLanguage.fromStored(languageCode)
     }
@@ -36,7 +42,9 @@ final class AppModel: ObservableObject {
     }
 
     init() {
-        nightModeEnabled = UserDefaults.standard.object(forKey: "night_mode_enabled") as? Bool ?? true
+        // Hydrate themes before any view reads YTLiteColor.
+        _ = ThemeStore.shared
+
         let stored = UserDefaults.standard.string(forKey: "app_language") ?? AppLanguage.system.rawValue
         let migrated = AppLanguage.migrateStoredCode(stored)
         languageCode = migrated
@@ -48,6 +56,14 @@ final class AppModel: ObservableObject {
         UserDefaults.standard.removeObject(forKey: "resume_enabled")
         UserDefaults.standard.removeObject(forKey: "thread_count")
         UserDefaults.standard.removeObject(forKey: "default_format")
+
+        themeCancellable = ThemeStore.shared.objectWillChange.sink { [weak self] _ in
+            self?.objectWillChange.send()
+        }
+    }
+
+    func selectTheme(id: String) {
+        themeStore.select(themeId: id)
     }
 
     func syncAuth(_ auth: AuthService) {

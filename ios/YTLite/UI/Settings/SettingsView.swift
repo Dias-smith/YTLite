@@ -8,7 +8,16 @@ struct SettingsView: View {
     var body: some View {
         Form {
             Section(L("settings.appearance")) {
-                Toggle(L("settings.night_mode"), isOn: $appModel.nightModeEnabled)
+                NavigationLink {
+                    ThemePickerView()
+                } label: {
+                    HStack {
+                        Text(L("theme.title"))
+                        Spacer()
+                        Text(appModel.themeDisplayName)
+                            .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                    }
+                }
                 Picker(L("settings.language"), selection: $appModel.languageCode) {
                     ForEach(AppLanguage.allCases) { language in
                         Text(language.displayName).tag(language.rawValue)

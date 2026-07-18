@@ -35,6 +35,9 @@
 		5868BDEF5E409CE44B910293 /* HomeFeedStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E40139A2CF194C95CE59BED6 /* HomeFeedStore.swift */; };
 		6BF60720EDA8058C26B06028 /* RemoteImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEA8F5D964477DD5F396E4DF /* RemoteImage.swift */; };
 		7197A0A39469C449A174BAD7 /* YTLiteTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6E872E174975CD347699542 /* YTLiteTheme.swift */; };
+		D4E8F1A29B7C5D60E3A1F804 /* ThemePalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5D9E2B38A6F4C71D2B0E915 /* ThemePalette.swift */; };
+		E5F0A2B39C8D6E71F4B20915 /* ThemeStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6E0F3C49B7A5D82E3C1F026 /* ThemeStore.swift */; };
+		F6A1B3C40D9E7F82A5C3026B /* ThemePickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F1A4D50C8B6E93F4D2A137 /* ThemePickerView.swift */; };
 		72573D3B64285A67519CD06D /* AppLanguage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90EBA08F4DAC7086675EBFA2 /* AppLanguage.swift */; };
 		7884DC7AFD57DA870BBD504D /* PlaylistPickerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFC27F0F09C186AC380D7C63 /* PlaylistPickerSheet.swift */; };
 		7E5A9D75F8FAE96D0D19CC4B /* ExtractorBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD793EE4155858FEFE389C69 /* ExtractorBridge.swift */; };
@@ -142,6 +145,9 @@
 		E605D99CE3B744F1D961FB24 /* SleepTimerOptions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepTimerOptions.swift; sourceTree = "<group>"; };
 		E6E3AFB8E02823C45BB3A602 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
 		E6E872E174975CD347699542 /* YTLiteTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YTLiteTheme.swift; sourceTree = "<group>"; };
+		C5D9E2B38A6F4C71D2B0E915 /* ThemePalette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemePalette.swift; sourceTree = "<group>"; };
+		D6E0F3C49B7A5D82E3C1F026 /* ThemeStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeStore.swift; sourceTree = "<group>"; };
+		E7F1A4D50C8B6E93F4D2A137 /* ThemePickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemePickerView.swift; sourceTree = "<group>"; };
 		E80A808EFF06E12007EBE3B4 /* YouView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YouView.swift; sourceTree = "<group>"; };
 		E8FF10C05E51CE4916A20549 /* InnerTubeClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InnerTubeClient.swift; sourceTree = "<group>"; };
 		EAFBF9441F241D72411C6974 /* TrackActionPresenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackActionPresenter.swift; sourceTree = "<group>"; };
@@ -195,6 +201,7 @@
 			isa = PBXGroup;
 			children = (
 				A1E29FF55D17C97ACE61342E /* SettingsView.swift */,
+				E7F1A4D50C8B6E93F4D2A137 /* ThemePickerView.swift */,
 			);
 			path = Settings;
 			sourceTree = "<group>";
@@ -419,6 +426,8 @@
 			children = (
 				1B4731471EE13027FBEBDD87 /* MainTabBar.swift */,
 				FEA8F5D964477DD5F396E4DF /* RemoteImage.swift */,
+				C5D9E2B38A6F4C71D2B0E915 /* ThemePalette.swift */,
+				D6E0F3C49B7A5D82E3C1F026 /* ThemeStore.swift */,
 				7A2E2B438DB6EE30A26B52AF /* YTLiteSheetChrome.swift */,
 				E6E872E174975CD347699542 /* YTLiteTheme.swift */,
 			);
@@ -576,6 +585,9 @@
 				B19A0548C73F27801320D382 /* YTLiteApp.swift in Sources */,
 				05E890CF43A22346F8982065 /* YTLiteSheetChrome.swift in Sources */,
 				7197A0A39469C449A174BAD7 /* YTLiteTheme.swift in Sources */,
+				D4E8F1A29B7C5D60E3A1F804 /* ThemePalette.swift in Sources */,
+				E5F0A2B39C8D6E71F4B20915 /* ThemeStore.swift in Sources */,
+				F6A1B3C40D9E7F82A5C3026B /* ThemePickerView.swift in Sources */,
 				3FAB82C7DD328823910B07D7 /* YouTubeHTTPClient.swift in Sources */,
 				BCF733C20A1751C2B9103A99 /* YouView.swift in Sources */,
 				FD9AA1CF7C28BCA25F1609DD /* YoutubeDataApiClient.swift in Sources */,
