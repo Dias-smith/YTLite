@@ -34,6 +34,12 @@ final class PlaybackController: ObservableObject {
     @Published private(set) var isDisliked: Bool = false
     @Published private(set) var isChannelSubscribed: Bool = false
     @Published private(set) var captionTracks: [CaptionTrack] = []
+    /// HLS live quality ladder (empty for progressive / non-HLS).
+    @Published private(set) var hlsVariants: [HLSVariant] = []
+    /// `nil` = Auto (master playlist). Otherwise a variant id from `hlsVariants`.
+    @Published private(set) var selectedHLSVariantID: String?
+    @Published private(set) var isLoadingHLSVariants: Bool = false
+    @Published private(set) var hlsVariantsLoadFailed: Bool = false
     /// Wall-clock end for session sleep timer; nil when inactive.
     @Published private(set) var sleepTimerEndsAt: Date?
     /// Preset minutes that started the current timer (`nil` = Off).
@@ -59,6 +65,8 @@ final class PlaybackController: ObservableObject {
     private var failObserver: NSObjectProtocol?
     private var itemStatusObservation: NSKeyValueObservation?
     private var extractTask: Task<Void, Never>?
+    private var hlsVariantsTask: Task<Void, Never>?
+    private var currentHLSMasterURL: URL?
     private var persistTask: Task<Void, Never>?
     private var sleepTimerCancellable: AnyCancellable?
     /// Pre-shuffle queue snapshot (Android `originalOrder`).
@@ -83,6 +91,20 @@ final class PlaybackController: ObservableObject {
 
     var hasPreviousInQueue: Bool {
         !queue.isEmpty
+    }
+
+    /// True when the current item is playing via HLS (live quality menu eligible).
+    var isPlayingHLS: Bool {
+        currentHLSMasterURL != nil
+    }
+
+    var selectedHLSQualityLabel: String {
+        if let id = selectedHLSVariantID,
+           let variant = hlsVariants.first(where: { $0.id == id })
+        {
+            return variant.displayLabel
+        }
+        return L("player.quality.auto")
     }
 
     var sleepTimerRemaining: TimeInterval? {
@@ -111,9 +133,18 @@ final class PlaybackController: ObservableObject {
 
     func play(items: [VideoItem], startAt index: Int = 0, sourcePlaylistId: String? = nil) {
         guard !items.isEmpty else { return }
+        let start = index.clamped(to: 0...(items.count - 1))
+        let selectedItem = items[start]
+
+        // Opening the currently loaded video must not rebuild its queue, re-extract
+        // the stream, or reset progress. Only resume it when it is paused.
+        if nowPlaying?.videoId == selectedItem.videoId {
+            resumeCurrentPlaybackIfNeeded()
+            return
+        }
+
         self.sourcePlaylistId = sourcePlaylistId
         originalOrder = items
-        let start = index.clamped(to: 0...(items.count - 1))
         if shuffleEnabled {
             let current = items[start]
             let tail = items.enumerated().filter { $0.offset != start }.map(\.element).shuffled()
@@ -126,6 +157,21 @@ final class PlaybackController: ObservableObject {
         pendingSeekSeconds = 0
         playCurrentQueueItem()
         persistSession(immediate: true)
+    }
+
+    private func resumeCurrentPlaybackIfNeeded() {
+        guard !isPlaying else { return }
+        // An in-flight extraction starts playback when it completes.
+        guard !isBuffering else { return }
+        if player == nil {
+            guard nowPlaying != nil, !queue.isEmpty else { return }
+            playCurrentQueueItem()
+        } else {
+            player?.playImmediately(atRate: playbackSpeed)
+            isPlaying = true
+            updateNowPlayingInfo()
+            persistSession(immediate: true)
+        }
     }
 
     func playSearchItem(_ item: SearchVideoItem) {
@@ -382,6 +428,7 @@ final class PlaybackController: ObservableObject {
             videoId: item.videoId,
             "title=\(item.title.prefix(48)) index=\(queueIndex)/\(queue.count)"
         )
+        clearHLSQualityState()
         let knownArtistId = libraryStore?.track(id: item.videoId)?.primaryArtistId
         let knownAvatar = item.channelAvatarURL
             ?? libraryStore?.subscribedChannel(id: knownArtistId ?? "")?.avatarUrl.flatMap(URL.init(string:))
@@ -467,6 +514,13 @@ final class PlaybackController: ObservableObject {
                 lastError = nil
                 PlayProbe.log("play.avplayer.start", videoId: expectedVideoId)
                 play(url: url)
+                if let master = playback.hlsManifestURL, url == master {
+                    beginHLSQualityLoading(
+                        masterURL: master,
+                        videoId: expectedVideoId,
+                        generation: generation
+                    )
+                }
                 let seekTo = pendingSeekSeconds
                 pendingSeekSeconds = 0
                 if seekTo > 1 {
@@ -567,6 +621,37 @@ final class PlaybackController: ObservableObject {
     }
 
     func play(url: URL) {
+        play(url: url, resumePlaying: true, seekTo: nil)
+    }
+
+    /// Switch HLS quality. `nil` = Auto (master playlist).
+    func selectHLSVariant(_ variantID: String?) {
+        guard let master = currentHLSMasterURL else { return }
+        let videoId = nowPlaying?.videoId
+        if variantID == selectedHLSVariantID { return }
+
+        let targetURL: URL
+        if let variantID {
+            guard let variant = hlsVariants.first(where: { $0.id == variantID }) else { return }
+            targetURL = variant.url
+            PlayProbe.log(
+                "hls.quality.select",
+                videoId: videoId,
+                "variant=\(variant.displayLabel) bw=\(variant.bandwidth)"
+            )
+        } else {
+            targetURL = master
+            PlayProbe.log("hls.quality.select", videoId: videoId, "auto")
+        }
+
+        let wasPlaying = isPlaying
+        let seekTo = seekablePositionForQualitySwitch()
+        selectedHLSVariantID = variantID
+        isBuffering = true
+        play(url: targetURL, resumePlaying: wasPlaying, seekTo: seekTo)
+    }
+
+    private func play(url: URL, resumePlaying: Bool, seekTo: Double?) {
         // googlevideo rejects bare AVPlayerItem(url:) without Referer/UA → "Cannot Open".
         let asset = AVURLAsset(
             url: url,
@@ -587,9 +672,91 @@ final class PlaybackController: ObservableObject {
         needsLoginForPlayback = false
         isBuffering = false
         applySpeed()
-        player?.play()
-        isPlaying = true
+        if resumePlaying {
+            player?.play()
+            isPlaying = true
+        } else {
+            player?.pause()
+            isPlaying = false
+        }
+        if let seekTo, seekTo > 1 {
+            seek(to: seekTo)
+        }
         updateNowPlayingInfo()
+    }
+
+    private func beginHLSQualityLoading(masterURL: URL, videoId: String, generation: Int) {
+        currentHLSMasterURL = masterURL
+        selectedHLSVariantID = nil
+        hlsVariants = []
+        hlsVariantsLoadFailed = false
+        isLoadingHLSVariants = true
+        hlsVariantsTask?.cancel()
+        hlsVariantsTask = Task { [weak self] in
+            guard let self else { return }
+            #if DEBUG
+            HLSMasterPlaylistParser.debugSelfCheck()
+            #endif
+            let result = await YouTubeHTTPClient.shared.request(
+                url: masterURL.absoluteString,
+                method: "GET",
+                headers: YouTubeConstants.streamPlaybackHeaders,
+                body: nil
+            )
+            guard generation == self.extractGeneration,
+                  self.nowPlaying?.videoId == videoId,
+                  !Task.isCancelled
+            else { return }
+            guard result.success, !result.body.isEmpty else {
+                PlayProbe.log(
+                    "hls.quality.load.fail",
+                    videoId: videoId,
+                    result.errMsg.isEmpty ? "empty body" : result.errMsg
+                )
+                self.isLoadingHLSVariants = false
+                self.hlsVariantsLoadFailed = true
+                return
+            }
+            let variants = HLSMasterPlaylistParser.parse(
+                playlist: result.body,
+                baseURL: masterURL
+            )
+            guard generation == self.extractGeneration,
+                  self.nowPlaying?.videoId == videoId
+            else { return }
+            self.hlsVariants = variants
+            self.isLoadingHLSVariants = false
+            self.hlsVariantsLoadFailed = false
+            PlayProbe.log(
+                "hls.quality.loaded",
+                videoId: videoId,
+                "count=\(variants.count) labels=\(variants.prefix(5).map(\.displayLabel).joined(separator: ","))"
+            )
+        }
+    }
+
+    private func clearHLSQualityState() {
+        hlsVariantsTask?.cancel()
+        hlsVariantsTask = nil
+        currentHLSMasterURL = nil
+        hlsVariants = []
+        selectedHLSVariantID = nil
+        isLoadingHLSVariants = false
+        hlsVariantsLoadFailed = false
+    }
+
+    /// Seekable VOD/DVR window position; nil for open live edge (no restore).
+    private func seekablePositionForQualitySwitch() -> Double? {
+        guard let item = player?.currentItem else { return nil }
+        let ranges = item.seekableTimeRanges.compactMap { $0.timeRangeValue }
+        guard let range = ranges.last else { return nil }
+        let start = range.start.seconds
+        let end = (range.start + range.duration).seconds
+        let pos = positionSeconds
+        // Live edge: near end of window → don't seek (stay at live).
+        if end.isFinite, end - pos < 8 { return nil }
+        if pos.isFinite, pos > start + 1 { return pos }
+        return nil
     }
 
     private func observePlayerItem(_ item: AVPlayerItem, videoId: String?) {
@@ -616,6 +783,14 @@ final class PlaybackController: ObservableObject {
                         videoId: videoId,
                         "failed err=\(err) domain=\(ns?.domain ?? "") code=\(ns?.code ?? -1) \(underlying)"
                     )
+                    // Fixed HLS variant failed → fall back to Auto (master).
+                    if self.selectedHLSVariantID != nil, let master = self.currentHLSMasterURL {
+                        PlayProbe.log("hls.quality.fallback_auto", videoId: videoId, err)
+                        self.selectedHLSVariantID = nil
+                        self.lastError = nil
+                        self.play(url: master, resumePlaying: true, seekTo: nil)
+                        return
+                    }
                     self.isBuffering = false
                     self.isPlaying = false
                     self.lastError = err
@@ -698,6 +873,7 @@ final class PlaybackController: ObservableObject {
 
     func stop() {
         extractTask?.cancel()
+        clearHLSQualityState()
         artworkGeneration += 1
         artworkTask?.cancel()
         artworkImage = nil
@@ -726,6 +902,7 @@ final class PlaybackController: ObservableObject {
     /// End-of-queue with Repeat Off — mirrors Android `handlePlaybackEnded` clear path.
     private func stopAndClearQueueForRepeatOff() {
         extractTask?.cancel()
+        clearHLSQualityState()
         artworkGeneration += 1
         artworkTask?.cancel()
         artworkImage = nil

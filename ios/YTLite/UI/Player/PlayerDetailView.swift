@@ -55,6 +55,7 @@ struct PlayerDetailView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var showSpeedSheet = false
+    @State private var showHLSQualitySheet = false
     @State private var showSleepTimerSheet = false
     @State private var showShareSheet = false
     @State private var shareURL: URL?
@@ -155,6 +156,11 @@ struct PlayerDetailView: View {
         }
         .sheet(isPresented: $showSpeedSheet) {
             SpeedPickerSheet(selected: $playback.playbackSpeed)
+                .presentationDetents([.medium])
+        }
+        .sheet(isPresented: $showHLSQualitySheet) {
+            HLSQualityPickerSheet()
+                .environmentObject(playback)
                 .presentationDetents([.medium])
         }
         .sheet(isPresented: $showSleepTimerSheet) {
@@ -355,9 +361,17 @@ struct PlayerDetailView: View {
 
                 Spacer()
 
-                overlayProgress
-                    .padding(.horizontal, YTLiteLayout.stackLoose)
-                    .padding(.bottom, 10)
+                if playback.isPlayingHLS {
+                    // Live: no seekable progress; quality picker sits bottom-left instead.
+                    overlayQualityButton
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, YTLiteLayout.stackLoose)
+                        .padding(.bottom, 10)
+                } else {
+                    overlayProgress
+                        .padding(.horizontal, YTLiteLayout.stackLoose)
+                        .padding(.bottom, 10)
+                }
             }
         }
     }
@@ -413,6 +427,7 @@ struct PlayerDetailView: View {
                         .padding(.vertical, YTLiteLayout.rowVertical)
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel(L("player.playback_speed"))
 
                 AirPlayRoutePicker()
                     .frame(width: 36, height: 36)
@@ -449,6 +464,35 @@ struct PlayerDetailView: View {
         .padding(.horizontal, YTLiteLayout.stackDefault)
         .padding(.vertical, YTLiteLayout.stackTight)
         .background(Color.black.opacity(0.5), in: RoundedRectangle(cornerRadius: 20))
+    }
+
+    /// Live HLS quality entry, shown bottom-left in place of the progress bar.
+    private var overlayQualityButton: some View {
+        Button {
+            showHLSQualitySheet = true
+            bumpOverlayAutoHide()
+        } label: {
+            HStack(spacing: 6) {
+                if playback.isLoadingHLSVariants && playback.hlsVariants.isEmpty {
+                    ProgressView()
+                        .controlSize(.mini)
+                        .tint(YTLiteColor.onMedia)
+                } else {
+                    Image(systemName: "slider.horizontal.3")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(YTLiteColor.onMedia)
+                    Text(playback.selectedHLSQualityLabel)
+                        .font(YTLiteType.badge)
+                        .foregroundStyle(YTLiteColor.onMedia)
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, YTLiteLayout.rowVertical)
+            .background(Color.black.opacity(0.5), in: RoundedRectangle(cornerRadius: 20))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(L("player.quality"))
     }
 
     private var overlayProgress: some View {
@@ -1292,6 +1336,61 @@ struct SpeedPickerSheet: View {
                 }
             }
         }
+    }
+}
+
+struct HLSQualityPickerSheet: View {
+    @EnvironmentObject private var playback: PlaybackController
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            List {
+                if playback.hlsVariantsLoadFailed {
+                    Text(L("player.quality.load_failed"))
+                        .font(YTLiteType.meta)
+                        .foregroundStyle(YTLiteColor.danger)
+                        .listRowBackground(YTLiteColor.surfaceElevated)
+                }
+                qualityRow(id: nil, title: L("player.quality.auto"))
+                ForEach(playback.hlsVariants) { variant in
+                    qualityRow(id: variant.id, title: variant.displayLabel)
+                }
+            }
+            .scrollContentBackground(.hidden)
+            .background(YTLiteColor.background)
+            .navigationTitle(L("player.quality"))
+            .navigationBarTitleDisplayMode(.inline)
+            .overlay {
+                if playback.isLoadingHLSVariants && playback.hlsVariants.isEmpty {
+                    ProgressView()
+                        .tint(YTLiteColor.accent)
+                }
+            }
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(L("common.close")) { dismiss() }
+                }
+            }
+        }
+    }
+
+    private func qualityRow(id: String?, title: String) -> some View {
+        Button {
+            playback.selectHLSVariant(id)
+            dismiss()
+        } label: {
+            HStack {
+                Text(title)
+                    .foregroundStyle(YTLiteColor.onSurface)
+                Spacer()
+                if playback.selectedHLSVariantID == id {
+                    Image(systemName: "checkmark")
+                        .foregroundStyle(YTLiteColor.accent)
+                }
+            }
+        }
+        .listRowBackground(YTLiteColor.surfaceElevated)
     }
 }
 
