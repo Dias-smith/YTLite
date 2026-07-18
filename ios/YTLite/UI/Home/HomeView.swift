@@ -573,21 +573,23 @@ struct HomeView: View {
                         }
                     }
                     .padding(.leading, YTLiteLayout.screenPadding)
-                    .padding(.trailing, YTLiteLayout.stackDefault)
+                    .padding(.trailing, YTLiteLayout.stackTight)
                     .padding(.vertical, YTLiteLayout.stackLoose)
                 }
 
                 Button {
                     showCategoryReorder = true
                 } label: {
-                    Image(systemName: "arrow.up.arrow.down")
-                        .font(.system(size: 15, weight: .semibold))
+                    Image(systemName: "arrow.left.arrow.right")
+                        .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(YTLiteColor.onSurface)
-                        .frame(width: 42, height: 42)
-                        .background(YTLiteColor.surfaceElevated, in: Circle())
+                        // Match YTLiteChip height (subheadline + chipVertical×2 ≈ 32–34).
+                        .frame(width: 32, height: 32)
+                        .background(YTLiteColor.surfaceChip, in: Circle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(L("home.category.reorder"))
+                .padding(.leading, YTLiteLayout.stackLoose)
                 .padding(.trailing, YTLiteLayout.screenPadding)
             }
             .onAppear {
