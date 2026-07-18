@@ -50,6 +50,7 @@
 		96C22C7C115AE15C68F55E6E /* LibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3EC77F988D8FEBB7F2CF01F9 /* LibraryView.swift */; };
 		9BA2A97B4E399A8DE578DC68 /* SearchHit.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC4BC0290DBF96C47203AFD9 /* SearchHit.swift */; };
 		A10BB1987728C2EBC73EDC5B /* SearchSuggestionItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 785F0DBABA94995BF9801E53 /* SearchSuggestionItem.swift */; };
+		A3F7C1E28B4D9A60E5F1D2C0 /* PlaybackPrefetcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8E4D2A17C6F5B90D3A0E1F4 /* PlaybackPrefetcher.swift */; };
 		AD70B6E4A962301570BF6A75 /* TrackActionHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = D36539F7B8580F83FE3B4756 /* TrackActionHost.swift */; };
 		B19A0548C73F27801320D382 /* YTLiteApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37556EF2BFFC392D74790365 /* YTLiteApp.swift */; };
 		B2479042A405753375DFFF80 /* TrackActionSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2507497952E4DBF5107AAB37 /* TrackActionSheet.swift */; };
@@ -60,6 +61,7 @@
 		BBC8F08DC5CBB521277C50EC /* LibraryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20A50ADAC7C794FA13EF2533 /* LibraryStore.swift */; };
 		BCF733C20A1751C2B9103A99 /* YouView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E80A808EFF06E12007EBE3B4 /* YouView.swift */; };
 		BF80F794550A2F98653F0227 /* VideoPlayback.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74405E259A4D664495CBE651 /* VideoPlayback.swift */; };
+		C1A8E0F2B4D64A1E9C7F3B21 /* HLSMasterPlaylist.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7B3C9D1E5F6482A91D0E4C8 /* HLSMasterPlaylist.swift */; };
 		C29709D6EEA4B7209A8C09D8 /* SearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 749BB83F54AEA2CB94657F58 /* SearchView.swift */; };
 		C3B8006BDA68B9F981C63E64 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 1C0CE6C787F30A3581B3B99D /* Supabase */; };
 		C8CDA6F785BD0E39F6C8B0D1 /* TrackActionPresenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = EAFBF9441F241D72411C6974 /* TrackActionPresenter.swift */; };
@@ -114,11 +116,13 @@
 		90EBA08F4DAC7086675EBFA2 /* AppLanguage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLanguage.swift; sourceTree = "<group>"; };
 		95BB5987A01CB83F34EC4732 /* LyricsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricsSheet.swift; sourceTree = "<group>"; };
 		A1E29FF55D17C97ACE61342E /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		A7B3C9D1E5F6482A91D0E4C8 /* HLSMasterPlaylist.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HLSMasterPlaylist.swift; sourceTree = "<group>"; };
 		A8DB6F59223A9C7E7F776875 /* YoutubeDataApiClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YoutubeDataApiClient.swift; sourceTree = "<group>"; };
 		AC4BC0290DBF96C47203AFD9 /* SearchHit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchHit.swift; sourceTree = "<group>"; };
 		B3D35BBCB625F4189FAF99BD /* ReviewPromptStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReviewPromptStore.swift; sourceTree = "<group>"; };
 		B70A93BD5CE828D414CF8BBE /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		B8CE7E52ECFFEE4E9D9F3BBD /* PlaylistActionSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistActionSheet.swift; sourceTree = "<group>"; };
+		B8E4D2A17C6F5B90D3A0E1F4 /* PlaybackPrefetcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackPrefetcher.swift; sourceTree = "<group>"; };
 		BAAC16F100525461930D06E4 /* MusicAlbumRelease.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicAlbumRelease.swift; sourceTree = "<group>"; };
 		BCF093D73F22FDA34058B5CC /* PlaylistActionPresenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistActionPresenter.swift; sourceTree = "<group>"; };
 		BE239ADAEF6BDAECA1B2404A /* Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Debug.xcconfig; sourceTree = "<group>"; };
@@ -209,6 +213,7 @@
 			children = (
 				75CAA6841345006D2B609D51 /* PipPlayerView.swift */,
 				4F148613909F22D6432E97CD /* PlaybackController.swift */,
+				B8E4D2A17C6F5B90D3A0E1F4 /* PlaybackPrefetcher.swift */,
 				6DA6324F90A27DDA7AC262F5 /* PlaybackProgressModel.swift */,
 				5CC3E87622C393A7C74ACF92 /* PlaybackSessionStore.swift */,
 				1B77ECC50B78A80581018A17 /* PlaybackSpeeds.swift */,
@@ -303,6 +308,7 @@
 			children = (
 				CD793EE4155858FEFE389C69 /* ExtractorBridge.swift */,
 				ED3EEFE893246B07195F7596 /* ExtractorBundleStore.swift */,
+				A7B3C9D1E5F6482A91D0E4C8 /* HLSMasterPlaylist.swift */,
 				74405E259A4D664495CBE651 /* VideoPlayback.swift */,
 			);
 			path = Extraction;
@@ -536,6 +542,7 @@
 				306A6B80DF8C915340C677FE /* OwnerKeyStore.swift in Sources */,
 				2E39CB7A265038BB757B2849 /* PipPlayerView.swift in Sources */,
 				55CD33F6A1B849732AD310DF /* PlaybackController.swift in Sources */,
+				A3F7C1E28B4D9A60E5F1D2C0 /* PlaybackPrefetcher.swift in Sources */,
 				49A7947FC79A9434EC92558F /* PlaybackProgressModel.swift in Sources */,
 				7E9F961C70588D8A61B9CA88 /* PlaybackSessionStore.swift in Sources */,
 				F2AB3B31F612895BCEBFF897 /* PlaybackSpeeds.swift in Sources */,
@@ -565,6 +572,7 @@
 				0B53FFD0BF2E85F8B97EAA04 /* TrackLyricsSheet.swift in Sources */,
 				2016F531F2C583A556F3E03C /* VideoItem.swift in Sources */,
 				BF80F794550A2F98653F0227 /* VideoPlayback.swift in Sources */,
+				C1A8E0F2B4D64A1E9C7F3B21 /* HLSMasterPlaylist.swift in Sources */,
 				B19A0548C73F27801320D382 /* YTLiteApp.swift in Sources */,
 				05E890CF43A22346F8982065 /* YTLiteSheetChrome.swift in Sources */,
 				7197A0A39469C449A174BAD7 /* YTLiteTheme.swift in Sources */,

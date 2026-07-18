@@ -66,7 +66,12 @@ final class PlaybackController: ObservableObject {
     private var itemStatusObservation: NSKeyValueObservation?
     private var extractTask: Task<Void, Never>?
     private var hlsVariantsTask: Task<Void, Never>?
+    private var nextPrefetchScheduleTask: Task<Void, Never>?
     private var currentHLSMasterURL: URL?
+    /// True when the current AVPlayer item came from `PlaybackPrefetcher` (one-shot retry on fail).
+    private var playingFromPrefetch = false
+    /// Prevents infinite prefetch→fail→extract loops.
+    private var prefetchPlaybackRetryUsed = false
     private var persistTask: Task<Void, Never>?
     private var sleepTimerCancellable: AnyCancellable?
     /// Pre-shuffle queue snapshot (Android `originalOrder`).
@@ -145,6 +150,8 @@ final class PlaybackController: ObservableObject {
 
         self.sourcePlaylistId = sourcePlaylistId
         originalOrder = items
+        PlaybackPrefetcher.shared.clear()
+        cancelScheduledNextPrefetch()
         if shuffleEnabled {
             let current = items[start]
             let tail = items.enumerated().filter { $0.offset != start }.map(\.element).shuffled()
@@ -418,17 +425,21 @@ final class PlaybackController: ObservableObject {
         persistSession(immediate: true)
     }
 
-    private func playCurrentQueueItem() {
+    private func playCurrentQueueItem(allowPrefetchConsume: Bool = true) {
+        guard queue.indices.contains(queueIndex) else { return }
         let item = queue[queueIndex]
         lastError = nil
         needsLoginForPlayback = false
         captionTracks = []
+        playingFromPrefetch = false
         PlayProbe.log(
             "play.request",
             videoId: item.videoId,
             "title=\(item.title.prefix(48)) index=\(queueIndex)/\(queue.count)"
         )
         clearHLSQualityState()
+        cancelScheduledNextPrefetch()
+        PlaybackPrefetcher.shared.retainOnly(videoId: item.videoId)
         let knownArtistId = libraryStore?.track(id: item.videoId)?.primaryArtistId
         let knownAvatar = item.channelAvatarURL
             ?? libraryStore?.subscribedChannel(id: knownArtistId ?? "")?.avatarUrl.flatMap(URL.init(string:))
@@ -453,22 +464,33 @@ final class PlaybackController: ObservableObject {
         extractGeneration += 1
         let generation = extractGeneration
         let expectedVideoId = item.videoId
+        let preferLiveHLS = item.isLive
+        let canConsumePrefetch = allowPrefetchConsume && !preferLiveHLS
         extractTask?.cancel()
         extractTask = Task {
             do {
                 PlayProbe.log(
                     "play.extract.begin",
                     videoId: expectedVideoId,
-                    "isLive=\(item.isLive)"
+                    "isLive=\(item.isLive) allowPrefetch=\(canConsumePrefetch)"
                 )
-                let playback = try await extractPlaybackWithRetry(
-                    videoId: expectedVideoId,
-                    preferLiveHLS: item.isLive
-                )
+                let playback: VideoPlayback
+                var usedPrefetch = false
+                if canConsumePrefetch,
+                   let prefetched = await PlaybackPrefetcher.shared.consume(videoId: expectedVideoId)
+                {
+                    playback = prefetched
+                    usedPrefetch = true
+                } else {
+                    playback = try await extractPlaybackWithRetry(
+                        videoId: expectedVideoId,
+                        preferLiveHLS: preferLiveHLS
+                    )
+                }
                 PlayProbe.log(
                     "play.extract.ok",
                     videoId: playback.videoId,
-                    "formats=\(playback.formats.count) hls=\(playback.hlsManifestURL != nil)"
+                    "formats=\(playback.formats.count) hls=\(playback.hlsManifestURL != nil) prefetch=\(usedPrefetch)"
                 )
                 guard generation == extractGeneration,
                       !Task.isCancelled,
@@ -512,6 +534,10 @@ final class PlaybackController: ObservableObject {
                 )
                 guard generation == extractGeneration, isCurrentExtractTarget(expectedVideoId) else { return }
                 lastError = nil
+                playingFromPrefetch = usedPrefetch
+                if usedPrefetch {
+                    prefetchPlaybackRetryUsed = false
+                }
                 PlayProbe.log("play.avplayer.start", videoId: expectedVideoId)
                 play(url: url)
                 if let master = playback.hlsManifestURL, url == master {
@@ -531,6 +557,7 @@ final class PlaybackController: ObservableObject {
                 refreshFavoriteState()
                 persistSession(immediate: true)
                 PlayProbe.log("play.ok", videoId: expectedVideoId)
+                scheduleNextTrackPrefetch(afterCurrentVideoId: expectedVideoId)
             } catch is CancellationError {
                 PlayProbe.log("play.cancelled", videoId: expectedVideoId)
                 return
@@ -745,6 +772,49 @@ final class PlaybackController: ObservableObject {
         hlsVariantsLoadFailed = false
     }
 
+    /// Next queue item for prefetch (honors Repeat All wrap).
+    private func nextPrefetchQueueItem() -> VideoItem? {
+        guard !queue.isEmpty else { return nil }
+        if queueIndex + 1 < queue.count {
+            return queue[queueIndex + 1]
+        }
+        if repeatMode == .all, queue.count > 1 {
+            return queue[0]
+        }
+        return nil
+    }
+
+    /// After current track is playing, wait 5s then prefetch the next VOD stream.
+    private func scheduleNextTrackPrefetch(afterCurrentVideoId currentId: String) {
+        cancelScheduledNextPrefetch()
+        // Live HLS current track: skip (bridge busy / next may also be live).
+        if isPlayingHLS { return }
+        guard let next = nextPrefetchQueueItem(), !next.isLive else { return }
+        let nextId = next.videoId
+        nextPrefetchScheduleTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 5_000_000_000)
+            guard let self, !Task.isCancelled else { return }
+            guard self.nowPlaying?.videoId == currentId else { return }
+            guard !self.isPlayingHLS else { return }
+            guard let stillNext = self.nextPrefetchQueueItem(),
+                  stillNext.videoId == nextId,
+                  !stillNext.isLive
+            else { return }
+            PlaybackPrefetcher.shared.prefetch(videoId: nextId, preferLiveHLS: false)
+        }
+    }
+
+    private func cancelScheduledNextPrefetch() {
+        nextPrefetchScheduleTask?.cancel()
+        nextPrefetchScheduleTask = nil
+    }
+
+    private func refreshNextPrefetchIfNeeded() {
+        guard !isPlayingHLS else { return }
+        guard let next = nextPrefetchQueueItem(), !next.isLive else { return }
+        PlaybackPrefetcher.shared.refreshIfStale(videoId: next.videoId, preferLiveHLS: false)
+    }
+
     /// Seekable VOD/DVR window position; nil for open live edge (no restore).
     private func seekablePositionForQualitySwitch() -> Double? {
         guard let item = player?.currentItem else { return nil }
@@ -789,6 +859,20 @@ final class PlaybackController: ObservableObject {
                         self.selectedHLSVariantID = nil
                         self.lastError = nil
                         self.play(url: master, resumePlaying: true, seekTo: nil)
+                        return
+                    }
+                    // Prefetched URL expired / rejected → one fresh extract.
+                    if self.playingFromPrefetch,
+                       !self.prefetchPlaybackRetryUsed,
+                       let videoId,
+                       self.nowPlaying?.videoId == videoId
+                    {
+                        PlayProbe.log("prefetch.playback_fail", videoId: videoId, err)
+                        self.playingFromPrefetch = false
+                        self.prefetchPlaybackRetryUsed = true
+                        self.lastError = nil
+                        PlaybackPrefetcher.shared.invalidate(videoId: videoId)
+                        self.playCurrentQueueItem(allowPrefetchConsume: false)
                         return
                     }
                     self.isBuffering = false
@@ -873,6 +957,10 @@ final class PlaybackController: ObservableObject {
 
     func stop() {
         extractTask?.cancel()
+        cancelScheduledNextPrefetch()
+        PlaybackPrefetcher.shared.clear()
+        playingFromPrefetch = false
+        prefetchPlaybackRetryUsed = false
         clearHLSQualityState()
         artworkGeneration += 1
         artworkTask?.cancel()
@@ -902,6 +990,10 @@ final class PlaybackController: ObservableObject {
     /// End-of-queue with Repeat Off — mirrors Android `handlePlaybackEnded` clear path.
     private func stopAndClearQueueForRepeatOff() {
         extractTask?.cancel()
+        cancelScheduledNextPrefetch()
+        PlaybackPrefetcher.shared.clear()
+        playingFromPrefetch = false
+        prefetchPlaybackRetryUsed = false
         clearHLSQualityState()
         artworkGeneration += 1
         artworkTask?.cancel()
@@ -1033,6 +1125,7 @@ final class PlaybackController: ObservableObject {
                 }()
                 self.progress.setPositionAndDuration(position: position, duration: duration)
                 self.checkSleepTimerExpired()
+                self.refreshNextPrefetchIfNeeded()
                 self.updateNowPlayingElapsed()
                 self.persistSession(immediate: false)
             }
