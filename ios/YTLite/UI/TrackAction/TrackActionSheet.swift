@@ -38,7 +38,7 @@ struct TrackActionSheet: View {
                         dismiss()
                     }
 
-                    actionRow(systemImage: "plus.rectangle.on.rectangle", title: L("action.add_to_queue")) {
+                    actionRow(systemImage: "text.append", title: L("action.add_to_queue")) {
                         playback.appendToQueue(context.asVideoItem)
                         trackActions.showToast(L("toast.added_to_queue"))
                         dismiss()
