@@ -54,16 +54,59 @@ final class ExtractorBridge: NSObject, WKScriptMessageHandler {
         }
     }
 
-    func extractPlayback(videoId: String) async throws -> VideoPlayback {
+    func extractPlayback(videoId: String, preferLiveHLS: Bool = false) async throws -> VideoPlayback {
         let id = YouTubeURL.videoId(from: videoId) ?? videoId
-        PlayProbe.log("extract.start", videoId: id, "raw=\(videoId)")
+        PlayProbe.log(
+            "extract.start",
+            videoId: id,
+            "raw=\(videoId) preferLiveHLS=\(preferLiveHLS)"
+        )
+        if preferLiveHLS {
+            PlayProbe.log("extract.live.preferFallback", videoId: id)
+            do {
+                let fallback = try await WatchPagePlayerFallback.extract(videoId: id)
+                if fallback.hlsManifestURL != nil
+                    || fallback.formats.contains(where: \.isMuxed)
+                {
+                    PlayProbe.log(
+                        "extract.live.fallback.ok",
+                        videoId: fallback.videoId,
+                        "formats=\(fallback.formats.count) hls=\(fallback.hlsManifestURL != nil)"
+                    )
+                    return fallback
+                }
+                PlayProbe.log(
+                    "extract.live.fallback.weak",
+                    videoId: id,
+                    "no hls/muxed → try bridge"
+                )
+            } catch {
+                PlayProbe.log(
+                    "extract.live.fallback.fail",
+                    videoId: id,
+                    error.localizedDescription
+                )
+            }
+        }
         do {
             let result = try await extractPlaybackViaBridge(videoId: videoId)
             PlayProbe.log(
                 "extract.bridge.ok",
                 videoId: result.videoId,
-                "formats=\(result.formats.count)"
+                "formats=\(result.formats.count) hls=\(result.hlsManifestURL != nil)"
             )
+            // Live / HLS-only: bridge may still return empty muxed — fall through to player.
+            if preferLiveHLS,
+               result.hlsManifestURL == nil,
+               !result.formats.contains(where: \.isMuxed)
+            {
+                PlayProbe.log("extract.live.bridge.noHls", videoId: id, "try fallback")
+                if let fallback = try? await WatchPagePlayerFallback.extract(videoId: id),
+                   fallback.hlsManifestURL != nil || fallback.formats.contains(where: \.isMuxed)
+                {
+                    return fallback
+                }
+            }
             return result
         } catch is CancellationError {
             PlayProbe.log("extract.cancelled", videoId: id)
@@ -74,14 +117,14 @@ final class ExtractorBridge: NSObject, WKScriptMessageHandler {
                 videoId: id,
                 error.localizedDescription
             )
-            if Self.shouldTryWatchPageFallback(error) {
+            if Self.shouldTryWatchPageFallback(error) || preferLiveHLS {
                 PlayProbe.log("extract.fallback.eligible", videoId: id)
                 do {
                     let fallback = try await WatchPagePlayerFallback.extract(videoId: id)
                     PlayProbe.log(
                         "extract.fallback.return",
                         videoId: fallback.videoId,
-                        "formats=\(fallback.formats.count)"
+                        "formats=\(fallback.formats.count) hls=\(fallback.hlsManifestURL != nil)"
                     )
                     return fallback
                 } catch {

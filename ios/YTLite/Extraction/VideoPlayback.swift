@@ -171,32 +171,44 @@ enum ExtractResultMapper {
             throw ExtractorBridge.ExtractorError.extractFailed(msg)
         }
         let rawFormats = music["formats"] as? [[String: Any]] ?? []
-        let formats: [StreamFormat] = rawFormats.compactMap { item in
+        var formats: [StreamFormat] = []
+        var hlsFromFormat: URL?
+        for item in rawFormats {
             guard let urlString = item["url"] as? String,
                   let url = URL(string: urlString),
                   !urlString.isEmpty
-            else { return nil }
+            else { continue }
+            let lower = urlString.lowercased()
+            if lower.contains(".m3u8") {
+                if hlsFromFormat == nil { hlsFromFormat = url }
+                continue
+            }
             let itag = intValue(item["itag"]) ?? 0
             let mime = (item["type"] as? String)
                 ?? (item["mimeType"] as? String)
                 ?? ""
-            return StreamFormat(
-                itag: itag,
-                url: url,
-                mimeType: mime,
-                width: intValue(item["width"]) ?? 0,
-                height: intValue(item["height"]) ?? 0,
-                acodec: stringValue(item["acodec"]),
-                vcodec: stringValue(item["vcodec"])
+            formats.append(
+                StreamFormat(
+                    itag: itag,
+                    url: url,
+                    mimeType: mime,
+                    width: intValue(item["width"]) ?? 0,
+                    height: intValue(item["height"]) ?? 0,
+                    acodec: stringValue(item["acodec"]),
+                    vcodec: stringValue(item["vcodec"])
+                )
             )
         }
-        guard !formats.isEmpty else {
+        let hlsManifestURL = hlsManifestURL(from: music)
+            ?? hlsManifestURL(from: payload)
+            ?? hlsFromFormat
+        guard !formats.isEmpty || hlsManifestURL != nil else {
             let msg = (nestedError ?? "no formats with url")
                 .replacingOccurrences(of: "__notRetry@", with: "")
             PlayProbe.log(
                 "extract.map.fail",
                 videoId: fallbackVideoId,
-                "no formats (raw=\(rawFormats.count)) err=\(msg)"
+                "no formats/hls (raw=\(rawFormats.count)) err=\(msg)"
             )
             throw ExtractorBridge.ExtractorError.extractFailed(msg)
         }
@@ -220,7 +232,7 @@ enum ExtractResultMapper {
         PlayProbe.log(
             "extract.map.ok",
             videoId: videoId,
-            "formats=\(formats.count) duration=\(duration)s title=\(title.prefix(40))"
+            "formats=\(formats.count) hls=\(hlsManifestURL != nil) duration=\(duration)s title=\(title.prefix(40))"
         )
         return VideoPlayback(
             videoId: videoId,
@@ -231,8 +243,38 @@ enum ExtractResultMapper {
             formats: formats,
             thumbnailURL: thumb,
             captionTracks: captions,
-            hlsManifestURL: nil
+            hlsManifestURL: hlsManifestURL
         )
+    }
+
+    /// Live streams often only expose HLS; JS payload may nest it under music / streamingData.
+    private static func hlsManifestURL(from root: [String: Any]) -> URL? {
+        let directKeys = [
+            "hlsManifestUrl", "hls_manifest_url", "manifest_url", "hlsUrl", "hls_url",
+        ]
+        for key in directKeys {
+            if let url = stringValue(root[key]).nilIfEmpty.flatMap(URL.init(string:)) {
+                return url
+            }
+        }
+        if let streaming = root["streamingData"] as? [String: Any] {
+            for key in directKeys {
+                if let url = stringValue(streaming[key]).nilIfEmpty.flatMap(URL.init(string:)) {
+                    return url
+                }
+            }
+        }
+        if let player = root["player_response"] as? [String: Any]
+            ?? root["playerResponse"] as? [String: Any],
+           let streaming = player["streamingData"] as? [String: Any]
+        {
+            for key in directKeys {
+                if let url = stringValue(streaming[key]).nilIfEmpty.flatMap(URL.init(string:)) {
+                    return url
+                }
+            }
+        }
+        return nil
     }
 
     private static func channelId(fromUploaderURL urlString: String?) -> String? {

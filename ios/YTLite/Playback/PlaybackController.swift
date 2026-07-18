@@ -409,12 +409,19 @@ final class PlaybackController: ObservableObject {
         extractTask?.cancel()
         extractTask = Task {
             do {
-                PlayProbe.log("play.extract.begin", videoId: expectedVideoId)
-                let playback = try await extractPlaybackWithRetry(videoId: expectedVideoId)
+                PlayProbe.log(
+                    "play.extract.begin",
+                    videoId: expectedVideoId,
+                    "isLive=\(item.isLive)"
+                )
+                let playback = try await extractPlaybackWithRetry(
+                    videoId: expectedVideoId,
+                    preferLiveHLS: item.isLive
+                )
                 PlayProbe.log(
                     "play.extract.ok",
                     videoId: playback.videoId,
-                    "formats=\(playback.formats.count)"
+                    "formats=\(playback.formats.count) hls=\(playback.hlsManifestURL != nil)"
                 )
                 guard generation == extractGeneration,
                       !Task.isCancelled,
@@ -501,9 +508,15 @@ final class PlaybackController: ObservableObject {
         return queue.indices.contains(queueIndex) && queue[queueIndex].videoId == videoId
     }
 
-    private func extractPlaybackWithRetry(videoId: String) async throws -> VideoPlayback {
+    private func extractPlaybackWithRetry(
+        videoId: String,
+        preferLiveHLS: Bool = false
+    ) async throws -> VideoPlayback {
         do {
-            return try await ExtractorBridge.shared.extractPlayback(videoId: videoId)
+            return try await ExtractorBridge.shared.extractPlayback(
+                videoId: videoId,
+                preferLiveHLS: preferLiveHLS
+            )
         } catch is CancellationError {
             throw CancellationError()
         } catch {
@@ -512,7 +525,10 @@ final class PlaybackController: ObservableObject {
             // One retry helps transient music=null / deposit failures on large player JSON.
             try await Task.sleep(nanoseconds: 350_000_000)
             if Task.isCancelled { throw CancellationError() }
-            return try await ExtractorBridge.shared.extractPlayback(videoId: videoId)
+            return try await ExtractorBridge.shared.extractPlayback(
+                videoId: videoId,
+                preferLiveHLS: preferLiveHLS
+            )
         }
     }
 
