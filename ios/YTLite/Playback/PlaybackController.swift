@@ -107,7 +107,8 @@ final class PlaybackController: ObservableObject {
     }
 
     var hasPreviousInQueue: Bool {
-        !queue.isEmpty
+        if queueIndex > 0 { return true }
+        return repeatMode == .all && !queue.isEmpty
     }
 
     /// True when the current item is playing via HLS (live quality menu eligible).
@@ -226,11 +227,8 @@ final class PlaybackController: ObservableObject {
         }
     }
 
+    /// Manual skip to the previous queue item (does not restart the current track).
     func playPrevious() {
-        if positionSeconds > 3 {
-            seek(to: 0)
-            return
-        }
         guard !queue.isEmpty else { return }
         if queueIndex > 0 {
             queueIndex -= 1
