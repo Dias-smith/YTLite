@@ -76,7 +76,11 @@ struct YTLiteSheetField: View {
     var disableAutocorrection: Bool = false
 
     var body: some View {
-        TextField(placeholder, text: $text)
+        TextField(
+            "",
+            text: $text,
+            prompt: Text(placeholder).foregroundStyle(YTLiteColor.onSurfaceVariant)
+        )
             .font(YTLiteType.body)
             .foregroundStyle(YTLiteColor.onSurface)
             .keyboardType(keyboardType)

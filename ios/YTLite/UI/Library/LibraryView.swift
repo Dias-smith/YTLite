@@ -221,72 +221,80 @@ struct LibraryView: View {
                 .presentationBackground(YTLiteColor.surfaceElevated)
             }
             .sheet(isPresented: $showNewPlaylist) {
-                NavigationStack {
-                    Form {
-                        TextField(L("common.name"), text: $newPlaylistName)
-                            .foregroundStyle(YTLiteColor.onSurface)
-                    }
-                    .scrollContentBackground(.hidden)
-                    .background(YTLiteColor.background)
-                    .navigationTitle(L("library.new_playlist"))
-                    .navigationBarTitleDisplayMode(.inline)
-                    .toolbar {
-                        ToolbarItem(placement: .cancellationAction) {
-                            Button(L("common.cancel")) {
-                                newPlaylistName = ""
-                                showNewPlaylist = false
-                            }
+                VStack(spacing: 0) {
+                    YTLiteSheetGrabHandle()
+                    YTLiteSheetTitle(title: L("library.new_playlist"))
+
+                    Text(L("common.name"))
+                        .font(YTLiteType.meta)
+                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, YTLiteLayout.screenPadding)
+                        .padding(.bottom, 6)
+
+                    YTLiteSheetField(placeholder: L("common.name"), text: $newPlaylistName)
+
+                    Spacer(minLength: 20)
+
+                    VStack(spacing: 10) {
+                        YTLiteSheetPrimaryButton(
+                            title: L("common.create"),
+                            enabled: !newPlaylistName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                        ) {
+                            let name = newPlaylistName.trimmingCharacters(in: .whitespacesAndNewlines)
+                            guard !name.isEmpty else { return }
+                            _ = store?.createPlaylist(name: name)
+                            newPlaylistName = ""
+                            showNewPlaylist = false
+                            reload()
                         }
-                        ToolbarItem(placement: .confirmationAction) {
-                            Button(L("common.create")) {
-                                let name = newPlaylistName.trimmingCharacters(in: .whitespacesAndNewlines)
-                                if !name.isEmpty {
-                                    _ = store?.createPlaylist(name: name)
-                                    newPlaylistName = ""
-                                    showNewPlaylist = false
-                                    reload()
-                                }
-                            }
-                            .disabled(newPlaylistName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        YTLiteSheetSecondaryButton(title: L("common.cancel")) {
+                            newPlaylistName = ""
+                            showNewPlaylist = false
                         }
                     }
+                    .padding(.bottom, 28)
                 }
-                .presentationDetents([.medium])
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                .background(YTLiteColor.surfaceElevated)
+                .presentationDetents([.height(280)])
+                .presentationDragIndicator(.hidden)
+                .presentationBackground(YTLiteColor.surfaceElevated)
             }
             .sheet(isPresented: $showDeleteConfirm) {
-                NavigationStack {
-                    VStack(alignment: .leading, spacing: YTLiteLayout.stackLoose) {
-                        Text(deleteConfirmMessage)
-                            .font(YTLiteType.body)
-                            .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                        Spacer()
-                        Button(role: .destructive) {
+                VStack(spacing: 0) {
+                    YTLiteSheetGrabHandle()
+                    YTLiteSheetTitle(
+                        title: filter == .channels ? L("library.unsubscribe") : L("common.delete")
+                    )
+
+                    Text(deleteConfirmMessage)
+                        .font(YTLiteType.body)
+                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, YTLiteLayout.screenPadding)
+
+                    Spacer(minLength: 20)
+
+                    VStack(spacing: 10) {
+                        YTLiteSheetPrimaryButton(
+                            title: filter == .channels ? L("library.unsubscribe") : L("common.delete"),
+                            destructive: true
+                        ) {
                             deleteSelected()
                             showDeleteConfirm = false
-                        } label: {
-                            Text(filter == .channels ? L("library.unsubscribe") : L("common.delete"))
-                                .font(YTLiteType.labelEmphasized)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 12)
                         }
-                        .buttonStyle(.borderedProminent)
-                        .tint(YTLiteColor.danger)
-                        Button {
+                        YTLiteSheetSecondaryButton(title: L("common.cancel")) {
                             showDeleteConfirm = false
-                        } label: {
-                            Text(L("common.cancel"))
-                                .font(YTLiteType.labelEmphasized)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 12)
                         }
-                        .buttonStyle(.bordered)
                     }
-                    .padding(YTLiteLayout.screenPadding)
-                    .background(YTLiteColor.background)
-                    .navigationTitle(filter == .channels ? L("library.unsubscribe") : L("common.delete"))
-                    .navigationBarTitleDisplayMode(.inline)
+                    .padding(.bottom, 28)
                 }
-                .presentationDetents([.medium])
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                .background(YTLiteColor.surfaceElevated)
+                .presentationDetents([.height(260)])
+                .presentationDragIndicator(.hidden)
+                .presentationBackground(YTLiteColor.surfaceElevated)
             }
             .sheet(isPresented: $showPlayer) {
                 NavigationStack { PlayerDetailView() }
@@ -1534,14 +1542,16 @@ private struct SystemCoverView: View {
                 Image(systemName: "clock.arrow.circlepath").foregroundStyle(.white)
             case .local:
                 YTLiteColor.surfaceVariant
-                Image(systemName: "music.note.list").foregroundStyle(.white)
+                Image(systemName: "music.note.list")
+                    .foregroundStyle(YTLiteColor.onSurfaceVariant)
             case .custom:
                 if let url {
                     RemoteImage(url: url, contentMode: .fill)
                         .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
                 } else {
                     YTLiteColor.surfaceVariant
-                    Image(systemName: "music.note.list").foregroundStyle(.white)
+                    Image(systemName: "music.note.list")
+                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
                 }
             }
         }

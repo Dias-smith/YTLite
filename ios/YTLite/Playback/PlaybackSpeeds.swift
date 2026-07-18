@@ -7,7 +7,7 @@ enum PlaybackSpeeds {
 
     static func formatLabel(_ speed: Float) -> String {
         if speed.rounded() == speed {
-            return "\(Int(speed))x"
+            return String(format: "%.1fx", speed)
         }
         let trimmed = String(format: "%g", speed)
         return "\(trimmed)x"

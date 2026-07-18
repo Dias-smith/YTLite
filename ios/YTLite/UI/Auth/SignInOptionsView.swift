@@ -39,10 +39,10 @@ struct SignInOptionsView: View {
             } label: {
                 Text(auth.isBusy ? L("common.signing_in") : L("auth.continue_with_google"))
                     .font(YTLiteType.labelEmphasized)
-                    .foregroundStyle(Color.white)
+                    .foregroundStyle(YTLiteColor.onAccent)
                     .frame(maxWidth: 280)
                     .frame(height: 44)
-                    .background(YTLiteColor.signInBlue, in: Capsule())
+                    .background(YTLiteColor.accent, in: Capsule())
             }
             .buttonStyle(.plain)
             .disabled(auth.isBusy || !auth.isConfigured)

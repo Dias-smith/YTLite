@@ -110,11 +110,11 @@ struct YouView: View {
                     } label: {
                         Text(L("you.sign_in_with_google_for_youtube"))
                             .font(YTLiteType.labelEmphasized)
-                            .foregroundStyle(Color.white)
+                            .foregroundStyle(YTLiteColor.onAccent)
                             .padding(.horizontal, 16)
                             .padding(.vertical, 10)
                             .frame(maxWidth: .infinity)
-                            .background(YTLiteColor.signInBlue, in: Capsule())
+                            .background(YTLiteColor.accent, in: Capsule())
                     }
                     .buttonStyle(.plain)
                     .disabled(auth.isBusy)
@@ -292,10 +292,10 @@ struct YouView: View {
             } label: {
                 Text(L("you.grant_access"))
                     .font(YTLiteType.labelEmphasized)
-                    .foregroundStyle(Color.white)
+                    .foregroundStyle(YTLiteColor.onAccent)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 8)
-                    .background(YTLiteColor.signInBlue, in: Capsule())
+                    .background(YTLiteColor.accent, in: Capsule())
             }
             .buttonStyle(.plain)
             .disabled(auth.isBusy)
