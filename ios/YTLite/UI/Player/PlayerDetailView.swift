@@ -30,6 +30,21 @@ private enum PlayerListSort: String, CaseIterable {
     }
 }
 
+private struct AirPlayRoutePicker: UIViewRepresentable {
+    func makeUIView(context: Context) -> AVRoutePickerView {
+        let picker = AVRoutePickerView()
+        picker.prioritizesVideoDevices = true
+        picker.tintColor = .white
+        picker.activeTintColor = .systemOrange
+        return picker
+    }
+
+    func updateUIView(_ uiView: AVRoutePickerView, context: Context) {
+        uiView.tintColor = .white
+        uiView.activeTintColor = .systemOrange
+    }
+}
+
 struct PlayerDetailView: View {
     @EnvironmentObject private var playback: PlaybackController
     @EnvironmentObject private var progressClock: PlaybackProgressModel
@@ -398,6 +413,10 @@ struct PlayerDetailView: View {
                         .padding(.vertical, YTLiteLayout.rowVertical)
                 }
                 .buttonStyle(.plain)
+
+                AirPlayRoutePicker()
+                    .frame(width: 36, height: 36)
+                    .accessibilityLabel(L("player.airplay"))
 
                 overlayPlainIcon("pip.enter") {
                     pipRequestID += 1

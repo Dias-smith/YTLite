@@ -1,11 +1,136 @@
 import Foundation
 
+struct HomeChipEndpoint: Codable, Hashable, Sendable {
+    let browseId: String?
+    let params: String?
+    let continuation: String?
+
+    var canonicalKey: String {
+        [browseId ?? "", params ?? "", continuation ?? ""].joined(separator: "|")
+    }
+
+}
+
+struct HomeDynamicChip: Codable, Hashable, Identifiable, Sendable {
+    let id: String
+    let title: String
+    let endpoint: HomeChipEndpoint
+}
+
+struct HomeBrowsePage: Sendable {
+    let videos: [VideoItem]
+    let chips: [HomeDynamicChip]
+    let continuation: String?
+}
+
+/// Generic home-category page (videos + next-page token).
+struct HomeFeedPageResult: Sendable {
+    let videos: [VideoItem]
+    let continuation: String?
+}
+
 enum InnerTubeClient {
     static let browseURL = "\(YouTubeConstants.baseURL)/youtubei/v1/browse?key=\(YouTubeConstants.apiKey)"
     static let homeBrowseId = "FEwhat_to_watch"
+    /// YouTube Explore → News hub channel (obsolete `FEnews` returns HTTP 400 on WEB).
+    static let newsBrowseId = "UCYfdidRxbB8Qhf0Nx7ioOYw"
 
     static func searchVideos(query: String) async throws -> [VideoItem] {
-        try await search(query: query, tab: .videos).compactMap(\.asVideoItem)
+        try await searchVideosPage(query: query).videos
+    }
+
+    /// Video search page with continuation (for home mood chips / pull-to-refresh).
+    static func searchVideosPage(
+        query: String,
+        continuation: String? = nil
+    ) async throws -> HomeFeedPageResult {
+        var body: [String: Any] = ["context": clientContext()]
+        if let continuation, !continuation.isEmpty {
+            body["continuation"] = continuation
+        } else {
+            body["query"] = query
+            if let params = SearchResultTab.videos.innerTubeParams {
+                body["params"] = params
+            }
+        }
+        let json = try await postJSON(
+            url: YouTubeConstants.searchURL,
+            body: body,
+            label: continuation == nil ? "search_videos" : "search_videos_cont"
+        )
+        nonisolated(unsafe) let payload = json
+        return await parseOffMain {
+            let videos = VideoJSONParser.parseVideos(from: payload)
+            let token = VideoJSONParser.parseContinuation(from: payload)
+            return HomeFeedPageResult(videos: videos, continuation: token)
+        }
+    }
+
+    /// Current YouTube live streams. The opaque params value is YouTube's "Live" feature filter.
+    static func fetchLiveVideos() async throws -> [VideoItem] {
+        try await fetchLiveVideosPage().videos
+    }
+
+    static func fetchLiveVideosPage(continuation: String? = nil) async throws -> HomeFeedPageResult {
+        var body: [String: Any] = ["context": clientContext()]
+        if let continuation, !continuation.isEmpty {
+            body["continuation"] = continuation
+        } else {
+            body["query"] = "live"
+            body["params"] = "EgJAAQ%3D%3D"
+        }
+        let json = try await postJSON(
+            url: YouTubeConstants.searchURL,
+            body: body,
+            label: continuation == nil ? "search_live" : "search_live_cont"
+        )
+        nonisolated(unsafe) let payload = json
+        return await parseOffMain {
+            let videos = VideoJSONParser.parseVideos(from: payload).filter(\.isLive)
+            let token = VideoJSONParser.parseContinuation(from: payload)
+            return HomeFeedPageResult(videos: videos, continuation: token)
+        }
+    }
+
+    /// YouTube News hub (channel browse) with search fallback.
+    static func fetchNewsVideos() async throws -> [VideoItem] {
+        try await fetchNewsVideosPage().videos
+    }
+
+    static func fetchNewsVideosPage(continuation: String? = nil) async throws -> HomeFeedPageResult {
+        // Browse News hub when possible; never surface HTTP 400 from obsolete browseIds.
+        do {
+            var body: [String: Any] = ["context": clientContext()]
+            if let continuation, !continuation.isEmpty {
+                body["continuation"] = continuation
+            } else {
+                body["browseId"] = newsBrowseId
+            }
+            let json = try await postJSON(
+                url: browseURL,
+                body: body,
+                label: continuation == nil ? "news" : "news_cont"
+            )
+            nonisolated(unsafe) let payload = json
+            let page = await parseOffMain {
+                let videos = VideoJSONParser.parseVideos(from: payload)
+                let token = VideoJSONParser.parseContinuation(from: payload)
+                return HomeFeedPageResult(videos: videos, continuation: token)
+            }
+            if !page.videos.isEmpty { return page }
+        } catch {
+            // Invalid browse / stale continuation → search below.
+        }
+        if let continuation, !continuation.isEmpty {
+            // Browse continuation may be invalid after FEnews → hub migration; try search next page,
+            // then cold search if that also fails.
+            if let searchPage = try? await searchVideosPage(query: "news", continuation: continuation),
+               !searchPage.videos.isEmpty
+            {
+                return searchPage
+            }
+        }
+        return try await searchVideosPage(query: "news")
     }
 
     /// Tabbed search.
@@ -123,19 +248,78 @@ enum InnerTubeClient {
         }
     }
 
-    static func fetchHomeFeed() async throws -> [VideoItem] {
-        let body: [String: Any] = [
-            "context": clientContext(),
-            "browseId": homeBrowseId,
-        ]
-        let json = try await postJSON(url: browseURL, body: body, label: "home")
-        // `Any` from JSON is not Sendable; transfer intentionally for background parse.
+    static func fetchHomeFeedPage(continuation: String? = nil) async throws -> HomeBrowsePage {
+        var body: [String: Any] = ["context": clientContext()]
+        if let continuation, !continuation.isEmpty {
+            body["continuation"] = continuation
+        } else {
+            body["browseId"] = homeBrowseId
+        }
+        let json = try await postJSON(
+            url: browseURL,
+            body: body,
+            label: continuation == nil ? "home" : "home_cont"
+        )
         nonisolated(unsafe) let payload = json
-        let videos = await parseOffMain {
+        async let videosTask = parseOffMain {
             VideoJSONParser.parseVideos(from: payload)
         }
-        if !videos.isEmpty { return videos }
-        return try await searchVideos(query: "music")
+        async let chipsTask = parseOffMain {
+            parseHomeChips(from: payload)
+        }
+        async let tokenTask = parseOffMain {
+            VideoJSONParser.parseContinuation(from: payload)
+        }
+        let videos = await videosTask
+        let chips = await chipsTask
+        let token = await tokenTask
+        if !videos.isEmpty {
+            return HomeBrowsePage(videos: videos, chips: chips, continuation: token)
+        }
+        if continuation != nil {
+            return HomeBrowsePage(videos: [], chips: chips, continuation: nil)
+        }
+        let fallback = try await searchVideosPage(query: "music")
+        return HomeBrowsePage(
+            videos: fallback.videos,
+            chips: chips,
+            continuation: fallback.continuation
+        )
+    }
+
+    static func fetchHomeFeed() async throws -> [VideoItem] {
+        try await fetchHomeFeedPage().videos
+    }
+
+    static func fetchHomeFeed(endpoint: HomeChipEndpoint) async throws -> [VideoItem] {
+        try await fetchHomeFeedPage(endpoint: endpoint).videos
+    }
+
+    static func fetchHomeFeedPage(
+        endpoint: HomeChipEndpoint,
+        continuation: String? = nil
+    ) async throws -> HomeFeedPageResult {
+        var body: [String: Any] = ["context": clientContext()]
+        let token = continuation ?? endpoint.continuation
+        if let token, !token.isEmpty {
+            body["continuation"] = token
+        } else {
+            body["browseId"] = endpoint.browseId ?? homeBrowseId
+            if let params = endpoint.params, !params.isEmpty {
+                body["params"] = params
+            }
+        }
+        let json = try await postJSON(
+            url: browseURL,
+            body: body,
+            label: token == nil ? "home_chip" : "home_chip_cont"
+        )
+        nonisolated(unsafe) let payload = json
+        return await parseOffMain {
+            let videos = VideoJSONParser.parseVideos(from: payload)
+            let next = VideoJSONParser.parseContinuation(from: payload)
+            return HomeFeedPageResult(videos: videos, continuation: next)
+        }
     }
 
     /// YouTube Music radio queue (`RDAMVM…`) for Related tab — same as Android `fetchMusicRadioNext`.
@@ -210,12 +394,32 @@ enum InnerTubeClient {
         }
     }
 
-    /// Android `fetchMusicNewReleaseAlbumsFeed` first page: singles → track, albums → album card.
-    static func fetchMusicNewReleaseFeed(limit: Int = 20) async throws -> [HomeFeedEntry] {
+    /// Offset token for new-release paging (`nr_offset:20`).
+    static let newReleaseContinuationPrefix = "nr_offset:"
+
+    static func parseNewReleaseOffset(_ continuation: String?) -> Int {
+        guard let continuation,
+              continuation.hasPrefix(newReleaseContinuationPrefix),
+              let value = Int(continuation.dropFirst(newReleaseContinuationPrefix.count))
+        else { return 0 }
+        return max(0, value)
+    }
+
+    struct HomeEntriesPage: Sendable {
+        let entries: [HomeFeedEntry]
+        let continuation: String?
+    }
+
+    /// Android `fetchMusicNewReleaseAlbumsFeed`: singles → track, albums → album card.
+    static func fetchMusicNewReleaseFeed(
+        limit: Int = 20,
+        continuation: String? = nil
+    ) async throws -> HomeEntriesPage {
+        let offset = parseNewReleaseOffset(continuation)
         let albums = try await fetchMusicNewReleaseAlbums()
-        let page = Array(albums.prefix(max(limit, 0)))
+        let page = Array(albums.dropFirst(offset).prefix(max(limit, 0)))
         let maxConcurrent = 4
-        return await withTaskGroup(of: (Int, HomeFeedEntry?).self) { group in
+        let entries: [HomeFeedEntry] = await withTaskGroup(of: (Int, HomeFeedEntry?).self) { group in
             var nextIndex = 0
             var inFlight = 0
             var paired: [(Int, HomeFeedEntry)] = []
@@ -260,6 +464,11 @@ enum InnerTubeClient {
             }
             return paired.sorted { $0.0 < $1.0 }.map(\.1)
         }
+        let nextOffset = offset + page.count
+        let nextToken = nextOffset < albums.count
+            ? "\(newReleaseContinuationPrefix)\(nextOffset)"
+            : nil
+        return HomeEntriesPage(entries: entries, continuation: nextToken)
     }
 
     static func searchChannels(query: String) async throws -> [ChannelItem] {
@@ -685,6 +894,98 @@ enum InnerTubeClient {
         }.value
     }
 
+    private static func parseHomeChips(from root: Any) -> [HomeDynamicChip] {
+        var queue: [Any] = [root]
+        var head = 0
+        var visited = 0
+        var result: [HomeDynamicChip] = []
+        var seen = Set<String>()
+
+        while head < queue.count, visited < 12_000 {
+            let node = queue[head]
+            head += 1
+            visited += 1
+
+            if let dict = node as? [String: Any] {
+                let renderer = (dict["chipCloudChipRenderer"] as? [String: Any])
+                    ?? (dict["feedFilterChipBarChipRenderer"] as? [String: Any])
+                if let renderer,
+                   renderer["isSelected"] as? Bool != true,
+                   let title = homeChipText(renderer),
+                   let endpoint = homeChipEndpoint(renderer),
+                   !endpoint.canonicalKey.replacingOccurrences(of: "|", with: "").isEmpty,
+                   seen.insert(homeChipId(title)).inserted
+                {
+                    result.append(
+                        HomeDynamicChip(
+                            id: homeChipId(title),
+                            title: title,
+                            endpoint: endpoint
+                        )
+                    )
+                }
+                for value in dict.values where value is [String: Any] || value is [Any] {
+                    queue.append(value)
+                }
+            } else if let array = node as? [Any] {
+                for value in array where value is [String: Any] || value is [Any] {
+                    queue.append(value)
+                }
+            }
+        }
+        return result
+    }
+
+    private static func homeChipId(_ title: String) -> String {
+        let normalized = title.lowercased()
+            .folding(options: [.diacriticInsensitive, .widthInsensitive], locale: .current)
+            .replacingOccurrences(of: "[^a-z0-9\\p{Han}]", with: "", options: .regularExpression)
+        var hash: UInt64 = 14_695_981_039_346_656_037
+        for byte in normalized.utf8 {
+            hash ^= UInt64(byte)
+            hash &*= 1_099_511_628_211
+        }
+        return "yt_\(String(hash, radix: 16))"
+    }
+
+    private static func homeChipEndpoint(_ renderer: [String: Any]) -> HomeChipEndpoint? {
+        let navigation = (renderer["navigationEndpoint"] as? [String: Any])
+            ?? (renderer["serviceEndpoint"] as? [String: Any])
+            ?? renderer
+        let browse = navigation["browseEndpoint"] as? [String: Any]
+        let continuation = navigation["continuationCommand"] as? [String: Any]
+        let endpoint = HomeChipEndpoint(
+            browseId: (browse?["browseId"] as? String)?.nilIfEmpty,
+            params: (browse?["params"] as? String)?.nilIfEmpty,
+            continuation: ((continuation?["token"] as? String)
+                ?? (continuation?["continuation"] as? String))?.nilIfEmpty
+        )
+        return endpoint.browseId != nil || endpoint.params != nil || endpoint.continuation != nil
+            ? endpoint
+            : nil
+    }
+
+    private static func homeChipText(_ renderer: [String: Any]) -> String? {
+        for key in ["text", "chipText", "title"] {
+            if let value = renderer[key] as? String {
+                let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !trimmed.isEmpty { return trimmed }
+            }
+            if let dict = renderer[key] as? [String: Any] {
+                if let simple = dict["simpleText"] as? String {
+                    let trimmed = simple.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !trimmed.isEmpty { return trimmed }
+                }
+                if let runs = dict["runs"] as? [[String: Any]] {
+                    let joined = runs.compactMap { $0["text"] as? String }.joined()
+                        .trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !joined.isEmpty { return joined }
+                }
+            }
+        }
+        return nil
+    }
+
     /// Run heavy InnerTube tree walks off the main actor.
     private static func parseOffMain<T: Sendable>(
         _ work: @Sendable @escaping () -> T
@@ -697,14 +998,72 @@ enum InnerTubeClient {
 
 enum VideoJSONParser {
     static func parseVideos(from root: Any) -> [VideoItem] {
-        var items: [String: VideoItem] = [:]
+        var ordered: [VideoItem] = []
+        var indexById: [String: Int] = [:]
         walk(root, limit: 20_000) { dict in
             if isAd(dict) { return }
-            if let item = extractAnyVideo(from: dict) {
-                items[item.videoId] = mergeVideo(items[item.videoId], item)
+            guard let item = extractAnyVideo(from: dict) else { return }
+            if let idx = indexById[item.videoId] {
+                ordered[idx] = mergeVideo(ordered[idx], item)
+            } else {
+                indexById[item.videoId] = ordered.count
+                ordered.append(item)
             }
         }
-        return Array(items.values)
+        return ordered
+    }
+
+    /// Next-page token from browse/search responses (align Android `FeedParser.extractContinuation`).
+    static func parseContinuation(from root: Any) -> String? {
+        var queue: [Any] = [root]
+        var head = 0
+        var visited = 0
+        while head < queue.count, visited < 12_000 {
+            let node = queue[head]
+            head += 1
+            visited += 1
+            if let dict = node as? [String: Any] {
+                if let renderer = dict["continuationItemRenderer"] as? [String: Any],
+                   let token = continuationToken(from: renderer)
+                {
+                    return token
+                }
+                if let viewModel = dict["continuationItemViewModel"] as? [String: Any],
+                   let token = continuationToken(from: viewModel)
+                {
+                    return token
+                }
+                for value in dict.values where value is [String: Any] || value is [Any] {
+                    queue.append(value)
+                }
+            } else if let array = node as? [Any] {
+                for value in array where value is [String: Any] || value is [Any] {
+                    queue.append(value)
+                }
+            }
+        }
+        return nil
+    }
+
+    private static func continuationToken(from node: [String: Any]) -> String? {
+        if let endpoint = node["continuationEndpoint"] as? [String: Any],
+           let command = endpoint["continuationCommand"] as? [String: Any],
+           let token = (command["token"] as? String)?.nilIfEmpty
+        {
+            return token
+        }
+        if let command = node["continuationCommand"] as? [String: Any] {
+            if let token = (command["token"] as? String)?.nilIfEmpty {
+                return token
+            }
+            if let inner = command["innertubeCommand"] as? [String: Any],
+               let nested = inner["continuationCommand"] as? [String: Any],
+               let token = (nested["token"] as? String)?.nilIfEmpty
+            {
+                return token
+            }
+        }
+        return nil
     }
 
     /// YouTube Music `musicResponsiveListItemRenderer` song rows (search / shelves).
@@ -911,7 +1270,8 @@ enum VideoJSONParser {
             channelAvatarURL: existing.channelAvatarURL ?? incoming.channelAvatarURL,
             durationText: existing.durationText ?? incoming.durationText,
             viewCountText: existing.viewCountText ?? incoming.viewCountText,
-            publishedTimeText: existing.publishedTimeText ?? incoming.publishedTimeText
+            publishedTimeText: existing.publishedTimeText ?? incoming.publishedTimeText,
+            isLive: existing.isLive || incoming.isLive
         )
     }
 
@@ -1249,15 +1609,17 @@ enum VideoJSONParser {
         let avatar = pickChannelAvatar(from: renderer)
         let duration = extractText(renderer["lengthText"])
             ?? lengthFromOverlays(renderer["thumbnailOverlays"] as? [[String: Any]])
+        let live = isLiveRenderer(renderer)
         return VideoItem(
             videoId: videoId,
             title: title,
             channelName: channel,
             thumbnailURL: thumb,
             channelAvatarURL: avatar,
-            durationText: duration,
+            durationText: live ? nil : duration,
             viewCountText: views,
-            publishedTimeText: published
+            publishedTimeText: published,
+            isLive: live
         )
     }
 
@@ -1328,6 +1690,8 @@ enum VideoJSONParser {
         let channel = metaParts.first(where: isChannelNameCandidate) ?? ""
         let views = metaParts.first(where: isViewCountText)
         let published = metaParts.first(where: isPublishedText)
+        let overlayText = extractLockupDuration(from: lockup)
+        let live = isLiveText(overlayText) || metaParts.contains(where: isWatchingText)
 
         return VideoItem(
             videoId: videoId,
@@ -1335,10 +1699,55 @@ enum VideoJSONParser {
             channelName: channel,
             thumbnailURL: pickLockupThumbnail(from: lockup),
             channelAvatarURL: pickLockupAvatar(from: metadata),
-            durationText: extractLockupDuration(from: lockup),
+            durationText: live ? nil : overlayText,
             viewCountText: views,
-            publishedTimeText: published
+            publishedTimeText: published,
+            isLive: live
         )
+    }
+
+    private static func isLiveRenderer(_ renderer: [String: Any]) -> Bool {
+        if isWatchingText(extractText(renderer["viewCountText"]))
+            || isWatchingText(extractText(renderer["shortViewCountText"]))
+        {
+            return true
+        }
+        if let badges = renderer["badges"] as? [[String: Any]] {
+            for badge in badges {
+                guard let metadata = badge["metadataBadgeRenderer"] as? [String: Any] else { continue }
+                let style = metadata["style"] as? String
+                let label = metadata["label"] as? String
+                if style?.localizedCaseInsensitiveContains("LIVE") == true || isLiveText(label) {
+                    return true
+                }
+            }
+        }
+        if let overlays = renderer["thumbnailOverlays"] as? [[String: Any]] {
+            for overlay in overlays {
+                guard let status = overlay["thumbnailOverlayTimeStatusRenderer"] as? [String: Any] else {
+                    continue
+                }
+                let style = status["style"] as? String
+                if style?.localizedCaseInsensitiveContains("LIVE") == true
+                    || isLiveText(extractText(status["text"]))
+                {
+                    return true
+                }
+            }
+        }
+        return false
+    }
+
+    private static func isLiveText(_ text: String?) -> Bool {
+        guard let text else { return false }
+        let normalized = text.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        return normalized == "LIVE" || normalized == "LIVE NOW" || normalized == "正在直播"
+    }
+
+    private static func isWatchingText(_ text: String?) -> Bool {
+        guard let text else { return false }
+        let lower = text.lowercased()
+        return lower.contains("watching") || lower.contains("正在观看") || lower.contains("人正在看")
     }
 
     private static func extractLockupPlaylist(from node: [String: Any]) -> PlaylistPreview? {

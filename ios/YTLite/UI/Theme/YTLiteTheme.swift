@@ -193,6 +193,18 @@ struct DurationBadge: View {
     }
 }
 
+struct LiveBadge: View {
+    var body: some View {
+        Text("LIVE")
+            .font(YTLiteType.badge)
+            .foregroundStyle(Color.white)
+            .padding(.horizontal, 7)
+            .padding(.vertical, 3)
+            .background(Color.red, in: RoundedRectangle(cornerRadius: 4))
+            .accessibilityLabel("Live")
+    }
+}
+
 /// Shared video cover with optional duration badge at bottom-trailing.
 struct VideoThumbnail: View {
     let url: URL?
@@ -259,6 +271,12 @@ struct FeedVideoCard: View {
 
                 if let durationText = item.durationText, !durationText.isEmpty {
                     DurationBadge(text: durationText)
+                        .padding(YTLiteLayout.feedDurationInset)
+                }
+
+                if item.isLive {
+                    LiveBadge()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                         .padding(YTLiteLayout.feedDurationInset)
                 }
             }

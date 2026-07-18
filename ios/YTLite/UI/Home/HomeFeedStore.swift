@@ -5,6 +5,8 @@ import Foundation
 enum HomeFeedStore {
     private static let folderName = "home_feed"
     private static let selectedCategoryKey = "home_selected_category_id"
+    private static let categoryOrderKey = "home_category_order"
+    private static let dynamicChipsKey = "home_dynamic_chips"
     /// Cover all home chips in memory (All + New release + moods).
     private static let maxMemoryEntries = 16
     private static var memory: [String: Snapshot] = [:]
@@ -14,6 +16,24 @@ enum HomeFeedStore {
         let categoryId: String
         let savedAt: Date
         let items: [Entry]
+        let continuation: String?
+
+        init(
+            categoryId: String,
+            savedAt: Date,
+            items: [Entry],
+            continuation: String? = nil
+        ) {
+            self.categoryId = categoryId
+            self.savedAt = savedAt
+            self.items = items
+            self.continuation = continuation
+        }
+    }
+
+    struct LoadedFeed: Sendable {
+        let entries: [HomeFeedEntry]
+        let continuation: String?
     }
 
     struct Entry: Codable, Sendable {
@@ -33,6 +53,7 @@ enum HomeFeedStore {
         let durationText: String?
         let viewCountText: String?
         let publishedTimeText: String?
+        let isLive: Bool?
         // Album
         let browseId: String?
         let artistName: String?
@@ -50,6 +71,7 @@ enum HomeFeedStore {
             durationText = item.durationText
             viewCountText = item.viewCountText
             publishedTimeText = item.publishedTimeText
+            isLive = item.isLive
             browseId = nil
             artistName = nil
             releaseType = nil
@@ -67,6 +89,7 @@ enum HomeFeedStore {
             durationText = nil
             viewCountText = nil
             publishedTimeText = nil
+            isLive = nil
             browseId = album.browseId
             artistName = album.artistName
             releaseType = album.releaseType
@@ -94,7 +117,8 @@ enum HomeFeedStore {
                         channelAvatarURL: channelAvatarURLString.flatMap(URL.init(string:)),
                         durationText: durationText,
                         viewCountText: viewCountText,
-                        publishedTimeText: publishedTimeText
+                        publishedTimeText: publishedTimeText,
+                        isLive: isLive ?? false
                     )
                 )
             case .album:
@@ -122,12 +146,47 @@ enum HomeFeedStore {
         UserDefaults.standard.set(categoryId, forKey: selectedCategoryKey)
     }
 
+    static func loadCategoryOrder() -> [String] {
+        UserDefaults.standard.stringArray(forKey: categoryOrderKey) ?? []
+    }
+
+    /// Keep temporarily missing dynamic ids so they regain their former position when returned.
+    static func saveCategoryOrder(_ visibleIds: [String]) {
+        let old = loadCategoryOrder()
+        let hidden = old.filter { !visibleIds.contains($0) }
+        UserDefaults.standard.set(visibleIds + hidden, forKey: categoryOrderKey)
+    }
+
+    private struct DynamicChipSnapshot: Codable {
+        let savedAt: Date
+        let chips: [HomeDynamicChip]
+    }
+
+    static func loadDynamicChips(maxAge: TimeInterval = 30 * 24 * 60 * 60) -> [HomeDynamicChip] {
+        guard let data = UserDefaults.standard.data(forKey: dynamicChipsKey),
+              let snapshot = try? JSONDecoder().decode(DynamicChipSnapshot.self, from: data),
+              Date().timeIntervalSince(snapshot.savedAt) <= maxAge
+        else { return [] }
+        return snapshot.chips
+    }
+
+    static func saveDynamicChips(_ chips: [HomeDynamicChip]) {
+        guard !chips.isEmpty else { return }
+        let snapshot = DynamicChipSnapshot(savedAt: .now, chips: chips)
+        guard let data = try? JSONEncoder().encode(snapshot) else { return }
+        UserDefaults.standard.set(data, forKey: dynamicChipsKey)
+    }
+
     static func loadEntries(categoryId: String) -> [HomeFeedEntry]? {
+        loadFeed(categoryId: categoryId)?.entries
+    }
+
+    static func loadFeed(categoryId: String) -> LoadedFeed? {
         lock.lock()
         defer { lock.unlock() }
         if let hit = memory[categoryId] {
             let entries = hit.items.compactMap(\.asHomeFeedEntry)
-            return entries.isEmpty ? nil : entries
+            return entries.isEmpty ? nil : LoadedFeed(entries: entries, continuation: hit.continuation)
         }
         guard let data = try? Data(contentsOf: fileURL(for: categoryId)),
               let snapshot = decodeSnapshot(data)
@@ -135,15 +194,20 @@ enum HomeFeedStore {
         memory[categoryId] = snapshot
         trimMemoryLocked()
         let entries = snapshot.items.compactMap(\.asHomeFeedEntry)
-        return entries.isEmpty ? nil : entries
+        return entries.isEmpty ? nil : LoadedFeed(entries: entries, continuation: snapshot.continuation)
     }
 
-    static func save(categoryId: String, entries: [HomeFeedEntry]) {
+    static func save(
+        categoryId: String,
+        entries: [HomeFeedEntry],
+        continuation: String? = nil
+    ) {
         guard !entries.isEmpty else { return }
         let snapshot = Snapshot(
             categoryId: categoryId,
             savedAt: .now,
-            items: entries.map(Entry.init)
+            items: entries.map(Entry.init),
+            continuation: continuation
         )
         lock.lock()
         memory[categoryId] = snapshot

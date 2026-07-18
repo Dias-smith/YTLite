@@ -11,6 +11,7 @@ struct VideoItem: Identifiable, Hashable, Sendable {
     let durationText: String?
     let viewCountText: String?
     let publishedTimeText: String?
+    let isLive: Bool
 
     init(
         videoId: String,
@@ -21,7 +22,8 @@ struct VideoItem: Identifiable, Hashable, Sendable {
         channelAvatarURL: URL? = nil,
         durationText: String? = nil,
         viewCountText: String? = nil,
-        publishedTimeText: String? = nil
+        publishedTimeText: String? = nil,
+        isLive: Bool = false
     ) {
         self.videoId = videoId
         self.title = title
@@ -32,6 +34,7 @@ struct VideoItem: Identifiable, Hashable, Sendable {
         self.durationText = durationText
         self.viewCountText = viewCountText
         self.publishedTimeText = publishedTimeText
+        self.isLive = isLive
         if subtitle.isEmpty {
             let parts = [channelName, viewCountText, publishedTimeText]
                 .compactMap { $0 }

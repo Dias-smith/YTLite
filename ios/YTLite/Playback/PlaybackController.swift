@@ -565,6 +565,8 @@ final class PlaybackController: ObservableObject {
             attachTimeObserver()
             attachEndObserver()
         }
+        player?.allowsExternalPlayback = true
+        player?.usesExternalPlaybackWhileExternalScreenIsActive = true
         lastError = nil
         needsLoginForPlayback = false
         isBuffering = false

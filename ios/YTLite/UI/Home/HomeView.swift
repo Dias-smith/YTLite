@@ -4,17 +4,30 @@ enum HomeCategorySource: Hashable {
     case homeBrowse
     case musicNewReleaseAlbums
     case search(String)
+    case innerTube(HomeChipEndpoint)
+    case live
+    case youtubeNews
 }
 
 struct HomeCategory: Identifiable, Hashable {
     let id: String
     let source: HomeCategorySource
+    var customTitle: String? = nil
 
     var title: String {
+        if let customTitle, !customTitle.isEmpty { return customTitle }
         switch id {
         case "all": return L("home.category.all")
+        case "music": return L("home.category.music")
         case "new_release": return L("home.category.new_release")
         case "podcasts": return L("home.category.podcasts")
+        case "news": return L("home.category.news")
+        case "live": return L("home.category.live")
+        case "mixes": return L("home.category.mixes")
+        case "albums": return L("home.category.albums")
+        case "rnb": return L("home.category.rnb")
+        case "mandopop": return L("home.category.mandopop")
+        case "electropop": return L("home.category.electropop")
         case "energize": return L("home.category.energize")
         case "feel_good": return L("home.category.feel_good")
         case "workout": return L("home.category.workout")
@@ -29,11 +42,18 @@ struct HomeCategory: Identifiable, Hashable {
         }
     }
 
-    /// Mirrors Android `HomeCategories.items`.
-    static let all: [HomeCategory] = [
+    static let catalog: [HomeCategory] = [
         HomeCategory(id: "all", source: .homeBrowse),
+        HomeCategory(id: "music", source: .search("music")),
         HomeCategory(id: "new_release", source: .musicNewReleaseAlbums),
         HomeCategory(id: "podcasts", source: .search("podcasts")),
+        HomeCategory(id: "news", source: .youtubeNews),
+        HomeCategory(id: "live", source: .live),
+        HomeCategory(id: "mixes", source: .search("music mixes")),
+        HomeCategory(id: "albums", source: .search("music albums")),
+        HomeCategory(id: "rnb", source: .search("contemporary r&b")),
+        HomeCategory(id: "mandopop", source: .search("mandopop")),
+        HomeCategory(id: "electropop", source: .search("electropop")),
         HomeCategory(id: "energize", source: .search("energize music")),
         HomeCategory(id: "feel_good", source: .search("feel good music")),
         HomeCategory(id: "workout", source: .search("workout music")),
@@ -45,6 +65,74 @@ struct HomeCategory: Identifiable, Hashable {
         HomeCategory(id: "sad", source: .search("sad music")),
         HomeCategory(id: "sleep", source: .search("sleep music")),
     ]
+
+    static func merged(with dynamic: [HomeDynamicChip]) -> [HomeCategory] {
+        var result = [catalog[0]]
+        var seen = Set(["all"])
+
+        for chip in dynamic {
+            let key = categoryAlias(normalizedTitle(chip.title))
+            guard !key.isEmpty, key != "all", seen.insert(key).inserted else { continue }
+            let matchingStatic = catalog.dropFirst().first {
+                categoryAlias($0.id.replacingOccurrences(of: "_", with: "")) == key
+            }
+            result.append(
+                HomeCategory(
+                    id: matchingStatic?.id ?? chip.id,
+                    source: key == "live"
+                        ? .live
+                        : (key == "news" ? .youtubeNews : .innerTube(chip.endpoint)),
+                    customTitle: chip.title
+                )
+            )
+        }
+        for category in catalog.dropFirst() {
+            let key = categoryAlias(category.id.replacingOccurrences(of: "_", with: ""))
+            guard seen.insert(key).inserted else { continue }
+            result.append(category)
+        }
+        return result
+    }
+
+    static func applyingSavedOrder(to categories: [HomeCategory]) -> [HomeCategory] {
+        guard let all = categories.first(where: { $0.id == "all" }) else { return categories }
+        let rest = categories.filter { $0.id != "all" }
+        let positions = Dictionary(
+            uniqueKeysWithValues: HomeFeedStore.loadCategoryOrder().enumerated().map { ($0.element, $0.offset) }
+        )
+        let original = Dictionary(uniqueKeysWithValues: rest.enumerated().map { ($0.element.id, $0.offset) })
+        let ordered = rest.sorted {
+            let lhs = positions[$0.id] ?? (positions.count + (original[$0.id] ?? 0))
+            let rhs = positions[$1.id] ?? (positions.count + (original[$1.id] ?? 0))
+            return lhs < rhs
+        }
+        return [all] + ordered
+    }
+
+    private static func normalizedTitle(_ title: String) -> String {
+        var value = title.lowercased()
+            .folding(options: [.diacriticInsensitive, .widthInsensitive], locale: .current)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        if value != "music", value.hasSuffix(" music") {
+            value.removeLast(" music".count)
+        }
+        value = value
+            .replacingOccurrences(of: "[^a-z0-9\\p{Han}]", with: "", options: .regularExpression)
+        if value == "romantic" { value = "romance" }
+        if value == "contemporaryrb" { value = "rb" }
+        return value
+    }
+
+    private static func categoryAlias(_ value: String) -> String {
+        switch value {
+        case "newreleases", "recentlyuploaded", "latest": return "newrelease"
+        case "livenow": return "live"
+        case "mixesforyou", "yourmixes": return "mixes"
+        case "contemporaryrb", "rnb": return "rb"
+        case "romantic": return "romance"
+        default: return value
+        }
+    }
 }
 
 @MainActor
@@ -52,25 +140,37 @@ final class HomeViewModel: ObservableObject {
     @Published var entries: [HomeFeedEntry] = []
     @Published var isRefreshing = false
     @Published var errorMessage: String?
-    @Published var selectedCategoryId: String = HomeCategory.all[0].id
+    @Published var selectedCategoryId: String = "all"
+    @Published private(set) var orderedCategories: [HomeCategory]
+    /// Bumped after a successful pull-to-refresh so the list can scroll to top.
+    @Published private(set) var scrollToTopToken = 0
     /// Playable tracks for queue play — updated with `entries`, not recomputed per row.
     @Published private(set) var playableVideos: [VideoItem] = []
 
     private var loadGeneration = 0
     private var rawEntries: [HomeFeedEntry] = []
     private var playableIndexById: [String: Int] = [:]
+    private var dynamicChips: [HomeDynamicChip]
+    private var didRequestDynamicChips = false
+    private var continuation: String?
     weak var libraryStore: LibraryStore?
 
     init() {
+        dynamicChips = HomeFeedStore.loadDynamicChips()
+        orderedCategories = HomeCategory.applyingSavedOrder(
+            to: HomeCategory.merged(with: dynamicChips)
+        )
         if let saved = HomeFeedStore.loadSelectedCategoryId(),
-           HomeCategory.all.contains(where: { $0.id == saved }) {
+           orderedCategories.contains(where: { $0.id == saved }) {
             selectedCategoryId = saved
         }
         applyStoredFeed(for: selectedCategoryId)
     }
 
     var selectedCategory: HomeCategory {
-        HomeCategory.all.first { $0.id == selectedCategoryId } ?? HomeCategory.all[0]
+        orderedCategories.first { $0.id == selectedCategoryId }
+            ?? orderedCategories.first
+            ?? HomeCategory.catalog[0]
     }
 
     /// Playable tracks currently listed (album cards excluded).
@@ -93,6 +193,13 @@ final class HomeViewModel: ObservableObject {
     func appear() {
         applyStoredFeed(for: selectedCategoryId)
         refreshIfNeeded()
+        refreshDynamicChipsIfNeeded()
+    }
+
+    func applyCategoryOrder(_ categories: [HomeCategory]) {
+        let all = orderedCategories.first(where: { $0.id == "all" }) ?? HomeCategory.catalog[0]
+        orderedCategories = [all] + categories.filter { $0.id != "all" }
+        HomeFeedStore.saveCategoryOrder(orderedCategories.map(\.id))
     }
 
     func refilter() {
@@ -117,7 +224,31 @@ final class HomeViewModel: ObservableObject {
         Task { await refresh(force: false) }
     }
 
-    /// Pull-to-refresh: always hit network and rewrite cache.
+    private func refreshDynamicChipsIfNeeded() {
+        guard !didRequestDynamicChips else { return }
+        didRequestDynamicChips = true
+        if selectedCategoryId == "all", entries.isEmpty { return }
+        Task {
+            guard let page = try? await InnerTubeClient.fetchHomeFeedPage() else { return }
+            acceptDynamicChips(page.chips)
+        }
+    }
+
+    private func acceptDynamicChips(_ chips: [HomeDynamicChip]) {
+        guard !chips.isEmpty else { return }
+        dynamicChips = chips
+        HomeFeedStore.saveDynamicChips(chips)
+        orderedCategories = HomeCategory.applyingSavedOrder(
+            to: HomeCategory.merged(with: chips)
+        )
+        if !orderedCategories.contains(where: { $0.id == selectedCategoryId }) {
+            selectedCategoryId = "all"
+            HomeFeedStore.saveSelectedCategoryId("all")
+            applyStoredFeed(for: "all")
+        }
+    }
+
+    /// Pull-to-refresh: prefer next page via continuation, else cold first page.
     func refresh() async {
         await refresh(force: true)
     }
@@ -141,16 +272,24 @@ final class HomeViewModel: ObservableObject {
         }
 
         do {
-            let fetched = try await fetchEntries(for: category)
+            let page = try await fetchPage(for: category, preferContinuation: force)
             guard generation == loadGeneration, requestId == selectedCategoryId else { return }
-            rawEntries = fetched
-            entries = applyLibraryFilter(fetched)
+            rawEntries = page.entries
+            entries = applyLibraryFilter(page.entries)
             rebuildPlayableIndex(from: entries)
-            if fetched.isEmpty {
+            continuation = page.continuation
+            if page.entries.isEmpty {
                 errorMessage = "No videos in feed"
             } else {
                 errorMessage = nil
-                HomeFeedStore.save(categoryId: requestId, entries: fetched)
+                HomeFeedStore.save(
+                    categoryId: requestId,
+                    entries: page.entries,
+                    continuation: page.continuation
+                )
+                if force {
+                    scrollToTopToken += 1
+                }
             }
         } catch is CancellationError {
             return
@@ -166,22 +305,85 @@ final class HomeViewModel: ObservableObject {
         }
     }
 
-    private func fetchEntries(for category: HomeCategory) async throws -> [HomeFeedEntry] {
+    private struct FeedPage {
+        let entries: [HomeFeedEntry]
+        let continuation: String?
+    }
+
+    private func fetchPage(
+        for category: HomeCategory,
+        preferContinuation: Bool
+    ) async throws -> FeedPage {
+        let token = preferContinuation ? continuation : nil
+        if let token, !token.isEmpty {
+            if let page = try? await fetchPage(for: category, continuation: token),
+               !page.entries.isEmpty
+            {
+                return page
+            }
+        }
+        return try await fetchPage(for: category, continuation: nil)
+    }
+
+    private func fetchPage(
+        for category: HomeCategory,
+        continuation token: String?
+    ) async throws -> FeedPage {
         switch category.source {
         case .homeBrowse:
-            return try await InnerTubeClient.fetchHomeFeed().map { .track($0) }
+            let page = try await InnerTubeClient.fetchHomeFeedPage(continuation: token)
+            if token == nil {
+                acceptDynamicChips(page.chips)
+            }
+            return FeedPage(
+                entries: page.videos.map { .track($0) },
+                continuation: page.continuation
+            )
         case .search(let query):
-            return try await InnerTubeClient.searchVideos(query: query).map { .track($0) }
+            let page = try await InnerTubeClient.searchVideosPage(
+                query: query,
+                continuation: token
+            )
+            return FeedPage(
+                entries: page.videos.map { .track($0) },
+                continuation: page.continuation
+            )
         case .musicNewReleaseAlbums:
-            return try await InnerTubeClient.fetchMusicNewReleaseFeed()
+            let page = try await InnerTubeClient.fetchMusicNewReleaseFeed(
+                continuation: token
+            )
+            return FeedPage(entries: page.entries, continuation: page.continuation)
+        case .innerTube(let endpoint):
+            let page = try await InnerTubeClient.fetchHomeFeedPage(
+                endpoint: endpoint,
+                continuation: token
+            )
+            return FeedPage(
+                entries: page.videos.map { .track($0) },
+                continuation: page.continuation
+            )
+        case .live:
+            let page = try await InnerTubeClient.fetchLiveVideosPage(continuation: token)
+            return FeedPage(
+                entries: page.videos.map { .track($0) },
+                continuation: page.continuation
+            )
+        case .youtubeNews:
+            let page = try await InnerTubeClient.fetchNewsVideosPage(continuation: token)
+            return FeedPage(
+                entries: page.videos.map { .track($0) },
+                continuation: page.continuation
+            )
         }
     }
 
     private func applyStoredFeed(for categoryId: String) {
-        if let stored = HomeFeedStore.loadEntries(categoryId: categoryId) {
-            rawEntries = stored
+        if let stored = HomeFeedStore.loadFeed(categoryId: categoryId) {
+            rawEntries = stored.entries
+            continuation = stored.continuation
         } else {
             rawEntries = []
+            continuation = nil
         }
         entries = applyLibraryFilter(rawEntries)
         rebuildPlayableIndex(from: entries)
@@ -207,6 +409,8 @@ struct HomeView: View {
     @EnvironmentObject private var trackActions: TrackActionPresenter
     @Environment(\.libraryStore) private var libraryStore
     @State private var showPlayer = false
+    @State private var showCategoryReorder = false
+    @State private var reorderCategories: [HomeCategory] = []
 
     var body: some View {
         NavigationStack {
@@ -232,25 +436,45 @@ struct HomeView: View {
                     PlayerDetailView()
                 }
             }
+            .sheet(isPresented: $showCategoryReorder) {
+                categoryReorderSheet
+            }
         }
     }
 
     private var categoryChips: some View {
         ScrollViewReader { proxy in
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: YTLiteLayout.stackDefault) {
-                    ForEach(HomeCategory.all) { cat in
-                        YTLiteChip(
-                            title: cat.title,
-                            selected: viewModel.selectedCategoryId == cat.id
-                        ) {
-                            viewModel.selectCategory(cat)
+            HStack(spacing: 0) {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: YTLiteLayout.stackDefault) {
+                        ForEach(viewModel.orderedCategories) { cat in
+                            YTLiteChip(
+                                title: cat.title,
+                                selected: viewModel.selectedCategoryId == cat.id
+                            ) {
+                                viewModel.selectCategory(cat)
+                            }
+                            .id(cat.id)
                         }
-                        .id(cat.id)
                     }
+                    .padding(.leading, YTLiteLayout.screenPadding)
+                    .padding(.trailing, YTLiteLayout.stackDefault)
+                    .padding(.vertical, YTLiteLayout.stackLoose)
                 }
-                .padding(.horizontal, YTLiteLayout.screenPadding)
-                .padding(.vertical, YTLiteLayout.stackLoose)
+
+                Button {
+                    reorderCategories = viewModel.orderedCategories
+                    showCategoryReorder = true
+                } label: {
+                    Image(systemName: "arrow.up.arrow.down")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(YTLiteColor.onSurface)
+                        .frame(width: 42, height: 42)
+                        .background(YTLiteColor.surfaceElevated, in: Circle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(L("home.category.reorder"))
+                .padding(.trailing, YTLiteLayout.screenPadding)
             }
             .onAppear {
                 proxy.scrollTo(viewModel.selectedCategoryId, anchor: .center)
@@ -261,6 +485,55 @@ struct HomeView: View {
                 }
             }
         }
+    }
+
+    private var categoryReorderSheet: some View {
+        NavigationStack {
+            List {
+                ForEach(reorderCategories) { category in
+                    HStack(spacing: YTLiteLayout.stackDefault) {
+                        Image(systemName: category.id == "all" ? "pin.fill" : "line.3.horizontal")
+                            .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                            .frame(width: 24)
+                        Text(category.title)
+                            .font(YTLiteType.body)
+                            .foregroundStyle(YTLiteColor.onSurface)
+                    }
+                    .listRowBackground(YTLiteColor.surface)
+                    .moveDisabled(category.id == "all")
+                }
+                .onMove { source, destination in
+                    let movable = IndexSet(source.filter { $0 != 0 })
+                    guard !movable.isEmpty else { return }
+                    reorderCategories.move(
+                        fromOffsets: movable,
+                        toOffset: max(1, destination)
+                    )
+                }
+            }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .background(YTLiteColor.surface)
+            .environment(\.editMode, .constant(.active))
+            .navigationTitle(L("home.category.reorder"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(L("common.done")) {
+                        viewModel.applyCategoryOrder(reorderCategories)
+                        showCategoryReorder = false
+                    }
+                    .font(YTLiteType.labelEmphasized)
+                }
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(L("common.cancel")) {
+                        showCategoryReorder = false
+                    }
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
     }
 
     @ViewBuilder
@@ -281,42 +554,52 @@ struct HomeView: View {
             }
             .refreshable { await viewModel.refresh() }
         } else {
-            ScrollView {
-                LazyVStack(spacing: 0) {
-                    if let err = viewModel.errorMessage {
-                        Text(err)
-                            .font(YTLiteType.meta)
-                            .foregroundStyle(YTLiteColor.danger)
-                            .padding(.horizontal, YTLiteLayout.screenPadding)
-                    }
-                    ForEach(viewModel.entries) { entry in
-                        switch entry {
-                        case .track(let item):
-                            FeedVideoCard(
-                                item: item,
-                                onTap: {
-                                    let queue = viewModel.playableVideos
-                                    let index = viewModel.playIndex(for: item)
-                                    playback.play(items: queue.isEmpty ? [item] : queue, startAt: index)
-                                    showPlayer = true
-                                },
-                                onMore: {
-                                    trackActions.present(item: item)
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(spacing: 0) {
+                        Color.clear
+                            .frame(height: 0)
+                            .id("home_feed_top")
+                        if let err = viewModel.errorMessage {
+                            Text(err)
+                                .font(YTLiteType.meta)
+                                .foregroundStyle(YTLiteColor.danger)
+                                .padding(.horizontal, YTLiteLayout.screenPadding)
+                        }
+                        ForEach(viewModel.entries) { entry in
+                            switch entry {
+                            case .track(let item):
+                                FeedVideoCard(
+                                    item: item,
+                                    onTap: {
+                                        let queue = viewModel.playableVideos
+                                        let index = viewModel.playIndex(for: item)
+                                        playback.play(items: queue.isEmpty ? [item] : queue, startAt: index)
+                                        showPlayer = true
+                                    },
+                                    onMore: {
+                                        trackActions.present(item: item)
+                                    }
+                                )
+                            case .album(let album):
+                                NavigationLink {
+                                    AlbumTracksView(album: album)
+                                } label: {
+                                    HomeAlbumCard(album: album)
                                 }
-                            )
-                        case .album(let album):
-                            NavigationLink {
-                                AlbumTracksView(album: album)
-                            } label: {
-                                HomeAlbumCard(album: album)
+                                .buttonStyle(.plain)
                             }
-                            .buttonStyle(.plain)
                         }
                     }
+                    .padding(.bottom, YTLiteLayout.rowVertical)
                 }
-                .padding(.bottom, YTLiteLayout.rowVertical)
+                .refreshable { await viewModel.refresh() }
+                .onChange(of: viewModel.scrollToTopToken) { _, _ in
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        proxy.scrollTo("home_feed_top", anchor: .top)
+                    }
+                }
             }
-            .refreshable { await viewModel.refresh() }
         }
     }
 }
