@@ -264,6 +264,9 @@ final class PlaybackPrefetcher {
             throw CancellationError()
         } catch {
             if Task.isCancelled { throw CancellationError() }
+            if case ExtractorBridge.ExtractorError.timeout = error { throw error }
+            let lower = error.localizedDescription.lowercased()
+            if lower.contains("timed out") || lower.contains("timeout") { throw error }
             try await Task.sleep(nanoseconds: 350_000_000)
             if Task.isCancelled { throw CancellationError() }
             return try await ExtractorBridge.shared.extractPlayback(

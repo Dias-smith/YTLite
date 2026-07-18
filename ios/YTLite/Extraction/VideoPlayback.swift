@@ -370,19 +370,41 @@ enum ExtractResultMapper {
 /// 1) ANDROID `/youtubei/v1/player` with `signatureTimestamp` (direct googlevideo URLs, no nsig)
 /// 2) scrape `ytInitialPlayerResponse` from watch HTML (often 403 without nsig — last resort)
 enum WatchPagePlayerFallback {
+    /// Cap so a hung ANDROID player never burns the full URLSession request timeout
+    /// before the WKWebView bridge can start.
+    private static let fastPathDeadlineSeconds: TimeInterval = 6
+
     /// One-request fast path using the configured Android client and STS.
     /// Falls back to the WKWebView extractor when YouTube rejects this client.
+    /// Hard-capped so failure is fail-fast (does not wait ~30s HTTP timeout).
     static func extractFast(videoId: String) async -> VideoPlayback? {
         let id = videoId.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !id.isEmpty else { return nil }
         let cfg = ExtractorRemoteConfigStore.current
         guard cfg.enableAndroidPlayerFallback else { return nil }
         PlayProbe.log("extract.fast.begin", videoId: id)
-        return await extractViaAndroidPlayer(
-            videoId: id,
-            signatureTimestamp: cfg.signatureTimestamp,
-            clientVersion: cfg.androidClientVersion
-        )
+        return await withTaskGroup(of: VideoPlayback?.self) { group in
+            group.addTask {
+                await extractViaAndroidPlayer(
+                    videoId: id,
+                    signatureTimestamp: cfg.signatureTimestamp,
+                    clientVersion: cfg.androidClientVersion,
+                    requestTimeout: fastPathDeadlineSeconds
+                )
+            }
+            group.addTask {
+                try? await Task.sleep(
+                    nanoseconds: UInt64(fastPathDeadlineSeconds * 1_000_000_000)
+                )
+                return nil
+            }
+            let first = await group.next() ?? nil
+            group.cancelAll()
+            if first == nil {
+                PlayProbe.log("extract.fast.miss", videoId: id, "deadline_or_reject")
+            }
+            return first
+        }
     }
 
     static func extract(videoId: String) async throws -> VideoPlayback {
@@ -476,7 +498,8 @@ enum WatchPagePlayerFallback {
     private static func extractViaAndroidPlayer(
         videoId: String,
         signatureTimestamp: Int,
-        clientVersion: String
+        clientVersion: String,
+        requestTimeout: TimeInterval? = nil
     ) async -> VideoPlayback? {
         let androidUA =
             "com.google.android.youtube/\(clientVersion) (Linux; U; Android 11) gzip"
@@ -526,7 +549,8 @@ enum WatchPagePlayerFallback {
                 "Origin": "https://www.youtube.com",
                 "Referer": "https://www.youtube.com/",
             ],
-            body: bodyText
+            body: bodyText,
+            timeout: requestTimeout
         )
         guard result.success,
               let raw = result.body.data(using: .utf8),

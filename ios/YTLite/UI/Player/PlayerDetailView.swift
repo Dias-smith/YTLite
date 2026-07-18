@@ -1159,7 +1159,6 @@ private struct OrangeProgressBar: View {
     var onSeek: (Double) -> Void
 
     @State private var dragFraction: CGFloat?
-    @State private var lastSeekAt: Date = .distantPast
 
     private var fraction: CGFloat {
         if let dragFraction { return dragFraction }
@@ -1189,18 +1188,16 @@ private struct OrangeProgressBar: View {
             .gesture(
                 DragGesture(minimumDistance: 0)
                     .onChanged { drag in
+                        // Preview only while dragging — seeking on every move floods
+                        // AVPlayer and leaves currentTime stuck behind the scrub target.
                         let f = CGFloat(drag.location.x / max(width, 1)).clamped(to: 0...1)
                         dragFraction = f
-                        let now = Date()
-                        if now.timeIntervalSince(lastSeekAt) >= 0.08 {
-                            lastSeekAt = now
-                            onSeek(Double(f) * total)
-                        }
                     }
                     .onEnded { drag in
                         let f = Double(drag.location.x / max(width, 1)).clamped(to: 0...1)
-                        dragFraction = nil
+                        // Seek first so `value` already reflects the target when preview clears.
                         onSeek(f * total)
+                        dragFraction = nil
                     }
             )
         }

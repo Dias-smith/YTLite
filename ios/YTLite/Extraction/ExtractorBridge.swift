@@ -33,8 +33,12 @@ final class ExtractorBridge: NSObject, WKScriptMessageHandler {
     private var pendingResults: [String: CheckedContinuation<[String: Any], Error>] = [:]
     private let invokeTimeoutSeconds: TimeInterval = 45
     private let visitorTTL: TimeInterval = 30 * 60
+    private let visitorRefreshDeadlineSeconds: TimeInterval = 5
     private var visitorData: String?
     private var visitorFetchedAt: Date?
+    /// Single WKWebView cannot safely run concurrent extracts (HTTP callbacks interleave).
+    private var bridgeLocked = false
+    private var bridgeWaiters: [CheckedContinuation<Void, Never>] = []
 
     func ensureReady() async throws {
         if isReady { return }
@@ -156,9 +160,11 @@ final class ExtractorBridge: NSObject, WKScriptMessageHandler {
 
     private static func shouldTryWatchPageFallback(_ error: Error) -> Bool {
         if Task.isCancelled { return false }
+        if case ExtractorError.timeout = error { return false }
         let cfg = ExtractorRemoteConfigStore.current
         guard cfg.enableWatchPageFallback || cfg.enableAndroidPlayerFallback else { return false }
         let msg = error.localizedDescription.lowercased()
+        if msg.contains("timed out") || msg.contains("timeout") { return false }
         return msg.contains("unplayable")
             || msg.contains("not available")
             || msg.contains("video unavailable")
@@ -178,6 +184,11 @@ final class ExtractorBridge: NSObject, WKScriptMessageHandler {
     private func extractPlaybackViaBridge(videoId: String) async throws -> VideoPlayback {
         PlayProbe.log("extract.bridge.ensureReady", videoId: videoId)
         try await ensureReady()
+        // Inject cached visitor (or refresh briefly) before JS InnerTube — avoids per-song
+        // homepage fetch races and empty-visitor hangs inside the bridge.
+        await ensureVisitorData()
+        await acquireBridgeLock()
+        defer { releaseBridgeLock() }
         PlayProbe.log("extract.bridge.ready", videoId: videoId)
         // Always extract via canonical watch URL (Shorts URLs → /watch?v=…).
         let id = YouTubeURL.videoId(from: videoId) ?? videoId
@@ -233,6 +244,26 @@ final class ExtractorBridge: NSObject, WKScriptMessageHandler {
             }
             PlayProbe.log("extract.bridge.invoke.fail", videoId: id, error.localizedDescription)
             throw error
+        }
+    }
+
+    private func acquireBridgeLock() async {
+        if !bridgeLocked {
+            bridgeLocked = true
+            return
+        }
+        PlayProbe.log("extract.bridge.wait")
+        await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
+            bridgeWaiters.append(cont)
+        }
+    }
+
+    private func releaseBridgeLock() {
+        if let next = bridgeWaiters.first {
+            bridgeWaiters.removeFirst()
+            next.resume()
+        } else {
+            bridgeLocked = false
         }
     }
 
@@ -420,6 +451,27 @@ final class ExtractorBridge: NSObject, WKScriptMessageHandler {
         }
     }
 
+    private func ensureVisitorData() async {
+        if let visitorData,
+           let visitorFetchedAt,
+           Date().timeIntervalSince(visitorFetchedAt) < visitorTTL
+        {
+            await setVisitorData(visitorData)
+            return
+        }
+        await withTaskGroup(of: Void.self) { group in
+            let deadline = visitorRefreshDeadlineSeconds
+            group.addTask { @MainActor in
+                await self.refreshVisitorData()
+            }
+            group.addTask {
+                try? await Task.sleep(nanoseconds: UInt64(deadline * 1_000_000_000))
+            }
+            await group.next()
+            group.cancelAll()
+        }
+    }
+
     private func refreshVisitorData() async {
         if let visitorData,
            let visitorFetchedAt,
@@ -432,7 +484,8 @@ final class ExtractorBridge: NSObject, WKScriptMessageHandler {
             url: "\(YouTubeConstants.baseURL)/",
             method: "GET",
             headers: [:],
-            body: nil
+            body: nil,
+            timeout: visitorRefreshDeadlineSeconds
         )
         guard result.success else { return }
         let pattern = #"VISITOR_DATA":"([^"]+)""#

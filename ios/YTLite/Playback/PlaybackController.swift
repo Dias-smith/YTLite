@@ -80,6 +80,10 @@ final class PlaybackController: ObservableObject {
     private var originalOrder: [VideoItem]?
     /// Seek target after cold-start restore + extract.
     private var pendingSeekSeconds: Double = 0
+    /// While true, time-observer must not overwrite `positionSeconds` with stale `currentTime`.
+    private var isSeekInProgress = false
+    /// Bumps on each `seek(to:)` so superseded completion handlers are ignored.
+    private var seekGeneration: Int = 0
     /// Bumps on each `playCurrentQueueItem` so stale extract callbacks cannot mutate UI.
     private var extractGeneration: Int = 0
     private var artworkImage: UIImage?
@@ -459,6 +463,8 @@ final class PlaybackController: ObservableObject {
         clearHLSQualityState()
         cancelScheduledNextPrefetch()
         PlaybackPrefetcher.shared.retainOnly(videoId: item.videoId)
+        isSeekInProgress = false
+        seekGeneration += 1
         let knownArtistId = libraryStore?.track(id: item.videoId)?.primaryArtistId
         let knownAvatar = item.channelAvatarURL
             ?? libraryStore?.subscribedChannel(id: knownArtistId ?? "")?.avatarUrl.flatMap(URL.init(string:))
@@ -638,6 +644,10 @@ final class PlaybackController: ObservableObject {
             throw CancellationError()
         } catch {
             if Task.isCancelled { throw CancellationError() }
+            // Timeout already spent ~45s+; a full retry roughly doubles user-visible failures.
+            if case ExtractorBridge.ExtractorError.timeout = error { throw error }
+            let lower = error.localizedDescription.lowercased()
+            if lower.contains("timed out") || lower.contains("timeout") { throw error }
             PlayProbe.log("play.extract.retry", videoId: videoId, error.localizedDescription)
             // One retry helps transient music=null / deposit failures on large player JSON.
             try await Task.sleep(nanoseconds: 350_000_000)
@@ -833,6 +843,9 @@ final class PlaybackController: ObservableObject {
         let nextId = next.videoId
         nextPrefetchScheduleTask = Task { [weak self] in
             guard let self, !Task.isCancelled else { return }
+            // Let current track finish media connect before contending for extract/network.
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            guard !Task.isCancelled else { return }
             guard self.nowPlaying?.videoId == currentId else { return }
             guard !self.isPlayingHLS else { return }
             guard let stillNext = self.nextPrefetchQueueItem(),
@@ -1063,6 +1076,8 @@ final class PlaybackController: ObservableObject {
         PlaybackPrefetcher.shared.clear()
         playingFromPrefetch = false
         prefetchPlaybackRetryUsed = false
+        isSeekInProgress = false
+        seekGeneration += 1
         clearHLSQualityState()
         artworkGeneration += 1
         artworkTask?.cancel()
@@ -1096,6 +1111,8 @@ final class PlaybackController: ObservableObject {
         PlaybackPrefetcher.shared.clear()
         playingFromPrefetch = false
         prefetchPlaybackRetryUsed = false
+        isSeekInProgress = false
+        seekGeneration += 1
         clearHLSQualityState()
         artworkGeneration += 1
         artworkTask?.cancel()
@@ -1123,11 +1140,35 @@ final class PlaybackController: ObservableObject {
     }
 
     func seek(to seconds: Double) {
-        let clamped = max(0, seconds)
-        let time = CMTime(seconds: clamped, preferredTimescale: 600)
-        player?.seek(to: time)
+        let upper = durationSeconds > 0 ? durationSeconds : seconds
+        let clamped = min(max(0, seconds), upper)
+        seekGeneration += 1
+        let generation = seekGeneration
+        isSeekInProgress = true
         positionSeconds = clamped
         updateNowPlayingInfo()
+
+        guard let player else {
+            isSeekInProgress = false
+            return
+        }
+
+        let time = CMTime(seconds: clamped, preferredTimescale: 600)
+        // Zero tolerance avoids "near enough" snaps that feel like the thumb jumped back.
+        player.seek(to: time, toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] finished in
+            Task { @MainActor in
+                guard let self else { return }
+                guard generation == self.seekGeneration else { return }
+                self.isSeekInProgress = false
+                if finished {
+                    let actual = player.currentTime().seconds
+                    if actual.isFinite {
+                        self.positionSeconds = actual
+                    }
+                    self.updateNowPlayingInfo()
+                }
+            }
+        }
     }
 
     private func applySpeed() {
@@ -1220,15 +1261,22 @@ final class PlaybackController: ObservableObject {
         timeObserver = player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] time in
             Task { @MainActor in
                 guard let self else { return }
-                let position = time.seconds.isFinite ? time.seconds : 0
                 let duration: Double? = {
                     guard let d = player.currentItem?.duration.seconds, d.isFinite else { return nil }
                     return d
                 }()
-                self.progress.setPositionAndDuration(position: position, duration: duration)
+                if let duration {
+                    self.progress.setDuration(duration)
+                }
+                // During an in-flight seek, `currentTime` often still reports the old
+                // position (especially when scrubbing past the buffered range).
+                if !self.isSeekInProgress {
+                    let position = time.seconds.isFinite ? time.seconds : 0
+                    self.progress.setPosition(position)
+                    self.checkNextPrefetchNearEnd(position: position, duration: duration)
+                }
                 self.checkSleepTimerExpired()
                 self.refreshNextPrefetchIfNeeded()
-                self.checkNextPrefetchNearEnd(position: position, duration: duration)
                 self.updateNowPlayingElapsed()
                 self.persistSession(immediate: false)
             }

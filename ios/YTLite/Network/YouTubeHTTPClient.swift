@@ -178,7 +178,8 @@ actor YouTubeHTTPClient {
         url: String,
         method: String,
         headers: [String: String],
-        body: String?
+        body: String?,
+        timeout: TimeInterval? = nil
     ) async -> HttpStringResult {
         guard let requestURL = URL(string: url) else {
             return HttpStringResult(success: false, body: "", errCode: -1, errMsg: "Invalid URL")
@@ -187,6 +188,9 @@ actor YouTubeHTTPClient {
         request.httpMethod = method.uppercased()
         // YouTube Data API / InnerTube must not reuse stale likes/playlist responses.
         request.cachePolicy = .reloadIgnoringLocalCacheData
+        if let timeout {
+            request.timeoutInterval = timeout
+        }
         let enriched = enrichYouTubeHeaders(url: url, method: method, headers: headers)
         for (key, value) in enriched where !key.isEmpty && !value.isEmpty {
             request.setValue(value, forHTTPHeaderField: key)
