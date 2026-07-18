@@ -85,6 +85,7 @@ final class HomeViewModel: ObservableObject {
         selectedCategoryId = category.id
         HomeFeedStore.saveSelectedCategoryId(category.id)
         errorMessage = nil
+        // Align Android: show disk/memory cache immediately; network only if empty.
         applyStoredFeed(for: category.id)
         refreshIfNeeded()
     }
@@ -110,25 +111,24 @@ final class HomeViewModel: ObservableObject {
         playableIndexById = map
     }
 
+    /// Network only when this category has no cached content (Android `preferCache = true`).
     private func refreshIfNeeded() {
-        guard needsNetworkRefresh(entries, source: selectedCategory.source) else { return }
-        Task { await refresh() }
+        guard entries.isEmpty else { return }
+        Task { await refresh(force: false) }
     }
 
-    private func needsNetworkRefresh(_ items: [HomeFeedEntry], source: HomeCategorySource) -> Bool {
-        if items.isEmpty { return true }
-        if case .musicNewReleaseAlbums = source { return false }
-        let tracks = items.compactMap(\.asVideoItem)
-        guard !tracks.isEmpty else { return true }
-        let missingAvatar = tracks.filter { $0.channelAvatarURL == nil }.count
-        let missingViews = tracks.filter { ($0.viewCountText ?? "").isEmpty }.count
-        return missingAvatar * 2 >= tracks.count || missingViews * 2 >= tracks.count
-    }
-
+    /// Pull-to-refresh: always hit network and rewrite cache.
     func refresh() async {
+        await refresh(force: true)
+    }
+
+    private func refresh(force: Bool) async {
         if isRefreshing { return }
         let category = selectedCategory
         let requestId = category.id
+        // Non-force with existing UI content is a no-op (cache already shown).
+        if !force, !entries.isEmpty { return }
+
         loadGeneration += 1
         let generation = loadGeneration
 
@@ -150,10 +150,7 @@ final class HomeViewModel: ObservableObject {
                 errorMessage = "No videos in feed"
             } else {
                 errorMessage = nil
-                let trackVideos = fetched.compactMap(\.asVideoItem)
-                if !trackVideos.isEmpty, category.source != .musicNewReleaseAlbums {
-                    HomeFeedStore.save(categoryId: requestId, videos: trackVideos)
-                }
+                HomeFeedStore.save(categoryId: requestId, entries: fetched)
             }
         } catch is CancellationError {
             return
@@ -181,8 +178,8 @@ final class HomeViewModel: ObservableObject {
     }
 
     private func applyStoredFeed(for categoryId: String) {
-        if let stored = HomeFeedStore.loadVideos(categoryId: categoryId) {
-            rawEntries = stored.map { .track($0) }
+        if let stored = HomeFeedStore.loadEntries(categoryId: categoryId) {
+            rawEntries = stored
         } else {
             rawEntries = []
         }
