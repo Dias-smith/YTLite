@@ -31,12 +31,6 @@ struct MiniPlayerBar: View {
             .onChange(of: showPlayer) { _, presented in
                 review.setBusy("player", presented)
             }
-            .onDisappear {
-                if showPlayer {
-                    showPlayer = false
-                    review.setBusy("player", false)
-                }
-            }
         }
     }
 

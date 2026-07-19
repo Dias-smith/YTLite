@@ -10,6 +10,23 @@ struct PlaylistPickerSheet: View {
     @State private var newName = ""
 
     var body: some View {
+        Group {
+            if showCreate {
+                createPlaylistContent
+            } else {
+                playlistPickerContent
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(YTLiteColor.surfaceElevated)
+        .onAppear { reloadPlaylists() }
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.hidden)
+        .presentationBackground(YTLiteColor.surfaceElevated)
+        .interactiveDismissDisabled(showCreate)
+    }
+
+    private var playlistPickerContent: some View {
         VStack(alignment: .leading, spacing: 0) {
             YTLiteSheetGrabHandle()
             YTLiteSheetTitle(title: L("library.save_to"))
@@ -38,18 +55,10 @@ struct PlaylistPickerSheet: View {
             .padding(.top, 8)
             .padding(.bottom, 28)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(YTLiteColor.surfaceElevated)
-        .onAppear { reloadPlaylists() }
-        .sheet(isPresented: $showCreate) {
-            createPlaylistSheet
-        }
-        .presentationDetents([.medium, .large])
-        .presentationDragIndicator(.hidden)
-        .presentationBackground(YTLiteColor.surfaceElevated)
     }
 
-    private var createPlaylistSheet: some View {
+    /// Same sheet content swap — nested sheets + TextField dismiss the stack on device.
+    private var createPlaylistContent: some View {
         VStack(spacing: 0) {
             YTLiteSheetGrabHandle()
             YTLiteSheetTitle(title: L("library.new_playlist"))
@@ -86,11 +95,6 @@ struct PlaylistPickerSheet: View {
             }
             .padding(.bottom, 28)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .background(YTLiteColor.surfaceElevated)
-        .presentationDetents([.height(280)])
-        .presentationDragIndicator(.hidden)
-        .presentationBackground(YTLiteColor.surfaceElevated)
     }
 
     private func reloadPlaylists() {

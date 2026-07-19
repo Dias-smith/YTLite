@@ -84,6 +84,17 @@ struct PlayerDetailView: View {
     private let overlayAutoHideSeconds: UInt64 = 5_000_000_000
 
     var body: some View {
+        playerDetailRoot
+            .onAppear {
+                playback.libraryStore = store ?? playback.libraryStore
+                playback.refreshFavoriteState()
+                if !playback.isBuffering {
+                    bumpOverlayAutoHide()
+                }
+            }
+    }
+
+    private var playerDetailRoot: some View {
         VStack(spacing: 0) {
             playerCanvas
             // Title + more stay pinned under the canvas while the rest scrolls (matches player detail UX).
@@ -203,13 +214,6 @@ struct PlayerDetailView: View {
                 .presentationDetents([.fraction(0.72), .large])
                 .presentationDragIndicator(.hidden)
                 .presentationContentInteraction(.scrolls)
-        }
-        .onAppear {
-            playback.libraryStore = store ?? playback.libraryStore
-            playback.refreshFavoriteState()
-            if !playback.isBuffering {
-                bumpOverlayAutoHide()
-            }
         }
         .onChange(of: playback.isPlaying) { _, playing in
             if playing, !playback.isBuffering { bumpOverlayAutoHide() }
@@ -1482,6 +1486,7 @@ struct AddToPlaylistSheet: View {
 
     @Environment(\.libraryStore) private var store
     @Environment(\.dismiss) private var dismiss
+    /// Inline create form (avoid nested sheet + keyboard dismissing the player stack on device).
     @State private var showCreate = false
     @State private var newName = ""
 
@@ -1490,6 +1495,22 @@ struct AddToPlaylistSheet: View {
     }
 
     var body: some View {
+        Group {
+            if showCreate {
+                createPlaylistContent
+            } else {
+                playlistPickerContent
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(YTLiteColor.surfaceElevated)
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.hidden)
+        .presentationBackground(YTLiteColor.surfaceElevated)
+        .interactiveDismissDisabled(showCreate)
+    }
+
+    private var playlistPickerContent: some View {
         VStack(alignment: .leading, spacing: 0) {
             YTLiteSheetGrabHandle()
             YTLiteSheetTitle(title: title)
@@ -1516,17 +1537,9 @@ struct AddToPlaylistSheet: View {
             .padding(.top, 8)
             .padding(.bottom, 28)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(YTLiteColor.surfaceElevated)
-        .sheet(isPresented: $showCreate) {
-            createPlaylistSheet
-        }
-        .presentationDetents([.medium, .large])
-        .presentationDragIndicator(.hidden)
-        .presentationBackground(YTLiteColor.surfaceElevated)
     }
 
-    private var createPlaylistSheet: some View {
+    private var createPlaylistContent: some View {
         VStack(spacing: 0) {
             YTLiteSheetGrabHandle()
             YTLiteSheetTitle(title: L("player.new_playlist"))
@@ -1560,11 +1573,6 @@ struct AddToPlaylistSheet: View {
             }
             .padding(.bottom, 28)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .background(YTLiteColor.surfaceElevated)
-        .presentationDetents([.height(280)])
-        .presentationDragIndicator(.hidden)
-        .presentationBackground(YTLiteColor.surfaceElevated)
     }
 
     private func save(to playlist: LibraryPlaylist) {

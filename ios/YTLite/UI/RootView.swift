@@ -33,12 +33,18 @@ struct RootView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(YTLiteColor.background)
 
-                // Keep mini player + tab bar off the keyboard — they must not float above IME.
-                if !isKeyboardVisible {
-                    if playback.nowPlaying != nil && selectedTab != .shorts {
-                        MiniPlayerBar()
-                    }
+                // Hide chrome above the IME, but keep MiniPlayerBar mounted — its `.sheet` hosts
+                // PlayerDetailView; unmounting on keyboardWould dismiss the whole stack.
+                if playback.nowPlaying != nil && selectedTab != .shorts {
+                    MiniPlayerBar()
+                        .frame(maxHeight: isKeyboardVisible ? 0 : nil)
+                        .clipped()
+                        .opacity(isKeyboardVisible ? 0 : 1)
+                        .allowsHitTesting(!isKeyboardVisible)
+                        .accessibilityHidden(isKeyboardVisible)
+                }
 
+                if !isKeyboardVisible {
                     MainTabBar(selected: $selectedTab, isAuthenticated: auth.isAuthenticated)
                 }
             }
