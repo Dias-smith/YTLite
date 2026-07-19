@@ -28,6 +28,8 @@ enum AdBootstrap {
         }
         didStartSDK = true
         AdProbe.log("sdk.start")
+        // Default ads muted so interstitial / app-open audio does not blast over playback.
+        MobileAds.shared.isApplicationMuted = true
         MobileAds.shared.start { _ in
             Task { @MainActor in
                 AdProbe.log("sdk.ready")
