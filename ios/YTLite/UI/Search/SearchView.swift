@@ -209,7 +209,8 @@ struct SearchView: View {
     @EnvironmentObject private var playback: PlaybackController
     @EnvironmentObject private var trackActions: TrackActionPresenter
     @Environment(\.libraryStore) private var libraryStore
-    @State private var showPlayer = false
+    @EnvironmentObject private var playerPresentation: PlayerPresentation
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @FocusState private var searchFocused: Bool
 
     var body: some View {
@@ -231,13 +232,13 @@ struct SearchView: View {
                     }
                 }
             }
+            .ytLiteContentWidth(enabled: YTLiteAdaptive.isRegularWidth(horizontalSizeClass))
             .background(YTLiteColor.background)
             .navigationBarHidden(true)
             .onAppear {
                 viewModel.bind(memory: memory)
                 viewModel.loadHotKeywordsIfNeeded()
             }
-            .playerDetailSheet(isPresented: $showPlayer)
         }
     }
 
@@ -298,45 +299,57 @@ struct SearchView: View {
     }
 
     private var resultsList: some View {
-        ScrollView {
-            LazyVStack(spacing: 0) {
-                ForEach(viewModel.hits) { hit in
-                    switch hit {
-                    case .video(let item):
-                        Button {
-                            let videos = viewModel.hits.compactMap(\.asVideoItem)
-                            let index = videos.firstIndex(of: item) ?? 0
-                            playback.play(items: videos.isEmpty ? [item] : videos, startAt: index)
-                            showPlayer = true
-                        } label: {
-                            SearchVideoResultRow(item: item) {
-                                trackActions.present(item: item)
+        GeometryReader { geo in
+            let columns = YTLiteAdaptive.searchColumns(
+                for: geo.size.width,
+                sizeClass: horizontalSizeClass
+            )
+            ScrollView {
+                LazyVGrid(
+                    columns: YTLiteAdaptive.gridItems(count: columns, spacing: 12),
+                    spacing: columns > 1 ? 12 : 0
+                ) {
+                    ForEach(viewModel.hits) { hit in
+                        switch hit {
+                        case .video(let item):
+                            Button {
+                                let videos = viewModel.hits.compactMap(\.asVideoItem)
+                                let index = videos.firstIndex(of: item) ?? 0
+                                playback.play(items: videos.isEmpty ? [item] : videos, startAt: index)
+                                playerPresentation.present()
+                            } label: {
+                                SearchVideoResultRow(item: item) {
+                                    trackActions.present(item: item)
+                                }
                             }
+                            .buttonStyle(.plain)
+                        case .channel(let channel):
+                            NavigationLink {
+                                ChannelVideosView(channel: channel)
+                            } label: {
+                                SearchChannelResultRow(channel: channel)
+                            }
+                            .buttonStyle(.plain)
+                            .gridCellColumns(columns)
+                        case .playlist(let playlist):
+                            NavigationLink {
+                                PlaylistVideosBrowserView(playlist: playlist)
+                            } label: {
+                                SearchPlaylistResultRow(playlist: playlist)
+                            }
+                            .buttonStyle(.plain)
+                            .gridCellColumns(columns)
                         }
-                        .buttonStyle(.plain)
-                    case .channel(let channel):
-                        NavigationLink {
-                            ChannelVideosView(channel: channel)
-                        } label: {
-                            SearchChannelResultRow(channel: channel)
-                        }
-                        .buttonStyle(.plain)
-                    case .playlist(let playlist):
-                        NavigationLink {
-                            PlaylistVideosBrowserView(playlist: playlist)
-                        } label: {
-                            SearchPlaylistResultRow(playlist: playlist)
-                        }
-                        .buttonStyle(.plain)
                     }
                 }
+                .padding(.horizontal, columns > 1 ? YTLiteLayout.screenPadding : 0)
+                .padding(.bottom, YTLiteLayout.screenPadding)
             }
-            .padding(.bottom, YTLiteLayout.screenPadding)
-        }
-        .overlay {
-            if viewModel.isLoading && !viewModel.hits.isEmpty {
-                ProgressView()
-                    .tint(YTLiteColor.accent)
+            .overlay {
+                if viewModel.isLoading && !viewModel.hits.isEmpty {
+                    ProgressView()
+                        .tint(YTLiteColor.accent)
+                }
             }
         }
     }
@@ -391,7 +404,7 @@ struct SearchView: View {
                                 ForEach(memory.recentVideos) { item in
                                     Button {
                                         playback.play(items: [item], startAt: 0)
-                                        showPlayer = true
+                                        playerPresentation.present()
                                     } label: {
                                         VStack(alignment: .leading, spacing: YTLiteLayout.stackDefault) {
                                             VideoThumbnail(

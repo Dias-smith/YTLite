@@ -210,6 +210,16 @@ struct FeedVideoCard: View {
     let item: VideoItem
     var onTap: (() -> Void)? = nil
     var onMore: (() -> Void)? = nil
+    /// Tighter horizontal padding for multi-column grids on iPad.
+    var compact: Bool = false
+
+    private var thumbHorizontal: CGFloat {
+        compact ? 4 : YTLiteLayout.feedThumbHorizontal
+    }
+
+    private var infoHorizontal: CGFloat {
+        compact ? 4 : YTLiteLayout.feedInfoHorizontal
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -231,7 +241,7 @@ struct FeedVideoCard: View {
             }
             .aspectRatio(16 / 9, contentMode: .fit)
             .clipShape(RoundedRectangle(cornerRadius: YTLiteLayout.feedThumbRadius, style: .continuous))
-            .padding(.horizontal, YTLiteLayout.feedThumbHorizontal)
+            .padding(.horizontal, thumbHorizontal)
             .contentShape(Rectangle())
             .onTapGesture { onTap?() }
 
@@ -276,7 +286,7 @@ struct FeedVideoCard: View {
                 .buttonStyle(.borderless)
                 .accessibilityLabel(L("common.more"))
             }
-            .padding(.horizontal, YTLiteLayout.feedInfoHorizontal)
+            .padding(.horizontal, infoHorizontal)
             .padding(.top, YTLiteLayout.feedInfoTop)
             .padding(.bottom, YTLiteLayout.feedInfoBottom)
         }

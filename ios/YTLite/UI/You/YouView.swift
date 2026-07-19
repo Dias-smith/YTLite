@@ -8,7 +8,8 @@ struct YouView: View {
     @EnvironmentObject private var trackActions: TrackActionPresenter
     @Environment(\.libraryStore) private var store
     @StateObject private var viewModel = YouViewModel()
-    @State private var showPlayer = false
+    @EnvironmentObject private var playerPresentation: PlayerPresentation
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     var body: some View {
         NavigationStack {
@@ -25,6 +26,7 @@ struct YouView: View {
                     signedInContent
                 }
             }
+            .ytLiteContentWidth(enabled: YTLiteAdaptive.isRegularWidth(horizontalSizeClass))
             .background(YTLiteColor.background)
             .navigationBarHidden(true)
             .task(id: "\(auth.userId ?? "nil")-\(auth.googleAccessToken != nil)") {
@@ -40,7 +42,6 @@ struct YouView: View {
                     apiKey: appModel.config.youtubeDataAPIKey
                 )
             }
-            .playerDetailSheet(isPresented: $showPlayer)
         }
     }
 
@@ -247,7 +248,7 @@ struct YouView: View {
                                         startAt: index,
                                         sourcePlaylistId: viewModel.likedPlaylistId
                                     )
-                                    showPlayer = true
+                                    playerPresentation.present()
                                 }
                             }
                         }
@@ -533,23 +534,30 @@ private struct YouPlaylistCard: View {
     let title: String
     let coverURL: URL?
     let subtitle: String
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+
+    private var cardWidth: CGFloat {
+        YTLiteAdaptive.isRegularWidth(horizontalSizeClass) ? 220 : 160
+    }
+
+    private var cardHeight: CGFloat { cardWidth * 9 / 16 }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             RemoteImage(url: coverURL)
-                .frame(width: 160, height: 90)
+                .frame(width: cardWidth, height: cardHeight)
                 .clipped()
                 .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
             Text(title)
                 .font(YTLiteType.meta.weight(.semibold))
                 .foregroundStyle(YTLiteColor.onSurface)
                 .lineLimit(2)
-                .frame(width: 160, alignment: .leading)
+                .frame(width: cardWidth, alignment: .leading)
             Text(subtitle)
                 .font(YTLiteType.iconCaption)
                 .foregroundStyle(YTLiteColor.onSurfaceVariant)
                 .lineLimit(1)
-                .frame(width: 160, alignment: .leading)
+                .frame(width: cardWidth, alignment: .leading)
         }
     }
 }
@@ -560,6 +568,13 @@ private struct YouVideoShelfCard: View {
     let imageURL: URL?
     var durationText: String? = nil
     let action: () -> Void
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+
+    private var cardWidth: CGFloat {
+        YTLiteAdaptive.isRegularWidth(horizontalSizeClass) ? 220 : 160
+    }
+
+    private var cardHeight: CGFloat { cardWidth * 9 / 16 }
 
     var body: some View {
         Button(action: action) {
@@ -567,8 +582,8 @@ private struct YouVideoShelfCard: View {
                 VideoThumbnail(
                     url: imageURL,
                     durationText: durationText,
-                    width: 160,
-                    height: 90,
+                    width: cardWidth,
+                    height: cardHeight,
                     cornerRadius: 8,
                     badgePadding: 4
                 )
@@ -576,12 +591,12 @@ private struct YouVideoShelfCard: View {
                     .font(YTLiteType.meta.weight(.semibold))
                     .foregroundStyle(YTLiteColor.onSurface)
                     .lineLimit(2)
-                    .frame(width: 160, alignment: .leading)
+                    .frame(width: cardWidth, alignment: .leading)
                 Text(subtitle)
                     .font(YTLiteType.iconCaption)
                     .foregroundStyle(YTLiteColor.onSurfaceVariant)
                     .lineLimit(1)
-                    .frame(width: 160, alignment: .leading)
+                    .frame(width: cardWidth, alignment: .leading)
             }
         }
         .buttonStyle(.plain)
@@ -701,7 +716,7 @@ struct YoutubePlaylistItemsView: View {
     @State private var items: [VideoItem] = []
     @State private var isLoading = true
     @State private var errorMessage: String?
-    @State private var showPlayer = false
+    @EnvironmentObject private var playerPresentation: PlayerPresentation
 
     var body: some View {
         Group {
@@ -725,7 +740,7 @@ struct YoutubePlaylistItemsView: View {
                 List(Array(items.enumerated()), id: \.element.id) { index, item in
                     Button {
                         playback.play(items: items, startAt: index, sourcePlaylistId: playlistId)
-                        showPlayer = true
+                        playerPresentation.present()
                     } label: {
                         HStack(spacing: 12) {
                             RemoteImage(url: item.thumbnailURL)
@@ -760,7 +775,6 @@ struct YoutubePlaylistItemsView: View {
         .task {
             await load()
         }
-        .playerDetailSheet(isPresented: $showPlayer)
     }
 
     private func load() async {
@@ -909,7 +923,7 @@ struct ChannelVideosView: View {
     @State private var videos: [VideoItem] = []
     @State private var isLoading = true
     @State private var errorMessage: String?
-    @State private var showPlayer = false
+    @EnvironmentObject private var playerPresentation: PlayerPresentation
 
     var body: some View {
         Group {
@@ -929,7 +943,7 @@ struct ChannelVideosView: View {
                                         startAt: index,
                                         sourcePlaylistId: "yt_channel:\(channel.channelId)"
                                     )
-                                    showPlayer = true
+                                    playerPresentation.present()
                                 },
                                 onMore: {
                                     trackActions.present(item: item)
@@ -948,7 +962,6 @@ struct ChannelVideosView: View {
         .task(id: channel.channelId) {
             await loadVideos()
         }
-        .playerDetailSheet(isPresented: $showPlayer)
     }
 
     private func loadVideos() async {
@@ -992,7 +1005,7 @@ struct PlaylistVideosBrowserView: View {
     @State private var videos: [VideoItem] = []
     @State private var isLoading = true
     @State private var errorMessage: String?
-    @State private var showPlayer = false
+    @EnvironmentObject private var playerPresentation: PlayerPresentation
 
     var body: some View {
         Group {
@@ -1012,7 +1025,7 @@ struct PlaylistVideosBrowserView: View {
                                         startAt: index,
                                         sourcePlaylistId: "yt_playlist:\(playlist.playlistId)"
                                     )
-                                    showPlayer = true
+                                    playerPresentation.present()
                                 },
                                 onMore: {
                                     trackActions.present(item: item)
@@ -1038,6 +1051,5 @@ struct PlaylistVideosBrowserView: View {
                 errorMessage = error.localizedDescription
             }
         }
-        .playerDetailSheet(isPresented: $showPlayer)
     }
 }

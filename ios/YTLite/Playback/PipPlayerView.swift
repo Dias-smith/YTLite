@@ -71,7 +71,10 @@ final class PlayerSurfaceController: UIViewController, AVPictureInPictureControl
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .black
+        // Inline surface never needs touches — SwiftUI owns controls; UIKit otherwise steals hits.
+        view.isUserInteractionEnabled = false
         playerView.translatesAutoresizingMaskIntoConstraints = false
+        playerView.isUserInteractionEnabled = false
         view.addSubview(playerView)
         NSLayoutConstraint.activate([
             playerView.topAnchor.constraint(equalTo: view.topAnchor),

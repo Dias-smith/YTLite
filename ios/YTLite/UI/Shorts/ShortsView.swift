@@ -224,53 +224,87 @@ enum ShortsConfig {
 
 struct ShortsView: View {
     @EnvironmentObject private var playback: PlaybackController
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var unlocked = false
     @State private var webView: WKWebView?
 
-    var body: some View {
-        ZStack {
-            ShortsWebView(
-                url: ShortsConfig.url,
-                lockScript: ShortsConfig.lockScript,
-                isInteractive: unlocked,
-                onWebView: { webView = $0 }
-            )
-            .ignoresSafeArea(edges: .bottom)
+    private var usesPhoneFrame: Bool {
+        YTLiteAdaptive.isRegularWidth(horizontalSizeClass)
+    }
 
-            if !unlocked {
-                Color.black.opacity(0.45)
-                    .ignoresSafeArea()
-                VStack(spacing: YTLiteLayout.screenPadding) {
-                    Text(L("shorts.title"))
-                        .font(YTLiteType.emptyTitle)
-                        .foregroundStyle(YTLiteColor.onMedia)
-                    Text(L("shorts.unmute_hint"))
-                        .font(YTLiteType.body)
-                        .foregroundStyle(YTLiteColor.onMediaMuted)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 32)
-                    Button {
-                        if playback.isPlaying {
-                            playback.togglePlayPause()
+    var body: some View {
+        GeometryReader { geo in
+            let frame = shortsFrame(in: geo.size)
+            ZStack {
+                YTLiteColor.background.ignoresSafeArea()
+
+                ZStack {
+                    ShortsWebView(
+                        url: ShortsConfig.url,
+                        lockScript: ShortsConfig.lockScript,
+                        isInteractive: unlocked,
+                        onWebView: { webView = $0 }
+                    )
+
+                    if !unlocked {
+                        Color.black.opacity(0.45)
+                        VStack(spacing: YTLiteLayout.screenPadding) {
+                            Text(L("shorts.title"))
+                                .font(YTLiteType.emptyTitle)
+                                .foregroundStyle(YTLiteColor.onMedia)
+                            Text(L("shorts.unmute_hint"))
+                                .font(YTLiteType.body)
+                                .foregroundStyle(YTLiteColor.onMediaMuted)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, 32)
+                            Button {
+                                if playback.isPlaying {
+                                    playback.togglePlayPause()
+                                }
+                                unlocked = true
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                                    webView?.evaluateJavaScript(
+                                        "window.__ytliteShortsBegin && window.__ytliteShortsBegin();",
+                                        completionHandler: nil
+                                    )
+                                }
+                            } label: {
+                                Image(systemName: "play.fill")
+                                    .font(.title)
+                                    .foregroundStyle(YTLiteColor.onAccent)
+                                    .frame(width: 72, height: 72)
+                                    .background(YTLiteColor.accent, in: Circle())
+                            }
+                            .accessibilityLabel(L("shorts.play"))
                         }
-                        unlocked = true
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                            webView?.evaluateJavaScript(
-                                "window.__ytliteShortsBegin && window.__ytliteShortsBegin();",
-                                completionHandler: nil
-                            )
-                        }
-                    } label: {
-                        Image(systemName: "play.fill")
-                            .font(.title)
-                            .foregroundStyle(YTLiteColor.onAccent)
-                            .frame(width: 72, height: 72)
-                            .background(YTLiteColor.accent, in: Circle())
                     }
-                    .accessibilityLabel(L("shorts.play"))
                 }
+                .frame(width: frame.width, height: frame.height)
+                .clipShape(RoundedRectangle(cornerRadius: usesPhoneFrame ? 24 : 0, style: .continuous))
+                .overlay {
+                    if usesPhoneFrame {
+                        RoundedRectangle(cornerRadius: 24, style: .continuous)
+                            .strokeBorder(YTLiteColor.chromeDivider, lineWidth: 1)
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
+        .ignoresSafeArea(edges: usesPhoneFrame ? [] : .bottom)
+    }
+
+    private func shortsFrame(in size: CGSize) -> CGSize {
+        guard usesPhoneFrame else {
+            return size
+        }
+        let maxWidth = min(YTLiteAdaptive.shortsFrameWidth, size.width - 48)
+        let heightFromWidth = maxWidth / YTLiteAdaptive.shortsAspect
+        let maxHeight = size.height - 32
+        if heightFromWidth <= maxHeight {
+            return CGSize(width: maxWidth, height: heightFromWidth)
+        }
+        let widthFromHeight = maxHeight * YTLiteAdaptive.shortsAspect
+        return CGSize(width: widthFromHeight, height: maxHeight)
     }
 }
 

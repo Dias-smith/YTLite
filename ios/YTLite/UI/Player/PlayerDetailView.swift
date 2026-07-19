@@ -53,6 +53,7 @@ struct PlayerDetailView: View {
     @EnvironmentObject private var auth: AuthService
     @Environment(\.libraryStore) private var store
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     @State private var showSpeedSheet = false
     @State private var showHLSQualitySheet = false
@@ -80,8 +81,12 @@ struct PlayerDetailView: View {
     @State private var showBatchAdd = false
     /// Local rich-menu presentation — must be on this sheet, not Root's TrackActionHost.
     @State private var playerTrackMenu: TrackActionContext?
+    /// Interactive dismiss offset for iPad fullScreenCover (follows the finger).
+    @State private var dismissDragOffset: CGFloat = 0
 
     private let overlayAutoHideSeconds: UInt64 = 5_000_000_000
+    private let dismissDistanceThreshold: CGFloat = 140
+    private let dismissVelocityThreshold: CGFloat = 900
 
     private var isPresentingAdBlockingSheet: Bool {
         showPlaybackSignIn
@@ -109,16 +114,15 @@ struct PlayerDetailView: View {
                 AdSceneLifecycle.setUIBlocked("player_detail_sheet", blocked: blocked)
             }
             .onDisappear {
-                // leave_player is owned by the presenting `.playerDetailSheet` onDismiss —
+                // leave_player is owned by the presenting host onDismiss —
                 // do not fire it here (nested sheets / host rebuilds can disappear briefly).
                 AdSceneLifecycle.setUIBlocked("player_detail_sheet", blocked: false)
             }
     }
 
-    private var playerDetailRoot: some View {
+    /// Title, controls, and queue/related — shared by portrait stack and landscape split.
+    private var playerSecondaryColumn: some View {
         VStack(spacing: 0) {
-            playerCanvas
-            // Title + more stay pinned under the canvas while the rest scrolls (matches player detail UX).
             pinnedTitleRow
                 .padding(.horizontal, YTLiteLayout.screenPadding)
                 .padding(.top, YTLiteLayout.stackLoose)
@@ -151,7 +155,54 @@ struct PlayerDetailView: View {
                 .padding(.bottom, 32)
             }
         }
-        .background(YTLiteColor.surface.ignoresSafeArea())
+    }
+
+    private var playerDetailRoot: some View {
+        GeometryReader { geo in
+            let split = YTLiteAdaptive.playerUsesSplitLayout(
+                size: geo.size,
+                sizeClass: horizontalSizeClass
+            )
+            Group {
+                if split {
+                    HStack(spacing: 0) {
+                        playerCanvas
+                            .frame(maxWidth: geo.size.width * 0.58)
+                            .frame(maxHeight: .infinity)
+                        playerSecondaryColumn
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    }
+                } else {
+                    VStack(spacing: 0) {
+                        playerCanvas
+                            .ytLiteContentWidth(
+                                min(geo.size.width, 900),
+                                enabled: YTLiteAdaptive.isRegularWidth(horizontalSizeClass)
+                            )
+                        playerSecondaryColumn
+                    }
+                }
+            }
+            .frame(width: geo.size.width, height: geo.size.height)
+            .offset(y: max(0, dismissDragOffset))
+            .scaleEffect(dismissScale, anchor: .top)
+            .opacity(dismissOpacity)
+            .clipShape(
+                RoundedRectangle(
+                    cornerRadius: dismissCornerRadius,
+                    style: .continuous
+                )
+            )
+            .animation(
+                dismissDragOffset == 0 ? .spring(response: 0.35, dampingFraction: 0.86) : nil,
+                value: dismissDragOffset
+            )
+        }
+        .background(
+            YTLiteColor.surface
+                .opacity(dismissBackgroundOpacity)
+                .ignoresSafeArea()
+        )
         .navigationBarHidden(true)
         .sheet(isPresented: $showPlaybackSignIn) {
             NavigationStack {
@@ -335,6 +386,21 @@ struct PlayerDetailView: View {
                 .zIndex(2)
             }
 
+            // Always keep a dismiss control — login / buffering / auto-hide hide the full overlay.
+            VStack {
+                HStack {
+                    overlayIconButton(systemName: "chevron.down") {
+                        dismiss()
+                    }
+                    Spacer()
+                }
+                .padding(.horizontal, YTLiteLayout.stackLoose)
+                .padding(.top, YTLiteLayout.stackLoose)
+                Spacer()
+            }
+            .zIndex(3)
+            .allowsHitTesting(true)
+
             // Tap catcher under overlay so control buttons keep priority.
             Color.clear
                 .contentShape(Rectangle())
@@ -350,6 +416,71 @@ struct PlayerDetailView: View {
         .frame(maxWidth: .infinity)
         .aspectRatio(16 / 9, contentMode: .fit)
         .clipped()
+        // fullScreenCover (regular width) has no system pull-down — interactive dismiss here.
+        .highPriorityGesture(interactiveDismissGesture)
+    }
+
+    private var supportsInteractiveDismiss: Bool {
+        YTLiteAdaptive.isRegularWidth(horizontalSizeClass)
+    }
+
+    private var dismissScale: CGFloat {
+        1 - min(max(0, dismissDragOffset), 420) / 2800
+    }
+
+    private var dismissOpacity: CGFloat {
+        1 - min(max(0, dismissDragOffset), 520) / 1100
+    }
+
+    private var dismissBackgroundOpacity: CGFloat {
+        1 - min(max(0, dismissDragOffset), 420) / 520
+    }
+
+    private var dismissCornerRadius: CGFloat {
+        min(28, max(0, dismissDragOffset) / 10)
+    }
+
+    /// Swipe down on the video canvas — page follows the finger, then dismisses or springs back.
+    private var interactiveDismissGesture: some Gesture {
+        DragGesture(minimumDistance: 12, coordinateSpace: .local)
+            .onChanged { value in
+                guard supportsInteractiveDismiss else { return }
+                let dy = value.translation.height
+                let dx = abs(value.translation.width)
+                // Only track clearly downward pulls so horizontal scrub / taps stay free.
+                guard dy > 0, dy > dx * 0.6 else {
+                    if dismissDragOffset != 0 { dismissDragOffset = 0 }
+                    return
+                }
+                // Rubber-band a bit past the midpoint for a natural feel.
+                let resistance = dy > 280 ? 0.55 : 1
+                dismissDragOffset = dy * resistance
+                if overlayVisible {
+                    hideTask?.cancel()
+                    withAnimation(.easeInOut(duration: 0.12)) { overlayVisible = false }
+                }
+            }
+            .onEnded { value in
+                guard supportsInteractiveDismiss else { return }
+                let dy = max(0, value.translation.height)
+                let predicted = value.predictedEndTranslation.height
+                let velocityY = value.velocity.height
+                let shouldDismiss = dy > dismissDistanceThreshold
+                    || predicted > dismissDistanceThreshold * 1.6
+                    || velocityY > dismissVelocityThreshold
+                if shouldDismiss {
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        dismissDragOffset = max(UIScreen.main.bounds.height, dy + 240)
+                    }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
+                        dismiss()
+                    }
+                } else {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.86)) {
+                        dismissDragOffset = 0
+                    }
+                }
+            }
     }
 
     private func toggleOverlay() {
@@ -409,10 +540,8 @@ struct PlayerDetailView: View {
 
     private var overlayTopBar: some View {
         HStack(spacing: YTLiteLayout.stackDefault) {
-            overlayIconButton(systemName: "chevron.down") {
-                dismiss()
-            }
-            Spacer()
+            // Dismiss lives outside canvasOverlay so it stays available during login / auto-hide.
+            Spacer(minLength: 44)
             HStack(spacing: 0) {
                 Button {
                     showSleepTimerSheet = true
@@ -1328,9 +1457,16 @@ struct SystemShareSheet: UIViewControllerRepresentable {
 
     func makeUIViewController(context: Context) -> UIActivityViewController {
         let controller = UIActivityViewController(activityItems: items, applicationActivities: nil)
-        // iPad requires a popover anchor; approximate to avoid crash.
+        // iPad requires a popover source; anchor to the key window center.
         if let popover = controller.popoverPresentationController {
-            popover.sourceView = UIView()
+            let anchor = UIApplication.shared.connectedScenes
+                .compactMap { $0 as? UIWindowScene }
+                .flatMap(\.windows)
+                .first(where: \.isKeyWindow)
+            popover.sourceView = anchor
+            popover.sourceRect = anchor.map {
+                CGRect(x: $0.bounds.midX, y: $0.bounds.midY, width: 1, height: 1)
+            } ?? .zero
             popover.permittedArrowDirections = []
         }
         return controller

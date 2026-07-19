@@ -56,12 +56,13 @@ struct LibraryView: View {
 
     @State private var playlists: [LibraryPlaylist] = []
     @State private var history: [VideoItem] = []
+    @EnvironmentObject private var playerPresentation: PlayerPresentation
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     /// Deduped songs from all playlists (+ history-only), Library → Songs tab.
     @State private var songs: [VideoItem] = []
     @State private var channels: [UserSubscribedChannel] = []
     @State private var showNewPlaylist = false
     @State private var newPlaylistName = ""
-    @State private var showPlayer = false
     @State private var filter: LibraryFilter = .playlists
     @State private var channelPendingUnsubscribe: UserSubscribedChannel?
 
@@ -148,6 +149,7 @@ struct LibraryView: View {
                     .allowsHitTesting(true)
                 }
             }
+            .ytLiteContentWidth(enabled: YTLiteAdaptive.isRegularWidth(horizontalSizeClass))
             .background(YTLiteColor.background)
             .toolbar(.hidden, for: .navigationBar)
             .navigationDestination(for: String.self) { destinationId in
@@ -296,7 +298,6 @@ struct LibraryView: View {
                 .presentationDragIndicator(.hidden)
                 .presentationBackground(YTLiteColor.surfaceElevated)
             }
-            .playerDetailSheet(isPresented: $showPlayer)
             .sheet(isPresented: $showBatchPlaylistPicker) {
                 LibraryPlaylistPickSheet(
                     playlists: playlists.filter {
@@ -667,10 +668,7 @@ struct LibraryView: View {
             .frame(maxWidth: .infinity)
         } else if viewMode == .grid {
             LazyVGrid(
-                columns: [
-                    GridItem(.flexible(), spacing: 12),
-                    GridItem(.flexible(), spacing: 12),
-                ],
+                columns: [GridItem(.adaptive(minimum: 160, maximum: 260), spacing: 12)],
                 spacing: 12
             ) {
                 ForEach(items, id: \.channelId) { channel in
@@ -829,10 +827,7 @@ struct LibraryView: View {
         let items = displayedPlaylists
         if viewMode == .grid {
             LazyVGrid(
-                columns: [
-                    GridItem(.flexible(), spacing: 12),
-                    GridItem(.flexible(), spacing: 12),
-                ],
+                columns: [GridItem(.adaptive(minimum: 160, maximum: 260), spacing: 12)],
                 spacing: 12
             ) {
                 ForEach(items) { item in
@@ -890,10 +885,7 @@ struct LibraryView: View {
                 .padding()
         } else if viewMode == .grid {
             LazyVGrid(
-                columns: [
-                    GridItem(.flexible(), spacing: 12),
-                    GridItem(.flexible(), spacing: 12),
-                ],
+                columns: [GridItem(.adaptive(minimum: 160, maximum: 260), spacing: 12)],
                 spacing: 12
             ) {
                 ForEach(songs) { item in
@@ -1066,7 +1058,7 @@ struct LibraryView: View {
                 toggleSelection(item.videoId)
             } else {
                 playback.play(items: displayedSongs, startAt: displayedSongs.firstIndex(of: item) ?? 0)
-                showPlayer = true
+                playerPresentation.present()
             }
         } label: {
             HStack(spacing: YTLiteLayout.stackLoose) {
@@ -1093,7 +1085,7 @@ struct LibraryView: View {
                 toggleSelection(item.videoId)
             } else {
                 playback.play(items: displayedSongs, startAt: displayedSongs.firstIndex(of: item) ?? 0)
-                showPlayer = true
+                playerPresentation.present()
             }
         } label: {
             VStack(alignment: .leading, spacing: 6) {
@@ -1605,7 +1597,7 @@ struct HistoryDetailView: View {
     @EnvironmentObject private var trackActions: TrackActionPresenter
     @Environment(\.libraryStore) private var store
     @State private var tracks: [VideoItem] = []
-    @State private var showPlayer = false
+    @EnvironmentObject private var playerPresentation: PlayerPresentation
 
     var body: some View {
         ScrollView {
@@ -1618,7 +1610,7 @@ struct HistoryDetailView: View {
                     ForEach(Array(tracks.enumerated()), id: \.element.id) { index, item in
                         Button {
                             playback.play(items: tracks, startAt: index)
-                            showPlayer = true
+                            playerPresentation.present()
                         } label: {
                             LibrarySongRow(item: item) {
                                 trackActions.present(item: item)
@@ -1638,7 +1630,6 @@ struct HistoryDetailView: View {
             reload()
             onChange()
         }
-        .playerDetailSheet(isPresented: $showPlayer)
     }
 
     private func reload() {

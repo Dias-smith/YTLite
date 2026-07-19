@@ -4,6 +4,7 @@ struct SettingsView: View {
     @EnvironmentObject private var appModel: AppModel
     @EnvironmentObject private var playback: PlaybackController
     @ObservedObject private var adConsentStatus = AdConsentStatus.shared
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var rateUnavailableAlert = false
 
     var body: some View {
@@ -92,6 +93,10 @@ struct SettingsView: View {
                 LabeledContent(L("settings.about"), value: appVersionLabel)
             }
         }
+        .ytLiteContentWidth(
+            720,
+            enabled: YTLiteAdaptive.isRegularWidth(horizontalSizeClass)
+        )
         .scrollContentBackground(.hidden)
         .background(YTLiteColor.background)
         .navigationTitle(L("settings.title"))

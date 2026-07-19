@@ -221,13 +221,57 @@ extension View {
     }
 
     /// Single entry for PlayerDetail presentation so leave_player covers swipe + button dismiss.
+    /// Always a sheet (not fullScreenCover) so pull-down returns to the mini player on iPhone and iPad.
+    func playerDetailPresentation(isPresented: Binding<Bool>) -> some View {
+        modifier(PlayerDetailPresentationModifier(isPresented: isPresented))
+    }
+
+    /// Backward-compatible alias — prefer `playerDetailPresentation` at the app chrome host.
     func playerDetailSheet(isPresented: Binding<Bool>) -> some View {
-        sheet(isPresented: isPresented, onDismiss: {
-            AdSceneLifecycle.onPlayerDetailClosed()
-        }) {
-            NavigationStack {
-                PlayerDetailView()
+        playerDetailPresentation(isPresented: isPresented)
+    }
+}
+
+private struct PlayerDetailPresentationModifier: ViewModifier {
+    @Binding var isPresented: Bool
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+
+    private var useFullScreen: Bool {
+        YTLiteAdaptive.isRegularWidth(horizontalSizeClass)
+    }
+
+    func body(content: Content) -> some View {
+        content
+            .sheet(
+                isPresented: Binding(
+                    get: { !useFullScreen && isPresented },
+                    set: { newValue in
+                        if !useFullScreen { isPresented = newValue }
+                    }
+                ),
+                onDismiss: { AdSceneLifecycle.onPlayerDetailClosed() }
+            ) {
+                NavigationStack {
+                    PlayerDetailView()
+                }
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+                .presentationContentInteraction(.scrolls)
             }
-        }
+            // Regular width (iPad): immersive full screen; swipe down on the
+            // canvas or the chevron dismisses back to the mini player.
+            .fullScreenCover(
+                isPresented: Binding(
+                    get: { useFullScreen && isPresented },
+                    set: { newValue in
+                        if useFullScreen { isPresented = newValue }
+                    }
+                ),
+                onDismiss: { AdSceneLifecycle.onPlayerDetailClosed() }
+            ) {
+                NavigationStack {
+                    PlayerDetailView()
+                }
+            }
     }
 }

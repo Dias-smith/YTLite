@@ -8,6 +8,7 @@ struct RootView: View {
     @EnvironmentObject private var appModel: AppModel
     @EnvironmentObject private var review: ReviewPromptCoordinator
     @Environment(\.modelContext) private var modelContext
+    @StateObject private var playerPresentation = PlayerPresentation()
     @State private var selectedTab: AppTab = .home
     @State private var libraryStore: LibraryStore?
     @State private var syncService: LibrarySyncService?
@@ -15,7 +16,11 @@ struct RootView: View {
 
     var body: some View {
         TrackActionHost(libraryStore: libraryStore) {
-            VStack(spacing: 0) {
+            AppChrome(
+                selectedTab: $selectedTab,
+                isAuthenticated: auth.isAuthenticated,
+                isKeyboardVisible: isKeyboardVisible
+            ) {
                 Group {
                     switch selectedTab {
                     case .home:
@@ -29,23 +34,6 @@ struct RootView: View {
                     case .library:
                         LibraryView()
                     }
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(YTLiteColor.background)
-
-                // Hide chrome above the IME, but keep MiniPlayerBar mounted — its `.sheet` hosts
-                // PlayerDetailView; unmounting on keyboardWould dismiss the whole stack.
-                if playback.nowPlaying != nil && selectedTab != .shorts {
-                    MiniPlayerBar()
-                        .frame(maxHeight: isKeyboardVisible ? 0 : nil)
-                        .clipped()
-                        .opacity(isKeyboardVisible ? 0 : 1)
-                        .allowsHitTesting(!isKeyboardVisible)
-                        .accessibilityHidden(isKeyboardVisible)
-                }
-
-                if !isKeyboardVisible {
-                    MainTabBar(selected: $selectedTab, isAuthenticated: auth.isAuthenticated)
                 }
             }
             .environment(\.selectAppTab) { tab in
@@ -133,6 +121,8 @@ struct RootView: View {
                     .presentationBackground(YTLiteColor.surfaceElevated)
             }
         }
+        // Must wrap TrackActionHost so AppChrome itself (not only its children) receives it.
+        .environmentObject(playerPresentation)
     }
 }
 

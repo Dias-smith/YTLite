@@ -7,6 +7,10 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		44B75432144E432285C68EFC /* YTLiteAdaptive.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B38F3C3878C4E08BC268FF6 /* YTLiteAdaptive.swift */; };
+		14ED341ED49E4599B6FF010D /* PlayerPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7BA38DE8966413FAA06207A /* PlayerPresentation.swift */; };
+		267F9F0DFFDE4E2D8E2AFA2E /* AppChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9793055D33E4004AB88501E /* AppChrome.swift */; };
+		E4018C1120784994968F7C2C /* AppSidebar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D8B2B1ED226467A8519B6F7 /* AppSidebar.swift */; };
 		04AA8137173B3F16BA42BA89 /* LyricsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95BB5987A01CB83F34EC4732 /* LyricsSheet.swift */; };
 		05E890CF43A22346F8982065 /* YTLiteSheetChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A2E2B438DB6EE30A26B52AF /* YTLiteSheetChrome.swift */; };
 		0B53FFD0BF2E85F8B97EAA04 /* TrackLyricsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90C3AFEA3FF8DF17A290E374 /* TrackLyricsSheet.swift */; };
@@ -95,6 +99,10 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		6B38F3C3878C4E08BC268FF6 /* YTLiteAdaptive.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YTLiteAdaptive.swift; sourceTree = "<group>"; };
+		B7BA38DE8966413FAA06207A /* PlayerPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerPresentation.swift; sourceTree = "<group>"; };
+		A9793055D33E4004AB88501E /* AppChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppChrome.swift; sourceTree = "<group>"; };
+		2D8B2B1ED226467A8519B6F7 /* AppSidebar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSidebar.swift; sourceTree = "<group>"; };
 		04B9DD7A53CD8AD757A58299 /* AdSceneLifecycle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdSceneLifecycle.swift; sourceTree = "<group>"; };
 		0655C2E16E330F3F5522D5F5 /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Release.xcconfig; sourceTree = "<group>"; };
 		0E5C2529DFCFF70006816FEF /* AccountMenuSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountMenuSheet.swift; sourceTree = "<group>"; };
@@ -395,10 +403,20 @@
 			path = Review;
 			sourceTree = "<group>";
 		};
+		DC5AABA6705B4909929EA8DC /* Chrome */ = {
+			isa = PBXGroup;
+			children = (
+				A9793055D33E4004AB88501E /* AppChrome.swift */,
+				2D8B2B1ED226467A8519B6F7 /* AppSidebar.swift */,
+			);
+			path = Chrome;
+			sourceTree = "<group>";
+		};
 		D0D6305E5024EA561A552511 /* UI */ = {
 			isa = PBXGroup;
 			children = (
 				810DCEABC066DAF9AA39EB6B /* MiniPlayerBar.swift */,
+				DC5AABA6705B4909929EA8DC /* Chrome */,
 				B70A93BD5CE828D414CF8BBE /* RootView.swift */,
 				518E1C2A97DD31C5441F7993 /* Auth */,
 				9E3C10630CEB1871F30B9775 /* Home */,
@@ -463,6 +481,7 @@
 			children = (
 				95BB5987A01CB83F34EC4732 /* LyricsSheet.swift */,
 				7808B0DE3172F30505602CA1 /* PlayerDetailView.swift */,
+				B7BA38DE8966413FAA06207A /* PlayerPresentation.swift */,
 			);
 			path = Player;
 			sourceTree = "<group>";
@@ -476,6 +495,7 @@
 				5FD1210B08F78331A292AAFB /* ThemeStore.swift */,
 				7A2E2B438DB6EE30A26B52AF /* YTLiteSheetChrome.swift */,
 				E6E872E174975CD347699542 /* YTLiteTheme.swift */,
+				6B38F3C3878C4E08BC268FF6 /* YTLiteAdaptive.swift */,
 			);
 			path = Theme;
 			sourceTree = "<group>";
@@ -632,6 +652,10 @@
 				ED4A82334873EA23A99D25F1 /* ReviewPromptStore.swift in Sources */,
 				A53E557E991FFD84DC607608 /* RewardUnlockStore.swift in Sources */,
 				6E568293668C6DB619757C5B /* RewardedInterstitialAdManager.swift in Sources */,
+				44B75432144E432285C68EFC /* YTLiteAdaptive.swift in Sources */,
+				14ED341ED49E4599B6FF010D /* PlayerPresentation.swift in Sources */,
+				267F9F0DFFDE4E2D8E2AFA2E /* AppChrome.swift in Sources */,
+				E4018C1120784994968F7C2C /* AppSidebar.swift in Sources */,
 				11D42CD1F44B8C9E81D33FD7 /* RootView.swift in Sources */,
 				9BA2A97B4E399A8DE578DC68 /* SearchHit.swift in Sources */,
 				885197C2AA8B674B041A6337 /* SearchMemoryStore.swift in Sources */,

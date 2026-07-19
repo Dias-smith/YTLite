@@ -515,8 +515,9 @@ struct HomeView: View {
     @EnvironmentObject private var playback: PlaybackController
     @EnvironmentObject private var trackActions: TrackActionPresenter
     @Environment(\.libraryStore) private var libraryStore
-    @State private var showPlayer = false
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var showCategoryReorder = false
+    @EnvironmentObject private var playerPresentation: PlayerPresentation
 
     var body: some View {
         NavigationStack {
@@ -524,6 +525,7 @@ struct HomeView: View {
                 categoryChips
                 content
             }
+            .ytLiteContentWidth(enabled: YTLiteAdaptive.isRegularWidth(horizontalSizeClass))
             .background(YTLiteColor.background)
             .toolbar(.hidden, for: .navigationBar)
             .task {
@@ -537,7 +539,6 @@ struct HomeView: View {
             .onChange(of: trackActions.listEpoch) { _, _ in
                 viewModel.refilter()
             }
-            .playerDetailSheet(isPresented: $showPlayer)
             .sheet(isPresented: $showCategoryReorder) {
                 CategoryReorderSheet(
                     categories: viewModel.orderedCategories,
@@ -621,55 +622,73 @@ struct HomeView: View {
             }
         } else {
             ScrollViewReader { proxy in
-                ScrollView {
-                    LazyVStack(spacing: 0) {
+                GeometryReader { geo in
+                    let columns = YTLiteAdaptive.feedColumns(
+                        for: geo.size.width,
+                        sizeClass: horizontalSizeClass
+                    )
+                    let compact = columns > 1
+                    ScrollView {
+                        // Keep the scroll-to-top anchor *outside* the grid — a zero-height
+                        // cell inside LazyVGrid still shares row height with neighbors and
+                        // leaves a blank “black card” on multi-column layouts.
                         Color.clear
                             .frame(height: 0)
                             .id("home_feed_top")
-                        if let err = viewModel.errorMessage {
-                            Text(err)
-                                .font(YTLiteType.meta)
-                                .foregroundStyle(YTLiteColor.danger)
-                                .padding(.horizontal, YTLiteLayout.screenPadding)
-                        }
-                        ForEach(viewModel.entries) { entry in
-                            switch entry {
-                            case .track(let item):
-                                FeedVideoCard(
-                                    item: item,
-                                    onTap: {
-                                        let queue = viewModel.playableVideos
-                                        let index = viewModel.playIndex(for: item)
-                                        playback.play(items: queue.isEmpty ? [item] : queue, startAt: index)
-                                        showPlayer = true
-                                    },
-                                    onMore: {
-                                        trackActions.present(item: item)
+                        LazyVGrid(
+                            columns: YTLiteAdaptive.gridItems(count: columns, spacing: compact ? 12 : 0),
+                            spacing: compact ? 16 : 0
+                        ) {
+                            if let err = viewModel.errorMessage {
+                                Text(err)
+                                    .font(YTLiteType.meta)
+                                    .foregroundStyle(YTLiteColor.danger)
+                                    .padding(.horizontal, YTLiteLayout.screenPadding)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .gridCellColumns(columns)
+                            }
+                            ForEach(viewModel.entries) { entry in
+                                switch entry {
+                                case .track(let item):
+                                    FeedVideoCard(
+                                        item: item,
+                                        onTap: {
+                                            let queue = viewModel.playableVideos
+                                            let index = viewModel.playIndex(for: item)
+                                            playback.play(items: queue.isEmpty ? [item] : queue, startAt: index)
+                                            playerPresentation.present()
+                                        },
+                                        onMore: {
+                                            trackActions.present(item: item)
+                                        },
+                                        compact: compact
+                                    )
+                                case .album(let album):
+                                    NavigationLink {
+                                        AlbumTracksView(album: album)
+                                    } label: {
+                                        HomeAlbumCard(album: album)
                                     }
-                                )
-                            case .album(let album):
-                                NavigationLink {
-                                    AlbumTracksView(album: album)
-                                } label: {
-                                    HomeAlbumCard(album: album)
+                                    .buttonStyle(.plain)
+                                    .gridCellColumns(columns)
                                 }
-                                .buttonStyle(.plain)
                             }
                         }
+                        .padding(.horizontal, compact ? YTLiteAdaptive.screenPadding(for: geo.size.width, sizeClass: horizontalSizeClass) - 4 : 0)
+                        .padding(.bottom, YTLiteLayout.rowVertical)
                     }
-                    .padding(.bottom, YTLiteLayout.rowVertical)
-                }
-                .refreshable {
-                    HomeFeedProbe.log(
-                        "ui.refreshable",
-                        "path=list category=\(viewModel.selectedCategoryId) count=\(viewModel.entries.count)"
-                    )
-                    await viewModel.refresh()
-                }
-                .onChange(of: viewModel.scrollToTopToken) { _, token in
-                    HomeFeedProbe.log("ui.scrollTop", "token=\(token)")
-                    withAnimation(.easeOut(duration: 0.2)) {
-                        proxy.scrollTo("home_feed_top", anchor: .top)
+                    .refreshable {
+                        HomeFeedProbe.log(
+                            "ui.refreshable",
+                            "path=list category=\(viewModel.selectedCategoryId) count=\(viewModel.entries.count)"
+                        )
+                        await viewModel.refresh()
+                    }
+                    .onChange(of: viewModel.scrollToTopToken) { _, token in
+                        HomeFeedProbe.log("ui.scrollTop", "token=\(token)")
+                        withAnimation(.easeOut(duration: 0.2)) {
+                            proxy.scrollTo("home_feed_top", anchor: .top)
+                        }
                     }
                 }
             }
@@ -786,7 +805,7 @@ struct AlbumTracksView: View {
     @State private var tracks: [VideoItem] = []
     @State private var isLoading = true
     @State private var errorMessage: String?
-    @State private var showPlayer = false
+    @EnvironmentObject private var playerPresentation: PlayerPresentation
 
     var body: some View {
         Group {
@@ -806,7 +825,7 @@ struct AlbumTracksView: View {
                                 item: item,
                                 onTap: {
                                     playback.play(items: tracks, startAt: index)
-                                    showPlayer = true
+                                    playerPresentation.present()
                                 },
                                 onMore: {
                                     trackActions.present(item: item)
@@ -843,6 +862,5 @@ struct AlbumTracksView: View {
                 errorMessage = error.localizedDescription
             }
         }
-        .playerDetailSheet(isPresented: $showPlayer)
     }
 }

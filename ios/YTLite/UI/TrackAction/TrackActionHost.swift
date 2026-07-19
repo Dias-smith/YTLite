@@ -6,6 +6,7 @@ struct TrackActionHost<Content: View>: View {
     @StateObject private var presenter = TrackActionPresenter()
     @StateObject private var playlistPresenter = PlaylistActionPresenter()
     @ViewBuilder var content: () -> Content
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     @State private var renameText = ""
 
@@ -26,7 +27,12 @@ struct TrackActionHost<Content: View>: View {
                     TrackActionSheet(context: context)
                         .environmentObject(presenter)
                         .environment(\.libraryStore, libraryStore)
-                        .presentationDetents([.fraction(0.72), .large])
+                        .presentationDetents(
+                            YTLiteAdaptive.sheetDetents(
+                                compact: [.fraction(0.72), .large],
+                                sizeClass: horizontalSizeClass
+                            )
+                        )
                         .presentationDragIndicator(.hidden)
                         .presentationContentInteraction(.scrolls)
                 }
@@ -36,7 +42,12 @@ struct TrackActionHost<Content: View>: View {
                     PlaylistActionSheet(context: context)
                         .environmentObject(playlistPresenter)
                         .environment(\.libraryStore, libraryStore)
-                        .presentationDetents([.fraction(0.55), .large])
+                        .presentationDetents(
+                            YTLiteAdaptive.sheetDetents(
+                                compact: [.fraction(0.55), .large],
+                                sizeClass: horizontalSizeClass
+                            )
+                        )
                         .presentationDragIndicator(.hidden)
                         .presentationContentInteraction(.scrolls)
                 }
@@ -47,7 +58,13 @@ struct TrackActionHost<Content: View>: View {
                     onCancel: { playlistPresenter.showRename = false },
                     onSave: { commitRename() }
                 )
-                .presentationDetents([.height(280)])
+                .presentationDetents(
+                    YTLiteAdaptive.sheetDetents(
+                        compact: [.height(280)],
+                        regular: [.height(320), .medium],
+                        sizeClass: horizontalSizeClass
+                    )
+                )
                 .presentationDragIndicator(.hidden)
                 .presentationBackground(YTLiteColor.surfaceElevated)
             }
@@ -60,7 +77,12 @@ struct TrackActionHost<Content: View>: View {
                 PlaylistDeleteConfirmSheet()
                     .environmentObject(playlistPresenter)
                     .environment(\.libraryStore, libraryStore)
-                    .presentationDetents([.medium])
+                    .presentationDetents(
+                        YTLiteAdaptive.sheetDetents(
+                            compact: [.medium],
+                            sizeClass: horizontalSizeClass
+                        )
+                    )
             }
             .onChange(of: isPresentingAdBlockingSheet) { _, blocked in
                 AdSceneLifecycle.setUIBlocked("track_action_host", blocked: blocked)

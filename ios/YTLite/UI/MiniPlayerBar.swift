@@ -5,8 +5,7 @@ import UIKit
 struct MiniPlayerBar: View {
     @EnvironmentObject private var playback: PlaybackController
     @EnvironmentObject private var progressClock: PlaybackProgressModel
-    @EnvironmentObject private var review: ReviewPromptCoordinator
-    @State private var showPlayer = false
+    @EnvironmentObject private var playerPresentation: PlayerPresentation
 
     private var progress: CGFloat {
         guard progressClock.durationSeconds > 0 else { return 0 }
@@ -23,10 +22,6 @@ struct MiniPlayerBar: View {
                 contentRow(item: item)
             }
             .background(YTLiteColor.miniPlayer)
-            .playerDetailSheet(isPresented: $showPlayer)
-            .onChange(of: showPlayer) { _, presented in
-                review.setBusy("player", presented)
-            }
         }
     }
 
@@ -48,7 +43,7 @@ struct MiniPlayerBar: View {
         HStack(spacing: 0) {
             // Thumbnail + title: opens player (Android weighted clickable Row).
             Button {
-                showPlayer = true
+                playerPresentation.present()
             } label: {
                 HStack(spacing: 0) {
                     mediaSlot(item: item)
@@ -100,15 +95,16 @@ struct MiniPlayerBar: View {
         }
         .frame(height: YTLiteLayout.miniBarHeight)
         .padding(.trailing, 4)
+        .contentShape(Rectangle())
     }
 
     @ViewBuilder
     private func mediaSlot(item: NowPlayingItem) -> some View {
         ZStack {
             Color.black
-            // Prefer live surface when stream exists and detail sheet is not covering
+            // Prefer live surface when stream exists and detail is not covering
             // (AVPlayerLayer can only attach to one view at a time).
-            if !showPlayer, let player = playback.player {
+            if !playerPresentation.isPresented, let player = playback.player {
                 PipPlayerView(player: player, videoGravity: .resizeAspectFill)
                     .allowsHitTesting(false)
             } else {
