@@ -296,9 +296,7 @@ struct LibraryView: View {
                 .presentationDragIndicator(.hidden)
                 .presentationBackground(YTLiteColor.surfaceElevated)
             }
-            .sheet(isPresented: $showPlayer) {
-                NavigationStack { PlayerDetailView() }
-            }
+            .playerDetailSheet(isPresented: $showPlayer)
             .sheet(isPresented: $showBatchPlaylistPicker) {
                 LibraryPlaylistPickSheet(
                     playlists: playlists.filter {
@@ -1640,9 +1638,7 @@ struct HistoryDetailView: View {
             reload()
             onChange()
         }
-        .sheet(isPresented: $showPlayer) {
-            NavigationStack { PlayerDetailView() }
-        }
+        .playerDetailSheet(isPresented: $showPlayer)
     }
 
     private func reload() {

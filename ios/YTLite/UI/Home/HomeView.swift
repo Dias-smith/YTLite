@@ -537,11 +537,7 @@ struct HomeView: View {
             .onChange(of: trackActions.listEpoch) { _, _ in
                 viewModel.refilter()
             }
-            .sheet(isPresented: $showPlayer) {
-                NavigationStack {
-                    PlayerDetailView()
-                }
-            }
+            .playerDetailSheet(isPresented: $showPlayer)
             .sheet(isPresented: $showCategoryReorder) {
                 CategoryReorderSheet(
                     categories: viewModel.orderedCategories,
@@ -847,10 +843,6 @@ struct AlbumTracksView: View {
                 errorMessage = error.localizedDescription
             }
         }
-        .sheet(isPresented: $showPlayer) {
-            NavigationStack {
-                PlayerDetailView()
-            }
-        }
+        .playerDetailSheet(isPresented: $showPlayer)
     }
 }

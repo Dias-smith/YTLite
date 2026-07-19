@@ -3,9 +3,11 @@ import SwiftUI
 struct SettingsView: View {
     @EnvironmentObject private var appModel: AppModel
     @EnvironmentObject private var playback: PlaybackController
+    @ObservedObject private var adConsentStatus = AdConsentStatus.shared
     @State private var rateUnavailableAlert = false
 
     var body: some View {
+        let _ = adConsentStatus.revision
         Form {
             Section(L("settings.appearance")) {
                 NavigationLink {

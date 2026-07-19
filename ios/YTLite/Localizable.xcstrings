@@ -8067,6 +8067,125 @@
         }
       }
     },
+    "ad.reward.edit_message": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Watch one rewarded ad to unlock unlimited Edit info saves for today."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "观看一条奖励广告，即可在今天无限次保存歌曲信息。"
+          }
+        }
+      }
+    },
+    "ad.reward.edit_title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Watch an ad to save?"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "观看广告后保存？"
+          }
+        }
+      }
+    },
+    "ad.reward.not_earned": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Finish the rewarded ad to unlock this action."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请完整观看奖励广告以解锁此操作。"
+          }
+        }
+      }
+    },
+    "ad.reward.not_ready": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The rewarded ad isn't ready. Please try again shortly."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "奖励广告尚未准备好，请稍后再试。"
+          }
+        }
+      }
+    },
+    "ad.reward.theme_message": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unlock all non-basic and custom themes for today."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "观看后可在今天解锁全部非基础主题和自定义主题。"
+          }
+        }
+      }
+    },
+    "ad.reward.theme_title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Watch an ad to unlock themes?"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "观看广告解锁主题？"
+          }
+        }
+      }
+    },
+    "ad.reward.watch": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Watch Ad"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "观看广告"
+          }
+        }
+      }
+    },
     "settings.ad_privacy_choices": {
       "extractionState": "manual",
       "localizations": {

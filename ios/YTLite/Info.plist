@@ -58,7 +58,15 @@
 		<false/>
 	</dict>
 	<key>GADApplicationIdentifier</key>
-	<string>ca-app-pub-3940256099942544~1458002511</string>
+	<string>$(ADMOB_APP_ID)</string>
+	<key>YTLiteAdMobAppOpenAdUnitID</key>
+	<string>$(ADMOB_APP_OPEN_ID)</string>
+	<key>YTLiteAdMobHotInterstitialAdUnitID</key>
+	<string>$(ADMOB_HOT_INTERSTITIAL_ID)</string>
+	<key>YTLiteAdMobInAppInterstitialAdUnitID</key>
+	<string>$(ADMOB_IN_APP_INTERSTITIAL_ID)</string>
+	<key>YTLiteAdMobRewardedInterstitialAdUnitID</key>
+	<string>$(ADMOB_REWARDED_INTERSTITIAL_ID)</string>
 	<key>NSUserTrackingUsageDescription</key>
 	<string>This identifier is used to deliver personalized ads and measure ad performance.</string>
 	<key>SKAdNetworkItems</key>

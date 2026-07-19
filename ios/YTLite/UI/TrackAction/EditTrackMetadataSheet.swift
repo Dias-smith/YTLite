@@ -7,6 +7,7 @@ struct EditTrackMetadataSheet: View {
     @Environment(\.libraryStore) private var store
     @EnvironmentObject private var trackActions: TrackActionPresenter
     @Environment(\.dismiss) private var dismiss
+    @ObservedObject private var rewardUnlocks = RewardUnlockStore.shared
 
     @State private var titleText = ""
     @State private var artistText = ""
@@ -20,6 +21,8 @@ struct EditTrackMetadataSheet: View {
     @State private var webURLDraft = ""
     @State private var photoItem: PhotosPickerItem?
     @State private var previewRevision = 0
+    @State private var showSaveRewardPrompt = false
+    @State private var isPresentingReward = false
 
     private var previewURL: URL? {
         _ = previewRevision
@@ -52,14 +55,33 @@ struct EditTrackMetadataSheet: View {
             }
 
             VStack(spacing: 10) {
-                YTLiteSheetPrimaryButton(title: L("common.save"), action: save)
+                YTLiteSheetPrimaryButton(
+                    title: L("common.save"),
+                    enabled: !isPresentingReward,
+                    action: requestSave
+                )
                 YTLiteSheetSecondaryButton(title: L("common.cancel")) { dismiss() }
             }
             .padding(.bottom, 28)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(YTLiteColor.surfaceElevated)
-        .onAppear { load() }
+        .onAppear {
+            load()
+            AdSceneLifecycle.setUIBlocked("edit_track_info", blocked: true)
+        }
+        .onDisappear {
+            AdSceneLifecycle.setUIBlocked("edit_track_info", blocked: false)
+        }
+        .alert(
+            L("ad.reward.edit_title"),
+            isPresented: $showSaveRewardPrompt
+        ) {
+            Button(L("ad.reward.watch")) { presentRewardedAdForSave() }
+            Button(L("common.cancel"), role: .cancel) {}
+        } message: {
+            Text(L("ad.reward.edit_message"))
+        }
         .sheet(isPresented: $showArtworkOptions) {
             ChangeArtworkOptionsSheet(
                 onChoosePhoto: {
@@ -205,7 +227,34 @@ struct EditTrackMetadataSheet: View {
         previewRevision += 1
     }
 
-    private func save() {
+    private func requestSave() {
+        if rewardUnlocks.isUnlockedToday(.editInfo) {
+            commitSave()
+        } else {
+            showSaveRewardPrompt = true
+        }
+    }
+
+    private func presentRewardedAdForSave() {
+        isPresentingReward = true
+        let didPresent = RewardedInterstitialAdManager.shared.show(
+            reason: "reward_edit_info"
+        ) { earned in
+            isPresentingReward = false
+            guard earned else {
+                trackActions.showToast(L("ad.reward.not_earned"))
+                return
+            }
+            rewardUnlocks.unlockToday(.editInfo)
+            commitSave()
+        }
+        if !didPresent {
+            isPresentingReward = false
+            trackActions.showToast(L("ad.reward.not_ready"))
+        }
+    }
+
+    private func commitSave() {
         let previous = store?.metadata(for: context.videoId)?.customThumbnailUrl
         let cleanedThumb = thumbText.trimmingCharacters(in: .whitespacesAndNewlines)
         if let previous, previous != cleanedThumb {

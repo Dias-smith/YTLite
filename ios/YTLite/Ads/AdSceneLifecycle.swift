@@ -21,7 +21,9 @@ enum AdBootstrap {
         guard AdMobConfig.adsEnabled, AdConsentManager.canRequestAds else { return }
         guard !didStartSDK else {
             AppOpenAdManager.shared.loadAd()
-            InterstitialAdManager.shared.loadAd()
+            InterstitialAdManager.loadAll()
+            RewardedInterstitialAdManager.shared.loadAd()
+            AdSceneLifecycle.adEnvironmentDidBecomeReady(source: "sdk_already_started")
             return
         }
         didStartSDK = true
@@ -30,7 +32,9 @@ enum AdBootstrap {
             Task { @MainActor in
                 AdProbe.log("sdk.ready")
                 AppOpenAdManager.shared.loadAd()
-                InterstitialAdManager.shared.loadAd()
+                InterstitialAdManager.loadAll()
+                RewardedInterstitialAdManager.shared.loadAd()
+                AdSceneLifecycle.adEnvironmentDidBecomeReady(source: "sdk_ready")
             }
         }
     }
@@ -48,11 +52,24 @@ enum AdSceneLifecycle {
     private static var backgroundEnteredAt: Date?
     private static var pending: Pending?
     private static var hasPresentedSinceForeground = false
+    private static var hasColdStartInteraction = false
     private static var playStartInterstitialTask: Task<Void, Never>?
+    private static var leavePlayerInterstitialTask: Task<Void, Never>?
+    private static var playStartInterstitialsShownThisSession = 0
+    private static var uiBlockers: Set<String> = []
 
-    /// Review sheet or similar full-screen UX should block ads.
+    /// Ordinary ads wait until sheets / full-screen UX have closed.
     static var isAdUIBlocked: Bool {
-        ReviewPromptCoordinator.shared.showSheet
+        ReviewPromptCoordinator.shared.showSheet || !uiBlockers.isEmpty
+    }
+
+    static func setUIBlocked(_ key: String, blocked: Bool) {
+        if blocked {
+            uiBlockers.insert(key)
+        } else {
+            uiBlockers.remove(key)
+            adEnvironmentDidBecomeReady(source: "ui_unblocked_\(key)")
+        }
     }
 
     static func handleScenePhase(_ phase: ScenePhase) {
@@ -63,6 +80,7 @@ enum AdSceneLifecycle {
                 isColdStart = false
                 pending = .cold
                 hasPresentedSinceForeground = false
+                hasColdStartInteraction = false
                 AdProbe.log("lifecycle.cold_armed")
             } else if wasInBackground {
                 wasInBackground = false
@@ -83,7 +101,8 @@ enum AdSceneLifecycle {
             pending = nil
             if AdConsentManager.canRequestAds {
                 AppOpenAdManager.shared.loadAd()
-                InterstitialAdManager.shared.loadAd()
+                InterstitialAdManager.loadAll()
+                RewardedInterstitialAdManager.shared.loadAd()
             }
             AdProbe.log("lifecycle.background")
         default:
@@ -94,7 +113,13 @@ enum AdSceneLifecycle {
     /// Tab switch / play request — unlocks cold App Open once per cold start.
     static func recordFirstInteraction(source: String) {
         guard AdMobConfig.adsEnabled else { return }
+        hasColdStartInteraction = true
         AdProbe.log("lifecycle.interaction", source)
+        attemptPendingPresentation(source: source)
+    }
+
+    /// Consent, inventory, UI, or another full-screen ad became ready.
+    static func adEnvironmentDidBecomeReady(source: String) {
         attemptPendingPresentation(source: source)
     }
 
@@ -104,27 +129,44 @@ enum AdSceneLifecycle {
             return
         }
         guard !hasPresentedSinceForeground, let p = pending else { return }
+        if case .cold = p, !hasColdStartInteraction {
+            AdProbe.log("lifecycle.pending.hold", "awaiting interaction source=\(source)")
+            return
+        }
         guard !isAdUIBlocked else {
             AdProbe.log("lifecycle.pending.blocked", source)
             return
         }
-        pending = nil
-        hasPresentedSinceForeground = true
+        let didPresent: Bool
         switch p {
         case .cold:
-            _ = AppOpenAdManager.shared.showAdIfAvailable(reason: "cold_\(source)")
+            didPresent = AppOpenAdManager.shared.showAdIfAvailable(reason: "cold_\(source)")
         case .hot:
             if AppOpenAdManager.shared.isReady {
-                _ = AppOpenAdManager.shared.showAdIfAvailable(reason: "hot_\(source)")
+                didPresent = AppOpenAdManager.shared.showAdIfAvailable(reason: "hot_\(source)")
             } else {
-                _ = InterstitialAdManager.shared.showIfAppropriate(reason: "hot_\(source)")
+                didPresent = InterstitialAdManager.hot.showIfAppropriate(
+                    reason: "hot_\(source)"
+                )
             }
+        }
+        if didPresent {
+            pending = nil
+            hasPresentedSinceForeground = true
+        } else {
+            AdProbe.log("lifecycle.pending.retain", "source=\(source)")
         }
     }
 
     /// After successful play start — delayed interstitial.
     static func schedulePlayStartInterstitial(videoId: String) {
         guard AdMobConfig.adsEnabled else { return }
+        guard playStartInterstitialsShownThisSession
+            < AdMobConfig.playStartInterstitialSessionLimit
+        else {
+            AdProbe.log("play_start.skip", "session_limit")
+            return
+        }
         playStartInterstitialTask?.cancel()
         let delay = AdMobConfig.playStartInterstitialDelay
         AdProbe.log("play_start.schedule", "id=\(videoId) delay=\(Int(delay))s")
@@ -132,7 +174,9 @@ enum AdSceneLifecycle {
             try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
             guard !Task.isCancelled else { return }
             guard AdConsentManager.canRequestAds else { return }
-            _ = InterstitialAdManager.shared.showIfAppropriate(reason: "play_start")
+            if InterstitialAdManager.inApp.showIfAppropriate(reason: "play_start") {
+                playStartInterstitialsShownThisSession += 1
+            }
         }
     }
 
@@ -144,7 +188,19 @@ enum AdSceneLifecycle {
     static func onPlayerDetailClosed() {
         guard AdMobConfig.adsEnabled else { return }
         AdProbe.log("player_detail.closed")
-        _ = InterstitialAdManager.shared.showIfAppropriate(reason: "leave_player")
+        leavePlayerInterstitialTask?.cancel()
+        leavePlayerInterstitialTask = Task {
+            let delay = AdMobConfig.leavePlayerPresentationDelay
+            try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+            guard !Task.isCancelled else { return }
+            _ = InterstitialAdManager.inApp.showIfAppropriate(reason: "leave_player")
+        }
+    }
+
+    static func onSearchResultsPresented(query: String) {
+        guard AdMobConfig.adsEnabled else { return }
+        AdProbe.log("search_results.presented", "queryLen=\(query.count)")
+        _ = InterstitialAdManager.inApp.showIfAppropriate(reason: "search_results")
     }
 }
 
@@ -162,5 +218,16 @@ private struct AdSceneLifecycleModifier: ViewModifier {
 extension View {
     func adSceneLifecycle() -> some View {
         modifier(AdSceneLifecycleModifier())
+    }
+
+    /// Single entry for PlayerDetail presentation so leave_player covers swipe + button dismiss.
+    func playerDetailSheet(isPresented: Binding<Bool>) -> some View {
+        sheet(isPresented: isPresented, onDismiss: {
+            AdSceneLifecycle.onPlayerDetailClosed()
+        }) {
+            NavigationStack {
+                PlayerDetailView()
+            }
+        }
     }
 }

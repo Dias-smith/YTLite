@@ -22,6 +22,10 @@ final class AppOpenAdManager: NSObject {
     func loadAd() {
         guard AdMobConfig.adsEnabled, AdConsentManager.canRequestAds else { return }
         guard !isLoadingAd, !isShowingAd else { return }
+        guard !AdMobConfig.appOpenAdUnitID.isEmpty else {
+            AdProbe.log("app_open.load.skip", "empty_unit_id")
+            return
+        }
         if isReady { return }
         isLoadingAd = true
         AdProbe.log("app_open.load.start")
@@ -44,6 +48,7 @@ final class AppOpenAdManager: NSObject {
                 self.loadTime = Date()
                 ad.fullScreenContentDelegate = self
                 AdProbe.log("app_open.load.ok")
+                AdSceneLifecycle.adEnvironmentDidBecomeReady(source: "app_open_loaded")
             }
         }
     }
@@ -65,6 +70,11 @@ final class AppOpenAdManager: NSObject {
             AdProbe.log("app_open.show.fail", "no root VC")
             return false
         }
+        let observesCooldown = reason.hasPrefix("hot_")
+        guard AdFullScreenCoordinator.beginOrdinary(
+            reason: reason,
+            observesCooldown: observesCooldown
+        ) else { return false }
         isShowingAd = true
         AdProbe.log("app_open.show", "reason=\(reason)")
         ad.present(from: root)
@@ -77,6 +87,7 @@ extension AppOpenAdManager: FullScreenContentDelegate {
         appOpenAd = nil
         isShowingAd = false
         AdProbe.log("app_open.dismiss")
+        AdFullScreenCoordinator.finish(didShowOrdinaryAd: true)
         loadAd()
     }
 
@@ -87,6 +98,7 @@ extension AppOpenAdManager: FullScreenContentDelegate {
         appOpenAd = nil
         isShowingAd = false
         AdProbe.log("app_open.present.fail", error.localizedDescription)
+        AdFullScreenCoordinator.finish(didShowOrdinaryAd: false)
         loadAd()
     }
 }

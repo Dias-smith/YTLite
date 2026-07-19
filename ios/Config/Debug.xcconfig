@@ -1,2 +1,9 @@
 #include "Secrets.xcconfig"
 #include? "Secrets.xcconfig.local"
+
+// Google sample IDs. Debug builds must never request production ads.
+ADMOB_APP_ID = ca-app-pub-3940256099942544~1458002511
+ADMOB_APP_OPEN_ID = ca-app-pub-3940256099942544/5575463023
+ADMOB_HOT_INTERSTITIAL_ID = ca-app-pub-3940256099942544/4411468910
+ADMOB_IN_APP_INTERSTITIAL_ID = ca-app-pub-3940256099942544/4411468910
+ADMOB_REWARDED_INTERSTITIAL_ID = ca-app-pub-3940256099942544/6978759866

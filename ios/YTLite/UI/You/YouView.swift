@@ -40,11 +40,7 @@ struct YouView: View {
                     apiKey: appModel.config.youtubeDataAPIKey
                 )
             }
-            .sheet(isPresented: $showPlayer) {
-                NavigationStack {
-                    PlayerDetailView()
-                }
-            }
+            .playerDetailSheet(isPresented: $showPlayer)
         }
     }
 
@@ -764,11 +760,7 @@ struct YoutubePlaylistItemsView: View {
         .task {
             await load()
         }
-        .sheet(isPresented: $showPlayer) {
-            NavigationStack {
-                PlayerDetailView()
-            }
-        }
+        .playerDetailSheet(isPresented: $showPlayer)
     }
 
     private func load() async {
@@ -956,9 +948,7 @@ struct ChannelVideosView: View {
         .task(id: channel.channelId) {
             await loadVideos()
         }
-        .sheet(isPresented: $showPlayer) {
-            NavigationStack { PlayerDetailView() }
-        }
+        .playerDetailSheet(isPresented: $showPlayer)
     }
 
     private func loadVideos() async {
@@ -1048,8 +1038,6 @@ struct PlaylistVideosBrowserView: View {
                 errorMessage = error.localizedDescription
             }
         }
-        .sheet(isPresented: $showPlayer) {
-            NavigationStack { PlayerDetailView() }
-        }
+        .playerDetailSheet(isPresented: $showPlayer)
     }
 }

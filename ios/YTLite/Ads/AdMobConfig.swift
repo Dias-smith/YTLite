@@ -1,18 +1,23 @@
 import Foundation
 
-/// AdMob IDs and pacing. Currently Google **test** App / unit IDs — replace before release.
-/// See `ios/ADMOB.md`.
+/// AdMob IDs and pacing. Values are injected by Debug / Release xcconfig through Info.plist.
 nonisolated enum AdMobConfig {
-    static let appID = "ca-app-pub-3940256099942544~1458002511"
-
-    /// Test-ID phase: enabled in Debug and Release for device verification.
     static let adsEnabled = true
 
-    static let appOpenAdUnitID = "ca-app-pub-3940256099942544/5575463023"
-    static let interstitialAdUnitID = "ca-app-pub-3940256099942544/4411468910"
+    static let appID = infoValue("GADApplicationIdentifier")
+    static let appOpenAdUnitID = infoValue("YTLiteAdMobAppOpenAdUnitID")
+    static let hotInterstitialAdUnitID = infoValue("YTLiteAdMobHotInterstitialAdUnitID")
+    static let inAppInterstitialAdUnitID = infoValue("YTLiteAdMobInAppInterstitialAdUnitID")
+    static let rewardedInterstitialAdUnitID = infoValue("YTLiteAdMobRewardedInterstitialAdUnitID")
 
     static let appOpenAdTimeout: TimeInterval = 4 * 60 * 60
     static let interstitialCooldown: TimeInterval = 120
     static let playStartInterstitialDelay: TimeInterval = 20
+    static let playStartInterstitialSessionLimit = 2
     static let hotStartMinBackground: TimeInterval = 30
+    static let leavePlayerPresentationDelay: TimeInterval = 0.55
+
+    private static func infoValue(_ key: String) -> String {
+        Bundle.main.object(forInfoDictionaryKey: key) as? String ?? ""
+    }
 }

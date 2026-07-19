@@ -1,5 +1,18 @@
+import Combine
 import Foundation
 import UserMessagingPlatform
+
+@MainActor
+final class AdConsentStatus: ObservableObject {
+    static let shared = AdConsentStatus()
+    @Published private(set) var revision = 0
+
+    private init() {}
+
+    func refresh() {
+        revision += 1
+    }
+}
 
 /// UMP consent. ATT comes from AdMob **IDFA Explainer** — do not call ATT APIs here.
 @MainActor
@@ -44,15 +57,18 @@ enum AdConsentManager {
 
         await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
             ConsentForm.loadAndPresentIfRequired(from: nil) { error in
-                if let error {
-                    AdProbe.log("consent.form.fail", error.localizedDescription)
-                } else {
-                    AdProbe.log(
-                        "consent.form.done",
-                        "canRequestAds=\(canRequestAds) privacyOptions=\(isPrivacyOptionsRequired)"
-                    )
+                Task { @MainActor in
+                    if let error {
+                        AdProbe.log("consent.form.fail", error.localizedDescription)
+                    } else {
+                        AdProbe.log(
+                            "consent.form.done",
+                            "canRequestAds=\(canRequestAds) privacyOptions=\(isPrivacyOptionsRequired)"
+                        )
+                    }
+                    AdConsentStatus.shared.refresh()
+                    cont.resume()
                 }
-                cont.resume()
             }
         }
 
@@ -61,12 +77,19 @@ enum AdConsentManager {
 
     static func presentPrivacyOptions() async {
         AdProbe.log("consent.privacy_options.present")
+        AdSceneLifecycle.setUIBlocked("privacy_options", blocked: true)
+        defer {
+            AdSceneLifecycle.setUIBlocked("privacy_options", blocked: false)
+        }
         await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
             ConsentForm.presentPrivacyOptionsForm(from: nil) { error in
-                if let error {
-                    AdProbe.log("consent.privacy_options.fail", error.localizedDescription)
+                Task { @MainActor in
+                    if let error {
+                        AdProbe.log("consent.privacy_options.fail", error.localizedDescription)
+                    }
+                    AdConsentStatus.shared.refresh()
+                    cont.resume()
                 }
-                cont.resume()
             }
         }
     }
@@ -75,6 +98,7 @@ enum AdConsentManager {
     static func resetForTesting() {
         ConsentInformation.shared.reset()
         hasStartedConsentThisSession = false
+        AdConsentStatus.shared.refresh()
         AdProbe.log("consent.reset")
     }
     #endif

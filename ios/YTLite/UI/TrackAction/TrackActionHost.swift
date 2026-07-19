@@ -9,6 +9,13 @@ struct TrackActionHost<Content: View>: View {
 
     @State private var renameText = ""
 
+    private var isPresentingAdBlockingSheet: Bool {
+        presenter.showActions
+            || playlistPresenter.showActions
+            || playlistPresenter.showRename
+            || playlistPresenter.showDeleteConfirm
+    }
+
     var body: some View {
         content()
             .environmentObject(presenter)
@@ -54,6 +61,12 @@ struct TrackActionHost<Content: View>: View {
                     .environmentObject(playlistPresenter)
                     .environment(\.libraryStore, libraryStore)
                     .presentationDetents([.medium])
+            }
+            .onChange(of: isPresentingAdBlockingSheet) { _, blocked in
+                AdSceneLifecycle.setUIBlocked("track_action_host", blocked: blocked)
+            }
+            .onDisappear {
+                AdSceneLifecycle.setUIBlocked("track_action_host", blocked: false)
             }
             .overlay(alignment: .bottom) {
                 if let message = presenter.toastMessage ?? playlistPresenter.toastMessage {

@@ -23,11 +23,7 @@ struct MiniPlayerBar: View {
                 contentRow(item: item)
             }
             .background(YTLiteColor.miniPlayer)
-            .sheet(isPresented: $showPlayer) {
-                NavigationStack {
-                    PlayerDetailView()
-                }
-            }
+            .playerDetailSheet(isPresented: $showPlayer)
             .onChange(of: showPlayer) { _, presented in
                 review.setBusy("player", presented)
             }

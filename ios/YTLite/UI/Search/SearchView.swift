@@ -22,6 +22,8 @@ final class SearchViewModel: ObservableObject {
     private var hotKeywordsTask: Task<Void, Never>?
     private weak var memory: SearchMemoryStore?
     private var suppressQuerySideEffects = false
+    /// One in-app interstitial per submitted query (not per tab reload).
+    private var interstitialArmedQuery: String?
 
     func bind(memory: SearchMemoryStore) {
         self.memory = memory
@@ -86,6 +88,7 @@ final class SearchViewModel: ObservableObject {
         selectedTab = .all
         isLoading = false
         isSuggestionsLoading = false
+        interstitialArmedQuery = nil
     }
 
     func applySuggestion(_ item: SearchSuggestionItem, memory: SearchMemoryStore) {
@@ -121,11 +124,19 @@ final class SearchViewModel: ObservableObject {
                 if page.isEmpty {
                     errorMessage = "No results for \"\(q)\""
                 }
+                presentSearchResultsAdIfNeeded(query: q)
             } catch {
                 errorMessage = error.localizedDescription
                 hits = []
+                presentSearchResultsAdIfNeeded(query: q)
             }
         }
+    }
+
+    private func presentSearchResultsAdIfNeeded(query: String) {
+        guard interstitialArmedQuery != query else { return }
+        interstitialArmedQuery = query
+        AdSceneLifecycle.onSearchResultsPresented(query: query)
     }
 
     private func onQueryChanged() {
@@ -226,11 +237,7 @@ struct SearchView: View {
                 viewModel.bind(memory: memory)
                 viewModel.loadHotKeywordsIfNeeded()
             }
-            .sheet(isPresented: $showPlayer) {
-                NavigationStack {
-                    PlayerDetailView()
-                }
-            }
+            .playerDetailSheet(isPresented: $showPlayer)
         }
     }
 

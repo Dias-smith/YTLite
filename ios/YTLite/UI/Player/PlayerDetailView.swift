@@ -83,6 +83,19 @@ struct PlayerDetailView: View {
 
     private let overlayAutoHideSeconds: UInt64 = 5_000_000_000
 
+    private var isPresentingAdBlockingSheet: Bool {
+        showPlaybackSignIn
+            || showSpeedSheet
+            || showHLSQualitySheet
+            || showSleepTimerSheet
+            || showShareSheet
+            || showAddPlaylist
+            || showSaveList
+            || showBatchAdd
+            || showSortMenu
+            || playerTrackMenu != nil
+    }
+
     var body: some View {
         playerDetailRoot
             .onAppear {
@@ -91,6 +104,14 @@ struct PlayerDetailView: View {
                 if !playback.isBuffering {
                     bumpOverlayAutoHide()
                 }
+            }
+            .onChange(of: isPresentingAdBlockingSheet) { _, blocked in
+                AdSceneLifecycle.setUIBlocked("player_detail_sheet", blocked: blocked)
+            }
+            .onDisappear {
+                // leave_player is owned by the presenting `.playerDetailSheet` onDismiss —
+                // do not fire it here (nested sheets / host rebuilds can disappear briefly).
+                AdSceneLifecycle.setUIBlocked("player_detail_sheet", blocked: false)
             }
     }
 
@@ -389,7 +410,6 @@ struct PlayerDetailView: View {
     private var overlayTopBar: some View {
         HStack(spacing: YTLiteLayout.stackDefault) {
             overlayIconButton(systemName: "chevron.down") {
-                AdSceneLifecycle.onPlayerDetailClosed()
                 dismiss()
             }
             Spacer()

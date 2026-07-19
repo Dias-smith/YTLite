@@ -1,9 +1,19 @@
 import SwiftUI
 
+private enum ThemeRewardAction {
+    case select(String)
+    case create
+    case edit(ThemePalette)
+}
+
 struct ThemePickerView: View {
     @EnvironmentObject private var appModel: AppModel
     @ObservedObject private var themes = ThemeStore.shared
+    @ObservedObject private var rewardUnlocks = RewardUnlockStore.shared
     @State private var editorDraft: ThemeEditorDraft?
+    @State private var pendingRewardAction: ThemeRewardAction?
+    @State private var showRewardPrompt = false
+    @State private var rewardErrorText: String?
 
     var body: some View {
         List {
@@ -29,14 +39,17 @@ struct ThemePickerView: View {
                     .onDelete(perform: deleteCustoms)
                 }
                 Button {
-                    let base = themes.activePalette
-                    editorDraft = ThemeEditorDraft(
-                        palette: base.makingCustom(name: L("theme.custom.default_name")),
-                        isNew: true
-                    )
+                    requestRewardedAction(.create)
                 } label: {
-                    Label(L("theme.custom.create"), systemImage: "plus.circle.fill")
-                        .foregroundStyle(YTLiteColor.accent)
+                    HStack {
+                        Label(L("theme.custom.create"), systemImage: "plus.circle.fill")
+                            .foregroundStyle(YTLiteColor.accent)
+                        Spacer()
+                        if !themesUnlockedToday {
+                            Image(systemName: "lock.fill")
+                                .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                        }
+                    }
                 }
                 .listRowBackground(YTLiteColor.surfaceElevated)
             }
@@ -45,6 +58,30 @@ struct ThemePickerView: View {
         .background(YTLiteColor.background)
         .navigationTitle(L("theme.title"))
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            AdSceneLifecycle.setUIBlocked("theme_picker", blocked: true)
+        }
+        .onDisappear {
+            AdSceneLifecycle.setUIBlocked("theme_picker", blocked: false)
+        }
+        .alert(
+            L("ad.reward.theme_title"),
+            isPresented: $showRewardPrompt
+        ) {
+            Button(L("ad.reward.watch")) { presentThemeRewardedAd() }
+            Button(L("common.cancel"), role: .cancel) { pendingRewardAction = nil }
+        } message: {
+            Text(L("ad.reward.theme_message"))
+        }
+        .alert(
+            rewardErrorText ?? "",
+            isPresented: Binding(
+                get: { rewardErrorText != nil },
+                set: { if !$0 { rewardErrorText = nil } }
+            )
+        ) {
+            Button("OK", role: .cancel) {}
+        }
         .sheet(item: $editorDraft) { draft in
             NavigationStack {
                 ThemeEditorView(draft: draft) { saved in
@@ -64,7 +101,7 @@ struct ThemePickerView: View {
 
     private func themeRow(_ palette: ThemePalette, allowsEdit: Bool = false) -> some View {
         Button {
-            appModel.selectTheme(id: palette.id)
+            requestThemeSelection(palette)
         } label: {
             HStack(spacing: 12) {
                 ThemeSwatch(palette: palette)
@@ -81,9 +118,13 @@ struct ThemePickerView: View {
                     Image(systemName: "checkmark")
                         .foregroundStyle(YTLiteColor.accent)
                 }
+                if requiresReward(palette), !themesUnlockedToday {
+                    Image(systemName: "lock.fill")
+                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                }
                 if allowsEdit {
                     Button {
-                        editorDraft = ThemeEditorDraft(palette: palette, isNew: false)
+                        requestRewardedAction(.edit(palette))
                     } label: {
                         Image(systemName: "slider.horizontal.3")
                             .foregroundStyle(YTLiteColor.onSurfaceVariant)
@@ -95,6 +136,69 @@ struct ThemePickerView: View {
         }
         .buttonStyle(.plain)
         .listRowBackground(YTLiteColor.surfaceElevated)
+    }
+
+    private var themesUnlockedToday: Bool {
+        _ = rewardUnlocks.revision
+        return rewardUnlocks.isUnlockedToday(.themes)
+    }
+
+    private func requiresReward(_ palette: ThemePalette) -> Bool {
+        palette.id != ThemeCatalog.lightClassic.id
+            && palette.id != ThemeCatalog.darkClassic.id
+    }
+
+    private func requestThemeSelection(_ palette: ThemePalette) {
+        if !requiresReward(palette) || themesUnlockedToday {
+            appModel.selectTheme(id: palette.id)
+        } else {
+            requestRewardedAction(.select(palette.id))
+        }
+    }
+
+    private func requestRewardedAction(_ action: ThemeRewardAction) {
+        if themesUnlockedToday {
+            perform(action)
+        } else {
+            pendingRewardAction = action
+            showRewardPrompt = true
+        }
+    }
+
+    private func presentThemeRewardedAd() {
+        let didPresent = RewardedInterstitialAdManager.shared.show(
+            reason: "reward_theme"
+        ) { earned in
+            guard earned else {
+                rewardErrorText = L("ad.reward.not_earned")
+                pendingRewardAction = nil
+                return
+            }
+            rewardUnlocks.unlockToday(.themes)
+            if let pendingRewardAction {
+                perform(pendingRewardAction)
+            }
+            pendingRewardAction = nil
+        }
+        if !didPresent {
+            rewardErrorText = L("ad.reward.not_ready")
+            pendingRewardAction = nil
+        }
+    }
+
+    private func perform(_ action: ThemeRewardAction) {
+        switch action {
+        case .select(let id):
+            appModel.selectTheme(id: id)
+        case .create:
+            let base = themes.activePalette
+            editorDraft = ThemeEditorDraft(
+                palette: base.makingCustom(name: L("theme.custom.default_name")),
+                isNew: true
+            )
+        case .edit(let palette):
+            editorDraft = ThemeEditorDraft(palette: palette, isNew: false)
+        }
     }
 
     private func deleteCustoms(at offsets: IndexSet) {
