@@ -24,6 +24,8 @@ final class AppModel: ObservableObject {
     @Published private(set) var libraryRevision: Int = 0
     /// True after login / logout / account switch until library bucket sync finishes.
     @Published private(set) var isLibrarySyncing: Bool = false
+    /// When the current library sync began (for collapsing the modal after 5s).
+    private(set) var librarySyncStartedAt: Date?
 
     let config = AppConfig.fromBundle()
 
@@ -75,11 +77,15 @@ final class AppModel: ObservableObject {
     }
 
     func beginLibrarySync() {
+        if !isLibrarySyncing {
+            librarySyncStartedAt = Date()
+        }
         isLibrarySyncing = true
     }
 
     func endLibrarySync() {
         isLibrarySyncing = false
+        librarySyncStartedAt = nil
         libraryRevision += 1
     }
 }

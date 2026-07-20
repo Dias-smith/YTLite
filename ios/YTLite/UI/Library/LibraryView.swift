@@ -83,6 +83,17 @@ struct LibraryView: View {
     @State private var showDeleteAccountConfirm = false
     @State private var deleteAccountError: String?
     @State private var showSignInOptions = false
+    /// After 5s of syncing, collapse the modal into a trailing chip (and keep it for manual retry).
+    @State private var preferCompactLibrarySync = false
+    @State private var promoteCompactSyncTask: Task<Void, Never>?
+
+    private var showsLibrarySyncModal: Bool {
+        appModel.isLibrarySyncing && !preferCompactLibrarySync
+    }
+
+    private var showsLibrarySyncChip: Bool {
+        preferCompactLibrarySync && auth.isAuthenticated
+    }
 
     var body: some View {
         NavigationStack {
@@ -123,11 +134,11 @@ struct LibraryView: View {
                     }
                     .padding(.trailing, YTLiteLayout.screenPadding)
                     .padding(.bottom, YTLiteLayout.screenPadding)
-                    .disabled(appModel.isLibrarySyncing)
+                    .disabled(showsLibrarySyncModal)
                 }
             }
             .overlay {
-                if appModel.isLibrarySyncing {
+                if showsLibrarySyncModal {
                     ZStack {
                         Color.black.opacity(0.35)
                             .ignoresSafeArea()
@@ -159,11 +170,26 @@ struct LibraryView: View {
                     PlaylistDetailView(playlist: playlist) { reload() }
                 }
             }
-            .onAppear(perform: reload)
+            .onAppear {
+                reload()
+                if appModel.isLibrarySyncing {
+                    handleLibrarySyncingChange(true)
+                }
+            }
             .onChange(of: trackActions.listEpoch) { _, _ in reload() }
             .onChange(of: playlistActions.listEpoch) { _, _ in reload() }
             .onChange(of: appModel.libraryRevision) { _, _ in reload() }
             .onChange(of: playback.isChannelSubscribed) { _, _ in reload() }
+            .onChange(of: appModel.isLibrarySyncing) { _, syncing in
+                handleLibrarySyncingChange(syncing)
+            }
+            .onChange(of: auth.isAuthenticated) { _, signedIn in
+                if !signedIn {
+                    preferCompactLibrarySync = false
+                    promoteCompactSyncTask?.cancel()
+                    promoteCompactSyncTask = nil
+                }
+            }
             .onChange(of: filter) { _, newFilter in
                 exitSelectionMode()
                 if newFilter != .playlists { exitReorderMode(save: false) }
@@ -540,9 +566,35 @@ struct LibraryView: View {
                     filter = item
                 }
             }
-            Spacer()
+            Spacer(minLength: 8)
+            if showsLibrarySyncChip {
+                librarySyncChip
+            }
         }
         .padding(.horizontal, YTLiteLayout.screenPadding)
+    }
+
+    private var librarySyncChip: some View {
+        Button {
+            requestLibrarySync()
+        } label: {
+            Group {
+                if appModel.isLibrarySyncing {
+                    ProgressView()
+                        .controlSize(.small)
+                        .tint(YTLiteColor.accent)
+                } else {
+                    Image(systemName: "arrow.triangle.2.circlepath")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                }
+            }
+            .frame(width: 32, height: 32)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(appModel.isLibrarySyncing)
+        .accessibilityLabel(L("library.syncing"))
     }
 
     private var listControls: some View {
@@ -1249,6 +1301,42 @@ struct LibraryView: View {
 
     private func moveReorderItems(from source: IndexSet, to destination: Int) {
         reorderItems.move(fromOffsets: source, toOffset: destination)
+    }
+
+    private func handleLibrarySyncingChange(_ syncing: Bool) {
+        if syncing {
+            promoteCompactSyncTask?.cancel()
+            if preferCompactLibrarySync { return }
+
+            let started = appModel.librarySyncStartedAt ?? Date()
+            let elapsed = Date().timeIntervalSince(started)
+            if elapsed >= 5 {
+                preferCompactLibrarySync = true
+                return
+            }
+
+            let remainingNs = UInt64((5 - elapsed) * 1_000_000_000)
+            promoteCompactSyncTask = Task { @MainActor in
+                try? await Task.sleep(nanoseconds: remainingNs)
+                guard !Task.isCancelled, appModel.isLibrarySyncing else { return }
+                preferCompactLibrarySync = true
+            }
+        } else {
+            promoteCompactSyncTask?.cancel()
+            promoteCompactSyncTask = nil
+            // Keep compact chip after a long sync so the user can tap to sync again.
+        }
+    }
+
+    private func requestLibrarySync() {
+        guard auth.isAuthenticated, let store, !appModel.isLibrarySyncing else { return }
+        preferCompactLibrarySync = true
+        Task {
+            appModel.beginLibrarySync()
+            defer { appModel.endLibrarySync() }
+            await LibrarySyncService(auth: auth).syncBidirectional(store: store)
+            reload()
+        }
     }
 
     private func performDeleteAccount() async {

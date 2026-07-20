@@ -20,11 +20,23 @@ final class LibrarySyncService {
         store.onMutate = nil
         defer { store.onMutate = previousMutate }
 
+        let t0 = SyncProbe.now()
+        SyncProbe.logTrace("bidirectional.begin")
+
         // Pull first so Library can refresh quickly; push only dirty rows after.
         await pullRemote(into: store)
+
+        let tSave1 = SyncProbe.now()
         store.saveLocalOnly()
+        SyncProbe.logTrace("save.local", "phase=after_pull ms=\(SyncProbe.ms(since: tSave1))")
+
         await pushDirty(store: store)
+
+        let tSave2 = SyncProbe.now()
         store.saveLocalOnly()
+        SyncProbe.logTrace("save.local", "phase=after_push ms=\(SyncProbe.ms(since: tSave2))")
+
+        SyncProbe.logTrace("bidirectional.end", "total_ms=\(SyncProbe.ms(since: t0))")
     }
 
     /// Guest → first login: re-home guest bucket into the user bucket, then sync that user.
@@ -37,8 +49,14 @@ final class LibrarySyncService {
         store.onMutate = nil
         defer { store.onMutate = previousMutate }
 
+        let t0 = SyncProbe.now()
+        SyncProbe.logTrace(
+            "merge.begin",
+            "guest=\(guestKey.prefix(12)) user=\(userKey.prefix(12))"
+        )
         store.mergeGuestIntoUser(guestKey: guestKey, userKey: userKey)
         store.setOwnerKey(userKey)
+        SyncProbe.logTrace("merge.end", "ms=\(SyncProbe.ms(since: t0))")
         await syncBidirectional(store: store)
     }
 
@@ -62,70 +80,150 @@ final class LibrarySyncService {
     private func pushDirty(store: LibraryStore) async {
         guard let client = auth.supabaseClient(), let userId = auth.userId else { return }
 
-        var pushedTrackIds = Set<String>()
+        let t0 = SyncProbe.now()
+
+        // Collect dirty work first — only these rows are pushed.
+        var playlistsToUpsert: [LibraryPlaylist] = []
+        var playlistsToMarkSynced: [LibraryPlaylist] = []
+        var dirtyEntries: [(playlistId: String, entry: LibraryPlaylistEntry)] = []
+        var tracksById: [String: LibraryTrack] = [:]
 
         for playlist in store.allPlaylists() {
-            let dirtyEntries = playlist.entries.filter { !$0.isSynced }
+            let entries = playlist.entries.filter { !$0.isSynced }
             let needsPlaylistUpsert = !playlist.isSynced
-            guard needsPlaylistUpsert || !dirtyEntries.isEmpty else { continue }
+            guard needsPlaylistUpsert || !entries.isEmpty else { continue }
 
-            var playlistSynced = true
+            playlistsToMarkSynced.append(playlist)
             if needsPlaylistUpsert {
-                playlistSynced = await upsertPlaylist(client: client, userId: userId, playlist: playlist)
+                playlistsToUpsert.append(playlist)
             }
-
-            for entry in dirtyEntries {
+            for entry in entries {
                 guard let track = entry.track else { continue }
-                if !pushedTrackIds.contains(track.trackId) {
-                    await upsertTrack(client: client, track: track)
-                    pushedTrackIds.insert(track.trackId)
-                }
-                await upsertPlaylistTrack(
-                    client: client,
-                    playlistId: playlist.playlistId,
-                    trackId: track.trackId,
-                    position: entry.position,
-                    createdAt: entry.createdAt
-                )
-                entry.isSynced = true
-            }
-
-            if playlistSynced {
-                playlist.isSynced = true
+                dirtyEntries.append((playlist.playlistId, entry))
+                tracksById[track.trackId] = track
             }
         }
 
-        for item in store.playbackHistory(limit: 100) where !item.isSynced {
-            if let track = store.track(id: item.trackId), !pushedTrackIds.contains(track.trackId) {
-                await upsertTrack(client: client, track: track)
-                pushedTrackIds.insert(track.trackId)
+        let dirtyHistory = store.playbackHistory(limit: 100).filter { !$0.isSynced }
+        let dirtyLastPlayed = store.lastPlayed(limit: 100).filter { !$0.isSynced }
+        let dirtyMeta = store.allMetadata().filter { !$0.isSynced }
+        let dirtyChannels = store.allSubscribedChannels().filter { !$0.isSynced }
+
+        for item in dirtyHistory {
+            if let track = store.track(id: item.trackId) {
+                tracksById[track.trackId] = track
             }
+        }
+        for row in dirtyLastPlayed {
+            if let track = store.track(id: row.trackId) {
+                tracksById[track.trackId] = track
+            }
+        }
+
+        SyncProbe.logTrace(
+            "push.begin",
+            "dirty playlist=\(playlistsToUpsert.count) entry=\(dirtyEntries.count) history=\(dirtyHistory.count) lastPlayed=\(dirtyLastPlayed.count) meta=\(dirtyMeta.count) channel=\(dirtyChannels.count)"
+        )
+
+        var playlistUpsertN = 0
+        var playlistUpsertMs = 0
+        var trackUpsertN = 0
+        var trackUpsertMs = 0
+        var entryUpsertN = 0
+        var entryUpsertMs = 0
+        var historyMs = 0
+        var lastPlayedMs = 0
+        var metaMs = 0
+        var channelMs = 0
+
+        // Playlists stay per-row (cover upload / local-path handling).
+        var playlistUpsertFailed = Set<String>()
+        for playlist in playlistsToUpsert {
+            let tP = SyncProbe.now()
+            let ok = await upsertPlaylist(client: client, userId: userId, playlist: playlist)
+            let pMs = SyncProbe.ms(since: tP)
+            playlistUpsertN += 1
+            playlistUpsertMs += pMs
+            SyncProbe.logTrace("push.playlist", "ms=\(pMs) id=\(playlist.playlistId.prefix(8)) ok=\(ok ? 1 : 0)")
+            if !ok {
+                playlistUpsertFailed.insert(playlist.playlistId)
+            }
+        }
+
+        // Batch tracks then cross-refs (FK: tracks must exist before entries).
+        let tracks = Array(tracksById.values)
+        if !tracks.isEmpty {
+            let tT = SyncProbe.now()
+            await upsertTracks(client: client, tracks: tracks)
+            trackUpsertN = tracks.count
+            trackUpsertMs = SyncProbe.ms(since: tT)
+            SyncProbe.logTrace("push.tracks_batch", "n=\(trackUpsertN) ms=\(trackUpsertMs)")
+        }
+
+        if !dirtyEntries.isEmpty {
+            let tE = SyncProbe.now()
+            let entryRows: [(playlistId: String, trackId: String, position: Int, createdAt: Date)] = dirtyEntries.compactMap { item in
+                guard let trackId = item.entry.track?.trackId else { return nil }
+                return (
+                    playlistId: item.playlistId,
+                    trackId: trackId,
+                    position: item.entry.position,
+                    createdAt: item.entry.createdAt
+                )
+            }
+            await upsertPlaylistTracks(client: client, rows: entryRows)
+            entryUpsertN = entryRows.count
+            entryUpsertMs = SyncProbe.ms(since: tE)
+            SyncProbe.logTrace("push.entries_batch", "n=\(entryUpsertN) ms=\(entryUpsertMs)")
+            for item in dirtyEntries {
+                item.entry.isSynced = true
+            }
+        }
+
+        for playlist in playlistsToMarkSynced where !playlistUpsertFailed.contains(playlist.playlistId) {
+            playlist.isSynced = true
+        }
+
+        for item in dirtyHistory {
+            let tH = SyncProbe.now()
             await insertPlaybackHistory(client: client, userId: userId, item: item)
+            historyMs += SyncProbe.ms(since: tH)
             item.isSynced = true
         }
 
-        for row in store.lastPlayed(limit: 100) where !row.isSynced {
-            if let track = store.track(id: row.trackId), !pushedTrackIds.contains(track.trackId) {
-                await upsertTrack(client: client, track: track)
-                pushedTrackIds.insert(track.trackId)
-            }
+        for row in dirtyLastPlayed {
+            let tL = SyncProbe.now()
             await upsertLastPlayed(client: client, userId: userId, row: row)
+            lastPlayedMs += SyncProbe.ms(since: tL)
             row.isSynced = true
         }
 
-        for meta in store.allMetadata() where !meta.isSynced {
+        for meta in dirtyMeta {
+            let tM = SyncProbe.now()
             await upsertMetadata(client: client, userId: userId, meta: meta)
+            metaMs += SyncProbe.ms(since: tM)
             meta.isSynced = true
         }
 
-        for channel in store.allSubscribedChannels() where !channel.isSynced {
+        for channel in dirtyChannels {
+            let tC = SyncProbe.now()
             await upsertSubscribedChannel(client: client, userId: userId, channel: channel)
+            channelMs += SyncProbe.ms(since: tC)
             channel.isSynced = true
         }
+
+        SyncProbe.logTrace(
+            "push.summary",
+            "playlists_ms=\(playlistUpsertMs) playlists_n=\(playlistUpsertN) tracks_ms=\(trackUpsertMs) tracks_n=\(trackUpsertN) entries_ms=\(entryUpsertMs) entries_n=\(entryUpsertN) history_ms=\(historyMs) lastPlayed_ms=\(lastPlayedMs) meta_ms=\(metaMs) channel_ms=\(channelMs)"
+        )
+        SyncProbe.logTrace("push.end", "total_ms=\(SyncProbe.ms(since: t0))")
     }
 
     private func pullRemote(into store: LibraryStore) async {
         guard auth.supabaseClient() != nil, auth.userId != nil else { return }
+
+        let t0 = SyncProbe.now()
+        SyncProbe.logTrace("pull.begin")
 
         // Playlists first (owns the heavy track fetch); then lighter tables in parallel.
         await pullPlaylists(into: store)
@@ -133,10 +231,14 @@ final class LibrarySyncService {
         async let metadataDone: Void = pullMetadata(into: store)
         async let channelsDone: Void = pullSubscribedChannels(into: store)
         _ = await (lastPlayedDone, metadataDone, channelsDone)
+
+        SyncProbe.logTrace("pull.end", "total_ms=\(SyncProbe.ms(since: t0))")
     }
 
     func pullPlaylists(into store: LibraryStore) async {
         guard let client = auth.supabaseClient(), let userId = auth.userId else { return }
+        let t0 = SyncProbe.now()
+        SyncProbe.logTrace("pull.playlists.begin")
         struct RemotePlaylist: Decodable {
             let playlist_id: String
             let name: String
@@ -194,13 +296,20 @@ final class LibrarySyncService {
             }
 
             await pullTracksBatched(client: client, store: store, targets: targets)
+            SyncProbe.logTrace(
+                "pull.playlists.end",
+                "playlists=\(rows.count) targets=\(targets.count) ms=\(SyncProbe.ms(since: t0))"
+            )
         } catch {
             // Soft-fail
+            SyncProbe.logTrace("pull.playlists.end", "error=1 ms=\(SyncProbe.ms(since: t0))")
         }
     }
 
     private func pullLastPlayed(into store: LibraryStore) async {
         guard let client = auth.supabaseClient(), let userId = auth.userId else { return }
+        let t0 = SyncProbe.now()
+        SyncProbe.logTrace("pull.last_played.begin")
         struct RemoteLastPlayed: Decodable {
             let track_id: String
             let last_played_at: String
@@ -224,11 +333,16 @@ final class LibrarySyncService {
                     progressMs: row.progress_ms ?? 0
                 )
             }
-        } catch {}
+            SyncProbe.logTrace("pull.last_played.end", "rows=\(rows.count) ms=\(SyncProbe.ms(since: t0))")
+        } catch {
+            SyncProbe.logTrace("pull.last_played.end", "error=1 ms=\(SyncProbe.ms(since: t0))")
+        }
     }
 
     private func pullMetadata(into store: LibraryStore) async {
         guard let client = auth.supabaseClient(), let userId = auth.userId else { return }
+        let t0 = SyncProbe.now()
+        SyncProbe.logTrace("pull.metadata.begin")
         struct RemoteMeta: Decodable {
             let track_id: String
             let custom_title: String?
@@ -260,11 +374,16 @@ final class LibrarySyncService {
                     )
                 )
             }
-        } catch {}
+            SyncProbe.logTrace("pull.metadata.end", "rows=\(rows.count) ms=\(SyncProbe.ms(since: t0))")
+        } catch {
+            SyncProbe.logTrace("pull.metadata.end", "error=1 ms=\(SyncProbe.ms(since: t0))")
+        }
     }
 
     private func pullSubscribedChannels(into store: LibraryStore) async {
         guard let client = auth.supabaseClient(), let userId = auth.userId else { return }
+        let t0 = SyncProbe.now()
+        SyncProbe.logTrace("pull.channels.begin")
         struct RemoteChannel: Decodable {
             let channel_id: String
             let title: String
@@ -300,7 +419,10 @@ final class LibrarySyncService {
                     )
                 )
             }
-        } catch {}
+            SyncProbe.logTrace("pull.channels.end", "rows=\(rows.count) ms=\(SyncProbe.ms(since: t0))")
+        } catch {
+            SyncProbe.logTrace("pull.channels.end", "error=1 ms=\(SyncProbe.ms(since: t0))")
+        }
     }
 
     private func pullTracksBatched(
@@ -317,7 +439,10 @@ final class LibrarySyncService {
 
         let remoteIds = targets.map(\.remoteId)
         var refs: [RemoteTrackRef] = []
+        var crossRefChunks = 0
+        let tRefs = SyncProbe.now()
         for chunk in remoteIds.chunked(into: 80) {
+            crossRefChunks += 1
             do {
                 let part: [RemoteTrackRef] = try await client
                     .from("playlist_track_cross_ref")
@@ -328,6 +453,10 @@ final class LibrarySyncService {
                 refs.append(contentsOf: part)
             } catch {}
         }
+        SyncProbe.logTrace(
+            "pull.playlists.cross_ref",
+            "chunks=\(crossRefChunks) refs=\(refs.count) ms=\(SyncProbe.ms(since: tRefs))"
+        )
 
         let allTrackIds = Array(Set(refs.map(\.track_id)))
         await pullTracksByIds(client: client, store: store, trackIds: allTrackIds)
@@ -370,6 +499,7 @@ final class LibrarySyncService {
             let primary_artist_name: String?
         }
         for chunk in trackIds.chunked(into: 100) {
+            let tChunk = SyncProbe.now()
             do {
                 let tracks: [RemoteTrack] = try await client
                     .from("tracks")
@@ -395,7 +525,16 @@ final class LibrarySyncService {
                         )
                     )
                 }
-            } catch {}
+                SyncProbe.logTrace(
+                    "pull.tracks_batch",
+                    "chunk_size=\(chunk.count) fetched=\(tracks.count) ms=\(SyncProbe.ms(since: tChunk))"
+                )
+            } catch {
+                SyncProbe.logTrace(
+                    "pull.tracks_batch",
+                    "chunk_size=\(chunk.count) error=1 ms=\(SyncProbe.ms(since: tChunk))"
+                )
+            }
         }
     }
 
@@ -535,6 +674,7 @@ final class LibrarySyncService {
             return nil
         }
 
+        let t0 = SyncProbe.now()
         let objectPath = Self.remoteCoverObjectPath(userId: userId, playlistId: playlist.playlistId)
         do {
             try await client.storage
@@ -551,8 +691,16 @@ final class LibrarySyncService {
             let publicURL = try client.storage
                 .from(Self.playlistCoversBucket)
                 .getPublicURL(path: objectPath)
+            SyncProbe.logTrace(
+                "push.cover",
+                "ms=\(SyncProbe.ms(since: t0)) bytes=\(data.count) id=\(playlist.playlistId.prefix(8)) ok=1"
+            )
             return publicURL.absoluteString
         } catch {
+            SyncProbe.logTrace(
+                "push.cover",
+                "ms=\(SyncProbe.ms(since: t0)) bytes=\(data.count) id=\(playlist.playlistId.prefix(8)) ok=0"
+            )
             return nil
         }
     }
@@ -575,6 +723,11 @@ final class LibrarySyncService {
     }
 
     private func upsertTrack(client: SupabaseClient, track: LibraryTrack) async {
+        await upsertTracks(client: client, tracks: [track])
+    }
+
+    private func upsertTracks(client: SupabaseClient, tracks: [LibraryTrack]) async {
+        guard !tracks.isEmpty else { return }
         struct Payload: Encodable {
             let track_id: String
             let title: String
@@ -589,22 +742,25 @@ final class LibrarySyncService {
             let primary_artist_id: String?
             let primary_artist_name: String?
         }
-        _ = try? await client.from("tracks").upsert(
-            Payload(
-                track_id: track.trackId,
-                title: track.title,
-                duration_seconds: track.durationSeconds,
-                duration_text: track.durationText,
-                thumbnail_low: track.thumbnailLow,
-                thumbnail_medium: track.thumbnailMedium,
-                thumbnail_high: track.thumbnailHigh,
-                view_count: track.viewCount,
-                view_count_text: track.viewCountText,
-                published_text: track.publishedText,
-                primary_artist_id: track.primaryArtistId,
-                primary_artist_name: track.primaryArtistName
-            )
-        ).execute()
+        for chunk in tracks.chunked(into: 100) {
+            let payloads = chunk.map {
+                Payload(
+                    track_id: $0.trackId,
+                    title: $0.title,
+                    duration_seconds: $0.durationSeconds,
+                    duration_text: $0.durationText,
+                    thumbnail_low: $0.thumbnailLow,
+                    thumbnail_medium: $0.thumbnailMedium,
+                    thumbnail_high: $0.thumbnailHigh,
+                    view_count: $0.viewCount,
+                    view_count_text: $0.viewCountText,
+                    published_text: $0.publishedText,
+                    primary_artist_id: $0.primaryArtistId,
+                    primary_artist_name: $0.primaryArtistName
+                )
+            }
+            _ = try? await client.from("tracks").upsert(payloads).execute()
+        }
     }
 
     private func upsertPlaylistTrack(
@@ -614,20 +770,34 @@ final class LibrarySyncService {
         position: Int,
         createdAt: Date
     ) async {
+        await upsertPlaylistTracks(
+            client: client,
+            rows: [(playlistId: playlistId, trackId: trackId, position: position, createdAt: createdAt)]
+        )
+    }
+
+    private func upsertPlaylistTracks(
+        client: SupabaseClient,
+        rows: [(playlistId: String, trackId: String, position: Int, createdAt: Date)]
+    ) async {
+        guard !rows.isEmpty else { return }
         struct Payload: Encodable {
             let playlist_id: String
             let track_id: String
             let position: Int
             let created_at: String
         }
-        _ = try? await client.from("playlist_track_cross_ref").upsert(
-            Payload(
-                playlist_id: playlistId,
-                track_id: trackId,
-                position: position,
-                created_at: isoString(from: createdAt)
-            )
-        ).execute()
+        for chunk in rows.chunked(into: 100) {
+            let payloads = chunk.map {
+                Payload(
+                    playlist_id: $0.playlistId,
+                    track_id: $0.trackId,
+                    position: $0.position,
+                    created_at: isoString(from: $0.createdAt)
+                )
+            }
+            _ = try? await client.from("playlist_track_cross_ref").upsert(payloads).execute()
+        }
     }
 
     private func insertPlaybackHistory(

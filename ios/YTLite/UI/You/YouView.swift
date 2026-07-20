@@ -71,7 +71,12 @@ struct YouView: View {
                     apiKey: appModel.config.youtubeDataAPIKey
                 )
                 if let store {
+                    let t0 = SyncProbe.now()
+                    let trace = SyncProbe.newTraceId()
+                    SyncProbe.currentTrace = trace
+                    SyncProbe.logTrace("sync.start", "source=you_onSignedIn")
                     await LibrarySyncService(auth: auth).syncBidirectional(store: store)
+                    SyncProbe.logTrace("sync.end", "source=you_onSignedIn total_ms=\(SyncProbe.ms(since: t0))")
                 }
             }
             .padding(.top, YTLiteLayout.stackTight)

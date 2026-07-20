@@ -66,8 +66,15 @@ struct RootView: View {
                     }
                     if auth.isAuthenticated {
                         Task {
+                            let t0 = SyncProbe.now()
+                            let trace = SyncProbe.newTraceId()
+                            SyncProbe.currentTrace = trace
+                            SyncProbe.logTrace("sync.start", "source=root_appear")
                             appModel.beginLibrarySync()
-                            defer { appModel.endLibrarySync() }
+                            defer {
+                                SyncProbe.logTrace("sync.end", "source=root_appear total_ms=\(SyncProbe.ms(since: t0))")
+                                appModel.endLibrarySync()
+                            }
                             await sync.syncBidirectional(store: store)
                         }
                     }
@@ -79,8 +86,25 @@ struct RootView: View {
 
                 Task {
                     // Any auth transition (login / logout / switch) shows Library spinner.
+                    let t0 = SyncProbe.now()
+                    let trace = SyncProbe.newTraceId()
+                    SyncProbe.currentTrace = trace
+                    let source: String
+                    if next == nil {
+                        source = "root_user_to_guest"
+                    } else if previous == nil {
+                        source = "root_guest_to_user"
+                    } else if previous != next {
+                        source = "root_user_switch"
+                    } else {
+                        source = "root_user_same"
+                    }
+                    SyncProbe.logTrace("sync.start", "source=\(source)")
                     appModel.beginLibrarySync()
-                    defer { appModel.endLibrarySync() }
+                    defer {
+                        SyncProbe.logTrace("sync.end", "source=\(source) total_ms=\(SyncProbe.ms(since: t0))")
+                        appModel.endLibrarySync()
+                    }
 
                     guard let next else {
                         // Sign out → guest bucket (keep prior user buckets).

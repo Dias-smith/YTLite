@@ -122,6 +122,14 @@ final class LibraryStore {
         onMutate = nil
         defer { onMutate = previousMutate }
 
+        let t0 = SyncProbe.now()
+        let guestPlaylists = fetchPlaylists(ownerKey: guestKey)
+        let guestTrackCount = guestPlaylists.reduce(0) { $0 + $1.entries.count }
+        SyncProbe.logTrace(
+            "store.merge.begin",
+            "guest=\(guestKey.prefix(12)) user=\(userKey.prefix(12)) playlists=\(guestPlaylists.count) entries=\(guestTrackCount)"
+        )
+
         ensureSystemPlaylists(for: guestKey)
 
         let guestSystem = fetchPlaylists(ownerKey: guestKey).filter { $0.systemType != nil }
@@ -155,6 +163,7 @@ final class LibraryStore {
         ownerKey = userKey
         deduplicateSystemPlaylists(for: userKey)
         try? modelContext.save()
+        SyncProbe.logTrace("store.merge.end", "ms=\(SyncProbe.ms(since: t0))")
     }
 
     private func mergeLastPlayed(from guestKey: String, to userKey: String) {

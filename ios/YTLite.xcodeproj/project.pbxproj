@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A7C3E91F2B4D6088C1E5A903 /* SyncProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8D4F02A3C5E7199D2F6B014 /* SyncProbe.swift */; };
 		04AA8137173B3F16BA42BA89 /* LyricsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95BB5987A01CB83F34EC4732 /* LyricsSheet.swift */; };
 		05E890CF43A22346F8982065 /* YTLiteSheetChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A2E2B438DB6EE30A26B52AF /* YTLiteSheetChrome.swift */; };
 		0B53FFD0BF2E85F8B97EAA04 /* TrackLyricsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90C3AFEA3FF8DF17A290E374 /* TrackLyricsSheet.swift */; };
@@ -99,6 +100,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		B8D4F02A3C5E7199D2F6B014 /* SyncProbe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncProbe.swift; sourceTree = "<group>"; };
 		04B9DD7A53CD8AD757A58299 /* AdSceneLifecycle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdSceneLifecycle.swift; sourceTree = "<group>"; };
 		0655C2E16E330F3F5522D5F5 /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Release.xcconfig; sourceTree = "<group>"; };
 		0E5C2529DFCFF70006816FEF /* AccountMenuSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountMenuSheet.swift; sourceTree = "<group>"; };
@@ -341,6 +343,7 @@
 				496F688C233012874D29141D /* AuthNonce.swift */,
 				E0D829B6D0AECE937F00F00B /* AuthService.swift */,
 				DB87027CCC60DA905FB7A4E8 /* LibrarySyncService.swift */,
+				B8D4F02A3C5E7199D2F6B014 /* SyncProbe.swift */,
 			);
 			path = Auth;
 			sourceTree = "<group>";
@@ -625,6 +628,7 @@
 				1650ADADA2A34FC0700C38C6 /* LibraryModels.swift in Sources */,
 				BBC8F08DC5CBB521277C50EC /* LibraryStore.swift in Sources */,
 				8DF42706E7A623593FF1DC5D /* LibrarySyncService.swift in Sources */,
+				A7C3E91F2B4D6088C1E5A903 /* SyncProbe.swift in Sources */,
 				96C22C7C115AE15C68F55E6E /* LibraryView.swift in Sources */,
 				04AA8137173B3F16BA42BA89 /* LyricsSheet.swift in Sources */,
 				B5851BD5F592B0AED825CA0D /* MainTabBar.swift in Sources */,
