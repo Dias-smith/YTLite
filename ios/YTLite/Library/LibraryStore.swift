@@ -162,6 +162,7 @@ final class LibraryStore {
 
         ownerKey = userKey
         deduplicateSystemPlaylists(for: userKey)
+        _ = deduplicateCustomPlaylists(for: userKey)
         try? modelContext.save()
         SyncProbe.logTrace("store.merge.end", "ms=\(SyncProbe.ms(since: t0))")
     }
@@ -268,6 +269,35 @@ final class LibraryStore {
             canonical.isSynced = false
             canonical.updatedAt = .now
         }
+    }
+
+    /// Merge custom playlists that share the same normalized name; returns deleted playlistIds (remote orphans).
+    @discardableResult
+    func deduplicateCustomPlaylists(for key: String? = nil) -> [String] {
+        let owner = key ?? ownerKey
+        let custom = fetchPlaylists(ownerKey: owner).filter { $0.systemType == nil }
+        let groups = Dictionary(grouping: custom) { Self.normalizedPlaylistName($0.name) }
+        var orphanIds: [String] = []
+        for (nameKey, dups) in groups {
+            guard !nameKey.isEmpty, dups.count > 1 else { continue }
+            let canonical = dups.max { a, b in
+                if a.isSynced != b.isSynced { return !a.isSynced && b.isSynced }
+                if a.entries.count != b.entries.count { return a.entries.count < b.entries.count }
+                return a.updatedAt < b.updatedAt
+            }!
+            for dup in dups where dup.playlistId != canonical.playlistId {
+                orphanIds.append(dup.playlistId)
+                mergeEntries(from: dup, into: canonical)
+                modelContext.delete(dup)
+            }
+            canonical.isSynced = false
+            canonical.updatedAt = .now
+        }
+        return orphanIds
+    }
+
+    static func normalizedPlaylistName(_ name: String) -> String {
+        name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
     }
 
     private func mergeEntries(from source: LibraryPlaylist, into target: LibraryPlaylist) {

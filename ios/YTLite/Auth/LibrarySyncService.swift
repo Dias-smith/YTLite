@@ -23,14 +23,20 @@ final class LibrarySyncService {
         let t0 = SyncProbe.now()
         SyncProbe.logTrace("bidirectional.begin")
 
+        var orphanPlaylistIds = Set(store.deduplicateCustomPlaylists())
+
         // Pull first so Library can refresh quickly; push only dirty rows after.
-        await pullRemote(into: store)
+        orphanPlaylistIds.formUnion(await pullRemote(into: store))
+        orphanPlaylistIds.formUnion(store.deduplicateCustomPlaylists())
 
         let tSave1 = SyncProbe.now()
         store.saveLocalOnly()
         SyncProbe.logTrace("save.local", "phase=after_pull ms=\(SyncProbe.ms(since: tSave1))")
 
         await pushDirty(store: store)
+        if !orphanPlaylistIds.isEmpty {
+            await deleteRemotePlaylists(playlistIds: Array(orphanPlaylistIds))
+        }
 
         let tSave2 = SyncProbe.now()
         store.saveLocalOnly()
@@ -68,6 +74,23 @@ final class LibrarySyncService {
             .eq("user_id", value: userId)
             .eq("channel_id", value: channelId)
             .execute()
+    }
+
+    /// Remove remote playlist rows left behind after local name-based merge (cascade clears cross_ref).
+    private func deleteRemotePlaylists(playlistIds: [String]) async {
+        guard let client = auth.supabaseClient(), let userId = auth.userId else { return }
+        let unique = Array(Set(playlistIds)).filter { !$0.isEmpty }
+        guard !unique.isEmpty else { return }
+        let t0 = SyncProbe.now()
+        for chunk in unique.chunked(into: 80) {
+            _ = try? await client
+                .from("playlists")
+                .delete()
+                .eq("user_id", value: userId)
+                .in("playlist_id", values: chunk)
+                .execute()
+        }
+        SyncProbe.logTrace("push.orphan_delete", "n=\(unique.count) ms=\(SyncProbe.ms(since: t0))")
     }
 
     /// Incremental upload used by `onMutate` and auth sync — skips already-synced rows.
@@ -219,26 +242,30 @@ final class LibrarySyncService {
         SyncProbe.logTrace("push.end", "total_ms=\(SyncProbe.ms(since: t0))")
     }
 
-    private func pullRemote(into store: LibraryStore) async {
-        guard auth.supabaseClient() != nil, auth.userId != nil else { return }
+    private func pullRemote(into store: LibraryStore) async -> [String] {
+        guard auth.supabaseClient() != nil, auth.userId != nil else { return [] }
 
         let t0 = SyncProbe.now()
         SyncProbe.logTrace("pull.begin")
 
         // Playlists first (owns the heavy track fetch); then lighter tables in parallel.
-        await pullPlaylists(into: store)
+        let playlistOrphans = await pullPlaylists(into: store)
         async let lastPlayedDone: Void = pullLastPlayed(into: store)
         async let metadataDone: Void = pullMetadata(into: store)
         async let channelsDone: Void = pullSubscribedChannels(into: store)
         _ = await (lastPlayedDone, metadataDone, channelsDone)
 
         SyncProbe.logTrace("pull.end", "total_ms=\(SyncProbe.ms(since: t0))")
+        return playlistOrphans
     }
 
-    func pullPlaylists(into store: LibraryStore) async {
-        guard let client = auth.supabaseClient(), let userId = auth.userId else { return }
+    /// Returns local playlistIds replaced by remote ids during name-based match (remote orphans).
+    @discardableResult
+    func pullPlaylists(into store: LibraryStore) async -> [String] {
+        guard let client = auth.supabaseClient(), let userId = auth.userId else { return [] }
         let t0 = SyncProbe.now()
         SyncProbe.logTrace("pull.playlists.begin")
+        var adoptedOrphans: [String] = []
         struct RemotePlaylist: Decodable {
             let playlist_id: String
             let name: String
@@ -281,6 +308,26 @@ final class LibrarySyncService {
                     targets.append((row.playlist_id, existing))
                     continue
                 }
+                // Same-name custom playlist (different UUID) — adopt remote id instead of inserting a duplicate.
+                let remoteNameKey = LibraryStore.normalizedPlaylistName(row.name)
+                if !remoteNameKey.isEmpty,
+                   let byName = store.allPlaylists().first(where: {
+                       $0.systemType == nil
+                           && LibraryStore.normalizedPlaylistName($0.name) == remoteNameKey
+                   }) {
+                    if byName.playlistId != row.playlist_id,
+                       !store.allPlaylists().contains(where: { $0.playlistId == row.playlist_id }) {
+                        adoptedOrphans.append(byName.playlistId)
+                        byName.playlistId = row.playlist_id
+                    }
+                    byName.name = row.name
+                    Self.applyRemoteCover(row.cover_url_or_path, to: byName)
+                    byName.descriptionText = row.description
+                    byName.isPinned = row.is_pinned ?? byName.isPinned
+                    byName.isSynced = true
+                    targets.append((row.playlist_id, byName))
+                    continue
+                }
                 let playlist = LibraryPlaylist(
                     ownerKey: store.ownerKey,
                     playlistId: row.playlist_id,
@@ -300,9 +347,11 @@ final class LibrarySyncService {
                 "pull.playlists.end",
                 "playlists=\(rows.count) targets=\(targets.count) ms=\(SyncProbe.ms(since: t0))"
             )
+            return adoptedOrphans
         } catch {
             // Soft-fail
             SyncProbe.logTrace("pull.playlists.end", "error=1 ms=\(SyncProbe.ms(since: t0))")
+            return adoptedOrphans
         }
     }
 

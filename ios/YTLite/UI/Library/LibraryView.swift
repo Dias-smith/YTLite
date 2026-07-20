@@ -95,6 +95,19 @@ struct LibraryView: View {
         preferCompactLibrarySync && auth.isAuthenticated
     }
 
+    private var showsMiniPlayerChrome: Bool {
+        playback.nowPlaying != nil
+    }
+
+    private var libraryListBottomPadding: CGFloat {
+        80 + (showsMiniPlayerChrome ? YTLiteLayout.miniPlayerChromeHeight : 0)
+    }
+
+    private var fabBottomPadding: CGFloat {
+        YTLiteLayout.screenPadding
+            + (showsMiniPlayerChrome ? YTLiteLayout.miniPlayerChromeHeight : 0)
+    }
+
     var body: some View {
         NavigationStack {
             ZStack(alignment: .bottomTrailing) {
@@ -117,7 +130,7 @@ struct LibraryView: View {
                             }
                             contentList
                         }
-                        .padding(.bottom, 80)
+                        .padding(.bottom, libraryListBottomPadding)
                     }
                 }
 
@@ -133,7 +146,7 @@ struct LibraryView: View {
                             .background(YTLiteColor.accent, in: Capsule())
                     }
                     .padding(.trailing, YTLiteLayout.screenPadding)
-                    .padding(.bottom, YTLiteLayout.screenPadding)
+                    .padding(.bottom, fabBottomPadding)
                     .disabled(showsLibrarySyncModal)
                 }
             }
@@ -977,6 +990,7 @@ struct LibraryView: View {
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
+        .ytLiteMiniPlayerScrollInset(showsMiniPlayer: playback.nowPlaying != nil)
         .environment(\.editMode, .constant(.active))
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -1710,6 +1724,7 @@ struct HistoryDetailView: View {
             }
         }
         .background(YTLiteColor.background)
+        .ytLiteMiniPlayerScrollInset(showsMiniPlayer: playback.nowPlaying != nil)
         .navigationTitle(L("library.history"))
         .toolbar(.visible, for: .navigationBar)
         .toolbarBackground(YTLiteColor.background, for: .navigationBar)

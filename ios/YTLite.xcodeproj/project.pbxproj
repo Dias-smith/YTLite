@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		A7C3E91F2B4D6088C1E5A903 /* SyncProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8D4F02A3C5E7199D2F6B014 /* SyncProbe.swift */; };
 		04AA8137173B3F16BA42BA89 /* LyricsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95BB5987A01CB83F34EC4732 /* LyricsSheet.swift */; };
 		05E890CF43A22346F8982065 /* YTLiteSheetChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A2E2B438DB6EE30A26B52AF /* YTLiteSheetChrome.swift */; };
 		0B53FFD0BF2E85F8B97EAA04 /* TrackLyricsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90C3AFEA3FF8DF17A290E374 /* TrackLyricsSheet.swift */; };
@@ -68,6 +67,7 @@
 		9BA2A97B4E399A8DE578DC68 /* SearchHit.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC4BC0290DBF96C47203AFD9 /* SearchHit.swift */; };
 		A10BB1987728C2EBC73EDC5B /* SearchSuggestionItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 785F0DBABA94995BF9801E53 /* SearchSuggestionItem.swift */; };
 		A53E557E991FFD84DC607608 /* RewardUnlockStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC27B4F23FA6597C0BB4BF8E /* RewardUnlockStore.swift */; };
+		A7C3E91F2B4D6088C1E5A903 /* SyncProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8D4F02A3C5E7199D2F6B014 /* SyncProbe.swift */; };
 		AD70B6E4A962301570BF6A75 /* TrackActionHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = D36539F7B8580F83FE3B4756 /* TrackActionHost.swift */; };
 		B19A0548C73F27801320D382 /* YTLiteApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37556EF2BFFC392D74790365 /* YTLiteApp.swift */; };
 		B1E22E0A0E88381A7926E3B8 /* InfoPlist.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 170B1D755BE24DFE60E09D15 /* InfoPlist.xcstrings */; };
@@ -100,7 +100,6 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		B8D4F02A3C5E7199D2F6B014 /* SyncProbe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncProbe.swift; sourceTree = "<group>"; };
 		04B9DD7A53CD8AD757A58299 /* AdSceneLifecycle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdSceneLifecycle.swift; sourceTree = "<group>"; };
 		0655C2E16E330F3F5522D5F5 /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Release.xcconfig; sourceTree = "<group>"; };
 		0E5C2529DFCFF70006816FEF /* AccountMenuSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountMenuSheet.swift; sourceTree = "<group>"; };
@@ -158,6 +157,7 @@
 		B70A93BD5CE828D414CF8BBE /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		B7BA38DE8966413FAA06207A /* PlayerPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerPresentation.swift; sourceTree = "<group>"; };
 		B8CE7E52ECFFEE4E9D9F3BBD /* PlaylistActionSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistActionSheet.swift; sourceTree = "<group>"; };
+		B8D4F02A3C5E7199D2F6B014 /* SyncProbe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncProbe.swift; sourceTree = "<group>"; };
 		BAAC16F100525461930D06E4 /* MusicAlbumRelease.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicAlbumRelease.swift; sourceTree = "<group>"; };
 		BCF093D73F22FDA34058B5CC /* PlaylistActionPresenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistActionPresenter.swift; sourceTree = "<group>"; };
 		BE239ADAEF6BDAECA1B2404A /* Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Debug.xcconfig; sourceTree = "<group>"; };
@@ -823,7 +823,7 @@
 				CODE_SIGN_ENTITLEMENTS = YTLite/YTLite.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 6;
 				DEVELOPMENT_LANGUAGE = en;
 				DEVELOPMENT_TEAM = 8S748AQ4H7;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -849,7 +849,7 @@
 				CODE_SIGN_ENTITLEMENTS = YTLite/YTLite.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 6;
 				DEVELOPMENT_LANGUAGE = en;
 				DEVELOPMENT_TEAM = 8S748AQ4H7;
 				GENERATE_INFOPLIST_FILE = NO;

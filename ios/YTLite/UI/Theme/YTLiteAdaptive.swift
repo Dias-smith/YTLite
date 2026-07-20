@@ -79,4 +79,14 @@ extension View {
             }
         }
     }
+
+    /// Extra scroll bottom inset when mini player is visible.
+    /// `List` does not reliably inherit `AppChrome` `safeAreaInset`.
+    func ytLiteMiniPlayerScrollInset(showsMiniPlayer: Bool) -> some View {
+        contentMargins(
+            .bottom,
+            showsMiniPlayer ? YTLiteLayout.miniPlayerChromeHeight : 0,
+            for: .scrollContent
+        )
+    }
 }

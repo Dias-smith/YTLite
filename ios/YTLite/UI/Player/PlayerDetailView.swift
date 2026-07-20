@@ -261,10 +261,10 @@ struct PlayerDetailView: View {
             AddToPlaylistSheet(items: currentTrackItems)
         }
         .sheet(isPresented: $showSaveList) {
-            AddToPlaylistSheet(items: currentListItems)
+            AddToPlaylistSheet(items: playlistSaveItems)
         }
         .sheet(isPresented: $showBatchAdd) {
-            AddToPlaylistSheet(items: selectedListItems) {
+            AddToPlaylistSheet(items: selectedPlaylistSaveItems) {
                 exitSelectionMode()
             }
         }
@@ -1117,13 +1117,23 @@ struct PlayerDetailView: View {
         }
     }
 
-    private var canSaveList: Bool { !currentListItems.isEmpty }
+    private var canSaveList: Bool { !playlistSaveItems.isEmpty }
 
     private var currentListItems: [VideoItem] {
         switch tab {
         case .upNext: return playback.queue
         case .related: return related
         }
+    }
+
+    /// Items written when saving the whole list — Related includes the current track (excluded from UI list).
+    private var playlistSaveItems: [VideoItem] {
+        var items = currentListItems
+        if tab == .related, let current = currentTrackItems.first,
+           !items.contains(where: { $0.videoId == current.videoId }) {
+            items.insert(current, at: 0)
+        }
+        return items
     }
 
     private var currentTrackItems: [VideoItem] {
@@ -1141,6 +1151,15 @@ struct PlayerDetailView: View {
 
     private var selectedListItems: [VideoItem] {
         currentListItems.filter { selectedIds.contains($0.videoId) }
+    }
+
+    private var selectedPlaylistSaveItems: [VideoItem] {
+        var items = selectedListItems
+        if tab == .related, let current = currentTrackItems.first,
+           !items.contains(where: { $0.videoId == current.videoId }) {
+            items.insert(current, at: 0)
+        }
+        return items
     }
 
     @ViewBuilder

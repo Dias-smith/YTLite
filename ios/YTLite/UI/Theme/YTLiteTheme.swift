@@ -100,6 +100,10 @@ enum YTLiteLayout {
     static let miniMediaAspect: CGFloat = 16.0 / 9.0
     static let miniProgressHeight: CGFloat = 2
     static let miniControlSize: CGFloat = 48
+    /// Mini player chrome above tab content (bar + progress + hairline divider).
+    static var miniPlayerChromeHeight: CGFloat {
+        miniBarHeight + miniProgressHeight + 1 / UIScreen.main.scale
+    }
     static let channelAvatar: CGFloat = 56
 }
 
