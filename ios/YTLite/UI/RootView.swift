@@ -40,8 +40,53 @@ struct RootView: View {
                 selectedTab = tab
                 AdSceneLifecycle.recordFirstInteraction(source: "tab")
             }
-            .onChange(of: selectedTab) { _, _ in
+            .onChange(of: selectedTab) { _, tab in
                 AdSceneLifecycle.recordFirstInteraction(source: "tab")
+                #if DEBUG
+                AppDebugSessionState.shared.setTab(Self.debugTabName(tab), viewID: "tab.\(Self.debugTabName(tab))")
+                #endif
+            }
+            .debugView("tab.\(Self.debugTabName(selectedTab))")
+            .debugAction("tab.home") { selectedTab = .home }
+            .debugAction("tab.shorts") { selectedTab = .shorts }
+            .debugAction("tab.search") { selectedTab = .search }
+            .debugAction("tab.you") { selectedTab = .you }
+            .debugAction("tab.library") { selectedTab = .library }
+            .debugAction("playback.toggle") { playback.togglePlayPause() }
+            .debugAction("playback.next") { playback.playNext() }
+            .debugAction("playback.previous") { playback.playPrevious() }
+            .debugAction("player.open") { playerPresentation.isPresented = true }
+            .debugAction("player.close") { playerPresentation.isPresented = false }
+            .onAppear {
+                #if DEBUG
+                AppDebugSessionState.shared.setTab(
+                    Self.debugTabName(selectedTab),
+                    viewID: "tab.\(Self.debugTabName(selectedTab))"
+                )
+                AppDebugSessionState.shared.returnToRoot = {
+                    playerPresentation.isPresented = false
+                    selectedTab = .home
+                }
+                AppDebugSessionState.shared.extraSnapshot = {
+                    [
+                        "playback": [
+                            "videoId": playback.nowPlaying?.videoId as Any,
+                            "title": playback.nowPlaying?.title as Any,
+                            "isPlaying": playback.isPlaying,
+                            "isBuffering": playback.isBuffering,
+                            "queueCount": playback.queue.count,
+                            "queueIndex": playback.queueIndex,
+                            "repeatMode": playback.repeatMode.rawValue,
+                            "shuffle": playback.shuffleEnabled,
+                            "lastError": playback.lastError as Any,
+                        ] as [String: Any],
+                        "auth": [
+                            "isAuthenticated": auth.isAuthenticated,
+                        ] as [String: Any],
+                        "playerPresented": playerPresentation.isPresented,
+                    ]
+                }
+                #endif
             }
             .background(YTLiteColor.background.ignoresSafeArea())
             .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
@@ -152,6 +197,18 @@ struct RootView: View {
 
 enum AppTab: Hashable {
     case home, shorts, search, you, library
+}
+
+extension RootView {
+    fileprivate static func debugTabName(_ tab: AppTab) -> String {
+        switch tab {
+        case .home: return "home"
+        case .shorts: return "shorts"
+        case .search: return "search"
+        case .you: return "you"
+        case .library: return "library"
+        }
+    }
 }
 
 private struct LibraryStoreKey: EnvironmentKey {

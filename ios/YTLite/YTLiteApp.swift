@@ -16,6 +16,11 @@ struct YTLiteApp: App {
         let config = AppConfig.fromBundle()
         _authService = StateObject(wrappedValue: AuthService(config: config))
         modelContainer = Self.makeModelContainer()
+        #if DEBUG
+        print("[AppDebugKit] YTLiteApp.init → starting debug server")
+        NSLog("[AppDebugKit] YTLiteApp.init → starting debug server")
+        AppDebugServer.shared.start()
+        #endif
     }
 
     var body: some Scene {

@@ -67,6 +67,10 @@
 		9BA2A97B4E399A8DE578DC68 /* SearchHit.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC4BC0290DBF96C47203AFD9 /* SearchHit.swift */; };
 		A10BB1987728C2EBC73EDC5B /* SearchSuggestionItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 785F0DBABA94995BF9801E53 /* SearchSuggestionItem.swift */; };
 		A53E557E991FFD84DC607608 /* RewardUnlockStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC27B4F23FA6597C0BB4BF8E /* RewardUnlockStore.swift */; };
+		A61F0C2E9B4D8A71E3C5D907 /* AppDebugServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B71E2D3F0A5C9B82F4D6E018 /* AppDebugServer.swift */; };
+		A62F1D3E0C5E9B82F4D7E029 /* AppDebugActionRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = B72E3E4F1B6D0C93A5E7F029 /* AppDebugActionRegistry.swift */; };
+		A63F2E4F1D6F0C93A5E8F13A /* AppDebugSessionState.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73E4F5A2C7E1D04B6F8A13A /* AppDebugSessionState.swift */; };
+		A64F3F5A2E7A1D04B6F9A24B /* View+Debug.swift in Sources */ = {isa = PBXBuildFile; fileRef = B74E5A6B3D8F2E15C7A9B24B /* View+Debug.swift */; };
 		A7C3E91F2B4D6088C1E5A903 /* SyncProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8D4F02A3C5E7199D2F6B014 /* SyncProbe.swift */; };
 		AD70B6E4A962301570BF6A75 /* TrackActionHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = D36539F7B8580F83FE3B4756 /* TrackActionHost.swift */; };
 		B19A0548C73F27801320D382 /* YTLiteApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37556EF2BFFC392D74790365 /* YTLiteApp.swift */; };
@@ -118,6 +122,10 @@
 		32D75E4713CE7E6F4FE314C2 /* AdProbe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdProbe.swift; sourceTree = "<group>"; };
 		331CF6675622B27BE928BF8F /* AppLinks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLinks.swift; sourceTree = "<group>"; };
 		37556EF2BFFC392D74790365 /* YTLiteApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YTLiteApp.swift; sourceTree = "<group>"; };
+		B71E2D3F0A5C9B82F4D6E018 /* AppDebugServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDebugServer.swift; sourceTree = "<group>"; };
+		B72E3E4F1B6D0C93A5E7F029 /* AppDebugActionRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDebugActionRegistry.swift; sourceTree = "<group>"; };
+		B73E4F5A2C7E1D04B6F8A13A /* AppDebugSessionState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDebugSessionState.swift; sourceTree = "<group>"; };
+		B74E5A6B3D8F2E15C7A9B24B /* View+Debug.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "View+Debug.swift"; sourceTree = "<group>"; };
 		3EC77F988D8FEBB7F2CF01F9 /* LibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryView.swift; sourceTree = "<group>"; };
 		3F25F35684A83A600A625701 /* PlaylistActionContext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistActionContext.swift; sourceTree = "<group>"; };
 		42FC3949402F83619C537A0F /* AdConsentManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdConsentManager.swift; sourceTree = "<group>"; };
@@ -465,6 +473,7 @@
 				5A76E914564581D50AA61C93 /* Localizable.xcstrings */,
 				F8153A84024FB28B0A0E73D3 /* YTLite.entitlements */,
 				37556EF2BFFC392D74790365 /* YTLiteApp.swift */,
+				C0D1E2F3A4B5061728394A5B /* AppDebugKit */,
 				0530A514DCF4E04B5A437C76 /* Ads */,
 				BC0C5EECA1D3027B3BD78035 /* App */,
 				9516BC3EDFBBD9076F33909C /* Auth */,
@@ -477,6 +486,17 @@
 				D0D6305E5024EA561A552511 /* UI */,
 			);
 			path = YTLite;
+			sourceTree = "<group>";
+		};
+		C0D1E2F3A4B5061728394A5B /* AppDebugKit */ = {
+			isa = PBXGroup;
+			children = (
+				B72E3E4F1B6D0C93A5E7F029 /* AppDebugActionRegistry.swift */,
+				B71E2D3F0A5C9B82F4D6E018 /* AppDebugServer.swift */,
+				B73E4F5A2C7E1D04B6F8A13A /* AppDebugSessionState.swift */,
+				B74E5A6B3D8F2E15C7A9B24B /* View+Debug.swift */,
+			);
+			path = AppDebugKit;
 			sourceTree = "<group>";
 		};
 		E5D7D1709AF345132B7206B6 /* Player */ = {
@@ -679,6 +699,10 @@
 				2016F531F2C583A556F3E03C /* VideoItem.swift in Sources */,
 				BF80F794550A2F98653F0227 /* VideoPlayback.swift in Sources */,
 				B19A0548C73F27801320D382 /* YTLiteApp.swift in Sources */,
+				A62F1D3E0C5E9B82F4D7E029 /* AppDebugActionRegistry.swift in Sources */,
+				A61F0C2E9B4D8A71E3C5D907 /* AppDebugServer.swift in Sources */,
+				A63F2E4F1D6F0C93A5E8F13A /* AppDebugSessionState.swift in Sources */,
+				A64F3F5A2E7A1D04B6F9A24B /* View+Debug.swift in Sources */,
 				05E890CF43A22346F8982065 /* YTLiteSheetChrome.swift in Sources */,
 				7197A0A39469C449A174BAD7 /* YTLiteTheme.swift in Sources */,
 				3FAB82C7DD328823910B07D7 /* YouTubeHTTPClient.swift in Sources */,
@@ -823,7 +847,7 @@
 				CODE_SIGN_ENTITLEMENTS = YTLite/YTLite.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 6;
+				CURRENT_PROJECT_VERSION = 7;
 				DEVELOPMENT_LANGUAGE = en;
 				DEVELOPMENT_TEAM = 8S748AQ4H7;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -849,7 +873,7 @@
 				CODE_SIGN_ENTITLEMENTS = YTLite/YTLite.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 6;
+				CURRENT_PROJECT_VERSION = 7;
 				DEVELOPMENT_LANGUAGE = en;
 				DEVELOPMENT_TEAM = 8S748AQ4H7;
 				GENERATE_INFOPLIST_FILE = NO;
