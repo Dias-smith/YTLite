@@ -137,6 +137,32 @@ final class PlaybackController: ObservableObject {
     /// True when `nowPlaying` was restored but AVPlayer has not loaded a stream yet.
     var needsStreamResume: Bool { nowPlaying != nil && player == nil && !isBuffering }
 
+    /// Snapshot for AppDebugKit `/state` (DEBUG regression).
+    func debugStateSnapshot() -> [String: Any] {
+        let next = nextPrefetchQueueItem()
+        let nextId = next?.videoId
+        let prefetchReady: Bool = {
+            guard let nextId else { return false }
+            return PlaybackPrefetcher.shared.peekReady(videoId: nextId) != nil
+        }()
+        return [
+            "videoId": nowPlaying?.videoId as Any,
+            "title": nowPlaying?.title as Any,
+            "isPlaying": isPlaying,
+            "isBuffering": isBuffering,
+            "queueCount": queue.count,
+            "queueIndex": queueIndex,
+            "repeatMode": repeatMode.rawValue,
+            "shuffle": shuffleEnabled,
+            "lastError": lastError as Any,
+            "queueVideoIds": queue.map(\.videoId),
+            "nextPrefetchVideoId": nextId as Any,
+            "warmupReadyVideoId": NextTrackWarmup.shared.readyVideoId as Any,
+            "prefetchReady": prefetchReady,
+            "streamReady": player?.currentItem?.status == .readyToPlay,
+        ]
+    }
+
     init() {
         let stored = UserDefaults.standard.object(forKey: Self.speedKey) as? Float
         if let stored, Self.speedOptions.contains(stored) {

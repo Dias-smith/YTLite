@@ -239,6 +239,15 @@ struct SearchView: View {
                 viewModel.bind(memory: memory)
                 viewModel.loadHotKeywordsIfNeeded()
             }
+            .debugAction("search.run_yudie") {
+                viewModel.submit(memory: memory, query: "雨蝶", tab: .videos)
+            }
+            .debugAction("search.play_first") {
+                let videos = viewModel.hits.compactMap(\.asVideoItem)
+                guard let first = videos.first else { return }
+                playback.play(items: videos, startAt: 0)
+                playerPresentation.isPresented = true
+            }
         }
     }
 

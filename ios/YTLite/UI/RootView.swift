@@ -55,6 +55,12 @@ struct RootView: View {
             .debugAction("playback.toggle") { playback.togglePlayPause() }
             .debugAction("playback.next") { playback.playNext() }
             .debugAction("playback.previous") { playback.playPrevious() }
+            .debugAction("playback.cycle_repeat") { _ = playback.cycleRepeatMode() }
+            .debugAction("queue.play_next_index") {
+                let target = playback.queueIndex + 1
+                guard playback.queue.indices.contains(target) else { return }
+                playback.playQueueIndex(target)
+            }
             .debugAction("player.open") { playerPresentation.isPresented = true }
             .debugAction("player.close") { playerPresentation.isPresented = false }
             .onAppear {
@@ -69,17 +75,7 @@ struct RootView: View {
                 }
                 AppDebugSessionState.shared.extraSnapshot = {
                     [
-                        "playback": [
-                            "videoId": playback.nowPlaying?.videoId as Any,
-                            "title": playback.nowPlaying?.title as Any,
-                            "isPlaying": playback.isPlaying,
-                            "isBuffering": playback.isBuffering,
-                            "queueCount": playback.queue.count,
-                            "queueIndex": playback.queueIndex,
-                            "repeatMode": playback.repeatMode.rawValue,
-                            "shuffle": playback.shuffleEnabled,
-                            "lastError": playback.lastError as Any,
-                        ] as [String: Any],
+                        "playback": playback.debugStateSnapshot(),
                         "auth": [
                             "isAuthenticated": auth.isAuthenticated,
                         ] as [String: Any],
