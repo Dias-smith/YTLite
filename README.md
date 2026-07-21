@@ -1,6 +1,6 @@
-# YTLite
+# YouLite
 
-Hybrid YouTube / music-style client.
+Hybrid YouTube / music-style client (repo / package ids may still say `YTLite` / `ytlite`).
 
 | Path | Role |
 |------|------|
@@ -17,8 +17,10 @@ iOS MVP priorities: [`prd/IOS_MVP_SCOPE.md`](prd/IOS_MVP_SCOPE.md).
 
 Static files live in [`website/`](website/) (landing, privacy, terms, support).
 
-**Production URL:** [https://ytlite.cc/](https://ytlite.cc/)  
+**Production URL:** [https://www.ytlite.cc/](https://www.ytlite.cc/)  
 **Contact:** [jimo.cgg@gmail.com](mailto:jimo.cgg@gmail.com)
+
+> Use **www** for HTTPS links until GitHub Pages provisions a valid certificate for the apex (`ytlite.cc` currently serves `*.github.io`, which Safari flags as “Connection Is Not Private”).
 
 ### Enable Pages + custom domain
 
@@ -50,4 +52,4 @@ cd website && python3 -m http.server 8080
 # open http://127.0.0.1:8080/
 ```
 
-Replace App Store / Play CTA links on the landing page when listings go live.
+Replace the Google Play CTA on the landing page when that listing goes live. App Store ID: `6739496571`.

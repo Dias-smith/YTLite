@@ -1,0 +1,29 @@
+---
+description: 全面 UI 遍历与回归测试规范 (State Node DFS Protocol)
+globs: *.swift
+---
+# 全面 UI 遍历与回归测试规范 (State Node DFS Protocol)
+
+当用户要求对某个功能模块或 App 进行“全面遍历”、“回归测试”或“探索测试”时，请严格遵循以下规则：
+
+### 1. 状态节点 (State Node) 模型
+- 调用 `get_app_state` 获取当前 View 节点标识与状态。
+- 调用 `list_actions` 获取当前所有可用动作 ID（标记为未测试列表）。
+
+### 2. 深度优先遍历循环 (Exploration Loop)
+对于未测试列表中的每一个 `action_id`：
+1. **记录基线**：调用 `get_app_state` 和 `get_screen` 记录触发前的界面。
+2. **触发动作**：调用 `trigger_action(action_id)` 执行点击/跳转。
+3. **效验新状态**：
+   - 调用 `get_app_state` 和 `get_screen`。
+   - 检查新界面是否渲染正确、是否有 UI 布局重叠、错位或 Crash。
+4. **状态复位 (Rollback)**：
+   - 调用 `trigger_action("system.back")` 退回上一级。
+   - 调用 `get_screen` 确认已成功返回基线页面。
+5. **标记完成**：标记该 `action_id` 为已测试，继续下一个。
+
+### 3. 汇报总结
+遍历结束后生成一份 Markdown 格式的《UI 全面遍历测试报告》，包含：
+- **遍历页面**：覆盖的所有 View 节点。
+- **正常路径**：验证通过的 Action 列表。
+- **异常缺陷**：标记导致 UI 渲染错位、异常或卡死的 Action 并附上分析。
