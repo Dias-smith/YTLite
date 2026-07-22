@@ -69,6 +69,8 @@ struct PlayerDetailView: View {
     @State private var fullscreenRequestID = 0
     @State private var related: [VideoItem] = []
     @State private var relatedOriginal: [VideoItem] = []
+    /// Video id that `related` / `relatedOriginal` were fetched for (nil while stale / loading).
+    @State private var relatedSourceVideoId: String?
     @State private var relatedLoading = false
     @State private var relatedError: String?
     @State private var subscribeToast: String?
@@ -303,21 +305,22 @@ struct PlayerDetailView: View {
             } else if overlayVisible {
                 bumpOverlayAutoHide()
             }
+            // Keep the previous Related list while resolving; refresh only after open.
+            if !buffering {
+                scheduleRelatedLoadIfNeeded()
+            }
         }
         .onChange(of: playback.nowPlaying?.videoId) { _, _ in
-            related = []
-            relatedOriginal = []
             listSort = .original
             exitSelectionMode()
-            if tab == .related {
-                Task { await loadRelated() }
-            }
+            // Do not clear Related yet — wait until isBuffering == false.
+            scheduleRelatedLoadIfNeeded()
         }
         .onChange(of: tab) { _, newValue in
             exitSelectionMode()
             listSort = .original
-            if newValue == .related, related.isEmpty {
-                Task { await loadRelated() }
+            if newValue == .related {
+                scheduleRelatedLoadIfNeeded()
             }
         }
         .onChange(of: trackActions.menuCloseToken) { _, _ in
@@ -1289,12 +1292,32 @@ struct PlayerDetailView: View {
         defer { relatedLoading = false }
         do {
             let results = try await InnerTubeClient.fetchMusicRelatedVideos(videoId: videoId)
+            // Drop stale results if the user already switched tracks.
+            guard playback.nowPlaying?.videoId == videoId else { return }
             let items = store?.filterNotInterested(results) ?? results
             relatedOriginal = items
             related = sortedItems(items, by: listSort)
+            relatedSourceVideoId = videoId
         } catch {
+            guard playback.nowPlaying?.videoId == videoId else { return }
             relatedError = error.localizedDescription
+            relatedSourceVideoId = nil
         }
+    }
+
+    /// After resolve/open (`!isBuffering`), clear the previous Related list and fetch for the new track.
+    private func scheduleRelatedLoadIfNeeded() {
+        guard tab == .related else { return }
+        guard let videoId = playback.nowPlaying?.videoId, !videoId.isEmpty else { return }
+        guard !playback.isBuffering else { return }
+        guard !relatedLoading else { return }
+        guard relatedSourceVideoId != videoId else { return }
+
+        related = []
+        relatedOriginal = []
+        relatedError = nil
+        relatedSourceVideoId = nil
+        Task { await loadRelated() }
     }
 
     private func enterSelectionMode() {

@@ -86,13 +86,15 @@ struct LibraryView: View {
     /// After 5s of syncing, collapse the modal into a trailing chip (and keep it for manual retry).
     @State private var preferCompactLibrarySync = false
     @State private var promoteCompactSyncTask: Task<Void, Never>?
+    /// Skip the completion toast for non-sync flows that reuse `isLibrarySyncing` (e.g. delete account).
+    @State private var suppressSyncCompletionToast = false
 
     private var showsLibrarySyncModal: Bool {
         appModel.isLibrarySyncing && !preferCompactLibrarySync
     }
 
     private var showsLibrarySyncChip: Bool {
-        preferCompactLibrarySync && auth.isAuthenticated
+        auth.isAuthenticated
     }
 
     private var showsMiniPlayerChrome: Bool {
@@ -199,6 +201,7 @@ struct LibraryView: View {
             .onChange(of: auth.isAuthenticated) { _, signedIn in
                 if !signedIn {
                     preferCompactLibrarySync = false
+                    suppressSyncCompletionToast = false
                     promoteCompactSyncTask?.cancel()
                     promoteCompactSyncTask = nil
                 }
@@ -1338,7 +1341,11 @@ struct LibraryView: View {
         } else {
             promoteCompactSyncTask?.cancel()
             promoteCompactSyncTask = nil
-            // Keep compact chip after a long sync so the user can tap to sync again.
+            if suppressSyncCompletionToast {
+                suppressSyncCompletionToast = false
+            } else if auth.isAuthenticated {
+                trackActions.showToast(L("toast.library_synced"))
+            }
         }
     }
 
@@ -1359,6 +1366,7 @@ struct LibraryView: View {
             return
         }
         let userKey = OwnerKeyStore.userOwnerKey(userId: userId)
+        suppressSyncCompletionToast = true
         appModel.beginLibrarySync()
         let ok = await auth.deleteAccount()
         if ok {

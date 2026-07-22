@@ -536,6 +536,11 @@ final class PlaybackController: ObservableObject {
         refreshFavoriteState()
         refreshSubscribeState()
         isBuffering = true
+        // Detach old player observers so a still-playing previous item cannot clear the spinner.
+        timeControlObservation?.invalidate()
+        timeControlObservation = nil
+        itemStatusObservation?.invalidate()
+        itemStatusObservation = nil
         positionSeconds = pendingSeekSeconds
         if pendingSeekSeconds <= 0 {
             durationSeconds = 0
@@ -863,7 +868,7 @@ final class PlaybackController: ObservableObject {
             attachEndObserver()
         }
         if let player {
-            observePlayerTimeControl(player)
+            observePlayerTimeControl(player, expectedVideoId: nowPlaying?.videoId)
         }
         player?.allowsExternalPlayback = true
         player?.usesExternalPlaybackWhileExternalScreenIsActive = true
@@ -1116,13 +1121,16 @@ final class PlaybackController: ObservableObject {
         return nil
     }
 
-    private func observePlayerTimeControl(_ player: AVPlayer) {
+    private func observePlayerTimeControl(_ player: AVPlayer, expectedVideoId: String?) {
         timeControlObservation?.invalidate()
         timeControlObservation = player.observe(\.timeControlStatus, options: [.initial, .new]) { [weak self] player, _ in
             Task { @MainActor in
                 guard let self else { return }
+                // Ignore callbacks that still belong to a previous track.
+                if let expectedVideoId, self.nowPlaying?.videoId != expectedVideoId { return }
                 switch player.timeControlStatus {
                 case .playing:
+                    guard player.currentItem?.status == .readyToPlay else { return }
                     // First audible frames — hide the resolve/open spinner.
                     self.isBuffering = false
                 case .paused:
