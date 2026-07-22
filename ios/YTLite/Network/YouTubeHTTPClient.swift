@@ -94,7 +94,7 @@ enum YouTubeConstants {
     /// InnerTube songs filter for YouTube Music search.
     static let musicSearchParamsSongs = "EgWKAQIIAWoKEAMQBBAJEAoQBQ%3D%3D"
     /// Playback preference: progressive 360p muxed first (AVPlayer-friendly), then higher muxed.
-    /// Overridden at runtime by remote extractor manifest `config.preferItags` when available.
+    /// Overridden at runtime by remote resolver manifest `config.preferItags` when available.
     private static let lock = NSLock()
     private static var _preferredVideoItags = [18, 22, 37]
     static var preferredVideoItags: [Int] {

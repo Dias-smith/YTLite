@@ -34,7 +34,7 @@ enum AdConsentManager {
             return false
         }
         guard !hasStartedConsentThisSession else {
-            AdProbe.log("consent.cached", "canRequestAds=\(canRequestAds)")
+            AdProbe.log("consent.stored", "canRequestAds=\(canRequestAds)")
             return canRequestAds
         }
         hasStartedConsentThisSession = true

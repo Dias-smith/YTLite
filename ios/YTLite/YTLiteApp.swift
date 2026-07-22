@@ -36,13 +36,13 @@ struct YTLiteApp: App {
                 .id("\(appModel.languageCode)-\(appModel.themeRevision)")
                 .preferredColorScheme(appModel.themeColorScheme)
                 .task {
-                    ExtractorRemoteConfigStore.restoreFromDisk()
+                    ResolverRemoteConfigStore.restoreFromDisk()
                     appModel.syncAuth(authService)
                     ReviewPromptCoordinator.shared.recordActiveDay()
                     // Start after the first cooperative yield so early taps do not pay WKWebView startup.
                     Task(priority: .utility) {
                         await Task.yield()
-                        _ = try? await ExtractorBridge.shared.ensureReady()
+                        _ = try? await StreamResolver.shared.ensureReady()
                     }
                     // UMP (+ ATT via IDFA Explainer) then Mobile Ads — before review prompts.
                     await AdBootstrap.startIfNeeded()

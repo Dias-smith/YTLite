@@ -59,7 +59,7 @@ Google Cloud Web 客户端的 Authorized redirect 应为
 ## Features
 
 - Tabs: **Home / Shorts / Search / You / Library**
-- Extractor + play queue + speed + Share
+- Stream resolver + play queue + speed + Share
 - SwiftData library + Supabase auth/sync
 - **PiP** via `AVPlayerViewController`
 - **Lyrics** caption sheet (VTT)
@@ -67,4 +67,4 @@ Google Cloud Web 客户端的 Authorized redirect 应为
 
 Still later: Cookie Web login, Data API subscriptions (needs YouTube OAuth token).
 
-Shared assets: [`shared/extractor/`](../shared/extractor/)
+Shared assets: [`shared/resolution/`](../shared/resolution/)

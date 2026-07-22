@@ -49,3 +49,6 @@ ios/*.xcworkspace/xcuserdata/
 AuthKey_*.p8
 *.p8
 **/AuthKey_*.p8
+
+# Remote stream-resolver JS — never keep in the repo; pass path when publishing
+shared/resolution/resolution.js

@@ -829,8 +829,8 @@ struct PlayerDetailView: View {
               ChannelID.isBrowsable(channelId),
               playback.nowPlaying?.channelAvatarURL == nil
         else { return }
-        if let cached = store?.subscribedChannel(id: channelId)?.avatarUrl.flatMap(URL.init(string:)) {
-            playback.updateChannelAvatar(cached)
+        if let stored = store?.subscribedChannel(id: channelId)?.avatarUrl.flatMap(URL.init(string:)) {
+            playback.updateChannelAvatar(stored)
             return
         }
         let apiKey = appModel.config.youtubeDataAPIKey

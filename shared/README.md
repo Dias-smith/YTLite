@@ -1,17 +1,19 @@
 # Shared cross-platform assets (not Android/iOS UI code).
 
-## extractor/
+## resolution/
 
-Source of truth for the WebView InnerTube bridge:
+WebView bridge HTML kept in-repo (no stream-resolver JS payload):
 
-- `extractor.js`
 - `bridge.html` (Android)
 - `bridge-ios.html` (iOS WKWebView polyfill)
-- [`REMOTE.md`](extractor/REMOTE.md) — hot-update publish flow
+- [`REMOTE.md`](resolution/REMOTE.md) — hot-update publish flow
 
-**Apps do not bundle these files.** After install they download from the
-Supabase Storage bucket `extractor` (see `scripts/publish_extractor.sh`).
+**`resolution.js` is never stored in this repo** (gitignored). Keep it outside
+the tree and pass its path when publishing.
+
+**Apps do not bundle these files.** After first install they download from the
+Supabase Storage bucket `resolution` (see `scripts/publish_resolution.sh`).
 
 ```bash
-./scripts/publish_extractor.sh 1
+RESOLUTION_JS=~/secrets/resolution.js ./scripts/publish_resolution.sh 1
 ```

@@ -164,7 +164,7 @@ struct RootView: View {
                             userKey: userKey
                         )
                     } else if previous != next {
-                        // User A → User B: switch bucket only (keep A cached).
+                        // User A → User B: switch bucket only (keep A stored).
                         libraryStore.setOwnerKey(userKey)
                         await syncService?.syncBidirectional(store: libraryStore)
                     } else {

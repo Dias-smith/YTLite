@@ -1,7 +1,7 @@
 import Foundation
 
 /// Persisted home category payloads (memory + disk) for fast reopen / chip switch.
-/// Align Android `HomeFeedCache`: show cache on switch; network only when empty or pull-to-refresh.
+/// Align Android `HomeFeedStore`: show store on switch; network only when empty or pull-to-refresh.
 enum HomeFeedStore {
     private static let folderName = "home_feed"
     private static let selectedCategoryKey = "home_selected_category_id"

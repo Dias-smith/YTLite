@@ -15,7 +15,7 @@ import kotlin.coroutines.Continuation
 import kotlin.coroutines.resume
 
 /**
- * Native bridge for extractor.js. HTTP runs on a background executor; callbacks on main thread.
+ * Native bridge for resolution.js. HTTP runs on a background executor; callbacks on main thread.
  */
 class VsPlayerBridge(
     private val webView: WebView,
@@ -35,12 +35,12 @@ class VsPlayerBridge(
     private var visitorDataFetchedAtMs: Long = 0L
 
     @JavascriptInterface
-    fun onExtractorReady() {
+    fun onResolverReady() {
         mainHandler.post { onReady() }
     }
 
     @JavascriptInterface
-    fun onExtractorError(message: String) {
+    fun onResolverError(message: String) {
         mainHandler.post { onError(message) }
     }
 

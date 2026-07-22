@@ -66,7 +66,7 @@ class JsExtractorEngine private constructor(
                 continuation.invokeOnCancellation { bridgeRef.cancelPending(uid) }
                 val quotedPayload = JSONObject.quote(message.toString())
                 val script =
-                    "(function(){try{return window.extractor.postMessageToJSBridge($quotedPayload);}catch(e){AndroidBridge.onExtractorError(String(e));}})()"
+                    "(function(){try{return window.resolver.postMessageToJSBridge($quotedPayload);}catch(e){AndroidBridge.onResolverError(String(e));}})()"
                 mainHandler.post {
                     webView?.evaluateJavascript(script, null)
                 }
@@ -113,9 +113,9 @@ class JsExtractorEngine private constructor(
             bundleStore.ensureBundle(backgroundRefresh = false)
         }
         val bridgeUrl = "file://${dir.absolutePath}/bridge.html"
-        val jsFile = java.io.File(dir, "extractor.js")
+        val jsFile = java.io.File(dir, "resolution.js")
         if (!jsFile.isFile) {
-            throw IllegalStateException("extractor.js missing after download")
+            throw IllegalStateException("resolution.js missing after download")
         }
         Log.i(TAG, "loading extractor from ${dir.absolutePath}")
 
@@ -142,7 +142,7 @@ class JsExtractorEngine private constructor(
                     .put("enableAndroidPlayerFallback", cfg.enableAndroidPlayerFallback)
                     .put("enableWatchPageFallback", cfg.enableWatchPageFallback)
                 view?.evaluateJavascript(
-                    "window.__extractorConfig = $json;",
+                    "window.__resolverConfig = $json;",
                     null,
                 )
             }

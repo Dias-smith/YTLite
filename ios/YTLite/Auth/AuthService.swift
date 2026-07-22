@@ -52,35 +52,35 @@ final class AuthService: ObservableObject {
     }
 
     /// Google OAuth access token. Nil for Apple-only sessions.
-    /// Falls back to a per-user cached token when Supabase session refresh drops `providerToken`.
+    /// Falls back to a per-user stored token when Supabase session refresh drops `providerToken`.
     var googleAccessToken: String? {
         guard authProvider != .apple else { return nil }
         if let live = session?.providerToken?.trimmingCharacters(in: .whitespacesAndNewlines),
            !live.isEmpty
         {
-            cacheProviderToken(live)
+            storeProviderToken(live)
             return live
         }
-        return cachedProviderToken()
+        return storedProviderToken()
     }
 
-    private static let providerTokenKey = "auth.cachedGoogleProviderToken"
-    private static let providerTokenUserKey = "auth.cachedGoogleProviderTokenUser"
-    private static let providerRefreshKey = "auth.cachedGoogleProviderRefreshToken"
+    private static let providerTokenKey = "auth.storedGoogleProviderToken"
+    private static let providerTokenUserKey = "auth.storedGoogleProviderTokenUser"
+    private static let providerRefreshKey = "auth.storedGoogleProviderRefreshToken"
 
-    private func cacheProviderToken(_ token: String) {
+    private func storeProviderToken(_ token: String) {
         guard let userId else { return }
         UserDefaults.standard.set(token, forKey: Self.providerTokenKey)
         UserDefaults.standard.set(userId, forKey: Self.providerTokenUserKey)
     }
 
-    private func cacheRefreshToken(_ token: String) {
+    private func storeRefreshToken(_ token: String) {
         guard let userId else { return }
         UserDefaults.standard.set(token, forKey: Self.providerRefreshKey)
         UserDefaults.standard.set(userId, forKey: Self.providerTokenUserKey)
     }
 
-    private func cachedProviderToken() -> String? {
+    private func storedProviderToken() -> String? {
         guard let userId,
               UserDefaults.standard.string(forKey: Self.providerTokenUserKey) == userId,
               let token = UserDefaults.standard.string(forKey: Self.providerTokenKey)?
@@ -90,7 +90,7 @@ final class AuthService: ObservableObject {
         return token
     }
 
-    private func cachedRefreshToken() -> String? {
+    private func storedRefreshToken() -> String? {
         guard let userId,
               UserDefaults.standard.string(forKey: Self.providerTokenUserKey) == userId,
               let token = UserDefaults.standard.string(forKey: Self.providerRefreshKey)?
@@ -100,7 +100,7 @@ final class AuthService: ObservableObject {
         return token
     }
 
-    private func clearCachedProviderToken() {
+    private func clearStoredProviderToken() {
         UserDefaults.standard.removeObject(forKey: Self.providerTokenKey)
         UserDefaults.standard.removeObject(forKey: Self.providerTokenUserKey)
         UserDefaults.standard.removeObject(forKey: Self.providerRefreshKey)
@@ -114,19 +114,19 @@ final class AuthService: ObservableObject {
         if let rt = session?.providerRefreshToken?.trimmingCharacters(in: .whitespacesAndNewlines),
            !rt.isEmpty
         {
-            cacheRefreshToken(rt)
+            storeRefreshToken(rt)
         }
         if let live = session?.providerToken?.trimmingCharacters(in: .whitespacesAndNewlines),
            !live.isEmpty
         {
-            cacheProviderToken(live)
+            storeProviderToken(live)
         }
 
-        let refresh = session?.providerRefreshToken ?? cachedRefreshToken()
+        let refresh = session?.providerRefreshToken ?? storedRefreshToken()
         if let refresh, !refresh.isEmpty,
            let fresh = await refreshGoogleAccessToken(using: refresh)
         {
-            cacheProviderToken(fresh)
+            storeProviderToken(fresh)
             return fresh
         }
         return googleAccessToken
@@ -161,7 +161,7 @@ final class AuthService: ObservableObject {
                   !access.isEmpty
             else { return nil }
             if let newRefresh = json["refresh_token"] as? String, !newRefresh.isEmpty {
-                cacheRefreshToken(newRefresh)
+                storeRefreshToken(newRefresh)
             }
             return access
         } catch {
@@ -216,10 +216,10 @@ final class AuthService: ObservableObject {
             }
             session = newSession
             if let token = newSession.providerToken, !token.isEmpty {
-                cacheProviderToken(token)
+                storeProviderToken(token)
             }
             if let refresh = newSession.providerRefreshToken, !refresh.isEmpty {
-                cacheRefreshToken(refresh)
+                storeRefreshToken(refresh)
             }
         } catch {
             if isOAuthCancel(error) {
@@ -347,10 +347,10 @@ final class AuthService: ObservableObject {
             }
             session = newSession
             if let token = newSession.providerToken, !token.isEmpty {
-                cacheProviderToken(token)
+                storeProviderToken(token)
             }
             if let refresh = newSession.providerRefreshToken, !refresh.isEmpty {
-                cacheRefreshToken(refresh)
+                storeRefreshToken(refresh)
             }
         } catch {
             await restoreSession(previous)
@@ -450,7 +450,7 @@ final class AuthService: ObservableObject {
         do {
             try await client.auth.signOut()
             session = nil
-            clearCachedProviderToken()
+            clearStoredProviderToken()
         } catch {
             lastError = error.localizedDescription
         }
@@ -481,7 +481,7 @@ final class AuthService: ObservableObject {
             )
             try? await client.auth.signOut(scope: .local)
             session = nil
-            clearCachedProviderToken()
+            clearStoredProviderToken()
             return true
         } catch {
             lastError = error.localizedDescription

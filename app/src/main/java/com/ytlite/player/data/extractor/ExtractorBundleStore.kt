@@ -166,7 +166,7 @@ class ExtractorBundleStore private constructor(
 
     private fun install(manifest: Manifest) {
         checkMinAppVersion(manifest.minAppVersion)
-        val required = listOf("extractor.js", "bridge.html", "bridge-ios.html")
+        val required = listOf("resolution.js", "bridge.html", "bridge-ios.html")
         required.forEach { name ->
             if (!manifest.files.containsKey(name)) throw BundleException.InvalidManifest()
         }
@@ -220,7 +220,7 @@ class ExtractorBundleStore private constructor(
         val base = BuildConfig.SUPABASE_URL.trimEnd('/')
         if (base.isBlank()) throw BundleException.NotConfigured()
         val path = relativePath.trimStart('/')
-        return "$base/storage/v1/object/public/extractor/$path"
+        return "$base/storage/v1/object/public/resolution/$path"
     }
 
     private fun httpGet(url: String): ByteArray {
@@ -244,7 +244,7 @@ class ExtractorBundleStore private constructor(
 
     private fun isComplete(dir: File): Boolean {
         val required = listOf(
-            "extractor.js",
+            "resolution.js",
             "bridge.html",
             "bridge-ios.html",
             "installed-manifest.json",

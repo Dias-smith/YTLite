@@ -769,16 +769,16 @@ enum InnerTubeClient {
     private actor HotKeywordsCache {
         static let shared = HotKeywordsCache()
         private let ttl: TimeInterval = 3 * 60 * 60
-        private var cached: [String] = []
+        private var stored: [String] = []
         private var fetchedAt: Date?
 
         func keywords(limit: Int) async -> [String] {
-            if let fetchedAt, Date().timeIntervalSince(fetchedAt) < ttl, !cached.isEmpty {
-                return Array(cached.prefix(limit))
+            if let fetchedAt, Date().timeIntervalSince(fetchedAt) < ttl, !stored.isEmpty {
+                return Array(stored.prefix(limit))
             }
             let derived = await InnerTubeClient.fetchYoutubeMostPopularMusicTitles(limit: limit)
             if !derived.isEmpty {
-                cached = derived
+                stored = derived
                 fetchedAt = Date()
             }
             return derived
@@ -902,7 +902,7 @@ enum InnerTubeClient {
             throw CancellationError()
         }
         guard result.success, let data = result.body.data(using: .utf8) else {
-            throw ExtractorBridge.ExtractorError.extractFailed(
+            throw StreamResolver.StreamResolverError.resolveFailed(
                 result.errMsg.isEmpty ? "\(label) failed" : result.errMsg
             )
         }

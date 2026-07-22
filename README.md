@@ -9,7 +9,7 @@ Hybrid YouTube / music-style client (repo / package ids may still say `YTLite` /
 | [`website/`](website/) | Marketing / support site (static) — GitHub Pages |
 | [`prd/`](prd/) | Product specs — start at [`prd/ANDROID_FEATURE_INDEX.md`](prd/ANDROID_FEATURE_INDEX.md) |
 | [`supabase/`](supabase/) | Shared cloud schema |
-| [`shared/extractor/`](shared/extractor/) | Cross-platform JS stream extractor assets |
+| [`shared/resolution/`](shared/resolution/) | Cross-platform JS stream-resolver bridge assets |
 
 iOS MVP priorities: [`prd/IOS_MVP_SCOPE.md`](prd/IOS_MVP_SCOPE.md).
 

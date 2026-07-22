@@ -72,7 +72,7 @@ struct TrackLyricsSheet: View {
         errorMessage = nil
         defer { isLoading = false }
         do {
-            let playback = try await ExtractorBridge.shared.extractPlayback(videoId: videoId)
+            let playback = try await StreamResolver.shared.resolvePlayback(videoId: videoId)
             tracks = playback.captionTracks
             selected = CaptionService.pickDefault(tracks)
             await loadText()

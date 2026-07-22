@@ -39,7 +39,7 @@ Triggers: login merge, uploadLocal, pullRemote, repository write paths. **No Set
 | Path | Role |
 |------|------|
 | InnerTube Kotlin | Home / search / browse / next |
-| JS extractor (`extractor.js` + WebView bridge) | Resolves stream URLs + formats + captions |
+| JS extractor (`resolution.js` + WebView bridge) | Resolves stream URLs + formats + captions |
 | Format select | Video: muxed 37→22→18 preference; Audio: 140→141→139; remember `preferred_itag` |
 | Speed | `PlaybackSpeeds` 0.5–8; `playback_preferences` |
 

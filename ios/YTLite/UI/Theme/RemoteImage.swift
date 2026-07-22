@@ -12,7 +12,7 @@ final class ImageStore: @unchecked Sendable {
     private let folder: URL
     private let ioQueue = DispatchQueue(label: "com.ytlite.image-store", qos: .utility)
     private let stateLock = NSLock()
-    /// Waiters for an in-flight load of the same cache key.
+    /// Waiters for an in-flight load of the same store key.
     private var inFlight: [String: [CheckedContinuation<UIImage?, Never>]] = [:]
     private var leaders: Set<String> = []
 
@@ -36,7 +36,7 @@ final class ImageStore: @unchecked Sendable {
     }
 
     func image(for url: URL, maxPixelSize: Int? = nil) async -> UIImage? {
-        let key = cacheKey(url: url, maxPixelSize: maxPixelSize)
+        let key = storeKey(url: url, maxPixelSize: maxPixelSize)
         if let mem = memory.object(forKey: key as NSString) {
             return mem
         }
@@ -47,7 +47,7 @@ final class ImageStore: @unchecked Sendable {
 
         var loaded: UIImage?
         defer { finishInFlight(key: key, image: loaded) }
-        loaded = await loadUncached(url: url, maxPixelSize: maxPixelSize)
+        loaded = await loadFromNetwork(url: url, maxPixelSize: maxPixelSize)
         if let loaded {
             memory.setObject(loaded, forKey: key as NSString, cost: loaded.approximateCost)
         }
@@ -97,7 +97,7 @@ final class ImageStore: @unchecked Sendable {
         }
     }
 
-    private func loadUncached(url: URL, maxPixelSize: Int?) async -> UIImage? {
+    private func loadFromNetwork(url: URL, maxPixelSize: Int?) async -> UIImage? {
         if url.isFileURL {
             return await decodeFile(url: url, maxPixelSize: maxPixelSize)
         }
@@ -164,7 +164,7 @@ final class ImageStore: @unchecked Sendable {
         return folder.appendingPathComponent(name)
     }
 
-    func cacheKey(url: URL, maxPixelSize: Int?) -> String {
+    func storeKey(url: URL, maxPixelSize: Int?) -> String {
         if let maxPixelSize, maxPixelSize > 0 {
             return "\(url.absoluteString)#\(maxPixelSize)"
         }
@@ -250,6 +250,6 @@ struct RemoteImage: View {
 extension ImageStore {
     /// Synchronous memory peek used by `RemoteImage` to avoid flicker.
     func memoryHit(_ url: URL, maxPixelSize: Int? = nil) -> UIImage? {
-        memory.object(forKey: cacheKey(url: url, maxPixelSize: maxPixelSize) as NSString)
+        memory.object(forKey: storeKey(url: url, maxPixelSize: maxPixelSize) as NSString)
     }
 }

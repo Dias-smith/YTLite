@@ -20,7 +20,7 @@
 | Search | Query → results (Videos + All minimum) → open player | `03` |
 | Home | Basic feed or “open from search” path if feed blocked | `01` |
 | Player | AVPlayer play/pause/seek/next/prev; speed 0.5–8x; now-playing info | `06` |
-| Extract | WKWebView + shared `extractor.js` yields playable URL | `10` |
+| Extract | WKWebView + shared `resolution.js` yields playable URL | `10` |
 | Auth | Guest + Google → Supabase | `07` |
 | Library | Local playlists + Favorites + History list; create playlist; add track | `05`, `09` |
 | Sync | Pull/push Supabase playlists/tracks/last_played/metadata | `10` |
@@ -73,7 +73,7 @@
 YTLite/
   app/                 # Android
   ios/                 # SwiftUI Xcode project
-  shared/extractor/    # extractor.js + bridge.html
+  shared/resolution/   # bridge HTML only; resolution.js off-repo
   supabase/            # shared migrations
   prd/                 # this suite
 ```

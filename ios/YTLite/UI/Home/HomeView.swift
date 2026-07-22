@@ -198,7 +198,7 @@ final class HomeViewModel: ObservableObject {
         selectedCategoryId = category.id
         HomeFeedStore.saveSelectedCategoryId(category.id)
         errorMessage = nil
-        // Align Android: show disk/memory cache immediately; network only if empty.
+        // Align Android: show disk/memory store immediately; network only if empty.
         applyStoredFeed(for: category.id)
         refreshIfNeeded()
     }
@@ -231,7 +231,7 @@ final class HomeViewModel: ObservableObject {
         playableIndexById = map
     }
 
-    /// Network only when this category has no cached content (Android `preferCache = true`).
+    /// Network only when this category has no stored content (Android preferStore).
     private func refreshIfNeeded() {
         guard entries.isEmpty else { return }
         Task { await refresh(force: false) }
@@ -283,11 +283,11 @@ final class HomeViewModel: ObservableObject {
         }
         let category = selectedCategory
         let requestId = category.id
-        // Non-force with existing UI content is a no-op (cache already shown).
+        // Non-force with existing UI content is a no-op (store already shown).
         if !force, !entries.isEmpty {
             HomeFeedProbe.log(
                 "refresh.skip",
-                "reason=cache_hit force=false count=\(entries.count) category=\(requestId)"
+                "reason=store_hit force=false count=\(entries.count) category=\(requestId)"
             )
             return
         }
@@ -484,13 +484,13 @@ final class HomeViewModel: ObservableObject {
             rawEntries = stored.entries
             continuation = stored.continuation
             HomeFeedProbe.log(
-                "cache.load",
+                "store.load",
                 "category=\(categoryId) count=\(stored.entries.count) hasCont=\(!(stored.continuation ?? "").isEmpty)"
             )
         } else {
             rawEntries = []
             continuation = nil
-            HomeFeedProbe.log("cache.miss", "category=\(categoryId)")
+            HomeFeedProbe.log("store.miss", "category=\(categoryId)")
         }
         entries = applyLibraryFilter(rawEntries)
         rebuildPlayableIndex(from: entries)
