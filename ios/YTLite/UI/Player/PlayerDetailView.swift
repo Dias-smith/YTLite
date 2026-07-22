@@ -417,7 +417,8 @@ struct PlayerDetailView: View {
         .aspectRatio(16 / 9, contentMode: .fit)
         .clipped()
         // fullScreenCover (regular width) has no system pull-down — interactive dismiss here.
-        .highPriorityGesture(interactiveDismissGesture)
+        // Only attach when supported; otherwise this high-priority drag steals progress scrub.
+        .modifier(OptionalHighPriorityDrag(enabled: supportsInteractiveDismiss, gesture: interactiveDismissGesture))
     }
 
     private var supportsInteractiveDismiss: Bool {
@@ -1376,7 +1377,8 @@ private struct OrangeProgressBar: View {
             }
             .frame(maxHeight: .infinity, alignment: .center)
             .contentShape(Rectangle())
-            .gesture(
+            // Beat parent canvas dismiss drag so scrubbing always receives the gesture.
+            .highPriorityGesture(
                 DragGesture(minimumDistance: 0)
                     .onChanged { drag in
                         // Preview only while dragging — seeking on every move floods
@@ -1392,7 +1394,21 @@ private struct OrangeProgressBar: View {
                     }
             )
         }
-        .frame(height: 20)
+        .frame(height: 28)
+    }
+}
+
+/// Applies `highPriorityGesture` only when `enabled` — avoids stealing child drags.
+private struct OptionalHighPriorityDrag<G: Gesture>: ViewModifier {
+    let enabled: Bool
+    let gesture: G
+
+    func body(content: Content) -> some View {
+        if enabled {
+            content.highPriorityGesture(gesture)
+        } else {
+            content
+        }
     }
 }
 
