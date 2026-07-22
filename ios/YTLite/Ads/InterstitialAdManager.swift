@@ -36,7 +36,7 @@ final class InterstitialAdManager: NSObject {
     }
 
     func loadAd() {
-        guard AdMobConfig.adsEnabled, AdConsentManager.canRequestAds else { return }
+        guard AdMobConfig.adsEnabled, AdConsentManager.canRequestAds, AdEligibility.allowsAds else { return }
         guard !isLoadingAd, !isShowingAd else { return }
         guard !placement.adUnitID.isEmpty else {
             AdProbe.log("interstitial.load.skip", "placement=\(placement.rawValue) empty_unit_id")
@@ -80,7 +80,7 @@ final class InterstitialAdManager: NSObject {
 
     @discardableResult
     func showIfAppropriate(reason: String) -> Bool {
-        guard AdMobConfig.adsEnabled, AdConsentManager.canRequestAds else { return false }
+        guard AdMobConfig.adsEnabled, AdConsentManager.canRequestAds, AdEligibility.allowsAds else { return false }
         guard !AdSceneLifecycle.isAdUIBlocked else {
             AdProbe.log(
                 "interstitial.show.skip",

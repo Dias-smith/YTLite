@@ -259,14 +259,17 @@ struct PlayerDetailView: View {
         }
         .sheet(isPresented: $showAddPlaylist) {
             AddToPlaylistSheet(items: currentTrackItems)
+                .environmentObject(trackActions)
         }
         .sheet(isPresented: $showSaveList) {
             AddToPlaylistSheet(items: playlistSaveItems)
+                .environmentObject(trackActions)
         }
         .sheet(isPresented: $showBatchAdd) {
             AddToPlaylistSheet(items: selectedPlaylistSaveItems) {
                 exitSelectionMode()
             }
+            .environmentObject(trackActions)
         }
         .sheet(isPresented: $showSortMenu) {
             PlayerListSortSheet(selected: listSort) { option in
@@ -341,7 +344,7 @@ struct PlayerDetailView: View {
                 RemoteImage(url: url, contentMode: .fit)
             }
 
-            if playback.isBuffering {
+            if playback.isBuffering, playback.lastError == nil {
                 ProgressView()
                     .progressViewStyle(.circular)
                     .controlSize(.large)
@@ -1183,10 +1186,26 @@ struct PlayerDetailView: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, YTLiteLayout.sectionGap)
             } else if let relatedError, related.isEmpty {
-                Text(relatedError)
-                    .font(YTLiteType.body)
-                    .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                    .padding(.vertical, YTLiteLayout.screenPadding)
+                VStack(spacing: YTLiteLayout.stackLoose) {
+                    Text(relatedError)
+                        .font(YTLiteType.body)
+                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity)
+                    Button {
+                        Task { await loadRelated() }
+                    } label: {
+                        Text(L("common.retry"))
+                            .font(YTLiteType.body.weight(.semibold))
+                            .foregroundStyle(YTLiteColor.accent)
+                            .padding(.horizontal, YTLiteLayout.stackLoose)
+                            .padding(.vertical, YTLiteLayout.rowVertical)
+                            .background(YTLiteColor.surfaceVariant, in: Capsule())
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.vertical, YTLiteLayout.screenPadding)
+                .padding(.horizontal, YTLiteLayout.screenPadding)
             } else if related.isEmpty {
                 Text(L("player.no_related"))
                     .font(YTLiteType.body)
@@ -1676,6 +1695,7 @@ struct AddToPlaylistSheet: View {
     var onDone: (() -> Void)? = nil
 
     @Environment(\.libraryStore) private var store
+    @EnvironmentObject private var trackActions: TrackActionPresenter
     @Environment(\.dismiss) private var dismiss
     /// Inline create form (avoid nested sheet + keyboard dismissing the player stack on device).
     @State private var showCreate = false
@@ -1771,6 +1791,9 @@ struct AddToPlaylistSheet: View {
         for item in items {
             store.add(item: item, to: playlist)
         }
+        trackActions.notifyListsChanged()
+        let name = displayName(playlist)
+        trackActions.completePlaylistSave(toast: Lf("toast.saved_to", name))
         onDone?()
         dismiss()
     }

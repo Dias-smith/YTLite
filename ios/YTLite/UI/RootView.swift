@@ -97,10 +97,17 @@ struct RootView: View {
                     let store = LibraryStore(modelContext: modelContext, ownerKey: ownerKey)
                     libraryStore = store
                     playback.libraryStore = store
+                    AdEligibility.bind(libraryStore: store)
+                    Task { await DailyListenNotificationScheduler.refresh(using: store) }
+                    playback.consumePendingDailyListenIfNeeded()
                     let sync = LibrarySyncService(auth: auth)
                     syncService = sync
                     store.onMutate = {
-                        Task { await sync.pushAll(store: store) }
+                        Task {
+                            await sync.pushAll(store: store)
+                            AdEligibility.refreshInventoryIfEligible()
+                            await DailyListenNotificationScheduler.refresh(using: store)
+                        }
                     }
                     store.onUnsubscribeChannel = { channelId in
                         Task { await sync.deleteSubscribedChannel(channelId: channelId) }
@@ -117,6 +124,8 @@ struct RootView: View {
                                 appModel.endLibrarySync()
                             }
                             await sync.syncBidirectional(store: store)
+                            AdEligibility.refreshInventoryIfEligible()
+                            await DailyListenNotificationScheduler.refresh(using: store)
                         }
                     }
                 }
@@ -150,6 +159,8 @@ struct RootView: View {
                     guard let next else {
                         // Sign out → guest bucket (keep prior user buckets).
                         libraryStore.setOwnerKey(OwnerKeyStore.stableGuestOwnerKey)
+                        AdEligibility.refreshInventoryIfEligible()
+                        await DailyListenNotificationScheduler.refresh(using: libraryStore)
                         return
                     }
 
@@ -171,6 +182,8 @@ struct RootView: View {
                         libraryStore.setOwnerKey(userKey)
                         await syncService?.syncBidirectional(store: libraryStore)
                     }
+                    AdEligibility.refreshInventoryIfEligible()
+                    await DailyListenNotificationScheduler.refresh(using: libraryStore)
                 }
             }
             .onChange(of: appModel.isLibrarySyncing) { _, syncing in

@@ -20,9 +20,7 @@ enum AdBootstrap {
     private static func startMobileAdsIfNeeded() {
         guard AdMobConfig.adsEnabled, AdConsentManager.canRequestAds else { return }
         guard !didStartSDK else {
-            AppOpenAdManager.shared.loadAd()
-            InterstitialAdManager.loadAll()
-            RewardedInterstitialAdManager.shared.loadAd()
+            AdEligibility.refreshInventoryIfEligible()
             AdSceneLifecycle.adEnvironmentDidBecomeReady(source: "sdk_already_started")
             return
         }
@@ -33,9 +31,7 @@ enum AdBootstrap {
         MobileAds.shared.start { _ in
             Task { @MainActor in
                 AdProbe.log("sdk.ready")
-                AppOpenAdManager.shared.loadAd()
-                InterstitialAdManager.loadAll()
-                RewardedInterstitialAdManager.shared.loadAd()
+                AdEligibility.refreshInventoryIfEligible()
                 AdSceneLifecycle.adEnvironmentDidBecomeReady(source: "sdk_ready")
             }
         }
@@ -101,10 +97,8 @@ enum AdSceneLifecycle {
             wasInBackground = true
             backgroundEnteredAt = Date()
             pending = nil
-            if AdConsentManager.canRequestAds {
-                AppOpenAdManager.shared.loadAd()
-                InterstitialAdManager.loadAll()
-                RewardedInterstitialAdManager.shared.loadAd()
+            if AdEligibility.allowsAds, AdConsentManager.canRequestAds {
+                AdEligibility.refreshInventoryIfEligible()
             }
             AdProbe.log("lifecycle.background")
         default:
@@ -126,6 +120,13 @@ enum AdSceneLifecycle {
     }
 
     private static func attemptPendingPresentation(source: String) {
+        guard AdEligibility.allowsAds else {
+            AdProbe.log(
+                "lifecycle.pending.hold",
+                "library_songs=\(AdEligibility.librarySongCount) need=\(AdEligibility.minimumLibrarySongCount) source=\(source)"
+            )
+            return
+        }
         guard AdConsentManager.canRequestAds else {
             AdProbe.log("lifecycle.pending.hold", "no consent yet source=\(source)")
             return
@@ -163,6 +164,13 @@ enum AdSceneLifecycle {
     /// After successful play start — delayed interstitial.
     static func schedulePlayStartInterstitial(videoId: String) {
         guard AdMobConfig.adsEnabled else { return }
+        guard AdEligibility.allowsAds else {
+            AdProbe.log(
+                "play_start.skip",
+                "library_songs=\(AdEligibility.librarySongCount) need=\(AdEligibility.minimumLibrarySongCount)"
+            )
+            return
+        }
         guard playStartInterstitialsShownThisSession
             < AdMobConfig.playStartInterstitialSessionLimit
         else {
@@ -189,6 +197,13 @@ enum AdSceneLifecycle {
 
     static func onPlayerDetailClosed() {
         guard AdMobConfig.adsEnabled else { return }
+        guard AdEligibility.allowsAds else {
+            AdProbe.log(
+                "player_detail.closed.skip_ad",
+                "library_songs=\(AdEligibility.librarySongCount)"
+            )
+            return
+        }
         AdProbe.log("player_detail.closed")
         leavePlayerInterstitialTask?.cancel()
         leavePlayerInterstitialTask = Task {
@@ -201,6 +216,13 @@ enum AdSceneLifecycle {
 
     static func onSearchResultsPresented(query: String) {
         guard AdMobConfig.adsEnabled else { return }
+        guard AdEligibility.allowsAds else {
+            AdProbe.log(
+                "search_results.skip_ad",
+                "library_songs=\(AdEligibility.librarySongCount)"
+            )
+            return
+        }
         AdProbe.log("search_results.presented", "queryLen=\(query.count)")
         _ = InterstitialAdManager.inApp.showIfAppropriate(reason: "search_results")
     }

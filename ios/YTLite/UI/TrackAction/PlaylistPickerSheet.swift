@@ -41,7 +41,7 @@ struct PlaylistPickerSheet: View {
                         ) {
                             store?.add(item: item, to: playlist)
                             trackActions.notifyListsChanged()
-                            trackActions.completePlaylistSave(toast: "Saved to \(displayName(playlist))")
+                            trackActions.completePlaylistSave(toast: Lf("toast.saved_to", displayName(playlist)))
                         }
                     }
                 }
@@ -86,7 +86,7 @@ struct PlaylistPickerSheet: View {
                     trackActions.notifyListsChanged()
                     newName = ""
                     showCreate = false
-                    trackActions.completePlaylistSave(toast: "Saved to \(name)")
+                    trackActions.completePlaylistSave(toast: Lf("toast.saved_to", name))
                 }
                 YTLiteSheetSecondaryButton(title: L("common.cancel")) {
                     newName = ""

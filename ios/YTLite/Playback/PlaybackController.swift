@@ -64,6 +64,7 @@ final class PlaybackController: ObservableObject {
     private var endObserver: NSObjectProtocol?
     private var failObserver: NSObjectProtocol?
     private var itemStatusObservation: NSKeyValueObservation?
+    private var timeControlObservation: NSKeyValueObservation?
     private var resolveTask: Task<Void, Never>?
     private var hlsVariantsTask: Task<Void, Never>?
     private var nextPrepareScheduleTask: Task<Void, Never>?
@@ -203,6 +204,20 @@ final class PlaybackController: ObservableObject {
         pendingSeekSeconds = 0
         playCurrentQueueItem()
         persistSession(immediate: true)
+    }
+
+    /// Consume a song queued by tapping the daily listen notification.
+    func consumePendingDailyListenIfNeeded() {
+        guard let item = PendingDailyListenPlayback.consume() else { return }
+        // Prefer the full library list so Up next stays useful after the jump.
+        if let store = libraryStore {
+            let songs = store.librarySongs()
+            if let index = songs.firstIndex(where: { $0.videoId == item.videoId }) {
+                play(items: songs, startAt: index)
+                return
+            }
+        }
+        play(items: [item], startAt: 0)
     }
 
     /// Jump within the existing Up next queue without rebuilding or reshuffling the list.
@@ -659,11 +674,15 @@ final class PlaybackController: ObservableObject {
             } catch is CancellationError {
                 AdSceneLifecycle.cancelPlayStartInterstitial()
                 PlayProbe.log("play.cancelled", videoId: expectedVideoId)
+                // Only clear if this resolve is still the active target (no newer play started).
+                if generation == resolveGeneration, isCurrentResolveTarget(expectedVideoId) {
+                    isBuffering = false
+                    isPlaying = false
+                }
                 return
             } catch {
                 AdSceneLifecycle.cancelPlayStartInterstitial()
                 guard generation == resolveGeneration,
-                      !Task.isCancelled,
                       isCurrentResolveTarget(expectedVideoId)
                 else { return }
                 // Stop leftover stream from the previous track so we don't show
@@ -843,11 +862,15 @@ final class PlaybackController: ObservableObject {
             attachTimeObserver()
             attachEndObserver()
         }
+        if let player {
+            observePlayerTimeControl(player)
+        }
         player?.allowsExternalPlayback = true
         player?.usesExternalPlaybackWhileExternalScreenIsActive = true
         lastError = nil
         needsLoginForPlayback = false
-        isBuffering = false
+        // Keep `isBuffering` until the item is ready and playback has actually started
+        // (see `readyToPlay` / `timeControlStatus == .playing`).
         applySpeed()
         if resumePlaying {
             player?.play()
@@ -1093,6 +1116,28 @@ final class PlaybackController: ObservableObject {
         return nil
     }
 
+    private func observePlayerTimeControl(_ player: AVPlayer) {
+        timeControlObservation?.invalidate()
+        timeControlObservation = player.observe(\.timeControlStatus, options: [.initial, .new]) { [weak self] player, _ in
+            Task { @MainActor in
+                guard let self else { return }
+                switch player.timeControlStatus {
+                case .playing:
+                    // First audible frames — hide the resolve/open spinner.
+                    self.isBuffering = false
+                case .paused:
+                    if player.currentItem?.status == .readyToPlay, !self.isPlaying {
+                        self.isBuffering = false
+                    }
+                case .waitingToPlayAtSpecifiedRate:
+                    break
+                @unknown default:
+                    break
+                }
+            }
+        }
+    }
+
     private func observePlayerItem(_ item: AVPlayerItem, videoId: String?) {
         itemStatusObservation?.invalidate()
         itemStatusObservation = item.observe(\.status, options: [.initial, .new]) { [weak self] item, _ in
@@ -1116,6 +1161,13 @@ final class PlaybackController: ObservableObject {
                         videoId: videoId,
                         "readyToPlay duration=\(item.duration.seconds) openMs=\(self.probeStreamElapsedMs())"
                     )
+                    // Paused load: spinner can drop once the item is ready.
+                    // Playing load: wait until `timeControlStatus == .playing`.
+                    if videoId == nil || self.nowPlaying?.videoId == videoId {
+                        if !self.isPlaying || self.player?.timeControlStatus == .playing {
+                            self.isBuffering = false
+                        }
+                    }
                     // Current media is open — only now prepare the next track.
                     if let videoId, self.nowPlaying?.videoId == videoId {
                         self.scheduleNextTrackPrepare(afterCurrentVideoId: videoId)
@@ -1225,6 +1277,7 @@ final class PlaybackController: ObservableObject {
                     videoId: videoId,
                     "\(flags) err=\(err) \(self?.probeStreamDetailSuffix() ?? "")"
                 )
+                self?.isBuffering = false
                 self?.isPlaying = false
                 self?.lastError = err
                 self?.updateNowPlayingInfo()
@@ -1303,6 +1356,10 @@ final class PlaybackController: ObservableObject {
         cancelSleepTimer()
         player?.pause()
         player?.replaceCurrentItem(with: nil)
+        itemStatusObservation?.invalidate()
+        itemStatusObservation = nil
+        timeControlObservation?.invalidate()
+        timeControlObservation = nil
         isPlaying = false
         isBuffering = false
         nowPlaying = nil
@@ -1339,6 +1396,10 @@ final class PlaybackController: ObservableObject {
         cancelSleepTimer()
         player?.pause()
         player?.replaceCurrentItem(with: nil)
+        itemStatusObservation?.invalidate()
+        itemStatusObservation = nil
+        timeControlObservation?.invalidate()
+        timeControlObservation = nil
         isPlaying = false
         isBuffering = false
         nowPlaying = nil

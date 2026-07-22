@@ -13,6 +13,7 @@ struct YTLiteApp: App {
     init() {
         FirebaseBootstrap.configure()
         Analytics.setAnalyticsCollectionEnabled(true)
+        AppNotificationCenterDelegate.shared.install()
         let config = AppConfig.fromBundle()
         _authService = StateObject(wrappedValue: AuthService(config: config))
         modelContainer = Self.makeModelContainer()
@@ -60,11 +61,15 @@ struct YTLiteApp: App {
                 .onChange(of: scenePhase) { _, phase in
                     if phase == .active {
                         ReviewPromptCoordinator.shared.recordActiveDay()
+                        playback.consumePendingDailyListenIfNeeded()
                     }
                     if phase == .background || phase == .inactive {
                         playback.flushSession()
                         playback.publishNowPlaying()
                     }
+                }
+                .onReceive(NotificationCenter.default.publisher(for: .ytlitePlayFromDailyNotification)) { _ in
+                    playback.consumePendingDailyListenIfNeeded()
                 }
         }
         .modelContainer(modelContainer)

@@ -14,7 +14,7 @@ final class RewardedInterstitialAdManager: NSObject {
     var isReady: Bool { rewardedAd != nil && !isLoadingAd && !isShowingAd }
 
     func loadAd() {
-        guard AdMobConfig.adsEnabled, AdConsentManager.canRequestAds else { return }
+        guard AdMobConfig.adsEnabled, AdConsentManager.canRequestAds, AdEligibility.allowsAds else { return }
         guard !AdMobConfig.rewardedInterstitialAdUnitID.isEmpty else {
             AdProbe.log("rewarded.load.skip", "empty_unit_id")
             return
@@ -49,7 +49,7 @@ final class RewardedInterstitialAdManager: NSObject {
     /// Completion runs after dismissal, so rewarded UI never mutates the sheet beneath the ad.
     @discardableResult
     func show(reason: String, completion: @escaping (Bool) -> Void) -> Bool {
-        guard AdMobConfig.adsEnabled, AdConsentManager.canRequestAds else { return false }
+        guard AdMobConfig.adsEnabled, AdConsentManager.canRequestAds, AdEligibility.allowsAds else { return false }
         guard !isShowingAd, let ad = rewardedAd else {
             AdProbe.log("rewarded.show.miss", "reason=\(reason) → reload")
             loadAd()

@@ -20,7 +20,7 @@ final class AppOpenAdManager: NSObject {
     }
 
     func loadAd() {
-        guard AdMobConfig.adsEnabled, AdConsentManager.canRequestAds else { return }
+        guard AdMobConfig.adsEnabled, AdConsentManager.canRequestAds, AdEligibility.allowsAds else { return }
         guard !isLoadingAd, !isShowingAd else { return }
         guard !AdMobConfig.appOpenAdUnitID.isEmpty else {
             AdProbe.log("app_open.load.skip", "empty_unit_id")
@@ -55,7 +55,7 @@ final class AppOpenAdManager: NSObject {
 
     @discardableResult
     func showAdIfAvailable(reason: String) -> Bool {
-        guard AdMobConfig.adsEnabled, AdConsentManager.canRequestAds else { return false }
+        guard AdMobConfig.adsEnabled, AdConsentManager.canRequestAds, AdEligibility.allowsAds else { return false }
         guard !AdSceneLifecycle.isAdUIBlocked else {
             AdProbe.log("app_open.show.skip", "ui_blocked reason=\(reason)")
             return false
