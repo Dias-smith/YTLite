@@ -6,7 +6,16 @@ final class PlayerPresentation: ObservableObject {
     @Published var isPresented = false
 
     func present() {
-        isPresented = true
+        // Geometry updates after video fullscreen can dismiss the SwiftUI sheet
+        // while leaving `isPresented == true`, so a second tap would no-op.
+        if isPresented {
+            isPresented = false
+            Task { @MainActor in
+                self.isPresented = true
+            }
+        } else {
+            isPresented = true
+        }
     }
 
     func dismiss() {

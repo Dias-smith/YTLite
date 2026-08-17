@@ -25,9 +25,9 @@ enum AppOrientation {
         let scene = scenes.first(where: { $0.activationState == .foregroundActive }) ?? scenes.first
         guard let scene else { return }
         scene.requestGeometryUpdate(.iOS(interfaceOrientations: orientations)) { _ in }
-        scene.windows.forEach { window in
-            window.rootViewController?.setNeedsUpdateOfSupportedInterfaceOrientations()
-        }
+        // Do not call `setNeedsUpdateOfSupportedInterfaceOrientations` on the
+        // window root — it can dismiss the player sheet while `isPresented`
+        // stays true, so the mini player can no longer open PlayerDetail.
     }
 }
 

@@ -155,6 +155,7 @@ final class PlayerSurfaceController: UIViewController, AVPictureInPictureControl
         }
         fullscreenController = vc
         present(vc, animated: true) { [weak self] in
+            vc.setNeedsUpdateOfSupportedInterfaceOrientations()
             guard let self else { return }
             // Present failed / was cancelled — put the player back on the inline layer.
             if self.presentedViewController !== vc {

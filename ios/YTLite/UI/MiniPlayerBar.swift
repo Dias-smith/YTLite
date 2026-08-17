@@ -41,30 +41,31 @@ struct MiniPlayerBar: View {
 
     private func contentRow(item: NowPlayingItem) -> some View {
         HStack(spacing: 0) {
-            // Thumbnail + title: opens player (Android weighted clickable Row).
-            Button {
-                playerPresentation.present()
-            } label: {
-                HStack(spacing: 0) {
-                    mediaSlot(item: item)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(item.title)
-                            .font(YTLiteType.body)
-                            .foregroundStyle(YTLiteColor.onSurface)
-                            .lineLimit(1)
-                        Text(item.channelName)
-                            .font(YTLiteType.meta)
-                            .foregroundStyle(YTLiteColor.miniMeta)
-                            .lineLimit(1)
-                    }
-                    .padding(.leading, 12)
-                    .padding(.trailing, 8)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+            // Thumbnail + title: opens player. Tap is on the SwiftUI container
+            // so the UIKit player surface cannot swallow the hit.
+            HStack(spacing: 0) {
+                mediaSlot(item: item)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(item.title)
+                        .font(YTLiteType.body)
+                        .foregroundStyle(YTLiteColor.onSurface)
+                        .lineLimit(1)
+                    Text(item.channelName)
+                        .font(YTLiteType.meta)
+                        .foregroundStyle(YTLiteColor.miniMeta)
+                        .lineLimit(1)
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .contentShape(Rectangle())
+                .padding(.leading, 12)
+                .padding(.trailing, 8)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .buttonStyle(.plain)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                playerPresentation.present()
+            }
+            .accessibilityAddTraits(.isButton)
+            .accessibilityLabel(item.title)
 
             // Independent controls — do not open player.
             Button {

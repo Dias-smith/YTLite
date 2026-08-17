@@ -1,5 +1,6 @@
 import GoogleMobileAds
 import SwiftUI
+import UIKit
 
 @MainActor
 enum AdBootstrap {
@@ -258,10 +259,12 @@ extension View {
 
 private struct PlayerDetailPresentationModifier: ViewModifier {
     @Binding var isPresented: Bool
-    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     private var useFullScreen: Bool {
-        YTLiteAdaptive.isRegularWidth(horizontalSizeClass)
+        // Size class flickers to `.regular` on large iPhones in landscape, which
+        // swaps this modifier between sheet and fullScreenCover and desyncs
+        // `isPresented` from the on-screen player.
+        UIDevice.current.userInterfaceIdiom == .pad
     }
 
     func body(content: Content) -> some View {
