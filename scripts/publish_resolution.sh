@@ -7,8 +7,15 @@
 # or:
 #   ./scripts/publish_resolution.sh <version> [minAppVersion] /absolute/path/to/resolution.js
 #
-# Example:
-#   RESOLUTION_JS=~/secrets/resolution.js ./scripts/publish_resolution.sh 1 1.0.0
+# Native protocol (default 1). Bump RESOLUTION_NATIVE_API only when the JS ↔ app
+# bridge / resolve payload contract changes — old apps keep reading
+# compat/api-{old}/manifest.json.
+#
+# Compatible hotfix (same native API):
+#   RESOLUTION_JS=~/secrets/resolution.js ./scripts/publish_resolution.sh 8 1.0.0
+#
+# Breaking JS (new native API, ship a new app with ResolverNativeAPI / NATIVE_API = 2):
+#   RESOLUTION_NATIVE_API=2 RESOLUTION_JS=~/secrets/resolution.js ./scripts/publish_resolution.sh 9 1.5.0
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -16,8 +23,19 @@ SOURCE="${ROOT}/shared/resolution"
 VERSION="${1:?usage: $0 <version> [minAppVersion] [resolution.js path]}"
 MIN_APP_VERSION="${2:-1.0.0}"
 RESOLUTION_JS_PATH="${3:-${RESOLUTION_JS:-}}"
+NATIVE_API="${RESOLUTION_NATIVE_API:-1}"
+MIN_NATIVE_API="${RESOLUTION_MIN_NATIVE_API:-${NATIVE_API}}"
+if ! [[ "${NATIVE_API}" =~ ^[0-9]+$ ]] || [[ "${NATIVE_API}" -lt 1 ]]; then
+  echo "error: RESOLUTION_NATIVE_API must be a positive integer" >&2
+  exit 1
+fi
+if [[ "${NATIVE_API}" -gt 1 && "${MIN_APP_VERSION}" == "1.0.0" ]]; then
+  echo "warning: nativeApi=${NATIVE_API} with minAppVersion=1.0.0 — apps that predate compat channels will install this JS." >&2
+  echo "         Set minAppVersion to the first store version that ships NATIVE_API=${NATIVE_API}." >&2
+fi
 BUCKET="resolution"
 PREFIX="v${VERSION}"
+COMPAT_PREFIX="compat/api-${NATIVE_API}"
 STAGING="$(mktemp -d "${TMPDIR:-/tmp}/ytlite-resolution.XXXXXX")"
 cleanup() { rm -rf "${STAGING}"; }
 trap cleanup EXIT
@@ -102,6 +120,8 @@ out = pathlib.Path(sys.argv[1])
 manifest = {
     "version": int("${VERSION}"),
     "minAppVersion": "${MIN_APP_VERSION}",
+    "nativeApi": int("${NATIVE_API}"),
+    "minNativeApi": int("${MIN_NATIVE_API}"),
     "files": {
         "resolution.js": {"path": "${PREFIX}/resolution.js", "sha256": "${HASH_JS}"},
         "bridge.html": {"path": "${PREFIX}/bridge.html", "sha256": "${HASH_BRIDGE}"},
@@ -123,15 +143,17 @@ cp "${RESOLUTION_JS_PATH}" "${STAGING}/resolution.js"
 cp "${SOURCE}/bridge.html" "${STAGING}/bridge.html"
 cp "${SOURCE}/bridge-ios.html" "${STAGING}/bridge-ios.html"
 
-echo "Uploading ${PREFIX}/ ..."
+echo "Uploading ${PREFIX}/ (nativeApi=${NATIVE_API}) ..."
 # Explicit Content-Type: CLI auto-detect may append "; charset=utf-8", which
 # fails Storage allowed_mime_types exact-match checks.
 # Remove existing objects first so republishing the same version is allowed (409 Duplicate).
+# Do NOT delete other compat/api-* channels — old apps keep using them.
 supabase --experimental storage rm --yes \
   "ss:///${BUCKET}/${PREFIX}/resolution.js" \
   "ss:///${BUCKET}/${PREFIX}/bridge.html" \
   "ss:///${BUCKET}/${PREFIX}/bridge-ios.html" \
   "ss:///${BUCKET}/manifest.json" \
+  "ss:///${BUCKET}/${COMPAT_PREFIX}/manifest.json" \
   2>/dev/null || true
 
 supabase --experimental storage cp --content-type "application/javascript" \
@@ -142,10 +164,13 @@ supabase --experimental storage cp --content-type "text/html" \
   "${STAGING}/bridge-ios.html" "ss:///${BUCKET}/${PREFIX}/bridge-ios.html"
 supabase --experimental storage cp --content-type "application/json" \
   "${STAGING}/manifest.json" "ss:///${BUCKET}/manifest.json"
+supabase --experimental storage cp --content-type "application/json" \
+  "${STAGING}/manifest.json" "ss:///${BUCKET}/${COMPAT_PREFIX}/manifest.json"
 
 echo
-echo "Published resolution bundle v${VERSION}"
+echo "Published resolution bundle v${VERSION} nativeApi=${NATIVE_API}"
 echo "Manifest: ${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/manifest.json"
+echo "Compat:   ${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${COMPAT_PREFIX}/manifest.json"
 echo "Files:"
 echo "  ${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${PREFIX}/resolution.js"
 echo "  ${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${PREFIX}/bridge.html"

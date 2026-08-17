@@ -3,7 +3,10 @@ package com.ytlite.player.data.extractor
 import android.content.Context
 import android.util.Log
 import com.ytlite.player.BuildConfig
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -101,6 +104,8 @@ class ExtractorBundleStore private constructor(
         class Incomplete : BundleException("Extractor bundle incomplete")
         class AppVersionTooLow(required: String, current: String) :
             BundleException("App $current is too old for extractor (needs $required)")
+        class IncompatibleNativeApi(remote: Int, local: Int) :
+            BundleException("Extractor nativeApi=$remote is not compatible with app api=$local")
         class InvalidManifest : BundleException("Invalid extractor manifest")
     }
 
@@ -108,6 +113,8 @@ class ExtractorBundleStore private constructor(
     data class Manifest(
         val version: Int,
         val minAppVersion: String,
+        val nativeApi: Int,
+        val minNativeApi: Int,
         val files: Map<String, ManifestFile>,
         val config: ExtractorRemoteConfig?,
     )
@@ -145,26 +152,37 @@ class ExtractorBundleStore private constructor(
         val now = System.currentTimeMillis()
         if (now - lastBackgroundCheckMs < 60_000L) return
         lastBackgroundCheckMs = now
-        // Caller already on IO / coroutine; fire-and-forget via new job from Application scope ideally.
-        // Here we do a synchronous best-effort only when explicitly awaited elsewhere.
+        refreshScope.launch {
+            runCatching { refreshIfNewer() }
+        }
     }
 
     suspend fun refreshIfNewer() = withContext(Dispatchers.IO) {
         mutex.withLock {
-            val remote = fetchManifest()
+            val remote = runCatching { fetchCompatibleManifest() }.getOrElse { err ->
+                Log.i(TAG, "compat skip, keep installed: ${err.message}")
+                return@withLock
+            }
             val installed = loadInstalledManifest(cacheDir())?.version ?: 0
-            if (remote.version > installed) {
+            if (remote.version <= installed) return@withLock
+            if (!isCompatible(remote)) return@withLock
+            try {
                 install(remote)
+            } catch (e: BundleException.AppVersionTooLow) {
+                Log.i(TAG, "minAppVersion skip, keep installed: ${e.message}")
             }
         }
     }
 
     private suspend fun downloadAndInstall() {
-        val remote = fetchManifest()
+        val remote = fetchCompatibleManifest()
         install(remote)
     }
 
     private fun install(manifest: Manifest) {
+        if (!isCompatible(manifest)) {
+            throw BundleException.IncompatibleNativeApi(manifest.nativeApi, NATIVE_API)
+        }
         checkMinAppVersion(manifest.minAppVersion)
         val required = listOf("resolution.js", "bridge.html", "bridge-ios.html")
         required.forEach { name ->
@@ -200,16 +218,30 @@ class ExtractorBundleStore private constructor(
                 manifest.config ?: ExtractorRemoteConfig.DEFAULTS,
                 appContext,
             )
-            Log.i(TAG, "installed extractor version=${manifest.version}")
+            Log.i(TAG, "installed extractor version=${manifest.version} nativeApi=${manifest.nativeApi}")
         } catch (e: Exception) {
             staging.deleteRecursively()
             throw e
         }
     }
 
-    private fun fetchManifest(): Manifest {
-        val url = publicUrl("manifest.json")
-        val bytes = httpGet(url)
+    private fun fetchCompatibleManifest(): Manifest {
+        val latest = fetchManifest("manifest.json")
+        if (isCompatible(latest)) return latest
+        val channelPath = "compat/api-$NATIVE_API/manifest.json"
+        val channel = runCatching { fetchManifest(channelPath) }.getOrElse { err ->
+            Log.w(TAG, "compat miss $channelPath: ${err.message}")
+            throw BundleException.IncompatibleNativeApi(latest.nativeApi, NATIVE_API)
+        }
+        if (isCompatible(channel)) {
+            Log.i(TAG, "using compat channel api=$NATIVE_API version=${channel.version}")
+            return channel
+        }
+        throw BundleException.IncompatibleNativeApi(latest.nativeApi, NATIVE_API)
+    }
+
+    private fun fetchManifest(relativePath: String = "manifest.json"): Manifest {
+        val bytes = httpGet(publicUrl(relativePath))
         return parseManifest(String(bytes, Charsets.UTF_8))
     }
 
@@ -269,9 +301,13 @@ class ExtractorBundleStore private constructor(
                 sha256 = entry.getString("sha256"),
             )
         }
+        val nativeApi = root.optInt("nativeApi", 1).let { if (it <= 0) 1 else it }
+        val minNativeApi = root.optInt("minNativeApi", nativeApi).let { if (it <= 0) nativeApi else it }
         return Manifest(
             version = root.getInt("version"),
             minAppVersion = root.optString("minAppVersion", "1.0.0"),
+            nativeApi = nativeApi,
+            minNativeApi = minNativeApi,
             files = files,
             config = ExtractorRemoteConfig.fromJson(root.optJSONObject("config")),
         )
@@ -305,6 +341,8 @@ class ExtractorBundleStore private constructor(
         return JSONObject()
             .put("version", manifest.version)
             .put("minAppVersion", manifest.minAppVersion)
+            .put("nativeApi", manifest.nativeApi)
+            .put("minNativeApi", manifest.minNativeApi)
             .put("files", files)
             .put("config", cfg)
     }
@@ -319,6 +357,9 @@ class ExtractorBundleStore private constructor(
             throw BundleException.AppVersionTooLow(required, current)
         }
     }
+
+    private fun isCompatible(manifest: Manifest): Boolean =
+        NATIVE_API >= manifest.minNativeApi && NATIVE_API <= manifest.nativeApi
 
     private fun sha256Hex(bytes: ByteArray): String {
         val digest = MessageDigest.getInstance("SHA-256").digest(bytes)
@@ -340,6 +381,11 @@ class ExtractorBundleStore private constructor(
 
     companion object {
         private const val TAG = "ExtractorBundle"
+
+        /** Bump only when the JS ↔ native bridge / resolve payload contract changes. */
+        const val NATIVE_API = 1
+
+        private val refreshScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
         @Volatile
         private var instance: ExtractorBundleStore? = null

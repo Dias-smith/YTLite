@@ -64,6 +64,7 @@ actor ResolverBundleStore {
         case checksumMismatch(String)
         case incompleteBundle
         case appVersionTooLow(required: String, current: String)
+        case incompatibleNativeApi(remote: Int, local: Int)
         case invalidManifest
 
         var errorDescription: String? {
@@ -78,6 +79,8 @@ actor ResolverBundleStore {
                 return "Stream resolver bundle incomplete"
             case .appVersionTooLow(let required, let current):
                 return "App \(current) is too old for stream resolver (needs \(required))"
+            case .incompatibleNativeApi(let remote, let local):
+                return "Stream resolver nativeApi=\(remote) is not compatible with app api=\(local)"
             case .invalidManifest:
                 return "Invalid stream resolver manifest"
             }
@@ -92,9 +95,47 @@ actor ResolverBundleStore {
     struct Manifest: Codable, Sendable {
         var version: Int
         var minAppVersion: String
+        /// Highest native protocol this bundle speaks.
+        var nativeApi: Int
+        /// Lowest native protocol this bundle speaks (defaults to `nativeApi`).
+        var minNativeApi: Int
         var files: [String: ManifestFile]
         var config: ResolverRemoteConfig?
+
+        enum CodingKeys: String, CodingKey {
+            case version, minAppVersion, nativeApi, minNativeApi, files, config
+        }
+
+        init(
+            version: Int,
+            minAppVersion: String,
+            nativeApi: Int,
+            minNativeApi: Int,
+            files: [String: ManifestFile],
+            config: ResolverRemoteConfig?
+        ) {
+            self.version = version
+            self.minAppVersion = minAppVersion
+            self.nativeApi = nativeApi
+            self.minNativeApi = minNativeApi
+            self.files = files
+            self.config = config
+        }
+
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            version = try c.decode(Int.self, forKey: .version)
+            minAppVersion = try c.decodeIfPresent(String.self, forKey: .minAppVersion) ?? "1.0.0"
+            let api = try c.decodeIfPresent(Int.self, forKey: .nativeApi) ?? 1
+            nativeApi = api
+            minNativeApi = try c.decodeIfPresent(Int.self, forKey: .minNativeApi) ?? api
+            files = try c.decode([String: ManifestFile].self, forKey: .files)
+            config = try c.decodeIfPresent(ResolverRemoteConfig.self, forKey: .config)
+        }
     }
+
+    /// Bump only when the JS ↔ native bridge / resolve payload contract changes.
+    static let nativeApi = 1
 
     static let shared = ResolverBundleStore()
 
@@ -139,19 +180,39 @@ actor ResolverBundleStore {
     }
 
     private func refreshIfNewer() async throws {
-        let remote = try await fetchManifest()
+        let remote: Manifest
+        do {
+            remote = try await fetchCompatibleManifest()
+        } catch {
+            PlayProbe.log(
+                "resolver.bundle.compat_skip",
+                "keepInstalled=1 err=\(error.localizedDescription)"
+            )
+            return
+        }
         let dir = try storeDirectory()
         let installedVersion = (try? loadInstalledManifest(dir: dir))?.version ?? 0
         guard remote.version > installedVersion else { return }
-        try await install(manifest: remote)
+        guard Self.isCompatible(remote) else { return }
+        do {
+            try await install(manifest: remote)
+        } catch let BundleError.appVersionTooLow(required, _) {
+            PlayProbe.log(
+                "resolver.bundle.min_app_skip",
+                "keepInstalled=1 required=\(required)"
+            )
+        }
     }
 
     private func fetchAndInstall() async throws {
-        let remote = try await fetchManifest()
+        let remote = try await fetchCompatibleManifest()
         try await install(manifest: remote)
     }
 
     private func install(manifest: Manifest) async throws {
+        guard Self.isCompatible(manifest) else {
+            throw BundleError.incompatibleNativeApi(remote: manifest.nativeApi, local: Self.nativeApi)
+        }
         try checkMinAppVersion(manifest.minAppVersion)
         let required = [
             RemoteContract.scriptFile,
@@ -197,7 +258,7 @@ actor ResolverBundleStore {
             ResolverRemoteConfigStore.apply(manifest.config ?? .defaults)
             PlayProbe.log(
                 "resolver.bundle.installed",
-                "version=\(manifest.version) sts=\(ResolverRemoteConfigStore.current.signatureTimestamp)"
+                "version=\(manifest.version) nativeApi=\(manifest.nativeApi) sts=\(ResolverRemoteConfigStore.current.signatureTimestamp)"
             )
         } catch {
             try? fileManager.removeItem(at: staging)
@@ -205,18 +266,46 @@ actor ResolverBundleStore {
         }
     }
 
-    private func fetchManifest() async throws -> Manifest {
-        let url = try publicURL(relativePath: "manifest.json")
+    private func fetchCompatibleManifest() async throws -> Manifest {
+        let latest = try await fetchManifest(relativePath: "manifest.json")
+        if Self.isCompatible(latest) {
+            return latest
+        }
+        let channelPath = "compat/api-\(Self.nativeApi)/manifest.json"
+        do {
+            let channel = try await fetchManifest(relativePath: channelPath)
+            if Self.isCompatible(channel) {
+                PlayProbe.log(
+                    "resolver.bundle.compat_channel",
+                    "nativeApi=\(Self.nativeApi) version=\(channel.version)"
+                )
+                return channel
+            }
+        } catch {
+            PlayProbe.log(
+                "resolver.bundle.compat_miss",
+                "path=\(channelPath) err=\(error.localizedDescription)"
+            )
+        }
+        throw BundleError.incompatibleNativeApi(remote: latest.nativeApi, local: Self.nativeApi)
+    }
+
+    private func fetchManifest(relativePath: String = "manifest.json") async throws -> Manifest {
+        let url = try publicURL(relativePath: relativePath)
         let (data, response) = try await URLSession.shared.data(from: url)
         let code = (response as? HTTPURLResponse)?.statusCode ?? -1
         guard (200..<300).contains(code) else {
-            throw BundleError.fetchFailed("manifest HTTP \(code)")
+            throw BundleError.fetchFailed("\(relativePath) HTTP \(code)")
         }
         do {
             return try JSONDecoder().decode(Manifest.self, from: data)
         } catch {
             throw BundleError.invalidManifest
         }
+    }
+
+    nonisolated private static func isCompatible(_ manifest: Manifest) -> Bool {
+        nativeApi >= manifest.minNativeApi && nativeApi <= manifest.nativeApi
     }
 
     private func fetchPublicObject(relativePath: String) async throws -> Data {

@@ -98,6 +98,7 @@ struct SettingsView: View {
             enabled: YTLiteAdaptive.isRegularWidth(horizontalSizeClass)
         )
         .scrollContentBackground(.hidden)
+        .ytLiteMiniPlayerScrollInset()
         .background(YTLiteColor.background)
         .navigationTitle(L("settings.title"))
         .alert(L("settings.support_us"), isPresented: $rateUnavailableAlert) {

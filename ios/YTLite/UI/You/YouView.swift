@@ -130,6 +130,7 @@ struct YouView: View {
                 .padding(.horizontal, 16)
             }
         }
+        .ytLiteMiniPlayerScrollInset()
     }
 
     // MARK: - Authenticated (Android YoutubeYouScreen order)
@@ -263,6 +264,7 @@ struct YouView: View {
             }
             .padding(.bottom, 24)
         }
+        .ytLiteMiniPlayerScrollInset()
         .refreshable {
             let token = await auth.ensureFreshGoogleAccessToken()
             await viewModel.loadYouTubeShelves(
@@ -652,6 +654,7 @@ struct SubscriptionChannelsListView: View {
             }
         }
         .background(YTLiteColor.background)
+        .ytLiteMiniPlayerScrollInset()
         .navigationTitle(L("you.subscriptions"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(YTLiteColor.background, for: .navigationBar)
@@ -704,6 +707,7 @@ struct YouPlaylistsListView: View {
             }
         }
         .background(YTLiteColor.background)
+        .ytLiteMiniPlayerScrollInset()
         .navigationTitle(L("you.playlists"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(YTLiteColor.background, for: .navigationBar)
@@ -774,6 +778,7 @@ struct YoutubePlaylistItemsView: View {
             }
         }
         .background(YTLiteColor.background)
+        .ytLiteMiniPlayerScrollInset()
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(YTLiteColor.background, for: .navigationBar)
@@ -866,6 +871,7 @@ struct ChannelSearchView: View {
         }
         .scrollContentBackground(.hidden)
         .background(YTLiteColor.background)
+        .ytLiteMiniPlayerScrollInset()
         .navigationTitle(L("you.channels"))
         .searchable(text: $query, prompt: "Search channels")
         .onSubmit(of: .search) { Task { await search() } }
@@ -907,6 +913,7 @@ struct PlaylistSearchView: View {
         }
         .scrollContentBackground(.hidden)
         .background(YTLiteColor.background)
+        .ytLiteMiniPlayerScrollInset()
         .navigationTitle(L("you.playlists"))
         .searchable(text: $query, prompt: "Search playlists")
         .onSubmit(of: .search) { Task { await search() } }
@@ -960,6 +967,7 @@ struct ChannelVideosView: View {
             }
         }
         .background(YTLiteColor.background)
+        .ytLiteMiniPlayerScrollInset()
         .navigationTitle(channel.title)
         .onChange(of: trackActions.listEpoch) { _, _ in
             videos = store?.filterNotInterested(videos) ?? videos
@@ -1042,6 +1050,7 @@ struct PlaylistVideosBrowserView: View {
             }
         }
         .background(YTLiteColor.background)
+        .ytLiteMiniPlayerScrollInset()
         .navigationTitle(playlist.title)
         .onChange(of: trackActions.listEpoch) { _, _ in
             videos = store?.filterNotInterested(videos) ?? videos

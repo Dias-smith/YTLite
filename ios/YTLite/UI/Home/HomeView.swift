@@ -620,6 +620,7 @@ struct HomeView: View {
                 HomeFeedProbe.log("ui.refreshable", "path=empty category=\(viewModel.selectedCategoryId)")
                 await viewModel.refresh()
             }
+            .ytLiteMiniPlayerScrollInset()
         } else {
             ScrollViewReader { proxy in
                 GeometryReader { geo in
@@ -684,6 +685,7 @@ struct HomeView: View {
                         )
                         await viewModel.refresh()
                     }
+                    .ytLiteMiniPlayerScrollInset()
                     .onChange(of: viewModel.scrollToTopToken) { _, token in
                         HomeFeedProbe.log("ui.scrollTop", "token=\(token)")
                         withAnimation(.easeOut(duration: 0.2)) {
@@ -837,6 +839,7 @@ struct AlbumTracksView: View {
             }
         }
         .background(YTLiteColor.background)
+        .ytLiteMiniPlayerScrollInset()
         .navigationTitle(album.title)
         .navigationBarTitleDisplayMode(.inline)
         .task {

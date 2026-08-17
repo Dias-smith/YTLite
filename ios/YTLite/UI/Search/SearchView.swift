@@ -354,6 +354,7 @@ struct SearchView: View {
                 .padding(.horizontal, columns > 1 ? YTLiteLayout.screenPadding : 0)
                 .padding(.bottom, YTLiteLayout.screenPadding)
             }
+            .ytLiteMiniPlayerScrollInset()
             .overlay {
                 if viewModel.isLoading && !viewModel.hits.isEmpty {
                     ProgressView()
@@ -396,6 +397,7 @@ struct SearchView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .ytLiteMiniPlayerScrollInset()
     }
 
     private var discoveryContent: some View {
@@ -483,6 +485,7 @@ struct SearchView: View {
             }
             .padding(.bottom, 16)
         }
+        .ytLiteMiniPlayerScrollInset()
     }
 }
 

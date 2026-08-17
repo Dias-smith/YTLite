@@ -97,17 +97,12 @@ struct LibraryView: View {
         auth.isAuthenticated
     }
 
-    private var showsMiniPlayerChrome: Bool {
-        playback.nowPlaying != nil
-    }
+    @Environment(\.miniPlayerBottomInset) private var miniPlayerBottomInset
 
-    private var libraryListBottomPadding: CGFloat {
-        80 + (showsMiniPlayerChrome ? YTLiteLayout.miniPlayerChromeHeight : 0)
-    }
+    private var libraryListBottomPadding: CGFloat { 80 }
 
     private var fabBottomPadding: CGFloat {
-        YTLiteLayout.screenPadding
-            + (showsMiniPlayerChrome ? YTLiteLayout.miniPlayerChromeHeight : 0)
+        YTLiteLayout.screenPadding + miniPlayerBottomInset
     }
 
     var body: some View {
@@ -134,6 +129,7 @@ struct LibraryView: View {
                         }
                         .padding(.bottom, libraryListBottomPadding)
                     }
+                    .ytLiteMiniPlayerScrollInset()
                 }
 
                 if !isSelectionMode && !isReorderMode {
@@ -993,7 +989,7 @@ struct LibraryView: View {
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
-        .ytLiteMiniPlayerScrollInset(showsMiniPlayer: playback.nowPlaying != nil)
+        .ytLiteMiniPlayerScrollInset()
         .environment(\.editMode, .constant(.active))
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -1732,7 +1728,7 @@ struct HistoryDetailView: View {
             }
         }
         .background(YTLiteColor.background)
-        .ytLiteMiniPlayerScrollInset(showsMiniPlayer: playback.nowPlaying != nil)
+        .ytLiteMiniPlayerScrollInset()
         .navigationTitle(L("library.history"))
         .toolbar(.visible, for: .navigationBar)
         .toolbarBackground(YTLiteColor.background, for: .navigationBar)

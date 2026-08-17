@@ -123,7 +123,7 @@ struct PlaylistDetailView: View {
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
         .background(YTLiteColor.background)
-        .ytLiteMiniPlayerScrollInset(showsMiniPlayer: playback.nowPlaying != nil)
+        .ytLiteMiniPlayerScrollInset()
         .environment(\.editMode, .constant(canReorder && !displayedTracks.isEmpty ? .active : .inactive))
         .navigationBarTitleDisplayMode(.inline)
         .navigationTitle("")

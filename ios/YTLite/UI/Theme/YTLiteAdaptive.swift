@@ -64,6 +64,26 @@ enum YTLiteAdaptive {
     }
 }
 
+private struct MiniPlayerBottomInsetKey: EnvironmentKey {
+    static let defaultValue: CGFloat = 0
+}
+
+extension EnvironmentValues {
+    /// Height reserved for the mini player above the tab bar (0 when hidden).
+    var miniPlayerBottomInset: CGFloat {
+        get { self[MiniPlayerBottomInsetKey.self] }
+        set { self[MiniPlayerBottomInsetKey.self] = newValue }
+    }
+}
+
+private struct MiniPlayerScrollInsetModifier: ViewModifier {
+    @Environment(\.miniPlayerBottomInset) private var inset
+
+    func body(content: Content) -> some View {
+        content.contentMargins(.bottom, inset, for: .scrollContent)
+    }
+}
+
 extension View {
     /// Center content and cap readable width on regular-size canvases.
     func ytLiteContentWidth(
@@ -81,7 +101,11 @@ extension View {
     }
 
     /// Extra scroll bottom inset when mini player is visible.
-    /// `List` does not reliably inherit `AppChrome` `safeAreaInset`.
+    /// `List` / `GeometryReader` do not reliably inherit `AppChrome` `safeAreaInset`.
+    func ytLiteMiniPlayerScrollInset() -> some View {
+        modifier(MiniPlayerScrollInsetModifier())
+    }
+
     func ytLiteMiniPlayerScrollInset(showsMiniPlayer: Bool) -> some View {
         contentMargins(
             .bottom,

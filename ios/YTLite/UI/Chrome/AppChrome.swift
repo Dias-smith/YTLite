@@ -47,6 +47,7 @@ struct AppChrome<Content: View>: View {
             content()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(YTLiteColor.background)
+                .environment(\.miniPlayerBottomInset, miniPlayerBottomInset)
                 .safeAreaInset(edge: .bottom, spacing: 0) {
                     miniPlayerSlot(docked: false)
                 }
@@ -69,6 +70,7 @@ struct AppChrome<Content: View>: View {
             content()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(YTLiteColor.background)
+                .environment(\.miniPlayerBottomInset, miniPlayerBottomInset)
                 .safeAreaInset(edge: .bottom, spacing: 0) {
                     miniPlayerSlot(docked: true)
                 }
@@ -95,5 +97,10 @@ struct AppChrome<Content: View>: View {
 
     private var showsMiniPlayer: Bool {
         playback.nowPlaying != nil && selectedTab != .shorts
+    }
+
+    private var miniPlayerBottomInset: CGFloat {
+        guard showsMiniPlayer, !isKeyboardVisible else { return 0 }
+        return YTLiteLayout.miniPlayerChromeHeight + (isRegular ? 8 : 0)
     }
 }

@@ -55,6 +55,7 @@ struct ThemePickerView: View {
             }
         }
         .scrollContentBackground(.hidden)
+        .ytLiteMiniPlayerScrollInset()
         .background(YTLiteColor.background)
         .navigationTitle(L("theme.title"))
         .navigationBarTitleDisplayMode(.inline)

@@ -106,6 +106,7 @@ final class PlayerSurfaceController: UIViewController, AVPictureInPictureControl
         if isFullscreenActive, presentedViewController == nil, fullscreenController == nil {
             isFullscreenActive = false
             fullscreenPlayer = nil
+            AppOrientation.endVideoFullscreen()
         }
 
         // AVPlayer may only drive one surface; do not steal it back from fullscreen.
@@ -140,11 +141,14 @@ final class PlayerSurfaceController: UIViewController, AVPictureInPictureControl
         // Detach inline layer so AVPlayerViewController exclusively owns the player.
         playerView.playerLayer.player = nil
 
+        AppOrientation.beginVideoFullscreen()
+
         let vc = FullscreenPlayerViewController()
         vc.player = player
         vc.showsPlaybackControls = true
         vc.allowsPictureInPicturePlayback = true
         vc.modalPresentationStyle = .fullScreen
+        vc.modalPresentationCapturesStatusBarAppearance = true
         // Only fire on real dismiss — not when the view loads before `present`.
         vc.onDidDismiss = { [weak self] in
             self?.restoreAfterFullscreen()
@@ -160,6 +164,7 @@ final class PlayerSurfaceController: UIViewController, AVPictureInPictureControl
     }
 
     private func restoreAfterFullscreen() {
+        AppOrientation.endVideoFullscreen()
         let player = fullscreenPlayer ?? fullscreenController?.player ?? configuredPlayer
         fullscreenController?.player = nil
         fullscreenController = nil
@@ -186,6 +191,10 @@ final class PlayerSurfaceController: UIViewController, AVPictureInPictureControl
 /// Detects Done dismiss so we can reattach the player to the inline layer.
 private final class FullscreenPlayerViewController: AVPlayerViewController {
     var onDidDismiss: (() -> Void)?
+
+    override var supportedInterfaceOrientations: UIInterfaceOrientationMask { .landscape }
+    override var preferredInterfaceOrientationForPresentation: UIInterfaceOrientation { .landscapeRight }
+    override var shouldAutorotate: Bool { true }
 
     override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)

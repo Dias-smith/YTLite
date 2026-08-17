@@ -4,6 +4,7 @@ import FirebaseAnalytics
 
 @main
 struct YTLiteApp: App {
+    @UIApplicationDelegateAdaptor(YTLiteAppDelegate.self) private var appDelegate
     @StateObject private var playback = PlaybackController()
     @StateObject private var appModel = AppModel()
     @StateObject private var authService: AuthService
