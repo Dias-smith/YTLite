@@ -32,6 +32,10 @@ struct AppChrome<Content: View>: View {
         }
         .onChange(of: playerPresentation.isPresented) { _, presented in
             review.setBusy("player", presented)
+            AdSceneLifecycle.setUIBlocked("player_detail", blocked: presented)
+            if !presented {
+                AdSceneLifecycle.cancelPlayStartInterstitial()
+            }
         }
         // Shorts is unavailable on regular width (iPad) — leave the tab if we land there.
         .onChange(of: isRegular) { _, regular in

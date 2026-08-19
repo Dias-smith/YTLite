@@ -63,13 +63,24 @@ enum AdSceneLifecycle {
     private static var playStartInterstitialsShownThisSession = 0
     private static var uiBlockers: Set<String> = []
     private static var isAppActive = true
+    private static var isPlayStartInterstitialArmed = false
 
     /// Ads must not present while backgrounded — it interrupts AVAudioSession and breaks review checks.
     static var isAppActiveForAds: Bool { isAppActive }
 
+    /// Muted play-start ad over the player — do not pause AVPlayer for AVAudioSession takeover.
+    static var preservesPlaybackDuringPlayStartAd: Bool {
+        isPlayStartInterstitialArmed || AdFullScreenCoordinator.isPresentingPlayStartAd
+    }
+
     /// Ordinary ads wait until sheets / full-screen UX have closed.
-    static var isAdUIBlocked: Bool {
-        ReviewPromptCoordinator.shared.showSheet || !uiBlockers.isEmpty
+    static func isAdUIBlocked(for reason: String? = nil) -> Bool {
+        if ReviewPromptCoordinator.shared.showSheet { return true }
+        var blockers = uiBlockers
+        if reason == "play_start" {
+            blockers.remove("player_detail")
+        }
+        return !blockers.isEmpty
     }
 
     static func setUIBlocked(_ key: String, blocked: Bool) {
@@ -118,11 +129,19 @@ enum AdSceneLifecycle {
         }
     }
 
-    /// Tab switch / play request — unlocks cold App Open once per cold start.
+    /// Tab switch unlocks cold App Open once per cold start.
+    /// Play taps open the player sheet immediately — do not stack a full-screen ad on top.
     static func recordFirstInteraction(source: String) {
         guard AdMobConfig.adsEnabled else { return }
         hasColdStartInteraction = true
         AdProbe.log("lifecycle.interaction", source)
+        if source == "play_request" {
+            if pending == .cold {
+                pending = nil
+                AdProbe.log("lifecycle.cold_skip", "reason=play_request")
+            }
+            return
+        }
         attemptPendingPresentation(source: source)
     }
 
@@ -152,7 +171,7 @@ enum AdSceneLifecycle {
             AdProbe.log("lifecycle.pending.hold", "awaiting interaction source=\(source)")
             return
         }
-        guard !isAdUIBlocked else {
+        guard !isAdUIBlocked(for: nil) else {
             AdProbe.log("lifecycle.pending.blocked", source)
             return
         }
@@ -177,7 +196,7 @@ enum AdSceneLifecycle {
         }
     }
 
-    /// After successful play start — delayed interstitial.
+    /// Song tap → full-screen player → muted interstitial after a short delay (from tap, not resolve).
     static func schedulePlayStartInterstitial(videoId: String) {
         guard AdMobConfig.adsEnabled else { return }
         guard AdEligibility.allowsAds else {
@@ -194,9 +213,12 @@ enum AdSceneLifecycle {
             return
         }
         playStartInterstitialTask?.cancel()
+        isPlayStartInterstitialArmed = false
         let delay = AdMobConfig.playStartInterstitialDelay
         AdProbe.log("play_start.schedule", "id=\(videoId) delay=\(Int(delay))s")
+        isPlayStartInterstitialArmed = true
         playStartInterstitialTask = Task {
+            defer { isPlayStartInterstitialArmed = false }
             try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
             guard !Task.isCancelled else { return }
             guard isAppActive else {
@@ -213,6 +235,7 @@ enum AdSceneLifecycle {
     static func cancelPlayStartInterstitial() {
         playStartInterstitialTask?.cancel()
         playStartInterstitialTask = nil
+        isPlayStartInterstitialArmed = false
     }
 
     static func onPlayerDetailClosed() {
@@ -284,10 +307,7 @@ private struct PlayerDetailPresentationModifier: ViewModifier {
     @Binding var isPresented: Bool
 
     private var useFullScreen: Bool {
-        // Size class flickers to `.regular` on large iPhones in landscape, which
-        // swaps this modifier between sheet and fullScreenCover and desyncs
-        // `isPresented` from the on-screen player.
-        UIDevice.current.userInterfaceIdiom == .pad
+        true
     }
 
     func body(content: Content) -> some View {

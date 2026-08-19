@@ -88,7 +88,7 @@ final class InterstitialAdManager: NSObject {
             )
             return false
         }
-        guard !AdSceneLifecycle.isAdUIBlocked else {
+        guard !AdSceneLifecycle.isAdUIBlocked(for: reason) else {
             AdProbe.log(
                 "interstitial.show.skip",
                 "placement=\(placement.rawValue) ui_blocked reason=\(reason)"

@@ -8,6 +8,8 @@ enum AdFullScreenCoordinator {
 
     static var isPresenting: Bool { activeReason != nil }
 
+    static var isPresentingPlayStartAd: Bool { activeReason == "play_start" }
+
     static func beginOrdinary(reason: String, observesCooldown: Bool = true) -> Bool {
         guard activeReason == nil else {
             AdProbe.log("fullscreen.begin.skip", "busy=\(activeReason ?? "-") reason=\(reason)")

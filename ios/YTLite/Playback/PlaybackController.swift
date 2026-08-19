@@ -520,6 +520,7 @@ final class PlaybackController: ObservableObject {
         cancelScheduledNextPrepare()
         AdSceneLifecycle.cancelPlayStartInterstitial()
         AdSceneLifecycle.recordFirstInteraction(source: "play_request")
+        AdSceneLifecycle.schedulePlayStartInterstitial(videoId: item.videoId)
         PlaybackPreparer.shared.retainOnly(videoId: item.videoId)
         isSeekInProgress = false
         seekGeneration += 1
@@ -677,7 +678,6 @@ final class PlaybackController: ObservableObject {
                 persistSession(immediate: true)
                 PlayProbe.log("play.ok", videoId: expectedVideoId)
                 // Prepare next only after googlevideo is actually ready (see stream.ready).
-                AdSceneLifecycle.schedulePlayStartInterstitial(videoId: expectedVideoId)
             } catch is CancellationError {
                 AdSceneLifecycle.cancelPlayStartInterstitial()
                 PlayProbe.log("play.cancelled", videoId: expectedVideoId)
@@ -1525,12 +1525,15 @@ final class PlaybackController: ObservableObject {
 
     /// Full-screen ads take over AVAudioSession; resume music when the ad closes.
     private func resumeAfterExternalPresentationIfNeeded() {
-        guard resumeAfterInterruption, nowPlaying != nil, player != nil else { return }
-        resumeAfterInterruption = false
         activatePlaybackAudioSession()
-        player?.playImmediately(atRate: playbackSpeed)
-        isPlaying = true
-        updateNowPlayingInfo()
+        guard nowPlaying != nil, let player else { return }
+        let shouldResume = resumeAfterInterruption || isPlaying
+        resumeAfterInterruption = false
+        if shouldResume || player.timeControlStatus != .playing {
+            player.playImmediately(atRate: playbackSpeed)
+            isPlaying = true
+            updateNowPlayingInfo()
+        }
     }
 
     private func handleAudioInterruption(_ note: Notification) {
@@ -1540,6 +1543,14 @@ final class PlaybackController: ObservableObject {
         switch type {
         case .began:
             resumeAfterInterruption = isPlaying
+            if AdSceneLifecycle.preservesPlaybackDuringPlayStartAd {
+                activatePlaybackAudioSession()
+                if isPlaying {
+                    player?.playImmediately(atRate: playbackSpeed)
+                }
+                updateNowPlayingInfo()
+                return
+            }
             pause()
             updateNowPlayingInfo()
         case .ended:

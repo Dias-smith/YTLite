@@ -12,7 +12,7 @@ nonisolated enum AdMobConfig {
 
     static let appOpenAdTimeout: TimeInterval = 4 * 60 * 60
     static let interstitialCooldown: TimeInterval = 120
-    static let playStartInterstitialDelay: TimeInterval = 20
+    static let playStartInterstitialDelay: TimeInterval = 2
     static let playStartInterstitialSessionLimit = 2
     static let hotStartMinBackground: TimeInterval = 30
     static let leavePlayerPresentationDelay: TimeInterval = 0.55

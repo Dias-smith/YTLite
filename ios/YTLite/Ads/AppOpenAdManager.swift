@@ -60,7 +60,7 @@ final class AppOpenAdManager: NSObject {
             AdProbe.log("app_open.show.skip", "app_inactive reason=\(reason)")
             return false
         }
-        guard !AdSceneLifecycle.isAdUIBlocked else {
+        guard !AdSceneLifecycle.isAdUIBlocked(for: reason) else {
             AdProbe.log("app_open.show.skip", "ui_blocked reason=\(reason)")
             return false
         }
