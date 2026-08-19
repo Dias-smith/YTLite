@@ -63,8 +63,14 @@ struct YTLiteApp: App {
                     if phase == .active {
                         ReviewPromptCoordinator.shared.recordActiveDay()
                         playback.consumePendingDailyListenIfNeeded()
+                        if playback.isPlaying {
+                            playback.prepareForBackgroundPlayback()
+                        }
                     }
-                    if phase == .background || phase == .inactive {
+                    if phase == .background {
+                        playback.flushSession()
+                        playback.prepareForBackgroundPlayback()
+                    } else if phase == .inactive {
                         playback.flushSession()
                         playback.publishNowPlaying()
                     }

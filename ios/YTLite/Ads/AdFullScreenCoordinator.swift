@@ -44,6 +44,7 @@ enum AdFullScreenCoordinator {
         }
         activeReason = nil
         AdProbe.log("fullscreen.finish", "reason=\(reason) ordinary=\(didShowOrdinaryAd)")
+        NotificationCenter.default.post(name: .ytliteFullScreenAdDidDismiss, object: nil)
         AdSceneLifecycle.adEnvironmentDidBecomeReady(source: "fullscreen_finish")
     }
 }

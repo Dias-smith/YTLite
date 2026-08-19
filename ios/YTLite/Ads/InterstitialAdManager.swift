@@ -81,6 +81,13 @@ final class InterstitialAdManager: NSObject {
     @discardableResult
     func showIfAppropriate(reason: String) -> Bool {
         guard AdMobConfig.adsEnabled, AdConsentManager.canRequestAds, AdEligibility.allowsAds else { return false }
+        guard AdSceneLifecycle.isAppActiveForAds else {
+            AdProbe.log(
+                "interstitial.show.skip",
+                "placement=\(placement.rawValue) app_inactive reason=\(reason)"
+            )
+            return false
+        }
         guard !AdSceneLifecycle.isAdUIBlocked else {
             AdProbe.log(
                 "interstitial.show.skip",
@@ -103,6 +110,7 @@ final class InterstitialAdManager: NSObject {
         }
         guard AdFullScreenCoordinator.beginOrdinary(reason: reason) else { return false }
         isShowingAd = true
+        AdBootstrap.enforceMutedAds()
         AdProbe.log(
             "interstitial.show",
             "placement=\(placement.rawValue) reason=\(reason)"

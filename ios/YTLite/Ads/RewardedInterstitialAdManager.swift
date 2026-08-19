@@ -50,6 +50,10 @@ final class RewardedInterstitialAdManager: NSObject {
     @discardableResult
     func show(reason: String, completion: @escaping (Bool) -> Void) -> Bool {
         guard AdMobConfig.adsEnabled, AdConsentManager.canRequestAds, AdEligibility.allowsAds else { return false }
+        guard AdSceneLifecycle.isAppActiveForAds else {
+            AdProbe.log("rewarded.show.skip", "app_inactive reason=\(reason)")
+            return false
+        }
         guard !isShowingAd, let ad = rewardedAd else {
             AdProbe.log("rewarded.show.miss", "reason=\(reason) → reload")
             loadAd()
@@ -64,6 +68,7 @@ final class RewardedInterstitialAdManager: NSObject {
         isShowingAd = true
         didEarnReward = false
         self.completion = completion
+        AdBootstrap.enforceMutedAds()
         AdProbe.log("rewarded.show", "reason=\(reason)")
         ad.present(from: root) { [weak self] in
             Task { @MainActor in

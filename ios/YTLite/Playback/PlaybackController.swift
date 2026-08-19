@@ -99,6 +99,7 @@ final class PlaybackController: ObservableObject {
     private var artworkGeneration: Int = 0
     private var interruptionObserver: NSObjectProtocol?
     private var routeChangeObserver: NSObjectProtocol?
+    private var fullScreenAdDismissObserver: NSObjectProtocol?
     /// Resume after interruption only if we were playing when interrupted.
     private var resumeAfterInterruption = false
 
@@ -169,8 +170,9 @@ final class PlaybackController: ObservableObject {
         if let stored, Self.speedOptions.contains(stored) {
             playbackSpeed = stored
         }
-        configureAudioSession()
+        activatePlaybackAudioSession()
         configureAudioInterruptions()
+        configureFullScreenAdObservers()
         configureRemoteCommands()
         restoreSession()
         refreshRemoteCommandEnabled()
@@ -848,6 +850,7 @@ final class PlaybackController: ObservableObject {
     }
 
     private func play(playerItem avItem: AVPlayerItem, resumePlaying: Bool, seekTo: Double?) {
+        activatePlaybackAudioSession()
         // Prime path may call play(playerItem:) directly; ensure probe has a start if missing.
         if probeStreamStartedAt == nil,
            let assetURL = (avItem.asset as? AVURLAsset)?.url
@@ -863,11 +866,14 @@ final class PlaybackController: ObservableObject {
         if let player {
             player.replaceCurrentItem(with: avItem)
         } else {
-            player = AVPlayer(playerItem: avItem)
+            let newPlayer = AVPlayer(playerItem: avItem)
+            newPlayer.audiovisualBackgroundPlaybackPolicy = .continuesIfPossible
+            player = newPlayer
             attachTimeObserver()
             attachEndObserver()
         }
         if let player {
+            player.audiovisualBackgroundPlaybackPolicy = .continuesIfPossible
             observePlayerTimeControl(player, expectedVideoId: nowPlaying?.videoId)
         }
         player?.allowsExternalPlayback = true
@@ -878,7 +884,7 @@ final class PlaybackController: ObservableObject {
         // (see `readyToPlay` / `timeControlStatus == .playing`).
         applySpeed()
         if resumePlaying {
-            player?.play()
+            player?.playImmediately(atRate: playbackSpeed)
             isPlaying = true
         } else {
             player?.pause()
@@ -1308,6 +1314,7 @@ final class PlaybackController: ObservableObject {
         if isPlaying {
             pause()
         } else {
+            activatePlaybackAudioSession()
             player?.playImmediately(atRate: playbackSpeed)
             isPlaying = true
             updateNowPlayingInfo()
@@ -1472,14 +1479,6 @@ final class PlaybackController: ObservableObject {
         player?.playImmediately(atRate: playbackSpeed)
     }
 
-    private func configureAudioSession() {
-        do {
-            let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.playback, mode: .default)
-            try session.setActive(true)
-        } catch {}
-    }
-
     private func configureAudioInterruptions() {
         let center = NotificationCenter.default
         if let interruptionObserver {
@@ -1508,6 +1507,32 @@ final class PlaybackController: ObservableObject {
         }
     }
 
+    private func configureFullScreenAdObservers() {
+        let center = NotificationCenter.default
+        if let fullScreenAdDismissObserver {
+            center.removeObserver(fullScreenAdDismissObserver)
+        }
+        fullScreenAdDismissObserver = center.addObserver(
+            forName: .ytliteFullScreenAdDidDismiss,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.resumeAfterExternalPresentationIfNeeded()
+            }
+        }
+    }
+
+    /// Full-screen ads take over AVAudioSession; resume music when the ad closes.
+    private func resumeAfterExternalPresentationIfNeeded() {
+        guard resumeAfterInterruption, nowPlaying != nil, player != nil else { return }
+        resumeAfterInterruption = false
+        activatePlaybackAudioSession()
+        player?.playImmediately(atRate: playbackSpeed)
+        isPlaying = true
+        updateNowPlayingInfo()
+    }
+
     private func handleAudioInterruption(_ note: Notification) {
         guard let typeValue = note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
               let type = AVAudioSession.InterruptionType(rawValue: typeValue)
@@ -1518,6 +1543,7 @@ final class PlaybackController: ObservableObject {
             pause()
             updateNowPlayingInfo()
         case .ended:
+            activatePlaybackAudioSession()
             let optionsValue = note.userInfo?[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0
             let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
             if options.contains(.shouldResume), resumeAfterInterruption {
@@ -1714,6 +1740,34 @@ final class PlaybackController: ObservableObject {
     /// Push latest Now Playing to the system (e.g. on entering background).
     func publishNowPlaying() {
         updateNowPlayingInfo()
+    }
+
+    /// Keep AVAudioSession + AVPlayer alive when the app backgrounds (App Review checks this).
+    func prepareForBackgroundPlayback() {
+        guard nowPlaying != nil else { return }
+        activatePlaybackAudioSession()
+        publishNowPlaying()
+        guard isPlaying, let player else { return }
+        player.audiovisualBackgroundPlaybackPolicy = .continuesIfPossible
+        if player.timeControlStatus != .playing {
+            player.playImmediately(atRate: playbackSpeed)
+        }
+    }
+
+    private func activatePlaybackAudioSession() {
+        do {
+            let session = AVAudioSession.sharedInstance()
+            try session.setCategory(
+                .playback,
+                mode: .default,
+                options: [.allowAirPlay, .allowBluetoothA2DP]
+            )
+            try session.setActive(true, options: [])
+        } catch {
+            #if DEBUG
+            print("[YTLite.Playback] AVAudioSession activate failed: \(error)")
+            #endif
+        }
     }
 
     private func updateNowPlayingInfo() {

@@ -6,9 +6,16 @@ import UIKit
 enum AdBootstrap {
     private static var didStartSDK = false
 
+    /// All AdMob formats (app open / interstitial / rewarded) stay muted by default.
+    static func enforceMutedAds() {
+        guard AdMobConfig.adsEnabled else { return }
+        MobileAds.shared.isApplicationMuted = true
+    }
+
     /// Call once after first interactive frame: UMP → Mobile Ads → preload.
     static func startIfNeeded() async {
         guard AdMobConfig.adsEnabled else { return }
+        enforceMutedAds()
         AdProbe.log("bootstrap.start")
         let allowed = await AdConsentManager.gatherConsentIfNeeded()
         guard allowed else {
@@ -20,6 +27,7 @@ enum AdBootstrap {
 
     private static func startMobileAdsIfNeeded() {
         guard AdMobConfig.adsEnabled, AdConsentManager.canRequestAds else { return }
+        enforceMutedAds()
         guard !didStartSDK else {
             AdEligibility.refreshInventoryIfEligible()
             AdSceneLifecycle.adEnvironmentDidBecomeReady(source: "sdk_already_started")
@@ -27,8 +35,6 @@ enum AdBootstrap {
         }
         didStartSDK = true
         AdProbe.log("sdk.start")
-        // Default ads muted so interstitial / app-open audio does not blast over playback.
-        MobileAds.shared.isApplicationMuted = true
         MobileAds.shared.start { _ in
             Task { @MainActor in
                 AdProbe.log("sdk.ready")
@@ -56,6 +62,10 @@ enum AdSceneLifecycle {
     private static var leavePlayerInterstitialTask: Task<Void, Never>?
     private static var playStartInterstitialsShownThisSession = 0
     private static var uiBlockers: Set<String> = []
+    private static var isAppActive = true
+
+    /// Ads must not present while backgrounded — it interrupts AVAudioSession and breaks review checks.
+    static var isAppActiveForAds: Bool { isAppActive }
 
     /// Ordinary ads wait until sheets / full-screen UX have closed.
     static var isAdUIBlocked: Bool {
@@ -72,6 +82,7 @@ enum AdSceneLifecycle {
     }
 
     static func handleScenePhase(_ phase: ScenePhase) {
+        isAppActive = phase == .active
         guard AdMobConfig.adsEnabled else { return }
         switch phase {
         case .active:
@@ -121,6 +132,10 @@ enum AdSceneLifecycle {
     }
 
     private static func attemptPendingPresentation(source: String) {
+        guard isAppActive else {
+            AdProbe.log("lifecycle.pending.hold", "app_inactive source=\(source)")
+            return
+        }
         guard AdEligibility.allowsAds else {
             AdProbe.log(
                 "lifecycle.pending.hold",
@@ -184,6 +199,10 @@ enum AdSceneLifecycle {
         playStartInterstitialTask = Task {
             try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
             guard !Task.isCancelled else { return }
+            guard isAppActive else {
+                AdProbe.log("play_start.skip", "app_inactive")
+                return
+            }
             guard AdConsentManager.canRequestAds else { return }
             if InterstitialAdManager.inApp.showIfAppropriate(reason: "play_start") {
                 playStartInterstitialsShownThisSession += 1
@@ -211,6 +230,10 @@ enum AdSceneLifecycle {
             let delay = AdMobConfig.leavePlayerPresentationDelay
             try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
             guard !Task.isCancelled else { return }
+            guard isAppActive else {
+                AdProbe.log("player_detail.closed.skip_ad", "app_inactive")
+                return
+            }
             _ = InterstitialAdManager.inApp.showIfAppropriate(reason: "leave_player")
         }
     }

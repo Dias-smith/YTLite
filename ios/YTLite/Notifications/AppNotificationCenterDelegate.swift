@@ -3,6 +3,8 @@ import UserNotifications
 
 extension Notification.Name {
     static let ytlitePlayFromDailyNotification = Notification.Name("ytlite.playFromDailyNotification")
+    /// Posted when any full-screen ad (app open / interstitial / rewarded) finishes presenting.
+    static let ytliteFullScreenAdDidDismiss = Notification.Name("ytlite.fullScreenAdDidDismiss")
 }
 
 /// Holds a pending play request from a notification tap (cold or warm start).

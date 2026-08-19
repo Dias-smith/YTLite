@@ -56,6 +56,10 @@ final class AppOpenAdManager: NSObject {
     @discardableResult
     func showAdIfAvailable(reason: String) -> Bool {
         guard AdMobConfig.adsEnabled, AdConsentManager.canRequestAds, AdEligibility.allowsAds else { return false }
+        guard AdSceneLifecycle.isAppActiveForAds else {
+            AdProbe.log("app_open.show.skip", "app_inactive reason=\(reason)")
+            return false
+        }
         guard !AdSceneLifecycle.isAdUIBlocked else {
             AdProbe.log("app_open.show.skip", "ui_blocked reason=\(reason)")
             return false
@@ -76,6 +80,7 @@ final class AppOpenAdManager: NSObject {
             observesCooldown: observesCooldown
         ) else { return false }
         isShowingAd = true
+        AdBootstrap.enforceMutedAds()
         AdProbe.log("app_open.show", "reason=\(reason)")
         ad.present(from: root)
         return true
