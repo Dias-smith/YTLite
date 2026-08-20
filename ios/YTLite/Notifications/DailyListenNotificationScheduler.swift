@@ -2,7 +2,7 @@ import Foundation
 import UserNotifications
 
 /// Schedules at most one local notification per calendar day at 08:00 or 21:00
-/// when the user has more than three library songs.
+/// when the user has successfully played more than three songs.
 @MainActor
 enum DailyListenNotificationScheduler {
     static let minimumSongCount = 4
@@ -12,7 +12,7 @@ enum DailyListenNotificationScheduler {
     private static let daysAhead = 14
 
     static func refresh(using store: LibraryStore?) async {
-        let songs = store?.librarySongs() ?? []
+        let songs = store?.successfullyPlayedSongs() ?? []
         guard songs.count >= minimumSongCount else {
             await cancelAll()
             return

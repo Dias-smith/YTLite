@@ -32,7 +32,9 @@ final class AppDebugServer {
         do {
             // Bind by port only. `requiredLocalEndpoint = 127.0.0.1` often fails to become
             // `.ready` on iOS Simulator; port bind still accepts localhost / USB tunnel.
-            let listener = try NWListener(using: .tcp, on: port)
+            let params = NWParameters.tcp
+            params.allowLocalEndpointReuse = true
+            let listener = try NWListener(using: params, on: port)
             appDebugLogNotice("NWListener created for port \(self.port.rawValue)")
 
             listener.stateUpdateHandler = { [weak self] state in

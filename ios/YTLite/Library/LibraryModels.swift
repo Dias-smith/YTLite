@@ -168,6 +168,8 @@ final class UserTrackLastPlayed {
     var trackId: String
     var lastPlayedAt: Date
     var progressMs: Int64
+    /// Set on first confirmed audible playback — gates ads, notifications, review counts.
+    var firstSuccessfulPlayAt: Date?
     var isSynced: Bool
 
     init(
@@ -175,12 +177,14 @@ final class UserTrackLastPlayed {
         trackId: String,
         lastPlayedAt: Date = .now,
         progressMs: Int64 = 0,
+        firstSuccessfulPlayAt: Date? = nil,
         isSynced: Bool = false
     ) {
         self.ownerKey = ownerKey
         self.trackId = trackId
         self.lastPlayedAt = lastPlayedAt
         self.progressMs = progressMs
+        self.firstSuccessfulPlayAt = firstSuccessfulPlayAt
         self.isSynced = isSynced
     }
 }

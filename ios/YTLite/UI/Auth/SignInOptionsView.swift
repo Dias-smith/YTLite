@@ -4,6 +4,8 @@ import SwiftUI
 /// Equal-prominence Google + Sign in with Apple (App Store Guideline 4.8).
 struct SignInOptionsView: View {
     @ObservedObject var auth: AuthService
+    /// When false, only Google is offered (e.g. playback needs YouTube OAuth).
+    var showsAppleSignIn: Bool = true
     var onSignedIn: (() async -> Void)?
 
     @Environment(\.colorScheme) private var colorScheme
@@ -11,23 +13,25 @@ struct SignInOptionsView: View {
 
     var body: some View {
         VStack(spacing: 12) {
-            SignInWithAppleButton(.signIn) { request in
-                let nonce = AuthNonce.random()
-                appleNonce = nonce
-                request.requestedScopes = [.fullName, .email]
-                request.nonce = AuthNonce.sha256(nonce)
-            } onCompletion: { result in
-                Task {
-                    await auth.completeAppleSignIn(result: result, rawNonce: appleNonce)
-                    if auth.isAuthenticated {
-                        await onSignedIn?()
+            if showsAppleSignIn {
+                SignInWithAppleButton(.signIn) { request in
+                    let nonce = AuthNonce.random()
+                    appleNonce = nonce
+                    request.requestedScopes = [.fullName, .email]
+                    request.nonce = AuthNonce.sha256(nonce)
+                } onCompletion: { result in
+                    Task {
+                        await auth.completeAppleSignIn(result: result, rawNonce: appleNonce)
+                        if auth.isAuthenticated {
+                            await onSignedIn?()
+                        }
                     }
                 }
+                .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
+                .frame(maxWidth: 280)
+                .frame(height: 44)
+                .disabled(auth.isBusy || !auth.isConfigured)
             }
-            .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
-            .frame(maxWidth: 280)
-            .frame(height: 44)
-            .disabled(auth.isBusy || !auth.isConfigured)
 
             Button {
                 Task {

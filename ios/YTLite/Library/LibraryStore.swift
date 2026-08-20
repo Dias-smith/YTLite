@@ -182,6 +182,12 @@ final class LibraryStore {
                     user.progressMs = guest.progressMs
                     user.isSynced = false
                 }
+                if let guestFirst = guest.firstSuccessfulPlayAt {
+                    if user.firstSuccessfulPlayAt == nil || user.firstSuccessfulPlayAt! > guestFirst {
+                        user.firstSuccessfulPlayAt = guestFirst
+                        user.isSynced = false
+                    }
+                }
                 modelContext.delete(guest)
             } else {
                 guest.ownerKey = userKey
@@ -426,6 +432,34 @@ final class LibraryStore {
             uniqueKeysWithValues: tracks(ids: ids).map { ($0.trackId, $0) }
         )
         return rows.compactMap { tracksById[$0.trackId]?.asVideoItem }
+    }
+
+    /// Distinct tracks with at least one confirmed successful playback (not resolve-only / failed open).
+    func successfullyPlayedSongs(limit: Int = 500) -> [VideoItem] {
+        let key = ownerKey
+        var descriptor = FetchDescriptor<UserTrackLastPlayed>(
+            predicate: #Predicate {
+                $0.ownerKey == key && $0.firstSuccessfulPlayAt != nil
+            },
+            sortBy: [SortDescriptor(\.lastPlayedAt, order: .reverse)]
+        )
+        descriptor.fetchLimit = limit
+        let rows = (try? modelContext.fetch(descriptor)) ?? []
+        guard !rows.isEmpty else { return [] }
+        let ids = rows.map(\.trackId)
+        let tracksById = Dictionary(
+            uniqueKeysWithValues: tracks(ids: ids).map { ($0.trackId, $0) }
+        )
+        return rows.compactMap { tracksById[$0.trackId]?.asVideoItem }
+    }
+
+    func successfullyPlayedSongCount() -> Int {
+        let key = ownerKey
+        return (try? modelContext.fetchCount(FetchDescriptor<UserTrackLastPlayed>(
+            predicate: #Predicate {
+                $0.ownerKey == key && $0.firstSuccessfulPlayAt != nil
+            }
+        ))) ?? 0
     }
 
     private func tracks(ids: [String]) -> [LibraryTrack] {
@@ -707,9 +741,11 @@ final class LibraryStore {
         }
 
         let key = ownerKey
+        let now = Date.now
         let history = PlaybackHistoryItem(
             ownerKey: key,
             trackId: item.videoId,
+            playedAt: now,
             progressMs: progressMs,
             isSynced: false
         )
@@ -721,15 +757,20 @@ final class LibraryStore {
         )
         descriptor.fetchLimit = 1
         if let existing = try? modelContext.fetch(descriptor).first {
-            existing.lastPlayedAt = .now
+            existing.lastPlayedAt = now
             existing.progressMs = progressMs
+            if existing.firstSuccessfulPlayAt == nil {
+                existing.firstSuccessfulPlayAt = now
+            }
             existing.isSynced = false
         } else {
             modelContext.insert(
                 UserTrackLastPlayed(
                     ownerKey: key,
                     trackId: trackId,
+                    lastPlayedAt: now,
                     progressMs: progressMs,
+                    firstSuccessfulPlayAt: now,
                     isSynced: false
                 )
             )

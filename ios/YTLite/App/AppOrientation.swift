@@ -36,6 +36,8 @@ final class YTLiteAppDelegate: NSObject, UIApplicationDelegate {
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
+        // Configure before any Firebase SDK touches the default app (Analytics swizzling, etc.).
+        FirebaseBootstrap.configure()
         application.beginReceivingRemoteControlEvents()
         return true
     }

@@ -33,7 +33,7 @@ final class ReviewPromptCoordinator: ObservableObject {
 
     // MARK: - Triggers
 
-    func recordCompletedPlay(videoId: String) {
+    func recordSuccessfulPlay(videoId: String) {
         let id = videoId.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !id.isEmpty else { return }
         guard !sessionCompletedVideoIds.contains(id) else { return }

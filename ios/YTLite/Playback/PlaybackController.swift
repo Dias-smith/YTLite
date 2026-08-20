@@ -77,6 +77,12 @@ final class PlaybackController: ObservableObject {
     private var preparePlaybackRetryUsed = false
     /// One-shot re-resolve when googlevideo open times out (-1001) on cold/non-prepare play.
     private var streamTimeoutReresolveUsed = false
+    /// One-shot re-resolve when AVPlayer opens but fails to decode/play (non-timeout).
+    private var streamOpenReresolveUsed = false
+    /// Resolved duration from the latest successful resolve (for history on first audible frame).
+    private var pendingResolvedDurationSeconds: Int = 0
+    /// Prevents duplicate successful-play bookkeeping for the same queue item.
+    private var successfulPlaybackRecordedVideoId: String?
     /// Probe-only: when current stream open began / which URL is loading.
     private var probeStreamStartedAt: CFAbsoluteTime?
     private var probeStreamURL: URL?
@@ -213,7 +219,7 @@ final class PlaybackController: ObservableObject {
         guard let item = PendingDailyListenPlayback.consume() else { return }
         // Prefer the full library list so Up next stays useful after the jump.
         if let store = libraryStore {
-            let songs = store.librarySongs()
+            let songs = store.successfullyPlayedSongs()
             if let index = songs.firstIndex(where: { $0.videoId == item.videoId }) {
                 play(items: songs, startAt: index)
                 return
@@ -504,6 +510,9 @@ final class PlaybackController: ObservableObject {
         if nowPlaying?.videoId != item.videoId {
             preparePlaybackRetryUsed = false
             streamTimeoutReresolveUsed = false
+            streamOpenReresolveUsed = false
+            successfulPlaybackRecordedVideoId = nil
+            pendingResolvedDurationSeconds = 0
         }
         lastError = nil
         needsLoginForPlayback = false
@@ -633,6 +642,7 @@ final class PlaybackController: ObservableObject {
                 guard generation == resolveGeneration, isCurrentResolveTarget(expectedVideoId) else { return }
                 lastError = nil
                 playingFromPrepare = usedPrepare
+                pendingResolvedDurationSeconds = playback.durationSeconds
                 if usedPrepare {
                     preparePlaybackRetryUsed = false
                 }
@@ -672,7 +682,6 @@ final class PlaybackController: ObservableObject {
                 if seekTo > 1 {
                     seek(to: seekTo)
                 }
-                libraryStore?.recordPlayback(playing, durationSeconds: playback.durationSeconds)
                 onPlaybackStarted?(playing)
                 refreshFavoriteState()
                 persistSession(immediate: true)
@@ -910,7 +919,7 @@ final class PlaybackController: ObservableObject {
 
     private func probeStreamDetailSuffix() -> String {
         let urlPart = probeStreamURL.map { PlayProbe.streamSummary(url: $0) } ?? "host=-"
-        return "source=\(probeStreamSource) openMs=\(probeStreamElapsedMs()) \(urlPart) fromPrepare=\(playingFromPrepare) prepareRetry=\(preparePlaybackRetryUsed) timeoutRetry=\(streamTimeoutReresolveUsed)"
+        return "source=\(probeStreamSource) openMs=\(probeStreamElapsedMs()) \(urlPart) fromPrepare=\(playingFromPrepare) prepareRetry=\(preparePlaybackRetryUsed) timeoutRetry=\(streamTimeoutReresolveUsed) openRetry=\(streamOpenReresolveUsed)"
     }
 
     private func beginHLSQualityLoading(masterURL: URL, videoId: String, generation: Int) {
@@ -1139,6 +1148,7 @@ final class PlaybackController: ObservableObject {
                     guard player.currentItem?.status == .readyToPlay else { return }
                     // First audible frames — hide the resolve/open spinner.
                     self.isBuffering = false
+                    self.noteSuccessfulPlaybackIfNeeded(videoId: expectedVideoId)
                 case .paused:
                     if player.currentItem?.status == .readyToPlay, !self.isPlaying {
                         self.isBuffering = false
@@ -1180,6 +1190,9 @@ final class PlaybackController: ObservableObject {
                     if videoId == nil || self.nowPlaying?.videoId == videoId {
                         if !self.isPlaying || self.player?.timeControlStatus == .playing {
                             self.isBuffering = false
+                        }
+                        if self.isPlaying, self.player?.timeControlStatus == .playing {
+                            self.noteSuccessfulPlaybackIfNeeded(videoId: videoId)
                         }
                     }
                     // Current media is open — only now prepare the next track.
@@ -1258,10 +1271,31 @@ final class PlaybackController: ObservableObject {
                         self.playCurrentQueueItem(allowPrepareConsume: false)
                         return
                     }
+                    // Open/decode failed (e.g. OSStatus -12746) → one fresh resolve / CDN swap.
+                    if !isTimeout,
+                       !self.streamOpenReresolveUsed,
+                       let videoId,
+                       self.nowPlaying?.videoId == videoId
+                    {
+                        PlayProbe.log(
+                            "stream.rechain",
+                            videoId: videoId,
+                            "reason=open_fail → reresolve \(flags) openMs=\(self.probeStreamElapsedMs()) host=\(self.probeStreamURL?.host ?? "-")"
+                        )
+                        self.streamOpenReresolveUsed = true
+                        self.playingFromPrepare = false
+                        self.lastError = nil
+                        self.isBuffering = true
+                        self.cancelScheduledNextPrepare()
+                        PlaybackPreparer.shared.invalidate(videoId: videoId)
+                        NextTrackPrimer.shared.invalidate(videoId: videoId)
+                        self.playCurrentQueueItem(allowPrepareConsume: false)
+                        return
+                    }
                     PlayProbe.log(
                         "stream.rechain.skip",
                         videoId: videoId,
-                        "reason=none fromPrepare=\(self.playingFromPrepare) prepareRetry=\(self.preparePlaybackRetryUsed) timeoutRetry=\(self.streamTimeoutReresolveUsed) hlsVariant=\(self.selectedHLSVariantID != nil) \(flags)"
+                        "reason=none fromPrepare=\(self.playingFromPrepare) prepareRetry=\(self.preparePlaybackRetryUsed) timeoutRetry=\(self.streamTimeoutReresolveUsed) openRetry=\(self.streamOpenReresolveUsed) hlsVariant=\(self.selectedHLSVariantID != nil) \(flags)"
                     )
                     self.isBuffering = false
                     self.isPlaying = false
@@ -1361,6 +1395,7 @@ final class PlaybackController: ObservableObject {
         playingFromPrepare = false
         preparePlaybackRetryUsed = false
         streamTimeoutReresolveUsed = false
+        streamOpenReresolveUsed = false
         isSeekInProgress = false
         seekGeneration += 1
         clearHLSQualityState()
@@ -1401,6 +1436,7 @@ final class PlaybackController: ObservableObject {
         playingFromPrepare = false
         preparePlaybackRetryUsed = false
         streamTimeoutReresolveUsed = false
+        streamOpenReresolveUsed = false
         isSeekInProgress = false
         seekGeneration += 1
         clearHLSQualityState()
@@ -1631,6 +1667,29 @@ final class PlaybackController: ObservableObject {
         cancelSleepTimer()
     }
 
+    /// Record history / gates only after AVPlayer is actually playing (not resolve-only).
+    private func noteSuccessfulPlaybackIfNeeded(videoId: String?) {
+        guard let videoId, !videoId.isEmpty else { return }
+        guard videoId == nowPlaying?.videoId else { return }
+        guard successfulPlaybackRecordedVideoId != videoId else { return }
+        successfulPlaybackRecordedVideoId = videoId
+        guard let playing = nowPlaying else { return }
+
+        libraryStore?.recordPlayback(
+            playing,
+            durationSeconds: pendingResolvedDurationSeconds
+        )
+        ReviewPromptCoordinator.shared.recordSuccessfulPlay(videoId: videoId)
+        refreshFavoriteState()
+        persistSession(immediate: true)
+
+        let store = libraryStore
+        Task { @MainActor in
+            AdEligibility.refreshInventoryIfEligible()
+            await DailyListenNotificationScheduler.refresh(using: store)
+        }
+    }
+
     private func attachEndObserver() {
         if let endObserver {
             NotificationCenter.default.removeObserver(endObserver)
@@ -1648,9 +1707,6 @@ final class PlaybackController: ObservableObject {
 
     /// Android `GlobalPlaybackViewModel.handlePlaybackEnded`.
     private func handlePlaybackEnded() {
-        if let videoId = nowPlaying?.videoId {
-            ReviewPromptCoordinator.shared.recordCompletedPlay(videoId: videoId)
-        }
         if repeatMode == .one {
             seek(to: 0)
             player?.playImmediately(atRate: playbackSpeed)

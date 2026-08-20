@@ -1,6 +1,6 @@
 import Foundation
 
-/// Library-size gate for AdMob: no load / no present below the threshold.
+/// Library-size gate for AdMob: no load / no present below the threshold (successful plays only).
 @MainActor
 enum AdEligibility {
     static let minimumLibrarySongCount = 10
@@ -13,7 +13,7 @@ enum AdEligibility {
     }
 
     static var librarySongCount: Int {
-        libraryStore?.librarySongs().count ?? 0
+        libraryStore?.successfullyPlayedSongCount() ?? 0
     }
 
     /// Whether ads may be requested or shown.
