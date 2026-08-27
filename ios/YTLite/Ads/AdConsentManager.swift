@@ -15,11 +15,11 @@ final class AdConsentStatus: ObservableObject {
     }
 }
 
-/// UMP consent + ATT. UMP IDFA Explainer triggers ATT when configured in AdMob;
-/// otherwise we request ATT after the UMP form when status is still `.notDetermined`.
+/// UMP consent + ATT. ATT is requested at app launch (before UMP).
 @MainActor
 enum AdConsentManager {
     private static var hasStartedConsentThisSession = false
+    private static var hasRequestedATTThisSession = false
 
     static var canRequestAds: Bool {
         ConsentInformation.shared.canRequestAds
@@ -27,6 +27,14 @@ enum AdConsentManager {
 
     static var isPrivacyOptionsRequired: Bool {
         ConsentInformation.shared.privacyOptionsRequirementStatus == .required
+    }
+
+    /// Call once at launch, before UMP / AdMob, so the system ATT sheet appears immediately.
+    static func requestTrackingAuthorizationAtLaunch() async {
+        guard AdMobConfig.adsEnabled else { return }
+        guard !hasRequestedATTThisSession else { return }
+        hasRequestedATTThisSession = true
+        await requestTrackingAuthorizationIfNeeded()
     }
 
     @discardableResult
@@ -74,12 +82,10 @@ enum AdConsentManager {
             }
         }
 
-        await requestTrackingAuthorizationIfNeeded()
-
         return canRequestAds
     }
 
-    /// System ATT prompt — only when ads are enabled and the user has not answered yet.
+    /// System ATT prompt when status is still `.notDetermined`.
     private static func requestTrackingAuthorizationIfNeeded() async {
         guard AdMobConfig.adsEnabled else { return }
         guard #available(iOS 14, *) else { return }
@@ -116,6 +122,7 @@ enum AdConsentManager {
     static func resetForTesting() {
         ConsentInformation.shared.reset()
         hasStartedConsentThisSession = false
+        hasRequestedATTThisSession = false
         AdConsentStatus.shared.refresh()
         AdProbe.log("consent.reset")
     }

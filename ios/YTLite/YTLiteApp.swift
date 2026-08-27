@@ -38,6 +38,10 @@ struct YTLiteApp: App {
                 .id("\(appModel.languageCode)-\(appModel.themeRevision)")
                 .preferredColorScheme(appModel.themeColorScheme)
                 .task {
+                    // First frame, then ATT, then UMP / AdMob.
+                    await Task.yield()
+                    await AdConsentManager.requestTrackingAuthorizationAtLaunch()
+
                     ResolverRemoteConfigStore.restoreFromDisk()
                     appModel.syncAuth(authService)
                     ReviewPromptCoordinator.shared.recordActiveDay()
@@ -46,7 +50,6 @@ struct YTLiteApp: App {
                         await Task.yield()
                         _ = try? await StreamResolver.shared.ensureReady()
                     }
-                    // UMP consent form, then ATT if needed, then Mobile Ads — before review prompts.
                     await AdBootstrap.startIfNeeded()
                 }
                 .adSceneLifecycle()
