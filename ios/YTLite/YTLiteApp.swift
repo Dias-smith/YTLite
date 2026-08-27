@@ -46,7 +46,7 @@ struct YTLiteApp: App {
                         await Task.yield()
                         _ = try? await StreamResolver.shared.ensureReady()
                     }
-                    // UMP (+ ATT via IDFA Explainer) then Mobile Ads — before review prompts.
+                    // UMP consent form, then ATT if needed, then Mobile Ads — before review prompts.
                     await AdBootstrap.startIfNeeded()
                 }
                 .adSceneLifecycle()

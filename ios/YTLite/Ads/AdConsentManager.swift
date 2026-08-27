@@ -1,3 +1,4 @@
+import AppTrackingTransparency
 import Combine
 import Foundation
 import UserMessagingPlatform
@@ -14,7 +15,8 @@ final class AdConsentStatus: ObservableObject {
     }
 }
 
-/// UMP consent. ATT comes from AdMob **IDFA Explainer** — do not call ATT APIs here.
+/// UMP consent + ATT. UMP IDFA Explainer triggers ATT when configured in AdMob;
+/// otherwise we request ATT after the UMP form when status is still `.notDetermined`.
 @MainActor
 enum AdConsentManager {
     private static var hasStartedConsentThisSession = false
@@ -72,7 +74,23 @@ enum AdConsentManager {
             }
         }
 
+        await requestTrackingAuthorizationIfNeeded()
+
         return canRequestAds
+    }
+
+    /// System ATT prompt — only when ads are enabled and the user has not answered yet.
+    private static func requestTrackingAuthorizationIfNeeded() async {
+        guard AdMobConfig.adsEnabled else { return }
+        guard #available(iOS 14, *) else { return }
+        let status = ATTrackingManager.trackingAuthorizationStatus
+        guard status == .notDetermined else {
+            AdProbe.log("att.skip", "status=\(status.rawValue)")
+            return
+        }
+        AdProbe.log("att.request")
+        let result = await ATTrackingManager.requestTrackingAuthorization()
+        AdProbe.log("att.result", "status=\(result.rawValue)")
     }
 
     static func presentPrivacyOptions() async {
