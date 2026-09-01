@@ -149,6 +149,7 @@ struct HomeCategory: Identifiable, Hashable {
 final class HomeViewModel: ObservableObject {
     @Published var entries: [HomeFeedEntry] = []
     @Published var isRefreshing = false
+    @Published private(set) var isLoadingMore = false
     @Published var errorMessage: String?
     @Published var selectedCategoryId: String = "all"
     @Published private(set) var orderedCategories: [HomeCategory]
@@ -163,6 +164,8 @@ final class HomeViewModel: ObservableObject {
     private var dynamicChips: [HomeDynamicChip]
     private var didRequestDynamicChips = false
     private var continuation: String?
+    /// All tab: browse home vs search fallback pagination (Android `feedSearchQuery == null`).
+    private var allFeedUsesSearchPagination = false
     /// Re-entrancy guard — not @Published. Publishing `isRefreshing` during pull-to-refresh
     /// rebuilds the ScrollView and cancels SwiftUI's `.refreshable` task mid-request.
     private var isRefreshInFlight = false
@@ -188,6 +191,10 @@ final class HomeViewModel: ObservableObject {
 
     /// Playable tracks currently listed (album cards excluded).
     var videos: [VideoItem] { playableVideos }
+
+    var hasMore: Bool {
+        !(continuation ?? "").isEmpty
+    }
 
     func playIndex(for item: VideoItem) -> Int {
         playableIndexById[item.videoId] ?? 0
@@ -218,6 +225,77 @@ final class HomeViewModel: ObservableObject {
     func refilter() {
         entries = applyLibraryFilter(rawEntries)
         rebuildPlayableIndex(from: entries)
+    }
+
+    /// Infinite scroll — append the next InnerTube page when near the list bottom.
+    func loadMoreIfNeeded() {
+        guard hasMore, !isLoadingMore, !isRefreshInFlight else { return }
+        Task { await loadMore() }
+    }
+
+    private func loadMore() async {
+        guard let token = continuation, !token.isEmpty else { return }
+        guard !isLoadingMore, !isRefreshInFlight else { return }
+
+        let category = selectedCategory
+        let requestId = category.id
+        isLoadingMore = true
+        defer { isLoadingMore = false }
+
+        HomeFeedProbe.log(
+            "loadMore.start",
+            "category=\(requestId) contPrefix=\(continuationPrefix(token)) count=\(rawEntries.count)"
+        )
+
+        do {
+            let page = try await fetchPage(for: category, continuation: token)
+            guard requestId == selectedCategoryId else {
+                HomeFeedProbe.log(
+                    "loadMore.stale",
+                    "req=\(requestId) selected=\(selectedCategoryId)"
+                )
+                return
+            }
+            let merged = mergeEntries(rawEntries, page.entries)
+            rawEntries = merged
+            entries = applyLibraryFilter(merged)
+            rebuildPlayableIndex(from: entries)
+            if page.entries.isEmpty, page.continuation == token {
+                continuation = nil
+            } else {
+                continuation = page.continuation
+            }
+            HomeFeedStore.save(
+                categoryId: requestId,
+                entries: merged,
+                continuation: page.continuation,
+                allFeedUsesSearchPagination: requestId == "all" ? allFeedUsesSearchPagination : false
+            )
+            HomeFeedProbe.log(
+                "loadMore.ok",
+                "added=\(page.entries.count) total=\(merged.count) hasNext=\(!(page.continuation ?? "").isEmpty)"
+            )
+        } catch is CancellationError {
+            HomeFeedProbe.log("loadMore.cancelled", "category=\(requestId)")
+        } catch {
+            if Task.isCancelled { return }
+            let ns = error as NSError
+            if ns.domain == NSURLErrorDomain, ns.code == NSURLErrorCancelled { return }
+            HomeFeedProbe.log(
+                "loadMore.error",
+                "category=\(requestId) err=\(error.localizedDescription)"
+            )
+        }
+    }
+
+    private func mergeEntries(_ existing: [HomeFeedEntry], _ incoming: [HomeFeedEntry]) -> [HomeFeedEntry] {
+        var seen = Set(existing.map(\.id))
+        var merged = existing
+        merged.reserveCapacity(existing.count + incoming.count)
+        for entry in incoming where seen.insert(entry.id).inserted {
+            merged.append(entry)
+        }
+        return merged
     }
 
     private func rebuildPlayableIndex(from items: [HomeFeedEntry]) {
@@ -343,6 +421,9 @@ final class HomeViewModel: ObservableObject {
             entries = applyLibraryFilter(page.entries)
             rebuildPlayableIndex(from: entries)
             continuation = page.continuation
+            if requestId == "all" {
+                allFeedUsesSearchPagination = page.allFeedUsesSearchPagination
+            }
             if let chips = page.chips {
                 acceptDynamicChips(chips)
             }
@@ -354,7 +435,8 @@ final class HomeViewModel: ObservableObject {
                 HomeFeedStore.save(
                     categoryId: requestId,
                     entries: page.entries,
-                    continuation: page.continuation
+                    continuation: page.continuation,
+                    allFeedUsesSearchPagination: requestId == "all" ? allFeedUsesSearchPagination : false
                 )
                 if force {
                     scrollToTopToken += 1
@@ -395,6 +477,7 @@ final class HomeViewModel: ObservableObject {
         let entries: [HomeFeedEntry]
         let continuation: String?
         var chips: [HomeDynamicChip]? = nil
+        var allFeedUsesSearchPagination: Bool = false
     }
 
     private func fetchPage(
@@ -435,11 +518,23 @@ final class HomeViewModel: ObservableObject {
     ) async throws -> FeedPage {
         switch category.source {
         case .homeBrowse:
+            if allFeedUsesSearchPagination {
+                let page = try await InnerTubeClient.searchVideosPage(
+                    query: InnerTubeClient.homeSearchFallbackQuery,
+                    continuation: token
+                )
+                return FeedPage(
+                    entries: page.videos.map { .track($0) },
+                    continuation: page.continuation,
+                    allFeedUsesSearchPagination: true
+                )
+            }
             let page = try await InnerTubeClient.fetchHomeFeedPage(continuation: token)
             return FeedPage(
                 entries: page.videos.map { .track($0) },
                 continuation: page.continuation,
-                chips: token == nil ? page.chips : nil
+                chips: token == nil ? page.chips : nil,
+                allFeedUsesSearchPagination: page.paginationUsesSearchFallback
             )
         case .search(let query):
             let page = try await InnerTubeClient.searchVideosPage(
@@ -483,13 +578,15 @@ final class HomeViewModel: ObservableObject {
         if let stored = HomeFeedStore.loadFeed(categoryId: categoryId) {
             rawEntries = stored.entries
             continuation = stored.continuation
+            allFeedUsesSearchPagination = stored.allFeedUsesSearchPagination
             HomeFeedProbe.log(
                 "store.load",
-                "category=\(categoryId) count=\(stored.entries.count) hasCont=\(!(stored.continuation ?? "").isEmpty)"
+                "category=\(categoryId) count=\(stored.entries.count) hasCont=\(!(stored.continuation ?? "").isEmpty) searchPag=\(stored.allFeedUsesSearchPagination)"
             )
         } else {
             rawEntries = []
             continuation = nil
+            allFeedUsesSearchPagination = false
             HomeFeedProbe.log("store.miss", "category=\(categoryId)")
         }
         entries = applyLibraryFilter(rawEntries)
@@ -648,15 +745,15 @@ struct HomeView: View {
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                     .gridCellColumns(columns)
                             }
-                            ForEach(viewModel.entries) { entry in
+                            ForEach(Array(viewModel.entries.enumerated()), id: \.element.id) { index, entry in
                                 switch entry {
                                 case .track(let item):
                                     FeedVideoCard(
                                         item: item,
                                         onTap: {
                                             let queue = viewModel.playableVideos
-                                            let index = viewModel.playIndex(for: item)
-                                            playback.play(items: queue.isEmpty ? [item] : queue, startAt: index)
+                                            let playIndex = viewModel.playIndex(for: item)
+                                            playback.play(items: queue.isEmpty ? [item] : queue, startAt: playIndex)
                                             playerPresentation.present()
                                         },
                                         onMore: {
@@ -664,6 +761,11 @@ struct HomeView: View {
                                         },
                                         compact: compact
                                     )
+                                    .onAppear {
+                                        if index >= max(0, viewModel.entries.count - 3) {
+                                            viewModel.loadMoreIfNeeded()
+                                        }
+                                    }
                                 case .album(let album):
                                     NavigationLink {
                                         AlbumTracksView(album: album)
@@ -672,7 +774,19 @@ struct HomeView: View {
                                     }
                                     .buttonStyle(.plain)
                                     .gridCellColumns(columns)
+                                    .onAppear {
+                                        if index >= max(0, viewModel.entries.count - 3) {
+                                            viewModel.loadMoreIfNeeded()
+                                        }
+                                    }
                                 }
+                            }
+                            if viewModel.isLoadingMore {
+                                ProgressView()
+                                    .tint(YTLiteColor.accent)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 16)
+                                    .gridCellColumns(columns)
                             }
                         }
                         .padding(.horizontal, compact ? YTLiteAdaptive.screenPadding(for: geo.size.width, sizeClass: horizontalSizeClass) - 4 : 0)

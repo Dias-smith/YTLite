@@ -17,23 +17,27 @@ enum HomeFeedStore {
         let savedAt: Date
         let items: [Entry]
         let continuation: String?
+        let allFeedUsesSearchPagination: Bool?
 
         init(
             categoryId: String,
             savedAt: Date,
             items: [Entry],
-            continuation: String? = nil
+            continuation: String? = nil,
+            allFeedUsesSearchPagination: Bool? = nil
         ) {
             self.categoryId = categoryId
             self.savedAt = savedAt
             self.items = items
             self.continuation = continuation
+            self.allFeedUsesSearchPagination = allFeedUsesSearchPagination
         }
     }
 
     struct LoadedFeed: Sendable {
         let entries: [HomeFeedEntry]
         let continuation: String?
+        let allFeedUsesSearchPagination: Bool
     }
 
     struct Entry: Codable, Sendable {
@@ -186,7 +190,11 @@ enum HomeFeedStore {
         defer { lock.unlock() }
         if let hit = memory[categoryId] {
             let entries = hit.items.compactMap(\.asHomeFeedEntry)
-            return entries.isEmpty ? nil : LoadedFeed(entries: entries, continuation: hit.continuation)
+            return entries.isEmpty ? nil : LoadedFeed(
+                entries: entries,
+                continuation: hit.continuation,
+                allFeedUsesSearchPagination: hit.allFeedUsesSearchPagination ?? false
+            )
         }
         guard let data = try? Data(contentsOf: fileURL(for: categoryId)),
               let snapshot = decodeSnapshot(data)
@@ -194,20 +202,26 @@ enum HomeFeedStore {
         memory[categoryId] = snapshot
         trimMemoryLocked()
         let entries = snapshot.items.compactMap(\.asHomeFeedEntry)
-        return entries.isEmpty ? nil : LoadedFeed(entries: entries, continuation: snapshot.continuation)
+        return entries.isEmpty ? nil : LoadedFeed(
+            entries: entries,
+            continuation: snapshot.continuation,
+            allFeedUsesSearchPagination: snapshot.allFeedUsesSearchPagination ?? false
+        )
     }
 
     static func save(
         categoryId: String,
         entries: [HomeFeedEntry],
-        continuation: String? = nil
+        continuation: String? = nil,
+        allFeedUsesSearchPagination: Bool = false
     ) {
         guard !entries.isEmpty else { return }
         let snapshot = Snapshot(
             categoryId: categoryId,
             savedAt: .now,
             items: entries.map(Entry.init),
-            continuation: continuation
+            continuation: continuation,
+            allFeedUsesSearchPagination: categoryId == "all" ? allFeedUsesSearchPagination : nil
         )
         lock.lock()
         memory[categoryId] = snapshot

@@ -21,6 +21,8 @@ struct HomeBrowsePage: Sendable {
     let videos: [VideoItem]
     let chips: [HomeDynamicChip]
     let continuation: String?
+    /// True when the first page fell back to video search — continuations must use search, not browse.
+    let paginationUsesSearchFallback: Bool
 }
 
 /// Generic home-category page (videos + next-page token).
@@ -32,6 +34,8 @@ struct HomeFeedPageResult: Sendable {
 enum InnerTubeClient {
     static let browseURL = "\(YouTubeConstants.baseURL)/youtubei/v1/browse?key=\(YouTubeConstants.apiKey)"
     static let homeBrowseId = "FEwhat_to_watch"
+    /// Android `NetworkConfig.HOME_SEARCH_QUERY` — browse empty fallback for All tab.
+    static let homeSearchFallbackQuery = "music"
     /// YouTube Explore → News hub channel (obsolete `FEnews` returns HTTP 400 on WEB).
     static let newsBrowseId = "UCYfdidRxbB8Qhf0Nx7ioOYw"
 
@@ -292,16 +296,27 @@ enum InnerTubeClient {
             "cont=\(continuation != nil) videos=\(videos.count) chips=\(chips.count) nextCont=\(token != nil)"
         )
         if !videos.isEmpty {
-            return HomeBrowsePage(videos: videos, chips: chips, continuation: token)
+            return HomeBrowsePage(
+                videos: videos,
+                chips: chips,
+                continuation: token,
+                paginationUsesSearchFallback: false
+            )
         }
         if continuation != nil {
-            return HomeBrowsePage(videos: [], chips: chips, continuation: nil)
+            return HomeBrowsePage(
+                videos: [],
+                chips: chips,
+                continuation: nil,
+                paginationUsesSearchFallback: false
+            )
         }
-        let fallback = try await searchVideosPage(query: "music")
+        let fallback = try await searchVideosPage(query: homeSearchFallbackQuery)
         return HomeBrowsePage(
             videos: fallback.videos,
             chips: chips,
-            continuation: fallback.continuation
+            continuation: fallback.continuation,
+            paginationUsesSearchFallback: true
         )
     }
 
@@ -1015,17 +1030,46 @@ enum InnerTubeClient {
 }
 
 enum VideoJSONParser {
+    private static let continuationActionKeys = [
+        "appendContinuationItemsAction",
+        "reloadContinuationItemsCommand",
+    ]
+    private static let responseActionKeys = [
+        "onResponseReceivedActions",
+        "onResponseReceivedCommands",
+    ]
+
+    /// Include continuation-append payloads (home browse page 2+).
+    private static func feedParseRoots(from root: Any) -> [Any] {
+        var roots: [Any] = [root]
+        guard let dict = root as? [String: Any] else { return roots }
+        for actionsKey in responseActionKeys {
+            guard let actions = dict[actionsKey] as? [Any] else { continue }
+            for case let action as [String: Any] in actions {
+                for commandKey in continuationActionKeys {
+                    guard let command = action[commandKey] as? [String: Any],
+                          let items = command["continuationItems"] as? [Any]
+                    else { continue }
+                    roots.append(contentsOf: items)
+                }
+            }
+        }
+        return roots
+    }
+
     static func parseVideos(from root: Any) -> [VideoItem] {
         var ordered: [VideoItem] = []
         var indexById: [String: Int] = [:]
-        walk(root, limit: 20_000) { dict in
-            if isAd(dict) { return }
-            guard let item = extractAnyVideo(from: dict) else { return }
-            if let idx = indexById[item.videoId] {
-                ordered[idx] = mergeVideo(ordered[idx], item)
-            } else {
-                indexById[item.videoId] = ordered.count
-                ordered.append(item)
+        for seed in feedParseRoots(from: root) {
+            walk(seed, limit: 20_000) { dict in
+                if isAd(dict) { return }
+                guard let item = extractAnyVideo(from: dict) else { return }
+                if let idx = indexById[item.videoId] {
+                    ordered[idx] = mergeVideo(ordered[idx], item)
+                } else {
+                    indexById[item.videoId] = ordered.count
+                    ordered.append(item)
+                }
             }
         }
         return ordered
@@ -1033,6 +1077,10 @@ enum VideoJSONParser {
 
     /// Next-page token from browse/search responses (align Android `FeedParser.extractContinuation`).
     static func parseContinuation(from root: Any) -> String? {
+        var fromItemRenderer: String?
+        var fromViewModel: String?
+        var fromNextData: String?
+        var fromEndpoint: String?
         var queue: [Any] = [root]
         var head = 0
         var visited = 0
@@ -1041,15 +1089,32 @@ enum VideoJSONParser {
             head += 1
             visited += 1
             if let dict = node as? [String: Any] {
-                if let renderer = dict["continuationItemRenderer"] as? [String: Any],
+                if fromItemRenderer == nil,
+                   let renderer = dict["continuationItemRenderer"] as? [String: Any],
                    let token = continuationToken(from: renderer)
                 {
-                    return token
+                    fromItemRenderer = token
                 }
-                if let viewModel = dict["continuationItemViewModel"] as? [String: Any],
+                if fromViewModel == nil,
+                   let viewModel = dict["continuationItemViewModel"] as? [String: Any],
                    let token = continuationToken(from: viewModel)
                 {
-                    return token
+                    fromViewModel = token
+                }
+                if fromNextData == nil,
+                   let next = dict["nextContinuationData"] as? [String: Any],
+                   let token = (next["continuation"] as? String)?.nilIfEmpty
+                {
+                    fromNextData = token
+                }
+                if fromEndpoint == nil,
+                   dict["continuationItemRenderer"] == nil,
+                   dict["continuationItemViewModel"] == nil,
+                   let endpoint = dict["continuationEndpoint"] as? [String: Any],
+                   let command = endpoint["continuationCommand"] as? [String: Any],
+                   let token = (command["token"] as? String)?.nilIfEmpty
+                {
+                    fromEndpoint = token
                 }
                 for value in dict.values where value is [String: Any] || value is [Any] {
                     queue.append(value)
@@ -1060,7 +1125,7 @@ enum VideoJSONParser {
                 }
             }
         }
-        return nil
+        return fromItemRenderer ?? fromViewModel ?? fromNextData ?? fromEndpoint
     }
 
     private static func continuationToken(from node: [String: Any]) -> String? {
