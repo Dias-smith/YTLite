@@ -31,7 +31,7 @@ struct MiniPlayerBar: View {
                 Rectangle()
                     .fill(YTLiteColor.miniProgressTrack)
                 Rectangle()
-                    .fill(YTLiteColor.miniProgress)
+                    .fill(YTLiteColor.accent)
                     .frame(width: geo.size.width * progress)
             }
         }

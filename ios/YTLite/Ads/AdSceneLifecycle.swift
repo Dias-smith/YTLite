@@ -305,9 +305,11 @@ extension View {
 
 private struct PlayerDetailPresentationModifier: ViewModifier {
     @Binding var isPresented: Bool
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
+    /// iPhone: sheet (system pull-down dismiss). iPad regular width: immersive full screen.
     private var useFullScreen: Bool {
-        true
+        YTLiteAdaptive.isRegularWidth(horizontalSizeClass)
     }
 
     func body(content: Content) -> some View {
