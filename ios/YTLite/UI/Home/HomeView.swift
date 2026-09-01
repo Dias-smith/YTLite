@@ -216,6 +216,26 @@ final class HomeViewModel: ObservableObject {
         refreshDynamicChipsIfNeeded()
     }
 
+    func handleContentLocaleChange() {
+        loadGeneration += 1
+        rawEntries = []
+        entries = []
+        playableVideos = []
+        continuation = nil
+        allFeedUsesSearchPagination = false
+        errorMessage = nil
+        didRequestDynamicChips = false
+        dynamicChips = HomeFeedStore.loadDynamicChips()
+        orderedCategories = HomeCategory.applyingSavedOrder(
+            to: HomeCategory.merged(with: dynamicChips)
+        )
+        if !orderedCategories.contains(where: { $0.id == selectedCategoryId }) {
+            selectedCategoryId = "all"
+            HomeFeedStore.saveSelectedCategoryId("all")
+        }
+        Task { await refresh(force: true) }
+    }
+
     func applyCategoryOrder(_ categories: [HomeCategory]) {
         let all = orderedCategories.first(where: { $0.id == "all" }) ?? HomeCategory.catalog[0]
         orderedCategories = [all] + categories.filter { $0.id != "all" }
@@ -609,6 +629,7 @@ final class HomeViewModel: ObservableObject {
 
 struct HomeView: View {
     @StateObject private var viewModel = HomeViewModel()
+    @EnvironmentObject private var appModel: AppModel
     @EnvironmentObject private var playback: PlaybackController
     @EnvironmentObject private var trackActions: TrackActionPresenter
     @Environment(\.libraryStore) private var libraryStore
@@ -627,7 +648,12 @@ struct HomeView: View {
             .toolbar(.hidden, for: .navigationBar)
             .task {
                 viewModel.libraryStore = libraryStore
+                guard !appModel.isAwaitingLocaleSetup else { return }
                 viewModel.appear()
+            }
+            .onChange(of: appModel.isAwaitingLocaleSetup) { _, awaiting in
+                guard !awaiting else { return }
+                viewModel.handleContentLocaleChange()
             }
             .onChange(of: libraryStore != nil) { _, _ in
                 viewModel.libraryStore = libraryStore
@@ -635,6 +661,9 @@ struct HomeView: View {
             }
             .onChange(of: trackActions.listEpoch) { _, _ in
                 viewModel.refilter()
+            }
+            .onChange(of: appModel.contentLocaleRevision) { _, _ in
+                viewModel.handleContentLocaleChange()
             }
             .sheet(isPresented: $showCategoryReorder) {
                 CategoryReorderSheet(

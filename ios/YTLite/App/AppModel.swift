@@ -17,8 +17,22 @@ final class AppModel: ObservableObject {
             let migrated = AppLanguage.migrateStoredCode(languageCode)
             UserDefaults.standard.set(migrated, forKey: "app_language")
             AppLocalization.apply(AppLanguage.fromStored(migrated))
+            applyYouTubeContentLocaleIfNeeded()
         }
     }
+
+    @Published var contentRegionCode: String {
+        didSet {
+            UserDefaults.standard.set(contentRegionCode, forKey: AppContentLocale.contentRegionKey)
+            applyYouTubeContentLocaleIfNeeded()
+        }
+    }
+
+    /// Bumped when InnerTube `hl` / `gl` changes so feeds can reload.
+    @Published private(set) var contentLocaleRevision: Int = 0
+    /// Blocks home feed until first-launch locale sheet is confirmed.
+    @Published private(set) var isAwaitingLocaleSetup: Bool = false
+    @Published var showLocaleSetupSheet: Bool = false
     @Published var isAuthenticated: Bool = false
     /// Bumped after library sync / account-switch adopt so Subs & Library reload.
     @Published private(set) var libraryRevision: Int = 0
@@ -30,6 +44,7 @@ final class AppModel: ObservableObject {
     let config = AppConfig.fromBundle()
 
     private var themeCancellable: AnyCancellable?
+    private var isHydratingStoredPreferences = false
 
     var appLanguage: AppLanguage {
         AppLanguage.fromStored(languageCode)
@@ -49,11 +64,26 @@ final class AppModel: ObservableObject {
 
         let stored = UserDefaults.standard.string(forKey: "app_language") ?? AppLanguage.system.rawValue
         let migrated = AppLanguage.migrateStoredCode(stored)
+        isHydratingStoredPreferences = true
         languageCode = migrated
         if migrated != stored {
             UserDefaults.standard.set(migrated, forKey: "app_language")
         }
         AppLocalization.apply(AppLanguage.fromStored(migrated))
+
+        let storedRegion = UserDefaults.standard.string(forKey: AppContentLocale.contentRegionKey)
+        contentRegionCode = AppContentRegion.fromStored(storedRegion).rawValue
+        if storedRegion == nil {
+            UserDefaults.standard.set(contentRegionCode, forKey: AppContentLocale.contentRegionKey)
+        }
+        isHydratingStoredPreferences = false
+        _ = AppContentLocale.syncYouTubeFromAppLanguage(appLanguage, regionCode: contentRegionCode)
+
+        if AppContentLocale.shouldPresentLocaleSetupOnLaunch {
+            isAwaitingLocaleSetup = true
+            showLocaleSetupSheet = true
+        }
+
         UserDefaults.standard.removeObject(forKey: "wifi_only")
         UserDefaults.standard.removeObject(forKey: "resume_enabled")
         UserDefaults.standard.removeObject(forKey: "thread_count")
@@ -87,6 +117,34 @@ final class AppModel: ObservableObject {
         isLibrarySyncing = false
         librarySyncStartedAt = nil
         libraryRevision += 1
+    }
+
+    var appContentRegion: AppContentRegion {
+        AppContentRegion.fromStored(contentRegionCode)
+    }
+
+    func completeLocaleSetup(languageCode: String, regionCode: String) {
+        isHydratingStoredPreferences = true
+        let migrated = AppLanguage.migrateStoredCode(languageCode)
+        self.languageCode = migrated
+        contentRegionCode = regionCode.uppercased()
+        isHydratingStoredPreferences = false
+        #if !DEBUG
+        UserDefaults.standard.set(true, forKey: AppContentLocale.localeSetupCompletedKey)
+        #endif
+        _ = AppContentLocale.syncYouTubeFromAppLanguage(appLanguage, regionCode: contentRegionCode)
+        contentLocaleRevision += 1
+        HomeFeedStore.invalidateMemoryCache()
+        isAwaitingLocaleSetup = false
+        showLocaleSetupSheet = false
+    }
+
+    private func applyYouTubeContentLocaleIfNeeded() {
+        guard !isHydratingStoredPreferences else { return }
+        let changed = AppContentLocale.syncYouTubeFromAppLanguage(appLanguage, regionCode: contentRegionCode)
+        guard changed else { return }
+        contentLocaleRevision += 1
+        HomeFeedStore.invalidateMemoryCache()
     }
 }
 

@@ -36,7 +36,7 @@ struct YTLiteApp: App {
                 .environmentObject(ReviewPromptCoordinator.shared)
                 .environment(\.locale, appModel.resolvedLocale)
                 .environment(\.layoutDirection, appModel.layoutDirection)
-                .id("\(appModel.languageCode)-\(appModel.themeRevision)")
+                .id(appModel.themeRevision)
                 .preferredColorScheme(appModel.themeColorScheme)
                 .task {
                     // First frame, then ATT, then UMP / AdMob.

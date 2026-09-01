@@ -10,7 +10,7 @@ struct SettingsView: View {
     var body: some View {
         let _ = adConsentStatus.revision
         Form {
-            Section(L("settings.appearance")) {
+            Section {
                 NavigationLink {
                     ThemePickerView()
                 } label: {
@@ -26,6 +26,15 @@ struct SettingsView: View {
                         Text(language.displayName).tag(language.rawValue)
                     }
                 }
+                Picker(L("settings.content_region"), selection: $appModel.contentRegionCode) {
+                    ForEach(AppContentRegion.sortedForPicker) { region in
+                        Text(region.displayName).tag(region.rawValue)
+                    }
+                }
+            } header: {
+                Text(L("settings.appearance"))
+            } footer: {
+                Text(L("settings.content_region_footer"))
             }
 
             Section {
@@ -122,5 +131,75 @@ struct SettingsView: View {
             get: { playback.sleepTimerMinutes },
             set: { playback.setSleepTimer(minutes: $0) }
         )
+    }
+}
+
+/// First-launch (and DEBUG every launch) language + content region picker.
+struct LocaleSetupSheet: View {
+    @EnvironmentObject private var appModel: AppModel
+
+    @State private var draftLanguageCode: String
+    @State private var draftRegionCode: String
+
+    init(
+        languageCode: String = AppLanguage.system.rawValue,
+        regionCode: String = AppContentRegion.defaultForDevice().rawValue
+    ) {
+        _draftLanguageCode = State(initialValue: languageCode)
+        _draftRegionCode = State(initialValue: regionCode)
+    }
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 0) {
+                Text(L("locale_setup.message"))
+                    .font(YTLiteType.body)
+                    .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                    .multilineTextAlignment(.leading)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, YTLiteLayout.screenPadding)
+                    .padding(.top, YTLiteLayout.stackDefault)
+                    .padding(.bottom, YTLiteLayout.stackLoose)
+
+                Form {
+                    Section(L("locale_setup.language")) {
+                        Picker(L("locale_setup.language"), selection: $draftLanguageCode) {
+                            ForEach(AppLanguage.allCases) { language in
+                                Text(language.displayName).tag(language.rawValue)
+                            }
+                        }
+                        .labelsHidden()
+                    }
+
+                    Section(L("locale_setup.content_region")) {
+                        Picker(L("locale_setup.content_region"), selection: $draftRegionCode) {
+                            ForEach(AppContentRegion.sortedForPicker) { region in
+                                Text(region.displayName).tag(region.rawValue)
+                            }
+                        }
+                        .labelsHidden()
+                    }
+                }
+                .scrollContentBackground(.hidden)
+            }
+            .background(YTLiteColor.background)
+            .navigationTitle(L("locale_setup.title"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(L("locale_setup.continue")) {
+                        appModel.completeLocaleSetup(
+                            languageCode: draftLanguageCode,
+                            regionCode: draftRegionCode
+                        )
+                    }
+                    .fontWeight(.semibold)
+                }
+            }
+        }
+        .interactiveDismissDisabled(true)
+        .presentationDetents([.large])
+        .presentationDragIndicator(.hidden)
     }
 }

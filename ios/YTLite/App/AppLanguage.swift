@@ -181,3 +181,118 @@ func Lf(_ key: String, _ arguments: CVarArg...) -> String {
     let format = L(key)
     return String(format: format, locale: AppLocalization.locale, arguments: arguments)
 }
+
+// MARK: - YouTube content locale (InnerTube hl / gl)
+
+/// Thread-safe InnerTube `hl` / `gl` applied to all YouTube API requests.
+enum YouTubeContentLocale {
+    private static let lock = NSLock()
+    private static var _hl = "en"
+    private static var _gl = "US"
+
+    static var hl: String {
+        lock.lock()
+        defer { lock.unlock() }
+        return _hl
+    }
+
+    static var gl: String {
+        lock.lock()
+        defer { lock.unlock() }
+        return _gl
+    }
+
+    /// Returns whether values changed.
+    @discardableResult
+    static func apply(hl: String, gl: String) -> Bool {
+        let normalizedHL = hl.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalizedGL = gl.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        guard !normalizedHL.isEmpty, !normalizedGL.isEmpty else { return false }
+
+        lock.lock()
+        defer { lock.unlock() }
+        let changed = _hl != normalizedHL || _gl != normalizedGL
+        _hl = normalizedHL
+        _gl = normalizedGL
+        return changed
+    }
+}
+
+/// Supported YouTube content regions (`gl`). Labels follow the active app UI locale.
+enum AppContentRegion: String, CaseIterable, Identifiable, Sendable {
+    case US, GB, CA, AU, NZ, IE
+    case BR, MX, AR, CL, CO, PE
+    case ES, PT, FR, DE, IT, NL, BE, CH, AT, SE, NO, DK, FI, PL, GR, TR, RU, UA
+    case IN, PK, BD, SG, MY, ID, TH, VN, PH, JP, KR, TW, HK, CN
+    case SA, AE, EG, IL, ZA, NG
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        let locale = AppLocalization.locale
+        return locale.localizedString(forRegionCode: rawValue) ?? rawValue
+    }
+
+    static func fromStored(_ raw: String?) -> AppContentRegion {
+        guard let raw, let match = AppContentRegion(rawValue: raw.uppercased()) else {
+            return defaultForDevice()
+        }
+        return match
+    }
+
+    static func defaultForDevice() -> AppContentRegion {
+        if let code = Locale.current.region?.identifier.uppercased(),
+           AppContentRegion(rawValue: code) != nil
+        {
+            return AppContentRegion(rawValue: code)!
+        }
+        return .US
+    }
+
+    static var sortedForPicker: [AppContentRegion] {
+        allCases.sorted {
+            $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending
+        }
+    }
+}
+
+enum AppContentLocale {
+    static let localeSetupCompletedKey = "locale_setup_completed"
+    static let contentRegionKey = "content_region_gl"
+
+    static var shouldPresentLocaleSetupOnLaunch: Bool {
+        #if DEBUG
+        return true
+        #else
+        return !UserDefaults.standard.bool(forKey: localeSetupCompletedKey)
+        #endif
+    }
+
+    static func youtubeHL(for language: AppLanguage) -> String {
+        youtubeHL(from: language.locale)
+    }
+
+    static func youtubeHL(from locale: Locale) -> String {
+        let id = locale.identifier
+            .replacingOccurrences(of: "_", with: "-")
+            .lowercased()
+        if id.hasPrefix("zh-hant") || id.hasPrefix("zh-tw") || id.hasPrefix("zh-hk") || id.hasPrefix("zh-mo") {
+            return "zh-Hant"
+        }
+        if id.hasPrefix("zh") { return "zh-Hans" }
+        if id.hasPrefix("pt") { return "pt" }
+        if id.hasPrefix("es") { return "es" }
+        if id.hasPrefix("ar") { return "ar" }
+        if id.hasPrefix("fr") { return "fr" }
+        if id.hasPrefix("hi") { return "hi" }
+        if id.hasPrefix("en") { return "en" }
+        return "en"
+    }
+
+    static func syncYouTubeFromAppLanguage(_ language: AppLanguage, regionCode: String) -> Bool {
+        YouTubeContentLocale.apply(
+            hl: youtubeHL(for: language),
+            gl: regionCode.uppercased()
+        )
+    }
+}

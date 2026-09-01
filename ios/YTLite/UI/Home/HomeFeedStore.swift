@@ -6,11 +6,30 @@ enum HomeFeedStore {
     private static let folderName = "home_feed"
     private static let selectedCategoryKey = "home_selected_category_id"
     private static let categoryOrderKey = "home_category_order"
-    private static let dynamicChipsKey = "home_dynamic_chips"
+    private static let dynamicChipsKeyPrefix = "home_dynamic_chips"
     /// Cover all home chips in memory (All + New release + moods).
     private static let maxMemoryEntries = 16
     private static var memory: [String: Snapshot] = [:]
     private static let lock = NSLock()
+
+    private static func localeKey() -> String {
+        "\(YouTubeConstants.hl)_\(YouTubeConstants.gl)"
+    }
+
+    private static func memoryKey(for categoryId: String) -> String {
+        "\(localeKey())|\(categoryId)"
+    }
+
+    private static func dynamicChipsDefaultsKey() -> String {
+        "\(dynamicChipsKeyPrefix)_\(localeKey())"
+    }
+
+    /// Drop in-memory snapshots after `hl` / `gl` changes (disk cache stays locale-scoped).
+    static func invalidateMemoryCache() {
+        lock.lock()
+        memory.removeAll()
+        lock.unlock()
+    }
 
     struct Snapshot: Codable, Sendable {
         let categoryId: String
@@ -167,7 +186,7 @@ enum HomeFeedStore {
     }
 
     static func loadDynamicChips(maxAge: TimeInterval = 30 * 24 * 60 * 60) -> [HomeDynamicChip] {
-        guard let data = UserDefaults.standard.data(forKey: dynamicChipsKey),
+        guard let data = UserDefaults.standard.data(forKey: dynamicChipsDefaultsKey()),
               let snapshot = try? JSONDecoder().decode(DynamicChipSnapshot.self, from: data),
               Date().timeIntervalSince(snapshot.savedAt) <= maxAge
         else { return [] }
@@ -178,7 +197,7 @@ enum HomeFeedStore {
         guard !chips.isEmpty else { return }
         let snapshot = DynamicChipSnapshot(savedAt: .now, chips: chips)
         guard let data = try? JSONEncoder().encode(snapshot) else { return }
-        UserDefaults.standard.set(data, forKey: dynamicChipsKey)
+        UserDefaults.standard.set(data, forKey: dynamicChipsDefaultsKey())
     }
 
     static func loadEntries(categoryId: String) -> [HomeFeedEntry]? {
@@ -188,7 +207,7 @@ enum HomeFeedStore {
     static func loadFeed(categoryId: String) -> LoadedFeed? {
         lock.lock()
         defer { lock.unlock() }
-        if let hit = memory[categoryId] {
+        if let hit = memory[memoryKey(for: categoryId)] {
             let entries = hit.items.compactMap(\.asHomeFeedEntry)
             return entries.isEmpty ? nil : LoadedFeed(
                 entries: entries,
@@ -199,7 +218,7 @@ enum HomeFeedStore {
         guard let data = try? Data(contentsOf: fileURL(for: categoryId)),
               let snapshot = decodeSnapshot(data)
         else { return nil }
-        memory[categoryId] = snapshot
+        memory[memoryKey(for: categoryId)] = snapshot
         trimMemoryLocked()
         let entries = snapshot.items.compactMap(\.asHomeFeedEntry)
         return entries.isEmpty ? nil : LoadedFeed(
@@ -224,7 +243,7 @@ enum HomeFeedStore {
             allFeedUsesSearchPagination: categoryId == "all" ? allFeedUsesSearchPagination : nil
         )
         lock.lock()
-        memory[categoryId] = snapshot
+        memory[memoryKey(for: categoryId)] = snapshot
         trimMemoryLocked()
         lock.unlock()
         DispatchQueue.global(qos: .utility).async {
@@ -287,7 +306,9 @@ enum HomeFeedStore {
     private static func directoryURL() -> URL {
         let base = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first
             ?? FileManager.default.temporaryDirectory
-        return base.appendingPathComponent(folderName, isDirectory: true)
+        return base
+            .appendingPathComponent(folderName, isDirectory: true)
+            .appendingPathComponent(localeKey(), isDirectory: true)
     }
 
     private static func fileURL(for categoryId: String) -> URL {

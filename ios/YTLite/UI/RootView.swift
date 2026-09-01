@@ -198,6 +198,13 @@ struct RootView: View {
                     .presentationDragIndicator(.hidden)
                     .presentationBackground(YTLiteColor.surfaceElevated)
             }
+            .sheet(isPresented: $appModel.showLocaleSetupSheet) {
+                LocaleSetupSheet(
+                    languageCode: appModel.languageCode,
+                    regionCode: appModel.contentRegionCode
+                )
+                .environmentObject(appModel)
+            }
         }
         // Must wrap TrackActionHost so AppChrome itself (not only its children) receives it.
         .environmentObject(playerPresentation)

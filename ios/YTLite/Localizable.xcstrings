@@ -9239,6 +9239,75 @@
         }
       }
     },
+    "locale_setup.continue": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Continue" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "继续" } }
+      }
+    },
+    "locale_setup.content_region": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Content region" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "内容地区" } }
+      }
+    },
+    "locale_setup.language": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "App language" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "应用语言" } }
+      }
+    },
+    "locale_setup.message": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose your language and where you want recommendations and home feed content tailored from."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请选择应用语言以及首页与推荐内容所针对的地区。"
+          }
+        }
+      }
+    },
+    "locale_setup.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Welcome to YouLite" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "欢迎使用 YouLite" } }
+      }
+    },
+    "settings.content_region": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Content region" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "内容地区" } }
+      }
+    },
+    "settings.content_region_footer": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Affects home feed and YouTube recommendations. App language controls UI text only."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "影响首页与 YouTube 推荐内容。应用语言仅改变界面文字。"
+          }
+        }
+      }
+    },
     "settings.missing_secrets": {
       "extractionState": "manual",
       "localizations": {

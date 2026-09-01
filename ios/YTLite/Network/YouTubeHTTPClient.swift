@@ -82,8 +82,8 @@ enum YouTubeConstants {
             "Origin": "https://www.youtube.com",
         ]
     }
-    static let hl = "en"
-    static let gl = "US"
+    static var hl: String { YouTubeContentLocale.hl }
+    static var gl: String { YouTubeContentLocale.gl }
     static let webClientName = "WEB"
     static let webClientVersion = "2.20260701.01.00"
     static let webClientNameHeader = "1"
