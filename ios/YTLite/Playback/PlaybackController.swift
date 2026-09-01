@@ -108,6 +108,15 @@ final class PlaybackController: ObservableObject {
     private var fullScreenAdDismissObserver: NSObjectProtocol?
     /// Resume after interruption only if we were playing when interrupted.
     private var resumeAfterInterruption = false
+    /// Progressive stream eligible for local persistence after the watch threshold.
+    private struct PlaybackStoreContext {
+        let videoId: String
+        let streamURL: URL
+        let itag: Int
+        let mimeType: String
+    }
+    private var playbackStoreContext: PlaybackStoreContext?
+    private var playbackStoreThresholdMet = false
 
     var hasNextInQueue: Bool {
         if queueIndex + 1 < queue.count { return true }
@@ -526,6 +535,8 @@ final class PlaybackController: ObservableObject {
             "title=\(item.title.prefix(48)) index=\(queueIndex)/\(queue.count)"
         )
         clearHLSQualityState()
+        playbackStoreContext = nil
+        playbackStoreThresholdMet = false
         cancelScheduledNextPrepare()
         AdSceneLifecycle.cancelPlayStartInterstitial()
         AdSceneLifecycle.recordFirstInteraction(source: "play_request")
@@ -572,6 +583,40 @@ final class PlaybackController: ObservableObject {
                     videoId: expectedVideoId,
                     "isLive=\(item.isLive) allowPrepare=\(canConsumePrepare)"
                 )
+                if !preferLiveHLS,
+                   let localFileURL = await PlaybackMediaStore.shared.localFileURL(videoId: expectedVideoId)
+                {
+                    guard generation == resolveGeneration,
+                          !Task.isCancelled,
+                          isCurrentResolveTarget(expectedVideoId)
+                    else {
+                        PlayProbe.log(SaltedLiteral.probeStale, videoId: expectedVideoId)
+                        return
+                    }
+                    await PlaybackMediaStore.shared.touchLastPlayed(videoId: expectedVideoId)
+                    lastError = nil
+                    playingFromPrepare = false
+                    playbackStoreContext = nil
+                    playbackStoreThresholdMet = true
+                    PlayProbe.log(
+                        SaltedLiteral.probeHit,
+                        videoId: expectedVideoId,
+                        localFileURL.lastPathComponent
+                    )
+                    play(url: localFileURL)
+                    let seekTo = pendingSeekSeconds
+                    pendingSeekSeconds = 0
+                    if seekTo > 1 {
+                        seek(to: seekTo)
+                    }
+                    if let playing = nowPlaying {
+                        onPlaybackStarted?(playing)
+                    }
+                    refreshFavoriteState()
+                    persistSession(immediate: true)
+                    PlayProbe.log("play.ok", videoId: expectedVideoId, "source=\(SaltedLiteral.probeLocalSource)")
+                    return
+                }
                 let playback: VideoPlayback
                 var usedPrepare = false
                 var primedPlayerItem: AVPlayerItem?
@@ -639,6 +684,20 @@ final class PlaybackController: ObservableObject {
                     videoId: expectedVideoId,
                     "\(playback.preferredStreamDescription()) \(PlayProbe.streamSummary(url: url)) prepare=\(usedPrepare) prime=\(primedPlayerItem != nil)"
                 )
+                if let fmt = PlaybackFormatSelector.select(formats: playback.formats, preferVideo: true),
+                   url == fmt.url
+                {
+                    playbackStoreContext = PlaybackStoreContext(
+                        videoId: expectedVideoId,
+                        streamURL: url,
+                        itag: fmt.itag,
+                        mimeType: fmt.mimeType
+                    )
+                    playbackStoreThresholdMet = false
+                } else {
+                    playbackStoreContext = nil
+                    playbackStoreThresholdMet = false
+                }
                 guard generation == resolveGeneration, isCurrentResolveTarget(expectedVideoId) else { return }
                 lastError = nil
                 playingFromPrepare = usedPrepare
@@ -842,18 +901,23 @@ final class PlaybackController: ObservableObject {
         play(url: targetURL, resumePlaying: wasPlaying, seekTo: seekTo)
     }
 
-    private func play(url: URL, resumePlaying: Bool, seekTo: Double?) {
-        // googlevideo rejects bare AVPlayerItem(url:) without Referer/UA → "Cannot Open".
-        probeMarkStreamOpen(url: url, source: "cold")
+    private func play(url: URL, resumePlaying: Bool = true, seekTo: Double? = nil) {
+        let isLocalFile = url.isFileURL
+        probeMarkStreamOpen(url: url, source: isLocalFile ? SaltedLiteral.probeLocalSource : "cold")
         PlayProbe.log(
             "stream.open",
             videoId: nowPlaying?.videoId,
-            "source=cold \(PlayProbe.streamSummary(url: url))"
+            "source=\(isLocalFile ? SaltedLiteral.probeLocalSource : "cold") \(PlayProbe.streamSummary(url: url))"
         )
-        let asset = AVURLAsset(
-            url: url,
-            options: ["AVURLAssetHTTPHeaderFieldsKey": YouTubeConstants.streamPlaybackHeaders]
-        )
+        let asset: AVURLAsset
+        if isLocalFile {
+            asset = AVURLAsset(url: url)
+        } else {
+            asset = AVURLAsset(
+                url: url,
+                options: ["AVURLAssetHTTPHeaderFieldsKey": YouTubeConstants.streamPlaybackHeaders]
+            )
+        }
         let avItem = AVPlayerItem(asset: asset)
         play(playerItem: avItem, resumePlaying: resumePlaying, seekTo: seekTo)
     }
@@ -1077,6 +1141,40 @@ final class PlaybackController: ObservableObject {
             nextPrepareScheduleTask = Task { [weak self] in
                 await self?.primeNextTrackIfPossible(videoId: nextId, currentId: currentId)
             }
+        }
+    }
+
+    /// After 50% watch progress, persist progressive streams for offline replay.
+    private func checkPlaybackStoreThreshold(position: Double, duration: Double?) {
+        guard !playbackStoreThresholdMet,
+              !isPlayingHLS,
+              let duration,
+              duration.isFinite,
+              duration > 0,
+              position.isFinite,
+              position / duration >= PlaybackStorePolicy.progressThreshold,
+              let ctx = playbackStoreContext,
+              ctx.videoId == nowPlaying?.videoId,
+              PlaybackStorePolicy.isStorableDuration(seconds: duration)
+        else { return }
+
+        playbackStoreThresholdMet = true
+        let videoId = ctx.videoId
+        let streamURL = ctx.streamURL
+        let itag = ctx.itag
+        let mimeType = ctx.mimeType
+        PlayProbe.log(
+            SaltedLiteral.probeSchedule,
+            videoId: videoId,
+            "itag=\(itag) progress=\(Int((position / duration * 100).rounded()))%"
+        )
+        Task {
+            await PlaybackMediaStore.shared.schedulePersist(
+                videoId: videoId,
+                sourceURL: streamURL,
+                itag: itag,
+                mimeType: mimeType
+            )
         }
     }
 
@@ -1640,6 +1738,7 @@ final class PlaybackController: ObservableObject {
                     let position = time.seconds.isFinite ? time.seconds : 0
                     self.progress.setPosition(position)
                     self.checkNextPrepareNearEnd(position: position, duration: duration)
+                    self.checkPlaybackStoreThreshold(position: position, duration: duration)
                 }
                 self.checkSleepTimerExpired()
                 self.refreshNextPrepareIfNeeded()

@@ -42,6 +42,8 @@
 		5854A05E63D39CFC42F35AD9 /* SignInOptionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C251E6365A38B882F20E592D /* SignInOptionsView.swift */; };
 		5868BDEF5E409CE44B910293 /* HomeFeedStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E40139A2CF194C95CE59BED6 /* HomeFeedStore.swift */; };
 		629599D7FA506BBE7789CA76 /* PlaybackPreparer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A205F0CA026FF6B85901A433 /* PlaybackPreparer.swift */; };
+		63A1B2C3D4E5F60718293A4B /* PlaybackStorePolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73A1B2C3D4E5F60718293A4B /* PlaybackStorePolicy.swift */; };
+		73B2C3D4E5F60718293A4B5C /* PlaybackMediaStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83B2C3D4E5F60718293A4B5C /* PlaybackMediaStore.swift */; };
 		6BF60720EDA8058C26B06028 /* RemoteImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEA8F5D964477DD5F396E4DF /* RemoteImage.swift */; };
 		6D58ABF96C77EE3CB340F156 /* AdProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32D75E4713CE7E6F4FE314C2 /* AdProbe.swift */; };
 		6E568293668C6DB619757C5B /* RewardedInterstitialAdManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C518CFCCBFCC6A0E45AD132 /* RewardedInterstitialAdManager.swift */; };
@@ -86,6 +88,7 @@
 		BCF733C20A1751C2B9103A99 /* YouView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E80A808EFF06E12007EBE3B4 /* YouView.swift */; };
 		BF80F794550A2F98653F0227 /* VideoPlayback.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74405E259A4D664495CBE651 /* VideoPlayback.swift */; };
 		C1A8E04B7D2F9156A3B0C821 /* AppOrientation.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2B9F15C8E3A0267B4C1D932 /* AppOrientation.swift */; };
+		C2D3E4F5A6B7081928374657 /* SaltedLiteral.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E4F5A6B708192837465768 /* SaltedLiteral.swift */; };
 		C29709D6EEA4B7209A8C09D8 /* SearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 749BB83F54AEA2CB94657F58 /* SearchView.swift */; };
 		C3B8006BDA68B9F981C63E64 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 1C0CE6C787F30A3581B3B99D /* Supabase */; };
 		C8CDA6F785BD0E39F6C8B0D1 /* TrackActionPresenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = EAFBF9441F241D72411C6974 /* TrackActionPresenter.swift */; };
@@ -159,6 +162,8 @@
 		967A07692B6F412A9DBCB52B /* DailyListenNotificationScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyListenNotificationScheduler.swift; sourceTree = "<group>"; };
 		A1E29FF55D17C97ACE61342E /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		A205F0CA026FF6B85901A433 /* PlaybackPreparer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackPreparer.swift; sourceTree = "<group>"; };
+		73A1B2C3D4E5F60718293A4B /* PlaybackStorePolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackStorePolicy.swift; sourceTree = "<group>"; };
+		83B2C3D4E5F60718293A4B5C /* PlaybackMediaStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackMediaStore.swift; sourceTree = "<group>"; };
 		A8DB6F59223A9C7E7F776875 /* YoutubeDataApiClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YoutubeDataApiClient.swift; sourceTree = "<group>"; };
 		A9793055D33E4004AB88501E /* AppChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppChrome.swift; sourceTree = "<group>"; };
 		AC4BC0290DBF96C47203AFD9 /* SearchHit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchHit.swift; sourceTree = "<group>"; };
@@ -184,6 +189,7 @@
 		D0E9FBEC0FBD1E9926018E3D /* AppleSignInBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleSignInBridge.swift; sourceTree = "<group>"; };
 		D2604D4FEBF8E477C2661E52 /* SearchMemoryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchMemoryStore.swift; sourceTree = "<group>"; };
 		D2B9F15C8E3A0267B4C1D932 /* AppOrientation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppOrientation.swift; sourceTree = "<group>"; };
+		D3E4F5A6B708192837465768 /* SaltedLiteral.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SaltedLiteral.swift; sourceTree = "<group>"; };
 		D36539F7B8580F83FE3B4756 /* TrackActionHost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackActionHost.swift; sourceTree = "<group>"; };
 		D8C7436F66145066500D2402 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		DA08DCC883CFF6F9B394A997 /* ThemePickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemePickerView.swift; sourceTree = "<group>"; };
@@ -291,6 +297,8 @@
 				856A08A8A7F2D34286181D5E /* NextTrackPrimer.swift */,
 				75CAA6841345006D2B609D51 /* PipPlayerView.swift */,
 				4F148613909F22D6432E97CD /* PlaybackController.swift */,
+				73A1B2C3D4E5F60718293A4B /* PlaybackStorePolicy.swift */,
+				83B2C3D4E5F60718293A4B5C /* PlaybackMediaStore.swift */,
 				A205F0CA026FF6B85901A433 /* PlaybackPreparer.swift */,
 				6DA6324F90A27DDA7AC262F5 /* PlaybackProgressModel.swift */,
 				5CC3E87622C393A7C74ACF92 /* PlaybackSessionStore.swift */,
@@ -418,6 +426,7 @@
 				331CF6675622B27BE928BF8F /* AppLinks.swift */,
 				E6E3AFB8E02823C45BB3A602 /* AppModel.swift */,
 				D2B9F15C8E3A0267B4C1D932 /* AppOrientation.swift */,
+				D3E4F5A6B708192837465768 /* SaltedLiteral.swift */,
 				31022F7A504597EF772E75A6 /* FirebaseBootstrap.swift */,
 				697569B98CE59F5766A573AA /* ReviewPromptCoordinator.swift */,
 				B3D35BBCB625F4189FAF99BD /* ReviewPromptStore.swift */,
@@ -655,6 +664,7 @@
 				4FFC0B7F64200ADB4D2FE006 /* AppLinks.swift in Sources */,
 				F32CAC193DB54AAEF185C300 /* AppModel.swift in Sources */,
 				C1A8E04B7D2F9156A3B0C821 /* AppOrientation.swift in Sources */,
+				C2D3E4F5A6B7081928374657 /* SaltedLiteral.swift in Sources */,
 				4364F3831FB199C48AE20975 /* AppOpenAdManager.swift in Sources */,
 				94797E28FAD1C5F6DA0903AD /* AppleSignInBridge.swift in Sources */,
 				8C89C3839A5FF48DA5D8A9A9 /* AuthNonce.swift in Sources */,
@@ -682,6 +692,8 @@
 				306A6B80DF8C915340C677FE /* OwnerKeyStore.swift in Sources */,
 				2E39CB7A265038BB757B2849 /* PipPlayerView.swift in Sources */,
 				55CD33F6A1B849732AD310DF /* PlaybackController.swift in Sources */,
+				63A1B2C3D4E5F60718293A4B /* PlaybackStorePolicy.swift in Sources */,
+				73B2C3D4E5F60718293A4B5C /* PlaybackMediaStore.swift in Sources */,
 				629599D7FA506BBE7789CA76 /* PlaybackPreparer.swift in Sources */,
 				49A7947FC79A9434EC92558F /* PlaybackProgressModel.swift in Sources */,
 				7E9F961C70588D8A61B9CA88 /* PlaybackSessionStore.swift in Sources */,
@@ -871,7 +883,7 @@
 				CODE_SIGN_ENTITLEMENTS = YTLite/YTLite.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 12;
+				CURRENT_PROJECT_VERSION = 13;
 				DEVELOPMENT_LANGUAGE = en;
 				DEVELOPMENT_TEAM = 8S748AQ4H7;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -898,7 +910,7 @@
 				CODE_SIGN_ENTITLEMENTS = YTLite/YTLite.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 12;
+				CURRENT_PROJECT_VERSION = 13;
 				DEVELOPMENT_LANGUAGE = en;
 				DEVELOPMENT_TEAM = 8S748AQ4H7;
 				GENERATE_INFOPLIST_FILE = NO;
