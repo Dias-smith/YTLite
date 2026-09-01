@@ -87,6 +87,9 @@ class PlaybackService : MediaSessionService() {
             .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
             .build()
         return ExoPlayer.Builder(this)
+            .setRenderersFactory(
+                YTLiteAudioRenderersFactory(this, PlaybackEqualizerHolder.processor),
+            )
             .setMediaSourceFactory(mediaSourceFactory)
             .setWakeMode(C.WAKE_MODE_NETWORK)
             .build()

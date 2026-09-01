@@ -1,0 +1,45 @@
+{
+  "bandFrequenciesHz": [32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000],
+  "presets": [
+    {
+      "id": "flat",
+      "nameKey": "equalizer.preset.flat",
+      "gainsDb": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    },
+    {
+      "id": "bass_boost",
+      "nameKey": "equalizer.preset.bass_boost",
+      "gainsDb": [6, 5, 4, 2, 0, 0, 0, 0, 0, 0]
+    },
+    {
+      "id": "treble_boost",
+      "nameKey": "equalizer.preset.treble_boost",
+      "gainsDb": [0, 0, 0, 0, 0, 1, 2, 4, 5, 6]
+    },
+    {
+      "id": "vocal",
+      "nameKey": "equalizer.preset.vocal",
+      "gainsDb": [-2, -1, 0, 2, 4, 4, 3, 1, 0, -1]
+    },
+    {
+      "id": "rock",
+      "nameKey": "equalizer.preset.rock",
+      "gainsDb": [4, 3, 1, 0, -1, 0, 2, 3, 4, 4]
+    },
+    {
+      "id": "pop",
+      "nameKey": "equalizer.preset.pop",
+      "gainsDb": [-1, 0, 2, 3, 4, 3, 1, 0, -1, -1]
+    },
+    {
+      "id": "electronic",
+      "nameKey": "equalizer.preset.electronic",
+      "gainsDb": [5, 4, 1, 0, -2, 0, 1, 2, 4, 5]
+    },
+    {
+      "id": "classical",
+      "nameKey": "equalizer.preset.classical",
+      "gainsDb": [3, 2, 1, 0, 0, 0, 0, 1, 2, 3]
+    }
+  ]
+}

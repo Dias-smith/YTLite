@@ -15,6 +15,7 @@ import com.ytlite.player.data.js.JsExtractorEngine
 import com.ytlite.player.data.repository.ExtractionRepository
 import com.ytlite.player.data.repository.LibraryRepository
 import com.ytlite.player.data.repository.SubscriptionsRepository
+import com.ytlite.player.playback.PlaybackEqualizerStore
 import com.ytlite.player.playback.PlaybackManager
 import com.ytlite.player.playback.PlaybackMediaCache
 import com.ytlite.player.ui.image.YTLiteImageLoader
@@ -41,6 +42,7 @@ class YTLiteApplication : Application(), ImageLoaderFactory {
         ExtractorRemoteConfigStore.restore(this)
         // Lightweight only — do not open media cache / FGS / WebView on the cold-start path.
         PlaybackManager.init(this)
+        PlaybackEqualizerStore.getInstance(this)
         AuthRepository.getInstance(this)
         LibraryRepository.getInstance(this)
         SubscriptionsRepository.getInstance(this)

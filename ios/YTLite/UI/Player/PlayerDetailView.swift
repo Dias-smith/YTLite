@@ -56,6 +56,7 @@ struct PlayerDetailView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     @State private var showSpeedSheet = false
+    @State private var showEqualizerSheet = false
     @State private var showHLSQualitySheet = false
     @State private var showSleepTimerSheet = false
     @State private var showShareSheet = false
@@ -93,6 +94,7 @@ struct PlayerDetailView: View {
     private var isPresentingAdBlockingSheet: Bool {
         showPlaybackSignIn
             || showSpeedSheet
+            || showEqualizerSheet
             || showHLSQualitySheet
             || showSleepTimerSheet
             || showShareSheet
@@ -283,6 +285,13 @@ struct PlayerDetailView: View {
         .sheet(isPresented: $showSpeedSheet) {
             SpeedPickerSheet(selected: $playback.playbackSpeed)
                 .presentationDetents([.medium])
+        }
+        .sheet(isPresented: $showEqualizerSheet) {
+            EqualizerSheet()
+                .environmentObject(playback)
+                .environmentObject(playback.equalizerStore)
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
         }
         .sheet(isPresented: $showHLSQualitySheet) {
             HLSQualityPickerSheet()
@@ -610,6 +619,20 @@ struct PlayerDetailView: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(L("player.playback_speed"))
+
+                Button {
+                    showEqualizerSheet = true
+                    bumpOverlayAutoHide()
+                } label: {
+                    Image(systemName: "slider.vertical.3")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(
+                            playback.equalizerStore.isEnabled ? YTLiteColor.accent : YTLiteColor.onMedia
+                        )
+                        .frame(width: 36, height: 36)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(L("equalizer.title"))
 
                 AirPlayRoutePicker()
                     .frame(width: 36, height: 36)

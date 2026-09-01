@@ -30,6 +30,7 @@ struct YTLiteApp: App {
             RootView()
                 .environmentObject(playback)
                 .environmentObject(playback.progress)
+                .environmentObject(playback.equalizerStore)
                 .environmentObject(appModel)
                 .environmentObject(authService)
                 .environmentObject(ReviewPromptCoordinator.shared)

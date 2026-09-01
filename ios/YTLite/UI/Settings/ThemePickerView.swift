@@ -14,6 +14,7 @@ struct ThemePickerView: View {
     @State private var pendingRewardAction: ThemeRewardAction?
     @State private var showRewardPrompt = false
     @State private var rewardErrorText: String?
+    @State private var isLoadingRewardAd = false
 
     var body: some View {
         List {
@@ -61,6 +62,7 @@ struct ThemePickerView: View {
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             AdSceneLifecycle.setUIBlocked("theme_picker", blocked: true)
+            RewardedInterstitialAdManager.shared.loadAd()
         }
         .onDisappear {
             AdSceneLifecycle.setUIBlocked("theme_picker", blocked: false)
@@ -81,7 +83,17 @@ struct ThemePickerView: View {
                 set: { if !$0 { rewardErrorText = nil } }
             )
         ) {
-            Button("OK", role: .cancel) {}
+            Button(L("common.ok"), role: .cancel) {}
+        }
+        .overlay {
+            if isLoadingRewardAd {
+                ZStack {
+                    Color.black.opacity(0.35)
+                        .ignoresSafeArea()
+                    ProgressView()
+                        .tint(YTLiteColor.accent)
+                }
+            }
         }
         .sheet(item: $editorDraft) { draft in
             NavigationStack {
@@ -167,23 +179,27 @@ struct ThemePickerView: View {
     }
 
     private func presentThemeRewardedAd() {
-        let didPresent = RewardedInterstitialAdManager.shared.show(
-            reason: "reward_theme"
-        ) { earned in
-            guard earned else {
-                rewardErrorText = L("ad.reward.not_earned")
+        isLoadingRewardAd = true
+        Task {
+            defer { isLoadingRewardAd = false }
+            let didPresent = await RewardedInterstitialAdManager.shared.showWhenReady(
+                reason: "reward_theme"
+            ) { earned in
+                guard earned else {
+                    rewardErrorText = L("ad.reward.not_earned")
+                    pendingRewardAction = nil
+                    return
+                }
+                rewardUnlocks.unlockToday(.themes)
+                if let pendingRewardAction {
+                    perform(pendingRewardAction)
+                }
                 pendingRewardAction = nil
-                return
             }
-            rewardUnlocks.unlockToday(.themes)
-            if let pendingRewardAction {
-                perform(pendingRewardAction)
+            if !didPresent {
+                rewardErrorText = L("ad.reward.not_ready")
+                pendingRewardAction = nil
             }
-            pendingRewardAction = nil
-        }
-        if !didPresent {
-            rewardErrorText = L("ad.reward.not_ready")
-            pendingRewardAction = nil
         }
     }
 

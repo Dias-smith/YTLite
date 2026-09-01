@@ -16,14 +16,20 @@ enum AdEligibility {
         libraryStore?.successfullyPlayedSongCount() ?? 0
     }
 
-    /// Whether ads may be requested or shown.
+    /// Whether ordinary full-screen ads (app open / interstitial) may load or show.
     static var allowsAds: Bool {
         guard AdMobConfig.adsEnabled else { return false }
         return librarySongCount >= minimumLibrarySongCount
     }
 
+    /// Rewarded unlock ads (theme / edit info) — not gated on library size.
+    static var allowsRewardedAds: Bool {
+        AdMobConfig.adsEnabled && AdConsentManager.canRequestAds
+    }
+
     /// Call after library sync / local mutations that may cross the threshold.
     static func refreshInventoryIfEligible() {
+        refreshRewardedInventoryIfEligible()
         let count = librarySongCount
         guard allowsAds else {
             AdProbe.log(
@@ -39,6 +45,14 @@ enum AdEligibility {
         AdProbe.log("eligibility.ok", "songs=\(count)")
         AppOpenAdManager.shared.loadAd()
         InterstitialAdManager.loadAll()
+    }
+
+    static func refreshRewardedInventoryIfEligible() {
+        guard allowsRewardedAds else {
+            AdProbe.log("eligibility.rewarded.hold", "ads_disabled_or_no_consent")
+            return
+        }
+        AdProbe.log("eligibility.rewarded.ok")
         RewardedInterstitialAdManager.shared.loadAd()
     }
 }

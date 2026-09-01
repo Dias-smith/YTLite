@@ -159,7 +159,21 @@ enum AppLanguage: String, CaseIterable, Identifiable, Sendable {
 
 /// Look up a key in the active language's `Localizable.strings` (compiled from String Catalog).
 func L(_ key: String) -> String {
-    AppLocalization.stringsBundle.localizedString(forKey: key, value: key, table: "Localizable")
+    let bundle = AppLocalization.stringsBundle
+    let localized = bundle.localizedString(forKey: key, value: nil, table: "Localizable")
+    if !localized.isEmpty, localized != key {
+        return localized
+    }
+    if AppLocalization.languageCode.caseInsensitiveCompare("en") != .orderedSame,
+       let path = Bundle.main.path(forResource: "en", ofType: "lproj"),
+       let englishBundle = Bundle(path: path)
+    {
+        let fallback = englishBundle.localizedString(forKey: key, value: nil, table: "Localizable")
+        if !fallback.isEmpty, fallback != key {
+            return fallback
+        }
+    }
+    return key
 }
 
 /// Format strings that use `%d` / `%@` placeholders in the catalog.

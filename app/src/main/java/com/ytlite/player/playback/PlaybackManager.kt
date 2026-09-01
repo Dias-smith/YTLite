@@ -305,6 +305,7 @@ object PlaybackManager {
             activePlayer.prepare()
             activePlayer.seekTo(position)
             activePlayer.playWhenReady = wasPlaying
+            refreshEqualizerFor(item)
         }
     }
 
@@ -383,6 +384,7 @@ object PlaybackManager {
         syncRepeatMode()
         activePlayer.playWhenReady = true
         recordCacheablePlay(current)
+        refreshEqualizerFor(current)
     }
 
     private fun playOnPlayer(
@@ -430,6 +432,7 @@ object PlaybackManager {
         syncRepeatMode()
         activePlayer.playWhenReady = true
         recordCacheablePlay(item)
+        refreshEqualizerFor(item)
     }
 
     private fun NowPlaying.toMediaItem(): MediaItem {
@@ -631,6 +634,11 @@ object PlaybackManager {
         if (!PlaybackCachePolicy.isCacheableDuration(item.durationMs)) return
         val cacheKey = PlaybackCachePolicy.cacheKey(item.videoId, item.itag)
         onCacheablePlay?.invoke(item.videoId, cacheKey, item.itag)
+    }
+
+    private fun refreshEqualizerFor(item: NowPlaying) {
+        val context = appContext ?: return
+        PlaybackEqualizerHolder.refreshStream(context, item.streamUrl)
     }
 
     private fun handleDiscoveredDuration(player: Player) {

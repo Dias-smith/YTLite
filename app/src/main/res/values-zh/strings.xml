@@ -342,4 +342,22 @@
     <string name="playlist_sort_title">曲名</string>
     <string name="playlist_suggestions_title">推荐</string>
     <string name="playlist_suggestions_empty">暂无推荐</string>
+    <string name="equalizer_title">均衡器</string>
+    <string name="equalizer_enabled">启用均衡器</string>
+    <string name="equalizer_presets">预设</string>
+    <string name="equalizer_custom_bands">自定义频段</string>
+    <string name="equalizer_reset_custom">重置为平直</string>
+    <string name="equalizer_live_unavailable">直播暂不支持均衡器。</string>
+    <string name="equalizer_airplay_notice">蓝牙、Cast 等外部输出可能绕过应用内均衡器。</string>
+    <string name="equalizer_preset_flat">平直</string>
+    <string name="equalizer_preset_bass_boost">低音增强</string>
+    <string name="equalizer_preset_treble_boost">高音增强</string>
+    <string name="equalizer_preset_vocal">人声</string>
+    <string name="equalizer_preset_rock">摇滚</string>
+    <string name="equalizer_preset_pop">流行</string>
+    <string name="equalizer_preset_electronic">电子</string>
+    <string name="equalizer_preset_classical">古典</string>
+    <string name="equalizer_preset_custom">自定义</string>
+    <string name="equalizer_volume_boost">音量增强</string>
+    <string name="equalizer_volume_boost_value">%1$d%%</string>
 </resources>

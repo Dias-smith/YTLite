@@ -3,6 +3,8 @@ import UserNotifications
 
 extension Notification.Name {
     static let ytlitePlayFromDailyNotification = Notification.Name("ytlite.playFromDailyNotification")
+    /// Posted when any full-screen ad (app open / interstitial / rewarded) begins presenting.
+    static let ytliteFullScreenAdDidPresent = Notification.Name("ytlite.fullScreenAdDidPresent")
     /// Posted when any full-screen ad (app open / interstitial / rewarded) finishes presenting.
     static let ytliteFullScreenAdDidDismiss = Notification.Name("ytlite.fullScreenAdDidDismiss")
 }

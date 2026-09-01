@@ -45,6 +45,9 @@ final class PlaybackController: ObservableObject {
     /// Preset minutes that started the current timer (`nil` = Off).
     @Published private(set) var sleepTimerMinutes: Int?
 
+    /// Preset / custom EQ (VOD only — disabled for live HLS).
+    let equalizerStore = PlaybackEqualizerStore()
+
     static let speedOptions: [Float] = [0.5, 0.75, 1, 1.25, 1.5, 2, 3, 5, 8]
     private static let speedKey = "playback_speed"
 
@@ -106,6 +109,8 @@ final class PlaybackController: ObservableObject {
     private var interruptionObserver: NSObjectProtocol?
     private var routeChangeObserver: NSObjectProtocol?
     private var fullScreenAdDismissObserver: NSObjectProtocol?
+    private var fullScreenAdPresentObserver: NSObjectProtocol?
+    private var fullScreenAdKeepaliveCancellable: AnyCancellable?
     /// Resume after interruption only if we were playing when interrupted.
     private var resumeAfterInterruption = false
     /// Progressive stream eligible for local persistence after the watch threshold.
@@ -919,10 +924,20 @@ final class PlaybackController: ObservableObject {
             )
         }
         let avItem = AVPlayerItem(asset: asset)
-        play(playerItem: avItem, resumePlaying: resumePlaying, seekTo: seekTo)
+        play(
+            playerItem: avItem,
+            resumePlaying: resumePlaying,
+            seekTo: seekTo,
+            streamURL: url
+        )
     }
 
-    private func play(playerItem avItem: AVPlayerItem, resumePlaying: Bool, seekTo: Double?) {
+    private func play(
+        playerItem avItem: AVPlayerItem,
+        resumePlaying: Bool,
+        seekTo: Double?,
+        streamURL: URL? = nil
+    ) {
         activatePlaybackAudioSession()
         // Prime path may call play(playerItem:) directly; ensure probe has a start if missing.
         if probeStreamStartedAt == nil,
@@ -966,7 +981,32 @@ final class PlaybackController: ObservableObject {
         if let seekTo, seekTo > 1 {
             seek(to: seekTo)
         }
+        attachEqualizer(to: avItem, streamURL: streamURL ?? (avItem.asset as? AVURLAsset)?.url)
         updateNowPlayingInfo()
+    }
+
+    /// Re-apply EQ after preset / slider / toggle changes.
+    func refreshEqualizer() {
+        let enabled = equalizerStore.isEnabled
+        let gains = equalizerStore.activeGainsDb
+        let boost = equalizerStore.volumeBoostMultiplier
+        Task {
+            await PlaybackEqualizerEngine.shared.apply(
+                enabled: enabled,
+                gainsDb: gains,
+                volumeBoost: boost
+            )
+        }
+    }
+
+    private func attachEqualizer(to item: AVPlayerItem, streamURL: URL?) {
+        let eligible = PlaybackEqualizerSupport.isEligibleStreamURL(streamURL) && !isPlayingHLS
+        let enabled = equalizerStore.isEnabled
+        let gains = equalizerStore.activeGainsDb
+        Task {
+            await PlaybackEqualizerEngine.shared.attach(to: item, eligible: eligible)
+            await PlaybackEqualizerEngine.shared.apply(enabled: enabled, gainsDb: gains, volumeBoost: equalizerStore.volumeBoostMultiplier)
+        }
     }
 
     /// Probe-only bookkeeping for stream open latency.
@@ -1643,8 +1683,20 @@ final class PlaybackController: ObservableObject {
 
     private func configureFullScreenAdObservers() {
         let center = NotificationCenter.default
+        if let fullScreenAdPresentObserver {
+            center.removeObserver(fullScreenAdPresentObserver)
+        }
         if let fullScreenAdDismissObserver {
             center.removeObserver(fullScreenAdDismissObserver)
+        }
+        fullScreenAdPresentObserver = center.addObserver(
+            forName: .ytliteFullScreenAdDidPresent,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.beginFullScreenAdPlaybackHold()
+            }
         }
         fullScreenAdDismissObserver = center.addObserver(
             forName: .ytliteFullScreenAdDidDismiss,
@@ -1652,14 +1704,43 @@ final class PlaybackController: ObservableObject {
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor in
+                self?.endFullScreenAdPlaybackHold()
                 self?.resumeAfterExternalPresentationIfNeeded()
             }
         }
     }
 
+    /// Video full-screen ads grab AVAudioSession; keep music playing underneath muted creatives.
+    private func beginFullScreenAdPlaybackHold() {
+        endFullScreenAdPlaybackHold()
+        activatePlaybackAudioSession(allowMixWithOthers: true)
+        guard isPlaying else { return }
+        player?.playImmediately(atRate: playbackSpeed)
+        fullScreenAdKeepaliveCancellable = Timer.publish(every: 0.35, on: .main, in: .common)
+            .autoconnect()
+            .sink { [weak self] _ in
+                guard let self else { return }
+                guard AdSceneLifecycle.preservesPlaybackDuringFullScreenAd else {
+                    self.endFullScreenAdPlaybackHold()
+                    return
+                }
+                self.activatePlaybackAudioSession(allowMixWithOthers: true)
+                guard self.isPlaying, let player = self.player else { return }
+                if player.timeControlStatus != .playing || player.rate == 0 {
+                    player.playImmediately(atRate: self.playbackSpeed)
+                }
+            }
+    }
+
+    private func endFullScreenAdPlaybackHold() {
+        fullScreenAdKeepaliveCancellable?.cancel()
+        fullScreenAdKeepaliveCancellable = nil
+        activatePlaybackAudioSession(allowMixWithOthers: false)
+    }
+
     /// Full-screen ads take over AVAudioSession; resume music when the ad closes.
     private func resumeAfterExternalPresentationIfNeeded() {
-        activatePlaybackAudioSession()
+        activatePlaybackAudioSession(allowMixWithOthers: false)
         guard nowPlaying != nil, let player else { return }
         let shouldResume = resumeAfterInterruption || isPlaying
         resumeAfterInterruption = false
@@ -1677,8 +1758,8 @@ final class PlaybackController: ObservableObject {
         switch type {
         case .began:
             resumeAfterInterruption = isPlaying
-            if AdSceneLifecycle.preservesPlaybackDuringPlayStartAd {
-                activatePlaybackAudioSession()
+            if AdSceneLifecycle.preservesPlaybackDuringFullScreenAd {
+                activatePlaybackAudioSession(allowMixWithOthers: true)
                 if isPlaying {
                     player?.playImmediately(atRate: playbackSpeed)
                 }
@@ -1688,7 +1769,17 @@ final class PlaybackController: ObservableObject {
             pause()
             updateNowPlayingInfo()
         case .ended:
-            activatePlaybackAudioSession()
+            let mixing = AdSceneLifecycle.preservesPlaybackDuringFullScreenAd
+            activatePlaybackAudioSession(allowMixWithOthers: mixing)
+            if mixing {
+                if resumeAfterInterruption || isPlaying {
+                    player?.playImmediately(atRate: playbackSpeed)
+                    isPlaying = true
+                }
+                resumeAfterInterruption = false
+                updateNowPlayingInfo()
+                return
+            }
             let optionsValue = note.userInfo?[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0
             let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
             if options.contains(.shouldResume), resumeAfterInterruption {
@@ -1920,13 +2011,17 @@ final class PlaybackController: ObservableObject {
         }
     }
 
-    private func activatePlaybackAudioSession() {
+    private func activatePlaybackAudioSession(allowMixWithOthers: Bool = false) {
         do {
             let session = AVAudioSession.sharedInstance()
+            var options: AVAudioSession.CategoryOptions = [.allowAirPlay, .allowBluetoothA2DP]
+            if allowMixWithOthers {
+                options.insert(.mixWithOthers)
+            }
             try session.setCategory(
                 .playback,
                 mode: .default,
-                options: [.allowAirPlay, .allowBluetoothA2DP]
+                options: options
             )
             try session.setActive(true, options: [])
         } catch {

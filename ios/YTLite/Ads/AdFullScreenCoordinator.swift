@@ -8,8 +8,6 @@ enum AdFullScreenCoordinator {
 
     static var isPresenting: Bool { activeReason != nil }
 
-    static var isPresentingPlayStartAd: Bool { activeReason == "play_start" }
-
     static func beginOrdinary(reason: String, observesCooldown: Bool = true) -> Bool {
         guard activeReason == nil else {
             AdProbe.log("fullscreen.begin.skip", "busy=\(activeReason ?? "-") reason=\(reason)")
@@ -26,7 +24,7 @@ enum AdFullScreenCoordinator {
                 return false
             }
         }
-        activeReason = reason
+        markPresenting(reason: reason)
         return true
     }
 
@@ -35,8 +33,13 @@ enum AdFullScreenCoordinator {
             AdProbe.log("fullscreen.begin.skip", "busy=\(activeReason ?? "-") reason=\(reason)")
             return false
         }
-        activeReason = reason
+        markPresenting(reason: reason)
         return true
+    }
+
+    private static func markPresenting(reason: String) {
+        activeReason = reason
+        NotificationCenter.default.post(name: .ytliteFullScreenAdDidPresent, object: nil)
     }
 
     static func finish(didShowOrdinaryAd: Bool) {

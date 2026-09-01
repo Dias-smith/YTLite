@@ -43,6 +43,12 @@
 		5868BDEF5E409CE44B910293 /* HomeFeedStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E40139A2CF194C95CE59BED6 /* HomeFeedStore.swift */; };
 		629599D7FA506BBE7789CA76 /* PlaybackPreparer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A205F0CA026FF6B85901A433 /* PlaybackPreparer.swift */; };
 		63A1B2C3D4E5F60718293A4B /* PlaybackStorePolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73A1B2C3D4E5F60718293A4B /* PlaybackStorePolicy.swift */; };
+		64B2C3D4E5F60718293A4B5D /* PlaybackEqualizerPresets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74B2C3D4E5F60718293A4B5D /* PlaybackEqualizerPresets.swift */; };
+		74C3D4E5F60718293A4B5D6E /* PlaybackEqualizerProcessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84C3D4E5F60718293A4B5D6E /* PlaybackEqualizerProcessor.swift */; };
+		84D4E5F60718293A4B5D6E7F /* PlaybackEqualizerStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94D4E5F60718293A4B5D6E7F /* PlaybackEqualizerStore.swift */; };
+		94E5F60718293A4B5D6E7F80 /* PlaybackEqualizerEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4E5F60718293A4B5D6E7F809 /* PlaybackEqualizerEngine.swift */; };
+		A4F60718293A4B5D6E7F8091 /* EqualizerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4F60718293A4B5D6E7F8091A /* EqualizerSheet.swift */; };
+		B50718293A4B5D6E7F8091AB /* playback_equalizer_presets.json in Resources */ = {isa = PBXBuildFile; fileRef = C50718293A4B5D6E7F8091ABC /* playback_equalizer_presets.json */; };
 		73B2C3D4E5F60718293A4B5C /* PlaybackMediaStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83B2C3D4E5F60718293A4B5C /* PlaybackMediaStore.swift */; };
 		6BF60720EDA8058C26B06028 /* RemoteImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEA8F5D964477DD5F396E4DF /* RemoteImage.swift */; };
 		6D58ABF96C77EE3CB340F156 /* AdProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32D75E4713CE7E6F4FE314C2 /* AdProbe.swift */; };
@@ -163,6 +169,12 @@
 		A1E29FF55D17C97ACE61342E /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		A205F0CA026FF6B85901A433 /* PlaybackPreparer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackPreparer.swift; sourceTree = "<group>"; };
 		73A1B2C3D4E5F60718293A4B /* PlaybackStorePolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackStorePolicy.swift; sourceTree = "<group>"; };
+		74B2C3D4E5F60718293A4B5D /* PlaybackEqualizerPresets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackEqualizerPresets.swift; sourceTree = "<group>"; };
+		84C3D4E5F60718293A4B5D6E /* PlaybackEqualizerProcessor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackEqualizerProcessor.swift; sourceTree = "<group>"; };
+		94D4E5F60718293A4B5D6E7F /* PlaybackEqualizerStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackEqualizerStore.swift; sourceTree = "<group>"; };
+		A4E5F60718293A4B5D6E7F809 /* PlaybackEqualizerEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackEqualizerEngine.swift; sourceTree = "<group>"; };
+		B4F60718293A4B5D6E7F8091A /* EqualizerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EqualizerSheet.swift; sourceTree = "<group>"; };
+		C50718293A4B5D6E7F8091ABC /* playback_equalizer_presets.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = playback_equalizer_presets.json; sourceTree = "<group>"; };
 		83B2C3D4E5F60718293A4B5C /* PlaybackMediaStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackMediaStore.swift; sourceTree = "<group>"; };
 		A8DB6F59223A9C7E7F776875 /* YoutubeDataApiClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YoutubeDataApiClient.swift; sourceTree = "<group>"; };
 		A9793055D33E4004AB88501E /* AppChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppChrome.swift; sourceTree = "<group>"; };
@@ -298,6 +310,10 @@
 				75CAA6841345006D2B609D51 /* PipPlayerView.swift */,
 				4F148613909F22D6432E97CD /* PlaybackController.swift */,
 				73A1B2C3D4E5F60718293A4B /* PlaybackStorePolicy.swift */,
+				74B2C3D4E5F60718293A4B5D /* PlaybackEqualizerPresets.swift */,
+				84C3D4E5F60718293A4B5D6E /* PlaybackEqualizerProcessor.swift */,
+				94D4E5F60718293A4B5D6E7F /* PlaybackEqualizerStore.swift */,
+				A4E5F60718293A4B5D6E7F809 /* PlaybackEqualizerEngine.swift */,
 				83B2C3D4E5F60718293A4B5C /* PlaybackMediaStore.swift */,
 				A205F0CA026FF6B85901A433 /* PlaybackPreparer.swift */,
 				6DA6324F90A27DDA7AC262F5 /* PlaybackProgressModel.swift */,
@@ -510,6 +526,7 @@
 				6B84EDDCCC216705C7DEB5E1 /* Info.plist */,
 				170B1D755BE24DFE60E09D15 /* InfoPlist.xcstrings */,
 				5A76E914564581D50AA61C93 /* Localizable.xcstrings */,
+				C50718293A4B5D6E7F8091ABC /* playback_equalizer_presets.json */,
 				F8153A84024FB28B0A0E73D3 /* YTLite.entitlements */,
 				37556EF2BFFC392D74790365 /* YTLiteApp.swift */,
 				C0D1E2F3A4B5061728394A5B /* AppDebugKit */,
@@ -533,6 +550,7 @@
 			children = (
 				95BB5987A01CB83F34EC4732 /* LyricsSheet.swift */,
 				7808B0DE3172F30505602CA1 /* PlayerDetailView.swift */,
+				B4F60718293A4B5D6E7F8091A /* EqualizerSheet.swift */,
 				B7BA38DE8966413FAA06207A /* PlayerPresentation.swift */,
 			);
 			path = Player;
@@ -641,6 +659,7 @@
 				CD0642FE901B05C992F8CFCB /* GoogleService-Info.plist in Resources */,
 				B1E22E0A0E88381A7926E3B8 /* InfoPlist.xcstrings in Resources */,
 				575E084B0BD8FE5EAC0730FE /* Localizable.xcstrings in Resources */,
+				B50718293A4B5D6E7F8091AB /* playback_equalizer_presets.json in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -693,12 +712,17 @@
 				2E39CB7A265038BB757B2849 /* PipPlayerView.swift in Sources */,
 				55CD33F6A1B849732AD310DF /* PlaybackController.swift in Sources */,
 				63A1B2C3D4E5F60718293A4B /* PlaybackStorePolicy.swift in Sources */,
+				64B2C3D4E5F60718293A4B5D /* PlaybackEqualizerPresets.swift in Sources */,
+				74C3D4E5F60718293A4B5D6E /* PlaybackEqualizerProcessor.swift in Sources */,
+				84D4E5F60718293A4B5D6E7F /* PlaybackEqualizerStore.swift in Sources */,
+				94E5F60718293A4B5D6E7F80 /* PlaybackEqualizerEngine.swift in Sources */,
 				73B2C3D4E5F60718293A4B5C /* PlaybackMediaStore.swift in Sources */,
 				629599D7FA506BBE7789CA76 /* PlaybackPreparer.swift in Sources */,
 				49A7947FC79A9434EC92558F /* PlaybackProgressModel.swift in Sources */,
 				7E9F961C70588D8A61B9CA88 /* PlaybackSessionStore.swift in Sources */,
 				F2AB3B31F612895BCEBFF897 /* PlaybackSpeeds.swift in Sources */,
 				4E7D31CED4A509358E65D6C3 /* PlayerDetailView.swift in Sources */,
+				A4F60718293A4B5D6E7F8091 /* EqualizerSheet.swift in Sources */,
 				204050B6595DDBEFCFEBFB15 /* PlaylistActionContext.swift in Sources */,
 				E66E7C07D1BD760E5FE5351A /* PlaylistActionPresenter.swift in Sources */,
 				371F548991BEDBBB85259E8C /* PlaylistActionSheet.swift in Sources */,

@@ -35,6 +35,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.FullscreenExit
+import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PictureInPictureAlt
 import androidx.compose.material.icons.filled.PlayArrow
@@ -73,6 +74,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.Player
 import coil.compose.AsyncImage
 import com.ytlite.player.R
+import com.ytlite.player.playback.PlaybackEqualizerStore
 import com.ytlite.player.playback.PlaybackSpeeds
 import com.ytlite.player.ui.image.thumbnailRequest
 import kotlinx.coroutines.delay
@@ -138,15 +140,19 @@ fun SmartPlayerCanvas(
     var controlsVisible by remember { mutableStateOf(true) }
     var interactionToken by remember { mutableIntStateOf(0) }
     var showSpeedSheet by remember { mutableStateOf(false) }
+    var showEqualizerSheet by remember { mutableStateOf(false) }
     val speedSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val equalizerSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val equalizerStore = remember { PlaybackEqualizerStore.getInstance(context) }
+    val equalizerState by equalizerStore.state.collectAsStateWithLifecycle()
 
     fun revealControls() {
         controlsVisible = true
         interactionToken++
     }
 
-    LaunchedEffect(interactionToken, controlsVisible, isPlaying, showSpeedSheet) {
-        if (!controlsVisible || !isPlaying || showSpeedSheet) return@LaunchedEffect
+    LaunchedEffect(interactionToken, controlsVisible, isPlaying, showSpeedSheet, showEqualizerSheet) {
+        if (!controlsVisible || !isPlaying || showSpeedSheet || showEqualizerSheet) return@LaunchedEffect
         delay(OverlayAutoHideDelayMs)
         controlsVisible = false
     }
@@ -245,6 +251,19 @@ fun SmartPlayerCanvas(
                         }
                         Box(modifier = Modifier.weight(1f))
                         PlayerOverlayButtonGroup(cornerRadius = 20.dp) {
+                            PlayerOverlayPlainIconButton(
+                                onClick = {
+                                    revealControls()
+                                    showEqualizerSheet = true
+                                },
+                                size = 40.dp,
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.GraphicEq,
+                                    contentDescription = stringResource(R.string.equalizer_title),
+                                    tint = Color.White,
+                                )
+                            }
                             PlayerOverlayPlainIconButton(
                                 onClick = {
                                     revealControls()
@@ -395,6 +414,19 @@ fun SmartPlayerCanvas(
                 }
             }
         }
+        }
+
+        if (showEqualizerSheet) {
+            EqualizerBottomSheet(
+                state = equalizerState,
+                sheetState = equalizerSheetState,
+                onDismiss = { showEqualizerSheet = false },
+                onEnabledChange = equalizerStore::setEnabled,
+                onPresetSelect = equalizerStore::selectPreset,
+                onCustomBandChange = equalizerStore::setCustomBand,
+                onResetCustom = equalizerStore::resetCustomBands,
+                onVolumeBoostChange = equalizerStore::setVolumeBoostPercent,
+            )
         }
 
         if (showSpeedSheet) {

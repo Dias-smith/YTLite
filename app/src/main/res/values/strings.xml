@@ -396,4 +396,22 @@
     <string name="search_playlist_empty">No videos in this playlist</string>
     <string name="error_sign_in_cancelled">Sign-in cancelled</string>
     <string name="error_unsupported_credential">Unsupported credential type</string>
+    <string name="equalizer_title">Equalizer</string>
+    <string name="equalizer_enabled">Enable equalizer</string>
+    <string name="equalizer_presets">Presets</string>
+    <string name="equalizer_custom_bands">Custom bands</string>
+    <string name="equalizer_reset_custom">Reset to flat</string>
+    <string name="equalizer_live_unavailable">Equalizer is unavailable for live streams.</string>
+    <string name="equalizer_airplay_notice">External outputs such as Bluetooth or Cast may bypass in-app EQ.</string>
+    <string name="equalizer_preset_flat">Flat</string>
+    <string name="equalizer_preset_bass_boost">Bass boost</string>
+    <string name="equalizer_preset_treble_boost">Treble boost</string>
+    <string name="equalizer_preset_vocal">Vocal</string>
+    <string name="equalizer_preset_rock">Rock</string>
+    <string name="equalizer_preset_pop">Pop</string>
+    <string name="equalizer_preset_electronic">Electronic</string>
+    <string name="equalizer_preset_classical">Classical</string>
+    <string name="equalizer_preset_custom">Custom</string>
+    <string name="equalizer_volume_boost">Volume boost</string>
+    <string name="equalizer_volume_boost_value">%1$d%%</string>
 </resources>

@@ -69,6 +69,7 @@ struct EditTrackMetadataSheet: View {
         .onAppear {
             load()
             AdSceneLifecycle.setUIBlocked("edit_track_info", blocked: true)
+            RewardedInterstitialAdManager.shared.loadAd()
         }
         .onDisappear {
             AdSceneLifecycle.setUIBlocked("edit_track_info", blocked: false)
@@ -237,20 +238,21 @@ struct EditTrackMetadataSheet: View {
 
     private func presentRewardedAdForSave() {
         isPresentingReward = true
-        let didPresent = RewardedInterstitialAdManager.shared.show(
-            reason: "reward_edit_info"
-        ) { earned in
-            isPresentingReward = false
-            guard earned else {
-                trackActions.showToast(L("ad.reward.not_earned"))
-                return
+        Task {
+            defer { isPresentingReward = false }
+            let didPresent = await RewardedInterstitialAdManager.shared.showWhenReady(
+                reason: "reward_edit_info"
+            ) { earned in
+                guard earned else {
+                    trackActions.showToast(L("ad.reward.not_earned"))
+                    return
+                }
+                rewardUnlocks.unlockToday(.editInfo)
+                commitSave()
             }
-            rewardUnlocks.unlockToday(.editInfo)
-            commitSave()
-        }
-        if !didPresent {
-            isPresentingReward = false
-            trackActions.showToast(L("ad.reward.not_ready"))
+            if !didPresent {
+                trackActions.showToast(L("ad.reward.not_ready"))
+            }
         }
     }
 

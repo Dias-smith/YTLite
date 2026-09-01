@@ -68,9 +68,9 @@ enum AdSceneLifecycle {
     /// Ads must not present while backgrounded — it interrupts AVAudioSession and breaks review checks.
     static var isAppActiveForAds: Bool { isAppActive }
 
-    /// Muted play-start ad over the player — do not pause AVPlayer for AVAudioSession takeover.
-    static var preservesPlaybackDuringPlayStartAd: Bool {
-        isPlayStartInterstitialArmed || AdFullScreenCoordinator.isPresentingPlayStartAd
+    /// Muted full-screen ads (app open / interstitial / rewarded) must not pause background music.
+    static var preservesPlaybackDuringFullScreenAd: Bool {
+        isPlayStartInterstitialArmed || AdFullScreenCoordinator.isPresenting
     }
 
     /// Ordinary ads wait until sheets / full-screen UX have closed.
@@ -120,7 +120,7 @@ enum AdSceneLifecycle {
             wasInBackground = true
             backgroundEnteredAt = Date()
             pending = nil
-            if AdEligibility.allowsAds, AdConsentManager.canRequestAds {
+            if AdConsentManager.canRequestAds {
                 AdEligibility.refreshInventoryIfEligible()
             }
             AdProbe.log("lifecycle.background")
