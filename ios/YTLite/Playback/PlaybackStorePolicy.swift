@@ -3,7 +3,7 @@ import Foundation
 /// Rules for automatic local playback media persistence.
 enum PlaybackStorePolicy {
     /// Start persisting after the user watches this fraction of the track.
-    static let progressThreshold = 0.5
+    static let progressThreshold = 0.1
 
     static let maxStoreBytes: Int64 = 512 * 1024 * 1024
     static let lowRamMaxStoreBytes: Int64 = 256 * 1024 * 1024

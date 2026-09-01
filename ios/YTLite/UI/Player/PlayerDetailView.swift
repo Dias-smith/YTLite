@@ -124,6 +124,7 @@ struct PlayerDetailView: View {
 
     var body: some View {
         playerDetailRoot
+            .background(PlayerDetailOrientationLockRepresentable())
             .onAppear {
                 playback.libraryStore = store ?? playback.libraryStore
                 playback.refreshFavoriteState()

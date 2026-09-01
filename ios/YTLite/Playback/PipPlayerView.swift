@@ -86,11 +86,27 @@ final class PlayerSurfaceController: UIViewController, AVPictureInPictureControl
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
+        AppOrientation.registerVideoSurfaceHost(self)
         // Heal black canvas if fullscreen flag got stuck or layer was detached.
         if !isFullscreenActive, let configuredPlayer {
             attachInlinePlayer(configuredPlayer, forceRefresh: true)
         }
     }
+
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        AppOrientation.unregisterVideoSurfaceHost(self)
+    }
+
+    override var supportedInterfaceOrientations: UIInterfaceOrientationMask {
+        AppOrientation.mask
+    }
+
+    override var preferredInterfaceOrientationForPresentation: UIInterfaceOrientation {
+        AppOrientation.mask == .landscapeRight ? .landscapeRight : .portrait
+    }
+
+    override var shouldAutorotate: Bool { true }
 
     func configure(
         player: AVPlayer,
@@ -106,7 +122,7 @@ final class PlayerSurfaceController: UIViewController, AVPictureInPictureControl
         if isFullscreenActive, presentedViewController == nil, fullscreenController == nil {
             isFullscreenActive = false
             fullscreenPlayer = nil
-            AppOrientation.endVideoFullscreen()
+            AppOrientation.endVideoFullscreen(from: self)
         }
 
         // AVPlayer may only drive one surface; do not steal it back from fullscreen.
@@ -165,7 +181,7 @@ final class PlayerSurfaceController: UIViewController, AVPictureInPictureControl
     }
 
     private func restoreAfterFullscreen() {
-        AppOrientation.endVideoFullscreen()
+        AppOrientation.endVideoFullscreen(from: self)
         let player = fullscreenPlayer ?? fullscreenController?.player ?? configuredPlayer
         fullscreenController?.player = nil
         fullscreenController = nil

@@ -1144,7 +1144,7 @@ final class PlaybackController: ObservableObject {
         }
     }
 
-    /// After 50% watch progress, persist progressive streams for offline replay.
+    /// After 10% watch progress, persist progressive streams for offline replay.
     private func checkPlaybackStoreThreshold(position: Double, duration: Double?) {
         guard !playbackStoreThresholdMet,
               !isPlayingHLS,
