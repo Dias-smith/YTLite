@@ -14,9 +14,7 @@ struct AppChrome<Content: View>: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     private var isRegular: Bool {
-        // iPhone Plus/Max is `.regular` in landscape. Video fullscreen may rotate
-        // the scene; never switch iPhone onto the iPad split chrome or the player
-        // sheet host is torn down.
+        // iPad portrait layout only — never treat phone landscape as regular width.
         UIDevice.current.userInterfaceIdiom == .pad
             && YTLiteAdaptive.isRegularWidth(horizontalSizeClass)
     }

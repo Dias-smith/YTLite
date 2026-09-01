@@ -1,17 +1,14 @@
 import UIKit
 
 /// App-wide interface orientation lock.
-/// iPhone stays portrait except during video fullscreen (landscape).
-/// iPad remains free to rotate; fullscreen still *prefers* landscape.
+/// Portrait everywhere except AVPlayer full-screen video (landscape right).
 enum AppOrientation {
     static var mask: UIInterfaceOrientationMask = defaultMask
 
-    static var defaultMask: UIInterfaceOrientationMask {
-        UIDevice.current.userInterfaceIdiom == .pad ? .all : .portrait
-    }
+    static var defaultMask: UIInterfaceOrientationMask { .portrait }
 
     static func beginVideoFullscreen() {
-        mask = .landscape
+        mask = .landscapeRight
         request(.landscapeRight)
     }
 

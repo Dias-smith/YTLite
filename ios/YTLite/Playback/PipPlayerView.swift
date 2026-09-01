@@ -193,9 +193,9 @@ final class PlayerSurfaceController: UIViewController, AVPictureInPictureControl
 private final class FullscreenPlayerViewController: AVPlayerViewController {
     var onDidDismiss: (() -> Void)?
 
-    override var supportedInterfaceOrientations: UIInterfaceOrientationMask { .landscape }
+    override var supportedInterfaceOrientations: UIInterfaceOrientationMask { .landscapeRight }
     override var preferredInterfaceOrientationForPresentation: UIInterfaceOrientation { .landscapeRight }
-    override var shouldAutorotate: Bool { true }
+    override var shouldAutorotate: Bool { false }
 
     override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)
