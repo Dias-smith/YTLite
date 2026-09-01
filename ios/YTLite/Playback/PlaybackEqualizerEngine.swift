@@ -124,6 +124,7 @@ private func tapPrepare(
     let storage = MTAudioProcessingTapGetStorage(tap)
     let client = Unmanaged<TapClient>.fromOpaque(storage).takeUnretainedValue()
     let sampleRate = Float(processingFormat.pointee.mSampleRate)
+    client.processor.noteFormat(processingFormat.pointee)
     client.processor.noteSampleRate(sampleRate)
 }
 

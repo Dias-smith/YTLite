@@ -60,7 +60,10 @@ final class PlaybackEqualizerProcessor: @unchecked Sendable {
     private var enabled = false
     private var volumeBoost: Float = 1
     private var sampleRate: Float = 44_100
+    private var isFloatPCM = true
     private var lastGains: [Float] = PlaybackEqualizerCatalog.flatGains()
+
+    private static let limiterHeadroom: Float = 0.95
 
     init() {
         leftFilters = Array(repeating: Biquad(), count: PlaybackEqualizerCatalog.bandCount)
@@ -78,6 +81,12 @@ final class PlaybackEqualizerProcessor: @unchecked Sendable {
         lock.unlock()
     }
 
+    func noteFormat(_ format: AudioStreamBasicDescription) {
+        lock.lock()
+        isFloatPCM = format.mFormatFlags & kAudioFormatFlagIsFloat != 0
+        lock.unlock()
+    }
+
     func noteSampleRate(_ sampleRate: Float) {
         lock.lock()
         if sampleRate > 0, abs(self.sampleRate - sampleRate) > 1 {
@@ -91,40 +100,103 @@ final class PlaybackEqualizerProcessor: @unchecked Sendable {
         lock.lock()
         let eqActive = enabled
         let boost = volumeBoost
+        let useFloat = isFloatPCM
         var left = leftFilters
         var right = rightFilters
         lock.unlock()
         guard frameCount > 0, eqActive || boost > 1.001 else { return }
 
         let buffers = UnsafeMutableAudioBufferListPointer(bufferList)
-        guard let first = buffers.first, first.mData != nil else { return }
+        guard buffers.first?.mData != nil else { return }
         let frames = Int(frameCount)
 
         if buffers.count > 1,
-           let lData = buffers[0].mData?.assumingMemoryBound(to: Float.self),
-           let rData = buffers[1].mData?.assumingMemoryBound(to: Float.self)
+           let lData = buffers[0].mData,
+           let rData = buffers[1].mData
         {
-            for frame in 0..<frames {
-                var l = lData[frame]
-                var r = rData[frame]
-                if eqActive {
-                    for index in left.indices {
-                        l = left[index].process(l)
-                        r = right[index].process(r)
+            var peak: Float = 1e-8
+            if useFloat {
+                let lFloat = lData.assumingMemoryBound(to: Float.self)
+                let rFloat = rData.assumingMemoryBound(to: Float.self)
+                for frame in 0..<frames {
+                    var l = lFloat[frame]
+                    var r = rFloat[frame]
+                    if eqActive {
+                        for index in left.indices {
+                            l = left[index].process(l)
+                            r = right[index].process(r)
+                        }
                     }
+                    lFloat[frame] = l
+                    rFloat[frame] = r
+                    peak = max(peak, abs(l), abs(r))
                 }
-                lData[frame] = Self.clampSample(l * boost)
-                rData[frame] = Self.clampSample(r * boost)
+                let gain = Self.effectiveGain(requested: boost, peak: peak)
+                for frame in 0..<frames {
+                    lFloat[frame] = Self.softLimit(lFloat[frame] * gain)
+                    rFloat[frame] = Self.softLimit(rFloat[frame] * gain)
+                }
+            } else {
+                let lInt16 = lData.assumingMemoryBound(to: Int16.self)
+                let rInt16 = rData.assumingMemoryBound(to: Int16.self)
+                var peak: Float = 1e-8
+                var leftSamples = [Float](repeating: 0, count: frames)
+                var rightSamples = [Float](repeating: 0, count: frames)
+                for frame in 0..<frames {
+                    var l = Float(lInt16[frame]) / 32_768
+                    var r = Float(rInt16[frame]) / 32_768
+                    if eqActive {
+                        for index in left.indices {
+                            l = left[index].process(l)
+                            r = right[index].process(r)
+                        }
+                    }
+                    leftSamples[frame] = l
+                    rightSamples[frame] = r
+                    peak = max(peak, abs(l), abs(r))
+                }
+                let gain = Self.effectiveGain(requested: boost, peak: peak)
+                for frame in 0..<frames {
+                    lInt16[frame] = Self.pcm16(fromNormalized: Self.softLimit(leftSamples[frame] * gain))
+                    rInt16[frame] = Self.pcm16(fromNormalized: Self.softLimit(rightSamples[frame] * gain))
+                }
             }
-        } else if let mono = buffers[0].mData?.assumingMemoryBound(to: Float.self) {
-            for frame in 0..<frames {
-                var sample = mono[frame]
-                if eqActive {
-                    for index in left.indices {
-                        sample = left[index].process(sample)
+        } else if let monoData = buffers[0].mData {
+            var peak: Float = 1e-8
+            if useFloat {
+                let mono = monoData.assumingMemoryBound(to: Float.self)
+                for frame in 0..<frames {
+                    var sample = mono[frame]
+                    if eqActive {
+                        for index in left.indices {
+                            sample = left[index].process(sample)
+                        }
                     }
+                    mono[frame] = sample
+                    peak = max(peak, abs(sample))
                 }
-                mono[frame] = Self.clampSample(sample * boost)
+                let gain = Self.effectiveGain(requested: boost, peak: peak)
+                for frame in 0..<frames {
+                    mono[frame] = Self.softLimit(mono[frame] * gain)
+                }
+            } else {
+                let mono = monoData.assumingMemoryBound(to: Int16.self)
+                var peak: Float = 1e-8
+                var samples = [Float](repeating: 0, count: frames)
+                for frame in 0..<frames {
+                    var sample = Float(mono[frame]) / 32_768
+                    if eqActive {
+                        for index in left.indices {
+                            sample = left[index].process(sample)
+                        }
+                    }
+                    samples[frame] = sample
+                    peak = max(peak, abs(sample))
+                }
+                let gain = Self.effectiveGain(requested: boost, peak: peak)
+                for frame in 0..<frames {
+                    mono[frame] = Self.pcm16(fromNormalized: Self.softLimit(samples[frame] * gain))
+                }
             }
         }
 
@@ -134,8 +206,23 @@ final class PlaybackEqualizerProcessor: @unchecked Sendable {
         lock.unlock()
     }
 
-    private static func clampSample(_ sample: Float) -> Float {
-        min(max(sample, -1), 1)
+    private static func effectiveGain(requested: Float, peak: Float) -> Float {
+        let safePeak = max(peak, 1e-6)
+        let antiClipGain = limiterHeadroom / safePeak
+        if requested > 1.001 {
+            return min(requested, antiClipGain)
+        }
+        return min(1, antiClipGain)
+    }
+
+    /// Smooth saturation — avoids hard-clip harmonics from naive `min/max`.
+    private static func softLimit(_ sample: Float) -> Float {
+        tanh(sample)
+    }
+
+    private static func pcm16(fromNormalized sample: Float) -> Int16 {
+        let clamped = min(max(sample, -1), 1)
+        return Int16(clamped * 32_767)
     }
 
     private func applyGainsLocked(_ gains: [Float], enabled: Bool, sampleRate: Float) {

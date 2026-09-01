@@ -11,9 +11,14 @@ import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.pow
 import kotlin.math.sin
+import kotlin.math.tanh
 
 @UnstableApi
 class PlaybackEqualizerAudioProcessor : BaseAudioProcessor() {
+
+    private companion object {
+        const val LIMITER_HEADROOM = 0.95f
+    }
 
     private data class Biquad(
         var b0: Float = 1f,
@@ -129,7 +134,17 @@ class PlaybackEqualizerAudioProcessor : BaseAudioProcessor() {
         outputBuffer.flip()
     }
 
-    private fun clampSample(sample: Float): Float = sample.coerceIn(-1f, 1f)
+    private fun clampSample(sample: Float): Float = tanh(sample)
+
+    private fun effectiveGain(requested: Float, peak: Float): Float {
+        val safePeak = peak.coerceAtLeast(1e-6f)
+        val antiClipGain = LIMITER_HEADROOM / safePeak
+        return if (requested > 1.001f) {
+            minOf(requested, antiClipGain)
+        } else {
+            minOf(1f, antiClipGain)
+        }
+    }
 
     private fun processPcm16(
         inputBuffer: ByteBuffer,
@@ -140,29 +155,46 @@ class PlaybackEqualizerAudioProcessor : BaseAudioProcessor() {
         boost: Float,
     ) {
         if (channelCount == 1) {
-            while (inputBuffer.hasRemaining()) {
+            val samples = FloatArray(inputBuffer.remaining() / 2)
+            var peak = 1e-6f
+            for (index in samples.indices) {
                 var sample = inputBuffer.short / 32768f
                 if (eqActive) {
-                    for (index in left.indices) {
-                        sample = left[index].process(sample)
+                    for (filterIndex in left.indices) {
+                        sample = left[filterIndex].process(sample)
                     }
                 }
-                sample = clampSample(sample * boost)
-                outputBuffer.putShort((sample * 32767f).toInt().coerceIn(-32768, 32767).toShort())
+                samples[index] = sample
+                peak = maxOf(peak, abs(sample))
+            }
+            val gain = effectiveGain(boost, peak)
+            for (sample in samples) {
+                val limited = clampSample(sample * gain)
+                outputBuffer.putShort((limited * 32767f).toInt().coerceIn(-32768, 32767).toShort())
             }
             return
         }
-        while (inputBuffer.hasRemaining()) {
+        val frameCount = inputBuffer.remaining() / 4
+        val leftSamples = FloatArray(frameCount)
+        val rightSamples = FloatArray(frameCount)
+        var peak = 1e-6f
+        for (index in 0 until frameCount) {
             var l = inputBuffer.short / 32768f
             var r = inputBuffer.short / 32768f
             if (eqActive) {
-                for (index in left.indices) {
-                    l = left[index].process(l)
-                    r = right[index].process(r)
+                for (filterIndex in left.indices) {
+                    l = left[filterIndex].process(l)
+                    r = right[filterIndex].process(r)
                 }
             }
-            l = clampSample(l * boost)
-            r = clampSample(r * boost)
+            leftSamples[index] = l
+            rightSamples[index] = r
+            peak = maxOf(peak, abs(l), abs(r))
+        }
+        val gain = effectiveGain(boost, peak)
+        for (index in 0 until frameCount) {
+            val l = clampSample(leftSamples[index] * gain)
+            val r = clampSample(rightSamples[index] * gain)
             outputBuffer.putShort((l * 32767f).toInt().coerceIn(-32768, 32767).toShort())
             outputBuffer.putShort((r * 32767f).toInt().coerceIn(-32768, 32767).toShort())
         }
@@ -177,28 +209,45 @@ class PlaybackEqualizerAudioProcessor : BaseAudioProcessor() {
         boost: Float,
     ) {
         if (channelCount == 1) {
-            while (inputBuffer.hasRemaining()) {
+            val samples = FloatArray(inputBuffer.remaining() / 4)
+            var peak = 1e-6f
+            for (index in samples.indices) {
                 var sample = inputBuffer.float
                 if (eqActive) {
-                    for (index in left.indices) {
-                        sample = left[index].process(sample)
+                    for (filterIndex in left.indices) {
+                        sample = left[filterIndex].process(sample)
                     }
                 }
-                outputBuffer.putFloat(clampSample(sample * boost))
+                samples[index] = sample
+                peak = maxOf(peak, abs(sample))
+            }
+            val gain = effectiveGain(boost, peak)
+            for (sample in samples) {
+                outputBuffer.putFloat(clampSample(sample * gain))
             }
             return
         }
-        while (inputBuffer.hasRemaining()) {
+        val frameCount = inputBuffer.remaining() / 8
+        val leftSamples = FloatArray(frameCount)
+        val rightSamples = FloatArray(frameCount)
+        var peak = 1e-6f
+        for (index in 0 until frameCount) {
             var l = inputBuffer.float
             var r = inputBuffer.float
             if (eqActive) {
-                for (index in left.indices) {
-                    l = left[index].process(l)
-                    r = right[index].process(r)
+                for (filterIndex in left.indices) {
+                    l = left[filterIndex].process(l)
+                    r = right[filterIndex].process(r)
                 }
             }
-            outputBuffer.putFloat(clampSample(l * boost))
-            outputBuffer.putFloat(clampSample(r * boost))
+            leftSamples[index] = l
+            rightSamples[index] = r
+            peak = maxOf(peak, abs(l), abs(r))
+        }
+        val gain = effectiveGain(boost, peak)
+        for (index in 0 until frameCount) {
+            outputBuffer.putFloat(clampSample(leftSamples[index] * gain))
+            outputBuffer.putFloat(clampSample(rightSamples[index] * gain))
         }
     }
 
