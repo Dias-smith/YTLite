@@ -62,11 +62,13 @@ object RemoteConfigRepository {
         FirebaseRemoteConfig.getInstance().getDouble(key)
 
     private fun defaultValues(): Map<String, Any> = mapOf(
-        // Reserved for feature flags; add concrete keys when wiring product toggles.
-        Keys.EXAMPLE_FEATURE_ENABLED to false,
+        Keys.ALLOW_OFFLINE to false,
     )
 
     object Keys {
-        const val EXAMPLE_FEATURE_ENABLED = "example_feature_enabled"
+        /** When true, play local media cache/download without re-resolving stream URLs. */
+        const val ALLOW_OFFLINE = "allow_offline"
     }
+
+    fun allowOffline(): Boolean = getBoolean(Keys.ALLOW_OFFLINE)
 }

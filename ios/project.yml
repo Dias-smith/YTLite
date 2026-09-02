@@ -55,5 +55,7 @@ targets:
         product: FirebaseAnalytics
       - package: firebase-ios-sdk
         product: FirebaseCrashlytics
+      - package: firebase-ios-sdk
+        product: FirebaseRemoteConfig
       - package: google-mobile-ads
         product: GoogleMobileAds

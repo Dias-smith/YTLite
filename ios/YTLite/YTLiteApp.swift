@@ -44,6 +44,7 @@ struct YTLiteApp: App {
                     await AdConsentManager.requestTrackingAuthorizationAtLaunch()
 
                     ResolverRemoteConfigStore.restoreFromDisk()
+                    await RemoteConfigStore.fetchAndActivate()
                     appModel.syncAuth(authService)
                     ReviewPromptCoordinator.shared.recordActiveDay()
                     // Start after the first cooperative yield so early taps do not pay WKWebView startup.

@@ -4,6 +4,7 @@ import android.app.Application
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.ytlite.player.data.firebase.RemoteConfigRepository
 import com.ytlite.player.data.model.CaptionTrack
 import com.ytlite.player.data.model.ExtractionResult
 import com.ytlite.player.data.model.StreamFormat
@@ -405,17 +406,19 @@ class GlobalPlaybackViewModel(
             PlaybackManager.syncRepeatMode()
             return
         }
-        val localPath = appContext?.let { ctx ->
-            withContext(Dispatchers.IO) {
-                com.ytlite.player.download.DownloadRepository.getInstance(ctx)
-                    .findLocalPath(item.videoId)
+        if (RemoteConfigRepository.allowOffline()) {
+            val localPath = appContext?.let { ctx ->
+                withContext(Dispatchers.IO) {
+                    com.ytlite.player.download.DownloadRepository.getInstance(ctx)
+                        .findLocalPath(item.videoId)
+                }
             }
-        }
-        if (!localPath.isNullOrBlank()) {
-            val localUri = android.net.Uri.fromFile(java.io.File(localPath)).toString()
-            PlaybackManager.play(item.toNowPlaying(localUri), startPositionMs)
-            PlaybackManager.syncRepeatMode()
-            return
+            if (!localPath.isNullOrBlank()) {
+                val localUri = android.net.Uri.fromFile(java.io.File(localPath)).toString()
+                PlaybackManager.play(item.toNowPlaying(localUri), startPositionMs)
+                PlaybackManager.syncRepeatMode()
+                return
+            }
         }
         when (val result = withContext(Dispatchers.IO) {
             extractionRepository.fetchVideoPlayback(item.videoId)

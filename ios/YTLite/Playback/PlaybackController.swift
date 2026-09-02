@@ -589,6 +589,7 @@ final class PlaybackController: ObservableObject {
                     "isLive=\(item.isLive) allowPrepare=\(canConsumePrepare)"
                 )
                 if !preferLiveHLS,
+                   RemoteConfigStore.allowOffline,
                    let localFileURL = await PlaybackMediaStore.shared.localFileURL(videoId: expectedVideoId)
                 {
                     guard generation == resolveGeneration,
