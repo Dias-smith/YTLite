@@ -674,6 +674,42 @@ final class PlaybackController: ObservableObject {
                 nowPlaying = playing
                 captionTracks = playback.captionTracks
                 refreshSubscribeState()
+
+                // After resolve: reuse on-disk cache when present (do not re-download / re-persist).
+                if !preferLiveHLS,
+                   let localFileURL = await PlaybackMediaStore.shared.localFileURL(videoId: expectedVideoId)
+                {
+                    guard generation == resolveGeneration,
+                          !Task.isCancelled,
+                          isCurrentResolveTarget(expectedVideoId)
+                    else {
+                        PlayProbe.log("play.resolve.stale", videoId: expectedVideoId)
+                        return
+                    }
+                    await PlaybackMediaStore.shared.touchLastPlayed(videoId: expectedVideoId)
+                    lastError = nil
+                    playingFromPrepare = usedPrepare
+                    pendingResolvedDurationSeconds = playback.durationSeconds
+                    playbackStoreContext = nil
+                    playbackStoreThresholdMet = true
+                    PlayProbe.log(
+                        SaltedLiteral.probeHit,
+                        videoId: expectedVideoId,
+                        "afterResolve \(localFileURL.lastPathComponent)"
+                    )
+                    play(url: localFileURL)
+                    let seekTo = pendingSeekSeconds
+                    pendingSeekSeconds = 0
+                    if seekTo > 1 {
+                        seek(to: seekTo)
+                    }
+                    onPlaybackStarted?(playing)
+                    refreshFavoriteState()
+                    persistSession(immediate: true)
+                    PlayProbe.log("play.ok", videoId: expectedVideoId, "source=\(SaltedLiteral.probeLocalSource)")
+                    return
+                }
+
                 guard let url = playback.preferredStreamURL(preferVideo: true)
                     ?? playback.preferredStreamURL(preferVideo: false)
                 else {

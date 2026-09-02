@@ -434,9 +434,21 @@ class GlobalPlaybackViewModel(
                 PlayQueueRepository.updateStreamUrl(item.videoId, format.url, format.itag)
                 val durationMs = result.data.durationSeconds.takeIf { it > 0L }?.times(1000L)
                     ?: item.toNowPlaying(format.url).durationMs
+                // After resolve: prefer existing local download — do not re-fetch / re-cache it.
+                val localPath = appContext?.let { ctx ->
+                    withContext(Dispatchers.IO) {
+                        com.ytlite.player.download.DownloadRepository.getInstance(ctx)
+                            .findLocalPath(item.videoId)
+                    }
+                }
+                val playUrl = if (!localPath.isNullOrBlank()) {
+                    android.net.Uri.fromFile(java.io.File(localPath)).toString()
+                } else {
+                    format.url
+                }
                 PlaybackManager.play(
-                    item.toNowPlaying(format.url).copy(
-                        itag = format.itag,
+                    item.toNowPlaying(playUrl).copy(
+                        itag = if (playUrl == format.url) format.itag else null,
                         durationMs = durationMs,
                     ),
                     startPositionMs = startPositionMs,
