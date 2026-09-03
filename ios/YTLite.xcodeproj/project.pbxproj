@@ -37,7 +37,6 @@
 		4E7D31CED4A509358E65D6C3 /* PlayerDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7808B0DE3172F30505602CA1 /* PlayerDetailView.swift */; };
 		4FFC0B7F64200ADB4D2FE006 /* AppLinks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 331CF6675622B27BE928BF8F /* AppLinks.swift */; };
 		5510024CC9D69B83198A44BD /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = F8DC3F30B1F1BAB85AEC82FE /* FirebaseAnalytics */; };
-		A7B2C1D0E9F8432156A8B0C3 /* FirebaseRemoteConfig in Frameworks */ = {isa = PBXBuildFile; productRef = B8C3D2E1F0A9543267B9C1D4 /* FirebaseRemoteConfig */; };
 		55CD33F6A1B849732AD310DF /* PlaybackController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F148613909F22D6432E97CD /* PlaybackController.swift */; };
 		575E084B0BD8FE5EAC0730FE /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 5A76E914564581D50AA61C93 /* Localizable.xcstrings */; };
 		5854A05E63D39CFC42F35AD9 /* SignInOptionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C251E6365A38B882F20E592D /* SignInOptionsView.swift */; };
@@ -81,6 +80,7 @@
 		A62F1D3E0C5E9B82F4D7E029 /* AppDebugActionRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = B72E3E4F1B6D0C93A5E7F029 /* AppDebugActionRegistry.swift */; };
 		A63F2E4F1D6F0C93A5E8F13A /* AppDebugSessionState.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73E4F5A2C7E1D04B6F8A13A /* AppDebugSessionState.swift */; };
 		A64F3F5A2E7A1D04B6F9A24B /* View+Debug.swift in Sources */ = {isa = PBXBuildFile; fileRef = B74E5A6B3D8F2E15C7A9B24B /* View+Debug.swift */; };
+		A7B2C1D0E9F8432156A8B0C3 /* FirebaseRemoteConfig in Frameworks */ = {isa = PBXBuildFile; productRef = B8C3D2E1F0A9543267B9C1D4 /* FirebaseRemoteConfig */; };
 		A7C3E91F2B4D6088C1E5A903 /* SyncProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8D4F02A3C5E7199D2F6B014 /* SyncProbe.swift */; };
 		AD70B6E4A962301570BF6A75 /* TrackActionHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = D36539F7B8580F83FE3B4756 /* TrackActionHost.swift */; };
 		B19A0548C73F27801320D382 /* YTLiteApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37556EF2BFFC392D74790365 /* YTLiteApp.swift */; };
@@ -910,7 +910,7 @@
 				CODE_SIGN_ENTITLEMENTS = YTLite/YTLite.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_LANGUAGE = en;
 				DEVELOPMENT_TEAM = 8S748AQ4H7;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -939,7 +939,7 @@
 				CODE_SIGN_ENTITLEMENTS = YTLite/YTLite.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_LANGUAGE = en;
 				DEVELOPMENT_TEAM = 8S748AQ4H7;
 				GENERATE_INFOPLIST_FILE = NO;

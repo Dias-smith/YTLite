@@ -5,6 +5,7 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ytlite.player.data.firebase.RemoteConfigRepository
+import com.ytlite.player.data.network.VpnStatus
 import com.ytlite.player.data.model.CaptionTrack
 import com.ytlite.player.data.model.ExtractionResult
 import com.ytlite.player.data.model.StreamFormat
@@ -407,17 +408,21 @@ class GlobalPlaybackViewModel(
             return
         }
         if (RemoteConfigRepository.allowOffline()) {
-            val localPath = appContext?.let { ctx ->
-                withContext(Dispatchers.IO) {
-                    com.ytlite.player.download.DownloadRepository.getInstance(ctx)
-                        .findLocalPath(item.videoId)
+            val ctx = appContext
+            val vpnActive = ctx != null && VpnStatus.isActive(ctx)
+            if (!vpnActive) {
+                val localPath = ctx?.let {
+                    withContext(Dispatchers.IO) {
+                        com.ytlite.player.download.DownloadRepository.getInstance(it)
+                            .findLocalPath(item.videoId)
+                    }
                 }
-            }
-            if (!localPath.isNullOrBlank()) {
-                val localUri = android.net.Uri.fromFile(java.io.File(localPath)).toString()
-                PlaybackManager.play(item.toNowPlaying(localUri), startPositionMs)
-                PlaybackManager.syncRepeatMode()
-                return
+                if (!localPath.isNullOrBlank()) {
+                    val localUri = android.net.Uri.fromFile(java.io.File(localPath)).toString()
+                    PlaybackManager.play(item.toNowPlaying(localUri), startPositionMs)
+                    PlaybackManager.syncRepeatMode()
+                    return
+                }
             }
         }
         when (val result = withContext(Dispatchers.IO) {
