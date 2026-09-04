@@ -82,6 +82,12 @@ struct YTLiteApp: App {
                     } else if phase == .inactive {
                         playback.flushSession()
                         playback.publishNowPlaying()
+                        // Arm audio session early. When PiP is off, surfaces also detach
+                        // the video layer on willResignActive so Home from player detail
+                        // cannot open a floating window.
+                        if playback.isPlaying {
+                            playback.prepareForBackgroundPlayback()
+                        }
                     }
                 }
                 .onReceive(NotificationCenter.default.publisher(for: .ytlitePlayFromDailyNotification)) { _ in

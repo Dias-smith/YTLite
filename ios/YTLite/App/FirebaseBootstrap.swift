@@ -179,6 +179,44 @@ enum AppAnalytics {
     static func playbackLoginContinue() {
         log("playback_login_continue")
     }
+
+    // MARK: - VIP
+
+    static func vipPaywallOpen() {
+        log("vip_paywall_open")
+    }
+
+    static func vipPurchaseStart(productId: String) {
+        log("vip_purchase_start", ["product_id": productId])
+    }
+
+    static func vipPurchaseSuccess(productId: String) {
+        log("vip_purchase_success", ["product_id": productId])
+    }
+
+    static func vipPurchaseCancel(productId: String) {
+        log("vip_purchase_cancel", ["product_id": productId])
+    }
+
+    static func vipPurchaseFail(productId: String, error: String) {
+        log("vip_purchase_fail", ["product_id": productId, "error": error])
+    }
+
+    static func vipPurchasePending(productId: String) {
+        log("vip_purchase_pending", ["product_id": productId])
+    }
+
+    static func vipRestore(ok: Bool, error: String? = nil) {
+        var params: [String: Any] = ["ok": ok]
+        if let error { params["error"] = error }
+        log("vip_restore", params)
+    }
+
+    static func vipStatus(active: Bool, productId: String?) {
+        var params: [String: Any] = ["active": active]
+        if let productId { params["product_id"] = productId }
+        log("vip_status", params)
+    }
 }
 
 enum FirebaseBootstrap {

@@ -228,6 +228,8 @@
     <string name="vip_legal_footer">Payment is charged to your Google Play account. Subscriptions renew automatically unless canceled. Manage in Google Play subscriptions.</string>
     <string name="vip_manage_url">https://play.google.com/store/account/subscriptions</string>
     <string name="settings_night_mode">Night Mode</string>
+    <string name="settings_pip">Picture in Picture</string>
+    <string name="settings_pip_subtitle">Float video while browsing</string>
     <string name="settings_language">Language</string>
     <string name="settings_language_system">System default</string>
     <string name="settings_language_english">English</string>

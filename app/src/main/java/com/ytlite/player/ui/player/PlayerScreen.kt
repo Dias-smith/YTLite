@@ -39,6 +39,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.ytlite.player.R
 import com.ytlite.player.data.model.SubscriptionChannel
+import com.ytlite.player.data.preferences.AppPreferences
 import com.ytlite.player.playback.GlobalPlaybackUiState
 import com.ytlite.player.playback.GlobalPlaybackViewModel
 import com.ytlite.player.playback.NowPlaying
@@ -70,6 +71,9 @@ fun PlayerScreen(
     val context = LocalContext.current
     val application = context.applicationContext as Application
     val activity = context as? Activity
+    val pictureInPictureEnabled by AppPreferences.getInstance(context)
+        .pictureInPictureEnabled
+        .collectAsStateWithLifecycle(initialValue = AppPreferences.DEFAULT_PICTURE_IN_PICTURE)
 
     val playlistPickerViewModel: PlaylistPickerViewModel = viewModel(
         factory = PlaylistPickerViewModel.factory(application),
@@ -149,7 +153,7 @@ fun PlayerScreen(
                                 viewModel = viewModel,
                                 globalPlaybackViewModel = globalPlaybackViewModel,
                                 layout = PlayerCanvasLayout.Inline,
-                                showPictureInPicture = true,
+                                showPictureInPicture = pictureInPictureEnabled,
                                 onBack = onBack,
                                 onFullscreenClick = {
                                     viewModel.prepareVideoForFullscreen { surfaceMode ->

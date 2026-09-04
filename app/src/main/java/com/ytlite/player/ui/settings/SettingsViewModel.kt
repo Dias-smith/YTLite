@@ -19,6 +19,7 @@ import kotlinx.coroutines.launch
 @Immutable
 data class SettingsUiState(
     val nightModeEnabled: Boolean = AppPreferences.DEFAULT_NIGHT_MODE,
+    val pictureInPictureEnabled: Boolean = AppPreferences.DEFAULT_PICTURE_IN_PICTURE,
     val appLanguage: String = AppPreferences.LANGUAGE_SYSTEM,
     val downloadThreadCount: Int = DownloadPreferences.DEFAULT_THREAD_COUNT,
     val downloadResumeEnabled: Boolean = true,
@@ -34,8 +35,11 @@ class SettingsViewModel(
     val uiState: StateFlow<SettingsUiState> = combine(
         combine(
             appPreferences.nightModeEnabled,
+            appPreferences.pictureInPictureEnabled,
             appPreferences.appLanguage,
-        ) { nightMode, language -> nightMode to language },
+        ) { nightMode, pip, language ->
+            Triple(nightMode, pip, language)
+        },
         combine(
             downloadPreferences.threadCount,
             downloadPreferences.resumeEnabled,
@@ -47,7 +51,8 @@ class SettingsViewModel(
     ) { appearance, download ->
         SettingsUiState(
             nightModeEnabled = appearance.first,
-            appLanguage = appearance.second,
+            pictureInPictureEnabled = appearance.second,
+            appLanguage = appearance.third,
             downloadThreadCount = download.threadCount,
             downloadResumeEnabled = download.resumeEnabled,
             downloadWifiOnly = download.wifiOnly,
@@ -62,6 +67,12 @@ class SettingsViewModel(
     fun setNightModeEnabled(enabled: Boolean) {
         viewModelScope.launch {
             appPreferences.setNightModeEnabled(enabled)
+        }
+    }
+
+    fun setPictureInPictureEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            appPreferences.setPictureInPictureEnabled(enabled)
         }
     }
 

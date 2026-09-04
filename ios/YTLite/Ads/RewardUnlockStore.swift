@@ -26,8 +26,10 @@ final class VipStore: ObservableObject {
 
     private var transactionListener: Task<Void, Never>?
     private let debugForceKey = "debug_force_vip"
+    private var lastLoggedStatusKey: String?
 
     private init() {
+        VipProbe.log("init")
         transactionListener = Task { await listenForTransactions() }
         Task { await refresh() }
     }
@@ -41,6 +43,7 @@ final class VipStore: ObservableObject {
         get { UserDefaults.standard.bool(forKey: debugForceKey) }
         set {
             UserDefaults.standard.set(newValue, forKey: debugForceKey)
+            VipProbe.log("debug_force", "enabled=\(newValue)")
             applyEntitlementState()
         }
     }
@@ -49,6 +52,7 @@ final class VipStore: ObservableObject {
     func loadProducts() async {
         isLoadingProducts = true
         defer { isLoadingProducts = false }
+        VipProbe.log("products.load.start", "ids=\(VipProductID.all.joined(separator: ","))")
         do {
             let loaded = try await Product.products(for: VipProductID.all)
             products = loaded.sorted { lhs, rhs in
@@ -58,6 +62,10 @@ final class VipStore: ObservableObject {
             for product in products {
                 guard let subscription = product.subscription else {
                     eligibility[product.id] = false
+                    VipProbe.log(
+                        "products.item",
+                        "id=\(product.id) price=\(product.displayPrice) subscription=nil"
+                    )
                     continue
                 }
                 // Prefer group-level eligibility (more reliable than the instance property).
@@ -66,8 +74,9 @@ final class VipStore: ObservableObject {
                 )
                 eligibility[product.id] = eligible
                 let intro = subscription.introductoryOffer
-                print(
-                    "[YTLite.VIP] product=\(product.id) price=\(product.displayPrice) " +
+                VipProbe.log(
+                    "products.item",
+                    "id=\(product.id) price=\(product.displayPrice) " +
                         "intro=\(intro.map { "\($0.displayPrice)/\($0.paymentMode)" } ?? "nil") " +
                         "eligible=\(eligible)"
                 )
@@ -75,13 +84,22 @@ final class VipStore: ObservableObject {
             introEligibleByProductID = eligibility
             lastErrorMessage = nil
             revision += 1
+            let missing = VipProductID.all.filter { id in !products.contains(where: { $0.id == id }) }
+            VipProbe.log(
+                "products.load.ok",
+                "count=\(products.count)" +
+                    (missing.isEmpty ? "" : " missing=\(missing.joined(separator: ","))")
+            )
         } catch {
             lastErrorMessage = error.localizedDescription
+            VipProbe.log("products.load.fail", error.localizedDescription)
         }
     }
 
     /// Re-fetch App Store prices / offers whenever the VIP paywall is shown.
     func reloadPricing() async {
+        VipProbe.log("paywall.open")
+        AppAnalytics.vipPaywallOpen()
         await loadProducts()
         await refresh()
     }
@@ -89,51 +107,82 @@ final class VipStore: ObservableObject {
     func purchase(_ product: Product) async {
         isPurchasing = true
         defer { isPurchasing = false }
+        VipProbe.log("purchase.start", "product=\(product.id)")
+        AppAnalytics.vipPurchaseStart(productId: product.id)
         do {
             let result = try await product.purchase()
             switch result {
             case .success(let verification):
                 let transaction = try checkVerified(verification)
+                VipProbe.log(
+                    "purchase.success",
+                    "product=\(transaction.productID) " +
+                        "expires=\(transaction.expirationDate.map { ISO8601DateFormatter().string(from: $0) } ?? "nil")"
+                )
+                AppAnalytics.vipPurchaseSuccess(productId: transaction.productID)
                 await transaction.finish()
                 await refresh()
                 lastErrorMessage = nil
             case .userCancelled:
-                break
+                VipProbe.log("purchase.cancel", "product=\(product.id)")
+                AppAnalytics.vipPurchaseCancel(productId: product.id)
             case .pending:
                 lastErrorMessage = L("vip.purchase_pending")
+                VipProbe.log("purchase.pending", "product=\(product.id)")
+                AppAnalytics.vipPurchasePending(productId: product.id)
             @unknown default:
-                break
+                VipProbe.log("purchase.unknown", "product=\(product.id)")
             }
         } catch {
             lastErrorMessage = error.localizedDescription
+            VipProbe.log("purchase.fail", "product=\(product.id) error=\(error.localizedDescription)")
+            AppAnalytics.vipPurchaseFail(productId: product.id, error: error.localizedDescription)
         }
     }
 
     func restorePurchases() async {
         isPurchasing = true
         defer { isPurchasing = false }
+        VipProbe.log("restore.start")
         do {
             try await AppStore.sync()
             await refresh()
             lastErrorMessage = nil
+            VipProbe.log(
+                "restore.ok",
+                "active=\(isVipActive) product=\(activeProductID ?? "nil")"
+            )
+            AppAnalytics.vipRestore(ok: true)
         } catch {
             lastErrorMessage = error.localizedDescription
+            VipProbe.log("restore.fail", error.localizedDescription)
+            AppAnalytics.vipRestore(ok: false, error: error.localizedDescription)
         }
     }
 
     func refresh() async {
+        VipProbe.log("entitlement.refresh.start")
         var activeID: String?
         var expiry: Date?
         var active = false
 
         for await result in Transaction.currentEntitlements {
-            guard case .verified(let transaction) = result else { continue }
+            guard case .verified(let transaction) = result else {
+                VipProbe.log("entitlement.skip", "unverified")
+                continue
+            }
             guard VipProductID.all.contains(transaction.productID) else { continue }
             if let expiration = transaction.expirationDate {
                 if expiration > Date() {
                     active = true
                     activeID = transaction.productID
                     expiry = expiration
+                } else {
+                    VipProbe.log(
+                        "entitlement.expired",
+                        "product=\(transaction.productID) " +
+                            "at=\(ISO8601DateFormatter().string(from: expiration))"
+                    )
                 }
             } else {
                 // Non-expiring entitlement (e.g. non-consumable) if configured later.
@@ -146,11 +195,27 @@ final class VipStore: ObservableObject {
         activeProductID = activeID
         expirationDate = expiry
         #if DEBUG
-        isVipActive = active || debugForceVip
+        let forced = debugForceVip
+        isVipActive = active || forced
         #else
+        let forced = false
         isVipActive = active
         #endif
         revision += 1
+        let statusKey =
+            "\(isVipActive)|\(activeID ?? "-")|\(expiry.map { Int($0.timeIntervalSince1970) } ?? 0)|forced=\(forced)"
+        if statusKey != lastLoggedStatusKey {
+            lastLoggedStatusKey = statusKey
+            VipProbe.log(
+                "entitlement.refresh.ok",
+                "active=\(isVipActive) product=\(activeID ?? "nil") " +
+                    "expires=\(expiry.map { ISO8601DateFormatter().string(from: $0) } ?? "nil")" +
+                    (forced ? " debugForce=1" : "")
+            )
+            AppAnalytics.vipStatus(active: isVipActive, productId: activeID)
+        } else {
+            VipProbe.log("entitlement.refresh.ok", "unchanged active=\(isVipActive)")
+        }
         AdEligibility.refreshInventoryIfEligible()
     }
 
@@ -159,8 +224,17 @@ final class VipStore: ObservableObject {
     }
 
     private func listenForTransactions() async {
+        VipProbe.log("transactions.listen")
         for await result in Transaction.updates {
-            guard case .verified(let transaction) = result else { continue }
+            guard case .verified(let transaction) = result else {
+                VipProbe.log("transactions.update", "unverified")
+                continue
+            }
+            VipProbe.log(
+                "transactions.update",
+                "product=\(transaction.productID) " +
+                    "expires=\(transaction.expirationDate.map { ISO8601DateFormatter().string(from: $0) } ?? "nil")"
+            )
             await transaction.finish()
             await refresh()
         }
@@ -169,6 +243,7 @@ final class VipStore: ObservableObject {
     private func checkVerified<T>(_ result: VerificationResult<T>) throws -> T {
         switch result {
         case .unverified:
+            VipProbe.log("verification.fail")
             throw StoreError.failedVerification
         case .verified(let safe):
             return safe

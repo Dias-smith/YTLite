@@ -2085,12 +2085,15 @@ final class PlaybackController: ObservableObject {
     }
 
     /// Keep AVAudioSession + AVPlayer alive when the app backgrounds (App Review checks this).
+    /// When Picture in Picture is off, playback continues as audio-only (no floating video).
     func prepareForBackgroundPlayback() {
         guard nowPlaying != nil else { return }
         activatePlaybackAudioSession()
         publishNowPlaying()
-        guard isPlaying, let player else { return }
+        guard let player else { return }
+        // Continues audio in background whether or not PiP is enabled.
         player.audiovisualBackgroundPlaybackPolicy = .continuesIfPossible
+        guard isPlaying else { return }
         if player.timeControlStatus != .playing {
             player.playImmediately(atRate: playbackSpeed)
         }

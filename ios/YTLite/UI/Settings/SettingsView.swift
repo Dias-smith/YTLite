@@ -19,11 +19,7 @@ struct SettingsView: View {
                     showVip = true
                 } label: {
                     HStack(spacing: 12) {
-                        Image(systemName: "crown.fill")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(YTLiteColor.accent)
-                            .frame(width: 36, height: 36)
-                            .background(YTLiteColor.surfaceElevated, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        SettingsLeadingIcon(systemName: "crown.fill")
 
                         VStack(alignment: .leading, spacing: 2) {
                             Text(L("vip.entry_title"))
@@ -55,21 +51,32 @@ struct SettingsView: View {
                 NavigationLink {
                     ThemePickerView()
                 } label: {
-                    HStack {
+                    HStack(spacing: 12) {
+                        SettingsLeadingIcon(systemName: "paintpalette.fill")
                         Text(L("theme.title"))
-                        Spacer()
+                        Spacer(minLength: 0)
                         Text(appModel.themeDisplayName)
                             .foregroundStyle(YTLiteColor.onSurfaceVariant)
                     }
                 }
-                Picker(L("settings.language"), selection: $appModel.languageCode) {
+                Picker(selection: $appModel.languageCode) {
                     ForEach(AppLanguage.allCases) { language in
                         Text(language.displayName).tag(language.rawValue)
                     }
+                } label: {
+                    HStack(spacing: 12) {
+                        SettingsLeadingIcon(systemName: "globe")
+                        Text(L("settings.language"))
+                    }
                 }
-                Picker(L("settings.content_region"), selection: $appModel.contentRegionCode) {
+                Picker(selection: $appModel.contentRegionCode) {
                     ForEach(AppContentRegion.sortedForPicker) { region in
                         Text(region.displayName).tag(region.rawValue)
+                    }
+                } label: {
+                    HStack(spacing: 12) {
+                        SettingsLeadingIcon(systemName: "map.fill")
+                        Text(L("settings.content_region"))
                     }
                 }
             } header: {
@@ -79,16 +86,26 @@ struct SettingsView: View {
             }
 
             Section {
-                Picker(L("settings.speed"), selection: $playback.playbackSpeed) {
+                Picker(selection: $playback.playbackSpeed) {
                     ForEach(PlaybackSpeeds.options, id: \.self) { speed in
                         Text(PlaybackSpeeds.formatLabel(speed)).tag(speed)
                     }
+                } label: {
+                    HStack(spacing: 12) {
+                        SettingsLeadingIcon(systemName: "gauge.with.dots.needle.67percent")
+                        Text(L("settings.speed"))
+                    }
                 }
 
-                Picker(L("settings.sleep_timer"), selection: sleepTimerSelection) {
+                Picker(selection: sleepTimerSelection) {
                     Text(SleepTimerOptions.formatLabel(minutes: nil)).tag(Optional<Int>.none)
                     ForEach(SleepTimerOptions.minutesOptions, id: \.self) { minutes in
                         Text(SleepTimerOptions.formatLabel(minutes: minutes)).tag(Optional(minutes))
+                    }
+                } label: {
+                    HStack(spacing: 12) {
+                        SettingsLeadingIcon(systemName: "moon.zzz.fill")
+                        Text(L("settings.sleep_timer"))
                     }
                 }
 
@@ -97,6 +114,22 @@ struct SettingsView: View {
                 {
                     LabeledContent(L("settings.remaining"), value: SleepTimerOptions.formatRemaining(remaining))
                 }
+
+                Toggle(isOn: $appModel.pictureInPictureEnabled) {
+                    HStack(spacing: 12) {
+                        SettingsLeadingIcon(systemName: "pip.enter")
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(L("settings.pip"))
+                                .font(YTLiteType.rowTitle)
+                                .foregroundStyle(YTLiteColor.onSurface)
+                            Text(L("settings.pip_subtitle"))
+                                .font(YTLiteType.meta)
+                                .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                        }
+                    }
+                }
+                .tint(YTLiteColor.accent)
             } header: {
                 Text(L("settings.playback"))
             } footer: {
@@ -187,6 +220,22 @@ struct SettingsView: View {
             get: { playback.sleepTimerMinutes },
             set: { playback.setSleepTimer(minutes: $0) }
         )
+    }
+}
+
+/// Leading icon tile shared by Settings rows (matches Picture in Picture styling).
+private struct SettingsLeadingIcon: View {
+    let systemName: String
+
+    var body: some View {
+        Image(systemName: systemName)
+            .font(.system(size: 15, weight: .semibold))
+            .foregroundStyle(YTLiteColor.accent)
+            .frame(width: 36, height: 36)
+            .background(
+                YTLiteColor.surfaceElevated,
+                in: RoundedRectangle(cornerRadius: 8, style: .continuous)
+            )
     }
 }
 

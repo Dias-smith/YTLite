@@ -28,6 +28,15 @@ final class AppModel: ObservableObject {
         }
     }
 
+    /// When false, hide PiP controls and block starting Picture in Picture.
+    @Published var pictureInPictureEnabled: Bool = true {
+        didSet {
+            UserDefaults.standard.set(pictureInPictureEnabled, forKey: Self.pictureInPictureKey)
+            guard !isHydratingStoredPreferences else { return }
+            NotificationCenter.default.post(name: .ytlitePictureInPictureSettingDidChange, object: nil)
+        }
+    }
+
     /// Bumped when InnerTube `hl` / `gl` changes so feeds can reload.
     @Published private(set) var contentLocaleRevision: Int = 0
     /// Blocks home feed until first-launch locale sheet is confirmed.
@@ -75,6 +84,9 @@ final class AppModel: ObservableObject {
         contentRegionCode = AppContentRegion.fromStored(storedRegion).rawValue
         if storedRegion == nil {
             UserDefaults.standard.set(contentRegionCode, forKey: AppContentLocale.contentRegionKey)
+        }
+        if UserDefaults.standard.object(forKey: Self.pictureInPictureKey) != nil {
+            pictureInPictureEnabled = UserDefaults.standard.bool(forKey: Self.pictureInPictureKey)
         }
         isHydratingStoredPreferences = false
         _ = AppContentLocale.syncYouTubeFromAppLanguage(appLanguage, regionCode: contentRegionCode)
@@ -146,6 +158,8 @@ final class AppModel: ObservableObject {
         contentLocaleRevision += 1
         HomeFeedStore.invalidateMemoryCache()
     }
+
+    private static let pictureInPictureKey = PictureInPictureSettings.defaultsKey
 }
 
 struct AppConfig: Sendable {

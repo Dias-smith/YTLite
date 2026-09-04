@@ -16,6 +16,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import com.ytlite.player.data.preferences.AppPreferences
 import com.ytlite.player.playback.PlaybackIntents
 import com.ytlite.player.playback.PlaybackManager
@@ -25,9 +28,11 @@ import com.ytlite.player.ui.player.handlePlayerPictureInPictureModeChanged
 import com.ytlite.player.ui.player.handlePlayerPictureInPictureUiStateChanged
 import com.ytlite.player.ui.player.applyPlayerPictureInPictureParams
 import com.ytlite.player.ui.player.enterPlayerPictureInPicture
+import com.ytlite.player.ui.player.handlePlayerUserLeaveHint
 import com.ytlite.player.ui.player.PlayerPipState
 import com.ytlite.player.ui.theme.YTLiteTheme
 import java.util.Locale
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
@@ -52,6 +57,14 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         val nightModePeek = AppPreferences.peekNightMode(this)
         val appPreferences = AppPreferences.getInstance(this)
+        // Keep Android 12+ auto-enter in sync as soon as the Settings toggle flips.
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                appPreferences.pictureInPictureEnabled.collect {
+                    applyPlayerPictureInPictureParams()
+                }
+            }
+        }
         setContent {
             val nightMode by appPreferences.nightModeEnabled.collectAsStateWithLifecycle(
                 initialValue = nightModePeek,
@@ -74,9 +87,27 @@ class MainActivity : ComponentActivity() {
             window.decorView.post {
                 enterPlayerPictureInPicture()
             }
-        } else if (isInPictureInPictureMode) {
+        } else {
+            // Keep auto-enter flag in sync with the PiP setting (incl. player detail).
             applyPlayerPictureInPictureParams()
         }
+    }
+
+    override fun onPause() {
+        // Refresh before the activity stops so Home from player detail cannot auto-PiP
+        // when the setting is off (Android 12+ reads params at leave time).
+        applyPlayerPictureInPictureParams()
+        super.onPause()
+    }
+
+    override fun onStop() {
+        applyPlayerPictureInPictureParams()
+        super.onStop()
+    }
+
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        handlePlayerUserLeaveHint()
     }
 
     override fun onPictureInPictureModeChanged(

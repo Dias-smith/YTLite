@@ -399,7 +399,8 @@ struct PlayerDetailView: View {
                     pipRequestID: pipRequestID,
                     fullscreenRequestID: fullscreenRequestID,
                     isPlaying: playback.isPlaying,
-                    playbackSpeed: playback.playbackSpeed
+                    playbackSpeed: playback.playbackSpeed,
+                    pictureInPictureEnabled: appModel.pictureInPictureEnabled
                 )
                 .allowsHitTesting(false)
             } else if let url = playback.nowPlaying?.thumbnailURL {
@@ -647,9 +648,11 @@ struct PlayerDetailView: View {
                     .frame(width: 36, height: 36)
                     .accessibilityLabel(L("player.airplay"))
 
-                overlayPlainIcon("pip.enter") {
-                    pipRequestID += 1
-                    bumpOverlayAutoHide()
+                if appModel.pictureInPictureEnabled {
+                    overlayPlainIcon("pip.enter") {
+                        pipRequestID += 1
+                        bumpOverlayAutoHide()
+                    }
                 }
                 overlayPlainIcon("arrow.up.left.and.arrow.down.right") {
                     fullscreenRequestID += 1

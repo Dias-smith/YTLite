@@ -6,6 +6,7 @@ struct MiniPlayerBar: View {
     @EnvironmentObject private var playback: PlaybackController
     @EnvironmentObject private var progressClock: PlaybackProgressModel
     @EnvironmentObject private var playerPresentation: PlayerPresentation
+    @EnvironmentObject private var appModel: AppModel
 
     private var progress: CGFloat {
         guard progressClock.durationSeconds > 0 else { return 0 }
@@ -106,8 +107,12 @@ struct MiniPlayerBar: View {
             // Prefer live surface when stream exists and detail is not covering
             // (AVPlayerLayer can only attach to one view at a time).
             if !playerPresentation.isPresented, let player = playback.player {
-                PipPlayerView(player: player, videoGravity: .resizeAspectFill)
-                    .allowsHitTesting(false)
+                PipPlayerView(
+                    player: player,
+                    videoGravity: .resizeAspectFill,
+                    pictureInPictureEnabled: appModel.pictureInPictureEnabled
+                )
+                .allowsHitTesting(false)
             } else {
                 RemoteImage(url: item.thumbnailURL, contentMode: .fill)
             }

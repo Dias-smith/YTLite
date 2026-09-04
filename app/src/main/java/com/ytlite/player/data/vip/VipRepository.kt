@@ -51,6 +51,7 @@ data class VipState(
 
 /**
  * Play Billing VIP entitlement. Primary benefit today: ad-free (when ads ship on Android).
+ * Console filter: `YTLite.VIP`
  */
 class VipRepository private constructor(context: Context) : PurchasesUpdatedListener {
 
@@ -59,6 +60,7 @@ class VipRepository private constructor(context: Context) : PurchasesUpdatedList
     val state: StateFlow<VipState> = _state.asStateFlow()
 
     private var productDetailsById: Map<String, ProductDetails> = emptyMap()
+    private var lastLoggedStatusKey: String? = null
 
     private val billingClient: BillingClient = BillingClient.newBuilder(appContext)
         .setListener(this)
@@ -66,50 +68,77 @@ class VipRepository private constructor(context: Context) : PurchasesUpdatedList
         .build()
 
     override fun onPurchasesUpdated(result: BillingResult, purchases: MutableList<Purchase>?) {
-        if (result.responseCode == BillingClient.BillingResponseCode.OK) {
-            handlePurchases(purchases.orEmpty())
-        } else if (result.responseCode == BillingClient.BillingResponseCode.USER_CANCELED) {
-            _state.update { it.copy(isPurchasing = false) }
-        } else {
-            _state.update {
-                it.copy(
-                    isPurchasing = false,
-                    errorMessage = "Purchase failed (${result.responseCode})",
+        Log.i(
+            TAG,
+            "[purchases.updated] code=${result.responseCode} " +
+                "msg=${result.debugMessage} count=${purchases?.size ?: 0}",
+        )
+        when (result.responseCode) {
+            BillingClient.BillingResponseCode.OK -> {
+                handlePurchases(purchases.orEmpty(), source = "purchase_flow")
+            }
+            BillingClient.BillingResponseCode.USER_CANCELED -> {
+                Log.i(TAG, "[purchase.cancel]")
+                _state.update { it.copy(isPurchasing = false) }
+            }
+            else -> {
+                Log.w(
+                    TAG,
+                    "[purchase.fail] code=${result.responseCode} msg=${result.debugMessage}",
                 )
+                _state.update {
+                    it.copy(
+                        isPurchasing = false,
+                        errorMessage = "Purchase failed (${result.responseCode})",
+                    )
+                }
             }
         }
     }
 
     fun start() {
         if (billingClient.isReady) {
+            Log.i(TAG, "[billing.ready] refresh")
             refresh()
             return
         }
+        Log.i(TAG, "[billing.connect.start]")
         billingClient.startConnection(object : BillingClientStateListener {
             override fun onBillingSetupFinished(result: BillingResult) {
                 if (result.responseCode == BillingClient.BillingResponseCode.OK) {
+                    Log.i(TAG, "[billing.connect.ok]")
                     refresh()
                 } else {
+                    Log.w(
+                        TAG,
+                        "[billing.connect.fail] code=${result.responseCode} " +
+                            "msg=${result.debugMessage}",
+                    )
                     _state.update {
                         it.copy(errorMessage = "Billing unavailable (${result.responseCode})")
                     }
                 }
             }
 
-            override fun onBillingServiceDisconnected() = Unit
+            override fun onBillingServiceDisconnected() {
+                Log.w(TAG, "[billing.disconnected]")
+            }
         })
     }
 
     /** Re-query Play Billing product details whenever the VIP paywall is shown. */
     fun reloadPricing() {
+        Log.i(TAG, "[paywall.open]")
         refresh()
     }
 
     fun refresh() {
         if (!billingClient.isReady) {
+            Log.i(TAG, "[refresh] billing not ready → start()")
             start()
             return
         }
+        Log.i(TAG, "[refresh.start]")
         _state.update { it.copy(isLoading = true, errorMessage = null) }
         queryProducts()
         queryPurchases()
@@ -117,15 +146,18 @@ class VipRepository private constructor(context: Context) : PurchasesUpdatedList
 
     fun launchPurchase(activity: Activity, productId: String) {
         val details = productDetailsById[productId] ?: run {
+            Log.w(TAG, "[purchase.start.fail] product not loaded id=$productId")
             _state.update { it.copy(errorMessage = "Product not loaded") }
             return
         }
         val offerToken = _state.value.products.firstOrNull { it.productId == productId }?.offerToken
             ?: pickPurchaseOffer(details)?.offerToken
             ?: run {
+                Log.w(TAG, "[purchase.start.fail] offer unavailable id=$productId")
                 _state.update { it.copy(errorMessage = "Offer unavailable") }
                 return
             }
+        Log.i(TAG, "[purchase.start] product=$productId")
         _state.update { it.copy(isPurchasing = true, errorMessage = null) }
         val params = BillingFlowParams.newBuilder()
             .setProductDetailsParamsList(
@@ -139,6 +171,10 @@ class VipRepository private constructor(context: Context) : PurchasesUpdatedList
             .build()
         val result = billingClient.launchBillingFlow(activity, params)
         if (result.responseCode != BillingClient.BillingResponseCode.OK) {
+            Log.w(
+                TAG,
+                "[purchase.launch.fail] code=${result.responseCode} msg=${result.debugMessage}",
+            )
             _state.update {
                 it.copy(
                     isPurchasing = false,
@@ -149,6 +185,7 @@ class VipRepository private constructor(context: Context) : PurchasesUpdatedList
     }
 
     fun restore() {
+        Log.i(TAG, "[restore.start]")
         refresh()
     }
 
@@ -164,8 +201,13 @@ class VipRepository private constructor(context: Context) : PurchasesUpdatedList
         val params = QueryProductDetailsParams.newBuilder()
             .setProductList(productList)
             .build()
+        Log.i(TAG, "[products.load.start] ids=${VipProductIds.ALL.joinToString(",")}")
         billingClient.queryProductDetailsAsync(params) { result, productDetailsList ->
             if (result.responseCode != BillingClient.BillingResponseCode.OK) {
+                Log.w(
+                    TAG,
+                    "[products.load.fail] code=${result.responseCode} msg=${result.debugMessage}",
+                )
                 _state.update {
                     it.copy(
                         isLoading = false,
@@ -178,6 +220,12 @@ class VipRepository private constructor(context: Context) : PurchasesUpdatedList
             productDetailsById = list.associateBy { it.productId }
             val uiProducts = list.mapNotNull { details -> toUiProduct(details) }
                 .sortedBy { rank(it.productId) }
+            val missing = VipProductIds.ALL.filter { id -> uiProducts.none { it.productId == id } }
+            Log.i(
+                TAG,
+                "[products.load.ok] count=${uiProducts.size}" +
+                    if (missing.isEmpty()) "" else " missing=${missing.joinToString(",")}",
+            )
             _state.update {
                 it.copy(products = uiProducts, isLoading = false, errorMessage = null)
             }
@@ -186,7 +234,10 @@ class VipRepository private constructor(context: Context) : PurchasesUpdatedList
 
     private fun toUiProduct(details: ProductDetails): VipUiProduct? {
         val offers = details.subscriptionOfferDetails.orEmpty()
-        if (offers.isEmpty()) return null
+        if (offers.isEmpty()) {
+            Log.w(TAG, "[products.item] id=${details.productId} offers=empty")
+            return null
+        }
 
         logOffers(details.productId, offers)
 
@@ -211,6 +262,12 @@ class VipRepository private constructor(context: Context) : PurchasesUpdatedList
             }
             else -> null
         }
+
+        Log.i(
+            TAG,
+            "[products.item] id=${details.productId} price=${current.formattedPrice} " +
+                "intro=$hasIntro freeTrial=$isFreeTrial save=$savePercent",
+        )
 
         return VipUiProduct(
             productId = details.productId,
@@ -274,7 +331,7 @@ class VipRepository private constructor(context: Context) : PurchasesUpdatedList
             }
             "base=${offer.basePlanId} offer=${offer.offerId} phases=[$phases]"
         }
-        Log.d(TAG, "pricing product=$productId -> $summary")
+        Log.d(TAG, "[pricing] product=$productId -> $summary")
     }
 
     private fun queryPurchases() {
@@ -283,28 +340,49 @@ class VipRepository private constructor(context: Context) : PurchasesUpdatedList
             .build()
         billingClient.queryPurchasesAsync(params) { result, purchases ->
             if (result.responseCode == BillingClient.BillingResponseCode.OK) {
-                handlePurchases(purchases)
+                handlePurchases(purchases, source = "query")
+            } else {
+                Log.w(
+                    TAG,
+                    "[entitlement.query.fail] code=${result.responseCode} " +
+                        "msg=${result.debugMessage}",
+                )
             }
             _state.update { it.copy(isPurchasing = false, isLoading = false) }
         }
     }
 
-    private fun handlePurchases(purchases: List<Purchase>) {
+    private fun handlePurchases(purchases: List<Purchase>, source: String) {
         val active = purchases.firstOrNull { purchase ->
             purchase.purchaseState == Purchase.PurchaseState.PURCHASED &&
                 purchase.products.any { it in VipProductIds.ALL }
         }
         if (active != null && !active.isAcknowledged) {
+            Log.i(TAG, "[acknowledge.start] products=${active.products} source=$source")
             acknowledge(active)
         }
+        val productId = active?.products?.firstOrNull { id -> id in VipProductIds.ALL }
         _state.update {
             it.copy(
                 isVipActive = active != null,
-                activeProductId = active?.products?.firstOrNull { id -> id in VipProductIds.ALL },
+                activeProductId = productId,
                 isPurchasing = false,
             )
         }
-        Log.d(TAG, "VIP active=${active != null} product=${active?.products}")
+        val statusKey = "${active != null}|${productId ?: "-"}|$source"
+        if (statusKey != lastLoggedStatusKey) {
+            lastLoggedStatusKey = statusKey
+            Log.i(
+                TAG,
+                "[entitlement.refresh.ok] active=${active != null} " +
+                    "product=$productId source=$source",
+            )
+        } else {
+            Log.d(TAG, "[entitlement.refresh.ok] unchanged active=${active != null}")
+        }
+        if (source == "purchase_flow" && active != null) {
+            Log.i(TAG, "[purchase.success] product=$productId")
+        }
     }
 
     private fun acknowledge(purchase: Purchase) {
@@ -312,7 +390,14 @@ class VipRepository private constructor(context: Context) : PurchasesUpdatedList
             .setPurchaseToken(purchase.purchaseToken)
             .build()
         billingClient.acknowledgePurchase(params) { result ->
-            Log.d(TAG, "acknowledge code=${result.responseCode}")
+            if (result.responseCode == BillingClient.BillingResponseCode.OK) {
+                Log.i(TAG, "[acknowledge.ok]")
+            } else {
+                Log.w(
+                    TAG,
+                    "[acknowledge.fail] code=${result.responseCode} msg=${result.debugMessage}",
+                )
+            }
         }
     }
 
@@ -323,7 +408,7 @@ class VipRepository private constructor(context: Context) : PurchasesUpdatedList
     }
 
     companion object {
-        private const val TAG = "VipRepository"
+        private const val TAG = "YTLite.VIP"
 
         @Volatile
         private var instance: VipRepository? = null

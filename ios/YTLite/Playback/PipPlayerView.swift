@@ -1,6 +1,25 @@
 import SwiftUI
 import AVKit
 import AVFoundation
+import UIKit
+
+extension Notification.Name {
+    /// Posted when the user toggles Picture in Picture in Settings.
+    static let ytlitePictureInPictureSettingDidChange = Notification.Name("ytlitePictureInPictureSettingDidChange")
+}
+
+/// Shared PiP preference (must match `AppModel.pictureInPictureKey`).
+enum PictureInPictureSettings {
+    static let defaultsKey = "picture_in_picture_enabled"
+
+    /// Default ON when the user has never toggled the setting.
+    static var isEnabled: Bool {
+        if UserDefaults.standard.object(forKey: defaultsKey) != nil {
+            return UserDefaults.standard.bool(forKey: defaultsKey)
+        }
+        return true
+    }
+}
 
 /// Inline player surface: no system chrome; supports programmatic PiP + fullscreen.
 struct PipPlayerView: UIViewControllerRepresentable {
@@ -12,6 +31,7 @@ struct PipPlayerView: UIViewControllerRepresentable {
     var playbackSpeed: Float = 1.0
     /// Android mini uses ZOOM; detail canvas uses fit.
     var videoGravity: AVLayerVideoGravity = .resizeAspect
+    var pictureInPictureEnabled: Bool = true
 
     func makeUIViewController(context: Context) -> PlayerSurfaceController {
         let controller = PlayerSurfaceController()
@@ -19,7 +39,8 @@ struct PipPlayerView: UIViewControllerRepresentable {
             player: player,
             videoGravity: videoGravity,
             isPlaying: isPlaying,
-            playbackSpeed: playbackSpeed
+            playbackSpeed: playbackSpeed,
+            pictureInPictureEnabled: pictureInPictureEnabled
         )
         // Avoid treating leftover request IDs as new taps after the representable is recreated.
         context.coordinator.lastPipRequestID = pipRequestID
@@ -33,12 +54,15 @@ struct PipPlayerView: UIViewControllerRepresentable {
             player: player,
             videoGravity: videoGravity,
             isPlaying: isPlaying,
-            playbackSpeed: playbackSpeed
+            playbackSpeed: playbackSpeed,
+            pictureInPictureEnabled: pictureInPictureEnabled
         )
         context.coordinator.surface = uiViewController
         if pipRequestID != context.coordinator.lastPipRequestID {
             context.coordinator.lastPipRequestID = pipRequestID
-            uiViewController.startPictureInPicture()
+            if PictureInPictureSettings.isEnabled {
+                uiViewController.startPictureInPicture()
+            }
         }
         if fullscreenRequestID != context.coordinator.lastFullscreenRequestID {
             context.coordinator.lastFullscreenRequestID = fullscreenRequestID
@@ -66,7 +90,12 @@ final class PlayerSurfaceController: UIViewController, AVPictureInPictureControl
     private var isFullscreenActive = false
     private var prefersPlaying = false
     private var playbackSpeed: Float = 1.0
+    private var pictureInPictureEnabled = true
     private weak var configuredPlayer: AVPlayer?
+    private var lifecycleObservers: [NSObjectProtocol] = []
+    /// When PiP is off, detach the layer on resign-active so iOS cannot open a floating window;
+    /// AVPlayer keeps playing audio without a layer.
+    private var detachedLayerForAudioOnlyBackground = false
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -82,6 +111,47 @@ final class PlayerSurfaceController: UIViewController, AVPictureInPictureControl
             playerView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             playerView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
         ])
+
+        // Tear down auto-PiP *before* backgrounding. Leaving from player detail otherwise
+        // still starts a floating window even when the setting is off.
+        let center = NotificationCenter.default
+        lifecycleObservers = [
+            center.addObserver(
+                forName: UIApplication.willResignActiveNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                self?.suppressAutomaticPictureInPictureForBackground()
+            },
+            center.addObserver(
+                forName: UIApplication.didEnterBackgroundNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                self?.suppressAutomaticPictureInPictureForBackground()
+            },
+            center.addObserver(
+                forName: UIApplication.didBecomeActiveNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                self?.restoreLayerAfterAudioOnlyBackgroundIfNeeded()
+            },
+            center.addObserver(
+                forName: .ytlitePictureInPictureSettingDidChange,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                // Setting flipped while foreground — destroy controller only; do not detach layer.
+                self?.applyPictureInPictureSetting(destroyControllerIfDisabled: true)
+            },
+        ]
+    }
+
+    deinit {
+        for observer in lifecycleObservers {
+            NotificationCenter.default.removeObserver(observer)
+        }
     }
 
     override func viewWillAppear(_ animated: Bool) {
@@ -90,7 +160,9 @@ final class PlayerSurfaceController: UIViewController, AVPictureInPictureControl
         // Heal black canvas if fullscreen flag got stuck or layer was detached.
         if !isFullscreenActive, let configuredPlayer {
             attachInlinePlayer(configuredPlayer, forceRefresh: true)
+            detachedLayerForAudioOnlyBackground = false
         }
+        applyPictureInPictureSetting(destroyControllerIfDisabled: true)
     }
 
     override func viewDidDisappear(_ animated: Bool) {
@@ -112,10 +184,12 @@ final class PlayerSurfaceController: UIViewController, AVPictureInPictureControl
         player: AVPlayer,
         videoGravity: AVLayerVideoGravity = .resizeAspect,
         isPlaying: Bool = false,
-        playbackSpeed: Float = 1.0
+        playbackSpeed: Float = 1.0,
+        pictureInPictureEnabled: Bool = true
     ) {
         prefersPlaying = isPlaying
         self.playbackSpeed = playbackSpeed
+        self.pictureInPictureEnabled = PictureInPictureSettings.isEnabled && pictureInPictureEnabled
         configuredPlayer = player
 
         // Self-heal if dismiss callback never ran.
@@ -126,19 +200,18 @@ final class PlayerSurfaceController: UIViewController, AVPictureInPictureControl
         }
 
         // AVPlayer may only drive one surface; do not steal it back from fullscreen.
-        if !isFullscreenActive {
+        // Also skip while intentionally detached for audio-only background (PiP off).
+        if !isFullscreenActive, !detachedLayerForAudioOnlyBackground {
             attachInlinePlayer(player)
         }
         playerView.playerLayer.videoGravity = videoGravity
-        if pipController == nil, AVPictureInPictureController.isPictureInPictureSupported() {
-            let pip = AVPictureInPictureController(playerLayer: playerView.playerLayer)
-            pip?.delegate = self
-            pipController = pip
-        }
+        applyPictureInPictureSetting(destroyControllerIfDisabled: true)
     }
 
     func startPictureInPicture() {
-        guard !isFullscreenActive else { return }
+        guard PictureInPictureSettings.isEnabled, !isFullscreenActive else { return }
+        restoreLayerAfterAudioOnlyBackgroundIfNeeded()
+        applyPictureInPictureSetting(destroyControllerIfDisabled: false)
         guard let pip = pipController, pip.isPictureInPicturePossible else { return }
         if pip.isPictureInPictureActive {
             pip.stopPictureInPicture()
@@ -149,23 +222,28 @@ final class PlayerSurfaceController: UIViewController, AVPictureInPictureControl
 
     func enterFullscreen() {
         guard !isFullscreenActive, presentedViewController == nil else { return }
+        restoreLayerAfterAudioOnlyBackgroundIfNeeded()
         guard let player = playerView.playerLayer.player ?? configuredPlayer else { return }
         guard view.window != nil else { return }
+
+        let pipEnabled = PictureInPictureSettings.isEnabled
+        pictureInPictureEnabled = pipEnabled
 
         isFullscreenActive = true
         fullscreenPlayer = player
         // Detach inline layer so AVPlayerViewController exclusively owns the player.
         playerView.playerLayer.player = nil
+        // Inline PiP controller must not survive across fullscreen / Home.
+        destroyPipController()
 
         AppOrientation.beginVideoFullscreen()
 
         let vc = FullscreenPlayerViewController()
         vc.player = player
         vc.showsPlaybackControls = true
-        vc.allowsPictureInPicturePlayback = true
+        vc.allowsPictureInPicturePlayback = pipEnabled
         vc.modalPresentationStyle = .fullScreen
         vc.modalPresentationCapturesStatusBarAppearance = true
-        // Only fire on real dismiss — not when the view loads before `present`.
         vc.onDidDismiss = { [weak self] in
             self?.restoreAfterFullscreen()
         }
@@ -173,12 +251,35 @@ final class PlayerSurfaceController: UIViewController, AVPictureInPictureControl
         present(vc, animated: true) { [weak self] in
             vc.setNeedsUpdateOfSupportedInterfaceOrientations()
             guard let self else { return }
-            // Present failed / was cancelled — put the player back on the inline layer.
             if self.presentedViewController !== vc {
                 self.restoreAfterFullscreen()
             }
         }
     }
+
+    // MARK: - AVPictureInPictureControllerDelegate
+
+    func pictureInPictureControllerWillStartPictureInPicture(
+        _ pictureInPictureController: AVPictureInPictureController
+    ) {
+        // Last-chance block: if the setting is off, stop immediately after start.
+        if !PictureInPictureSettings.isEnabled {
+            DispatchQueue.main.async {
+                pictureInPictureController.stopPictureInPicture()
+            }
+        }
+    }
+
+    func pictureInPictureControllerDidStartPictureInPicture(
+        _ pictureInPictureController: AVPictureInPictureController
+    ) {
+        if !PictureInPictureSettings.isEnabled {
+            pictureInPictureController.stopPictureInPicture()
+            destroyPipController()
+        }
+    }
+
+    // MARK: - Private
 
     private func restoreAfterFullscreen() {
         AppOrientation.endVideoFullscreen(from: self)
@@ -187,9 +288,10 @@ final class PlayerSurfaceController: UIViewController, AVPictureInPictureControl
         fullscreenController = nil
         fullscreenPlayer = nil
         isFullscreenActive = false
+        detachedLayerForAudioOnlyBackground = false
         guard let player else { return }
         attachInlinePlayer(player, forceRefresh: true)
-        // AVPlayerViewController pauses on dismiss; restore app intent.
+        applyPictureInPictureSetting(destroyControllerIfDisabled: true)
         if prefersPlaying {
             player.playImmediately(atRate: playbackSpeed)
         } else {
@@ -201,6 +303,87 @@ final class PlayerSurfaceController: UIViewController, AVPictureInPictureControl
         if forceRefresh || playerView.playerLayer.player !== player {
             playerView.playerLayer.player = nil
             playerView.playerLayer.player = player
+        }
+    }
+
+    /// Destroy the PiP controller and detach the video layer so the system cannot open a
+    /// floating window from the player detail surface. Audio continues on `AVPlayer`.
+    private func suppressAutomaticPictureInPictureForBackground() {
+        guard !PictureInPictureSettings.isEnabled else {
+            // Keep auto-PiP armed when the setting is on.
+            applyPictureInPictureSetting(destroyControllerIfDisabled: false)
+            return
+        }
+        stopPictureInPictureIfSettingDisabled()
+        destroyPipController()
+        guard !isFullscreenActive else {
+            fullscreenController?.allowsPictureInPicturePlayback = false
+            return
+        }
+        if playerView.playerLayer.player != nil {
+            playerView.playerLayer.player = nil
+            detachedLayerForAudioOnlyBackground = true
+        }
+    }
+
+    private func restoreLayerAfterAudioOnlyBackgroundIfNeeded() {
+        guard detachedLayerForAudioOnlyBackground else { return }
+        detachedLayerForAudioOnlyBackground = false
+        guard !isFullscreenActive, let configuredPlayer else { return }
+        attachInlinePlayer(configuredPlayer, forceRefresh: true)
+        applyPictureInPictureSetting(destroyControllerIfDisabled: true)
+    }
+
+    /// When PiP is off, destroy the controller entirely — leaving `canStart…=false` on a live
+    /// controller is not enough; Home from player detail can still open a floating window.
+    private func applyPictureInPictureSetting(destroyControllerIfDisabled: Bool) {
+        let enabled = PictureInPictureSettings.isEnabled
+        pictureInPictureEnabled = enabled
+        fullscreenController?.allowsPictureInPicturePlayback = enabled
+
+        if !enabled {
+            stopPictureInPictureIfSettingDisabled()
+            if destroyControllerIfDisabled {
+                destroyPipController()
+            }
+            return
+        }
+
+        ensurePipController()
+        if let pip = pipController, #available(iOS 14.2, *) {
+            pip.canStartPictureInPictureAutomaticallyFromInline = true
+        }
+    }
+
+    private func ensurePipController() {
+        guard PictureInPictureSettings.isEnabled else { return }
+        guard AVPictureInPictureController.isPictureInPictureSupported() else { return }
+        if pipController == nil {
+            let pip = AVPictureInPictureController(playerLayer: playerView.playerLayer)
+            pip?.delegate = self
+            if #available(iOS 14.2, *) {
+                pip?.canStartPictureInPictureAutomaticallyFromInline = true
+            }
+            pipController = pip
+        }
+    }
+
+    private func destroyPipController() {
+        guard let pip = pipController else { return }
+        if #available(iOS 14.2, *) {
+            pip.canStartPictureInPictureAutomaticallyFromInline = false
+        }
+        if pip.isPictureInPictureActive {
+            pip.stopPictureInPicture()
+        }
+        pip.delegate = nil
+        pipController = nil
+    }
+
+    private func stopPictureInPictureIfSettingDisabled() {
+        guard !PictureInPictureSettings.isEnabled else { return }
+        if let pip = pipController, pip.isPictureInPictureActive {
+            pip.stopPictureInPicture()
         }
     }
 }

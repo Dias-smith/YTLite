@@ -212,6 +212,8 @@
     <string name="vip_legal_footer">费用将计入您的 Google Play 账户。订阅会自动续期，除非取消。可在 Google Play 订阅中管理。</string>
     <string name="vip_manage_url">https://play.google.com/store/account/subscriptions</string>
     <string name="settings_night_mode">夜间模式</string>
+    <string name="settings_pip">画中画</string>
+    <string name="settings_pip_subtitle">浏览时悬浮播放视频</string>
     <string name="settings_language">语言</string>
     <string name="settings_language_system">跟随系统</string>
     <string name="settings_language_english">English</string>

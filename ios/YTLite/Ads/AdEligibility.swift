@@ -37,10 +37,15 @@ enum AdEligibility {
         let allowed = allowsAds
         AppAnalytics.adEligibility(songs: count, allowed: allowed)
         guard allowed else {
-            AdProbe.log(
-                "eligibility.block",
-                "songs=\(count) need=\(minimumLibrarySongCount)"
-            )
+            if VipStore.shared.isVipActive {
+                AdProbe.log("eligibility.block", "reason=vip songs=\(count)")
+                AppAnalytics.adSkipOrBlock(reason: "vip")
+            } else {
+                AdProbe.log(
+                    "eligibility.block",
+                    "songs=\(count) need=\(minimumLibrarySongCount)"
+                )
+            }
             return
         }
         guard AdConsentManager.canRequestAds else {
@@ -54,7 +59,11 @@ enum AdEligibility {
 
     static func refreshRewardedInventoryIfEligible() {
         guard allowsRewardedAds else {
-            AdProbe.log("eligibility.rewarded.hold", "ads_disabled_or_no_consent")
+            if VipStore.shared.isVipActive {
+                AdProbe.log("eligibility.rewarded.hold", "reason=vip")
+            } else {
+                AdProbe.log("eligibility.rewarded.hold", "ads_disabled_or_no_consent")
+            }
             return
         }
         AdProbe.log("eligibility.rewarded.ok")

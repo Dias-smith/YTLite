@@ -18,6 +18,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import com.ytlite.player.data.preferences.AppPreferences
 import com.ytlite.player.data.preferences.PlaybackPreferences
 import com.ytlite.player.playback.PlaybackManager
@@ -45,6 +48,14 @@ class FullscreenPlayerActivity : ComponentActivity() {
             ?.let { name -> runCatching { PlayerSurfaceMode.valueOf(name) }.getOrNull() }
             ?: PlayerSurfaceMode.Video
 
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                AppPreferences.getInstance(this@FullscreenPlayerActivity)
+                    .pictureInPictureEnabled
+                    .collect { applyPlayerPictureInPictureParams() }
+            }
+        }
+
         setContent {
             val nightMode = AppPreferences.peekNightMode(this)
             YTLiteTheme(darkTheme = nightMode) {
@@ -54,6 +65,9 @@ class FullscreenPlayerActivity : ComponentActivity() {
                 val durationMs by PlaybackManager.durationMs.collectAsStateWithLifecycle()
                 val playbackSpeed by PlaybackManager.playbackSpeedState.collectAsStateWithLifecycle()
                 val isInPipMode by PlayerPipState.isInPictureInPictureMode.collectAsStateWithLifecycle()
+                val pictureInPictureEnabled by AppPreferences.getInstance(this)
+                    .pictureInPictureEnabled
+                    .collectAsStateWithLifecycle(initialValue = AppPreferences.DEFAULT_PICTURE_IN_PICTURE)
                 val playbackPreferences = remember { PlaybackPreferences.getInstance(this) }
                 val scope = rememberCoroutineScope()
 
@@ -105,6 +119,7 @@ class FullscreenPlayerActivity : ComponentActivity() {
                         },
                         modifier = Modifier.fillMaxSize(),
                         layout = if (isInPipMode) PlayerCanvasLayout.Pip else PlayerCanvasLayout.Fullscreen,
+                        showPictureInPicture = pictureInPictureEnabled,
                         onBack = if (isInPipMode) {
                             { exitPlayerPictureInPicture() }
                         } else {
@@ -118,9 +133,22 @@ class FullscreenPlayerActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        if (isInPictureInPictureMode) {
-            applyPlayerPictureInPictureParams()
-        }
+        applyPlayerPictureInPictureParams()
+    }
+
+    override fun onPause() {
+        applyPlayerPictureInPictureParams()
+        super.onPause()
+    }
+
+    override fun onStop() {
+        applyPlayerPictureInPictureParams()
+        super.onStop()
+    }
+
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        handlePlayerUserLeaveHint()
     }
 
     override fun onPictureInPictureModeChanged(
