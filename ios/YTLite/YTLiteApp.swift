@@ -37,7 +37,9 @@ struct YTLiteApp: App {
                 .environmentObject(VipStore.shared)
                 .environment(\.locale, appModel.resolvedLocale)
                 .environment(\.layoutDirection, appModel.layoutDirection)
-                .id(appModel.themeRevision)
+                // Rebuild the tree on theme *or* language so `L()` strings refresh immediately
+                // (VIP / Settings sections otherwise keep stale English copy).
+                .id("\(appModel.themeRevision)-\(appModel.languageCode)")
                 .preferredColorScheme(appModel.themeColorScheme)
                 .task {
                     // First frame, then ATT, then UMP / AdMob.

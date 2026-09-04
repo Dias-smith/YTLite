@@ -112,6 +112,36 @@ class SearchViewModel(
         }
     }
 
+    /**
+     * Content locale (`hl` / `gl`) changed: drop Search / Charts / hot-keyword state and reload.
+     * Call when InnerTube region preferences become mutable.
+     */
+    fun handleContentLocaleChange() {
+        repository.invalidateHotKeywordsCache()
+        com.ytlite.player.playback.UpNextCache.clear()
+        mutableState.update {
+            it.copy(
+                hotKeywords = emptyList(),
+                resultItems = emptyList(),
+                resultsContinuation = null,
+                resultsError = null,
+                discoveryPage = null,
+                discoveryError = null,
+                isDiscoveryLoading = false,
+                browseVideos = emptyList(),
+                browseContinuation = null,
+                browseError = null,
+                screenState = when (val state = it.screenState) {
+                    is SearchScreenState.Results -> SearchScreenState.DefaultHub
+                    is SearchScreenState.SubCategory -> SearchScreenState.DefaultHub
+                    else -> state
+                },
+                query = if (it.screenState is SearchScreenState.Results) "" else it.query,
+            )
+        }
+        loadHotKeywords()
+    }
+
     fun onQueryChange(query: String) {
         mutableState.update { current ->
             val nextState = when {

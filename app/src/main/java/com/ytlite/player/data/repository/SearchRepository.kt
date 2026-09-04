@@ -110,14 +110,18 @@ class SearchRepository(
 
     /**
      * Hot keywords from YouTube Data API v3 mostPopular Music videos (titles).
-     * Uses an in-process TTL cache to avoid refetching on every Search tab visit.
+     * Uses an in-process TTL cache keyed by `hl_gl` to avoid refetching on every Search tab visit.
      */
     suspend fun fetchHotKeywords(limit: Int = YoutubeDataApiConfig.HOT_KEYWORDS_LIMIT): List<String> =
         withContext(Dispatchers.IO) {
             val now = System.currentTimeMillis()
+            val localeKey = "${InnerTubeConfig.HL}_${InnerTubeConfig.GL}"
             synchronized(hotKeywordsLock) {
                 val cached = hotKeywordsCache
-                if (cached != null && now - cached.fetchedAtMs < HOT_KEYWORDS_TTL_MS) {
+                if (cached != null &&
+                    cached.localeKey == localeKey &&
+                    now - cached.fetchedAtMs < HOT_KEYWORDS_TTL_MS
+                ) {
                     return@withContext cached.keywords
                 }
             }
@@ -129,7 +133,7 @@ class SearchRepository(
             }
             if (derived.isNotEmpty()) {
                 synchronized(hotKeywordsLock) {
-                    hotKeywordsCache = HotKeywordsCache(derived, now)
+                    hotKeywordsCache = HotKeywordsCache(derived, now, localeKey)
                 }
             } else {
                 Log.w(TAG, "fetchHotKeywords: no keywords derived")
@@ -137,11 +141,20 @@ class SearchRepository(
             derived
         }
 
+    fun invalidateHotKeywordsCache() {
+        synchronized(hotKeywordsLock) {
+            hotKeywordsCache = null
+        }
+    }
+
     private fun fetchYoutubeMostPopularMusicTitles(limit: Int): List<String> {
         // Request extra rows so parenthesis/noise stripping still fills `limit` after dedupe.
         val maxResults = minOf(50, maxOf(limit * 3, limit))
         val result = httpClient.request(
-            url = YoutubeDataApiConfig.mostPopularMusicVideosUrl(maxResults = maxResults),
+            url = YoutubeDataApiConfig.mostPopularMusicVideosUrl(
+                maxResults = maxResults,
+                regionCode = InnerTubeConfig.GL,
+            ),
             method = "GET",
             headers = emptyMap(),
             body = null,
@@ -194,6 +207,7 @@ class SearchRepository(
         private data class HotKeywordsCache(
             val keywords: List<String>,
             val fetchedAtMs: Long,
+            val localeKey: String,
         )
 
         private val hotKeywordsLock = Any()

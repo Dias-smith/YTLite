@@ -703,8 +703,14 @@ enum InnerTubeClient {
         guard !apiKey.isEmpty else {
             return try await searchVideos(query: "music")
         }
+        let region = YouTubeConstants.gl.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "US"
         let url =
-            "https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails&chart=mostPopular&videoCategoryId=10&maxResults=20&key=\(apiKey)"
+            "https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails"
+            + "&chart=mostPopular"
+            + "&videoCategoryId=10"
+            + "&regionCode=\(region)"
+            + "&maxResults=20"
+            + "&key=\(apiKey)"
         let result = await YouTubeHTTPClient.shared.request(
             url: url,
             method: "GET",
@@ -742,15 +748,22 @@ enum InnerTubeClient {
         await HotKeywordsCache.shared.keywords(limit: limit)
     }
 
+    /// Drop all locale buckets (call when Content Region / app language changes).
+    static func invalidateHotKeywordsCache() {
+        Task { await HotKeywordsCache.shared.invalidate() }
+    }
+
     private static func fetchYoutubeMostPopularMusicTitles(limit: Int) async -> [String] {
         let key = YouTubeConstants.hotKeywordsApiKey
         guard !key.isEmpty, limit > 0 else { return [] }
         // Request extra rows so parenthesis/noise stripping still fills `limit` after dedupe.
         let maxResults = min(50, max(limit * 3, limit))
+        let region = YouTubeConstants.gl.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "US"
         let url =
             "https://www.googleapis.com/youtube/v3/videos?part=snippet"
             + "&chart=mostPopular"
             + "&videoCategoryId=10"
+            + "&regionCode=\(region)"
             + "&maxResults=\(maxResults)"
             + "&key=\(key)"
         let result = await YouTubeHTTPClient.shared.request(
@@ -784,17 +797,32 @@ enum InnerTubeClient {
     private actor HotKeywordsCache {
         static let shared = HotKeywordsCache()
         private let ttl: TimeInterval = 3 * 60 * 60
-        private var stored: [String] = []
-        private var fetchedAt: Date?
+        private var buckets: [String: Bucket] = [:]
+
+        private struct Bucket {
+            var keywords: [String]
+            var fetchedAt: Date
+        }
+
+        private var localeKey: String {
+            "\(YouTubeConstants.hl)_\(YouTubeConstants.gl)"
+        }
+
+        func invalidate() {
+            buckets.removeAll()
+        }
 
         func keywords(limit: Int) async -> [String] {
-            if let fetchedAt, Date().timeIntervalSince(fetchedAt) < ttl, !stored.isEmpty {
-                return Array(stored.prefix(limit))
+            let key = localeKey
+            if let bucket = buckets[key],
+               Date().timeIntervalSince(bucket.fetchedAt) < ttl,
+               !bucket.keywords.isEmpty
+            {
+                return Array(bucket.keywords.prefix(limit))
             }
             let derived = await InnerTubeClient.fetchYoutubeMostPopularMusicTitles(limit: limit)
             if !derived.isEmpty {
-                stored = derived
-                fetchedAt = Date()
+                buckets[key] = Bucket(keywords: derived, fetchedAt: Date())
             }
             return derived
         }

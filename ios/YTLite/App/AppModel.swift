@@ -147,6 +147,7 @@ final class AppModel: ObservableObject {
         _ = AppContentLocale.syncYouTubeFromAppLanguage(appLanguage, regionCode: contentRegionCode)
         contentLocaleRevision += 1
         HomeFeedStore.invalidateMemoryCache()
+        InnerTubeClient.invalidateHotKeywordsCache()
         isAwaitingLocaleSetup = false
         showLocaleSetupSheet = false
     }
@@ -157,6 +158,7 @@ final class AppModel: ObservableObject {
         guard changed else { return }
         contentLocaleRevision += 1
         HomeFeedStore.invalidateMemoryCache()
+        InnerTubeClient.invalidateHotKeywordsCache()
     }
 
     private static let pictureInPictureKey = PictureInPictureSettings.defaultsKey

@@ -50,6 +50,11 @@ object UpNextCache {
         )
     }
 
+    /** Drop Related / Up-next caches when content locale (`gl`) changes. */
+    fun clear() {
+        cache.clear()
+    }
+
     private fun key(videoId: String, kind: RelatedCacheKind): String = "$kind:$videoId"
 
     private fun evictExpired() {

@@ -385,6 +385,16 @@ struct PlayerDetailView: View {
         .onChange(of: trackActions.menuCloseToken) { _, _ in
             playerTrackMenu = nil
         }
+        .onChange(of: appModel.contentLocaleRevision) { _, _ in
+            // Related / radio queue is region-sensitive via InnerTube `gl`.
+            related = []
+            relatedOriginal = []
+            relatedError = nil
+            relatedSourceVideoId = nil
+            if tab == .related {
+                Task { await loadRelated() }
+            }
+        }
     }
 
     // MARK: - 16:9 canvas + overlay

@@ -31,6 +31,38 @@ final class SearchViewModel: ObservableObject {
 
     func loadHotKeywordsIfNeeded() {
         guard hotKeywords.isEmpty, hotKeywordsTask == nil else { return }
+        reloadHotKeywords()
+    }
+
+    /// Force-refresh hot keywords after Content Region / language change.
+    func handleContentLocaleChange() {
+        hotKeywordsTask?.cancel()
+        hotKeywordsTask = nil
+        hotKeywords = []
+        searchTask?.cancel()
+        suggestTask?.cancel()
+        debounceTask?.cancel()
+        hits = []
+        suggestions = []
+        errorMessage = nil
+        interstitialArmedQuery = nil
+
+        let activeQuery = activeResultsQuery
+        if phase == .results, !activeQuery.isEmpty, let memory {
+            loadResults(memory: memory, reset: true)
+        } else if phase != .hub {
+            // Drop stale results/suggestions; hub will show new hot keywords.
+            phase = .hub
+            activeResultsQuery = ""
+            selectedTab = .all
+            isLoading = false
+            isSuggestionsLoading = false
+        }
+        reloadHotKeywords()
+    }
+
+    private func reloadHotKeywords() {
+        hotKeywordsTask?.cancel()
         hotKeywordsTask = Task {
             let keywords = await InnerTubeClient.fetchHotKeywords()
             guard !Task.isCancelled else { return }
@@ -209,6 +241,7 @@ struct SearchView: View {
     @StateObject private var memory = SearchMemoryStore()
     @EnvironmentObject private var playback: PlaybackController
     @EnvironmentObject private var trackActions: TrackActionPresenter
+    @EnvironmentObject private var appModel: AppModel
     @Environment(\.libraryStore) private var libraryStore
     @EnvironmentObject private var playerPresentation: PlayerPresentation
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
@@ -239,6 +272,9 @@ struct SearchView: View {
             .onAppear {
                 viewModel.bind(memory: memory)
                 viewModel.loadHotKeywordsIfNeeded()
+            }
+            .onChange(of: appModel.contentLocaleRevision) { _, _ in
+                viewModel.handleContentLocaleChange()
             }
             .debugAction("search.run_yudie") {
                 viewModel.submit(memory: memory, query: "雨蝶", tab: .videos)

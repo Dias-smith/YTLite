@@ -13,6 +13,7 @@
     <string name="home_category_all">All</string>
     <string name="home_category_new_release">New release</string>
     <string name="home_category_podcasts">Podcasts</string>
+    <string name="home_category_charts">Charts</string>
     <string name="home_category_energize">Energize</string>
     <string name="home_category_feel_good">Feel good</string>
     <string name="home_category_workout">Workout</string>

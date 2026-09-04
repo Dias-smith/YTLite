@@ -20,11 +20,17 @@ object YoutubeDataApiConfig {
      */
     const val HOT_KEYWORDS_API_KEY = "AIzaSyAbMOfstY2zu-C9zxHBbtXRh9ybYcbpeYc"
 
-    fun mostPopularMusicVideosUrl(maxResults: Int = HOT_KEYWORDS_LIMIT): String =
-        "$VIDEOS_LIST_URL" +
+    fun mostPopularMusicVideosUrl(
+        maxResults: Int = HOT_KEYWORDS_LIMIT,
+        regionCode: String = InnerTubeConfig.GL,
+    ): String {
+        val region = regionCode.ifBlank { InnerTubeConfig.GL }
+        return "$VIDEOS_LIST_URL" +
             "?part=snippet" +
             "&chart=mostPopular" +
             "&videoCategoryId=$VIDEO_CATEGORY_MUSIC" +
+            "&regionCode=$region" +
             "&maxResults=$maxResults" +
             "&key=$HOT_KEYWORDS_API_KEY"
+    }
 }

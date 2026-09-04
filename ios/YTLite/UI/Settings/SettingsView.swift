@@ -13,6 +13,7 @@ struct SettingsView: View {
     var body: some View {
         let _ = adConsentStatus.revision
         let _ = vip.revision
+        let _ = appModel.languageCode
         Form {
             Section {
                 Button {
@@ -242,6 +243,7 @@ private struct SettingsLeadingIcon: View {
 /// Full-screen VIP / Premium paywall. Uses app theme colors (not competitor greens).
 struct VipView: View {
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var appModel: AppModel
     @ObservedObject private var vip = VipStore.shared
     @State private var selectedProductID: String?
 
@@ -250,6 +252,7 @@ struct VipView: View {
 
     var body: some View {
         let _ = vip.revision
+        let _ = appModel.languageCode
         ZStack(alignment: .topTrailing) {
             YTLiteColor.background
                 .ignoresSafeArea()

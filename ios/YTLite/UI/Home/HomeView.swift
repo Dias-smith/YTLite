@@ -19,6 +19,102 @@ enum HomeCategorySource: Hashable {
     case youtubeNews
 }
 
+/// Region-aware search queries for static Home chips (Content Region `gl`).
+enum HomeLocalizedQuery {
+    static func resolve(_ chipId: String, region gl: String) -> String {
+        let code = gl.uppercased()
+        let sinosphere: Set<String> = ["CN", "TW", "HK", "SG", "MY"]
+        let japanese: Set<String> = ["JP"]
+        let korean: Set<String> = ["KR"]
+
+        if sinosphere.contains(code) {
+            switch chipId {
+            case "music": return "华语流行"
+            case "podcasts": return "播客"
+            case "charts": return "音乐排行榜"
+            case "mixes": return "华语歌单"
+            case "albums": return "华语专辑"
+            case "rnb": return "R&B 中文"
+            case "mandopop": return "华语流行"
+            case "electropop": return "电子流行"
+            case "energize": return "动感音乐"
+            case "feel_good": return "轻松音乐"
+            case "workout": return "健身音乐"
+            case "chill": return "轻音乐"
+            case "party": return "派对音乐"
+            case "romance": return "情歌"
+            case "commute": return "通勤音乐"
+            case "focus": return "专注音乐"
+            case "sad": return "伤感歌曲"
+            case "sleep": return "助眠音乐"
+            default: break
+            }
+        } else if japanese.contains(code) {
+            switch chipId {
+            case "music": return "J-POP"
+            case "podcasts": return "ポッドキャスト"
+            case "charts": return "音楽チャート"
+            case "mixes": return "プレイリスト"
+            case "albums": return "アルバム"
+            case "mandopop": return "C-POP"
+            case "energize": return "元気が出る曲"
+            case "feel_good": return "気分が上がる曲"
+            case "workout": return "ワークアウトミュージック"
+            case "chill": return "チルミュージック"
+            case "party": return "パーティーミュージック"
+            case "romance": return "ラブソング"
+            case "commute": return "通勤 BGM"
+            case "focus": return "集中ミュージック"
+            case "sad": return "悲しい曲"
+            case "sleep": return "睡眠ミュージック"
+            default: break
+            }
+        } else if korean.contains(code) {
+            switch chipId {
+            case "music": return "K-POP"
+            case "podcasts": return "팟캐스트"
+            case "charts": return "음악 차트"
+            case "mixes": return "플레이리스트"
+            case "albums": return "앨범"
+            case "mandopop": return "C-POP"
+            case "energize": return "신나는 음악"
+            case "feel_good": return "기분 좋은 음악"
+            case "workout": return "운동 음악"
+            case "chill": return "힐링 음악"
+            case "party": return "파티 음악"
+            case "romance": return "사랑 노래"
+            case "commute": return "출퇴근 음악"
+            case "focus": return "집중 음악"
+            case "sad": return "슬픈 노래"
+            case "sleep": return "수면 음악"
+            default: break
+            }
+        }
+
+        switch chipId {
+        case "music": return "music"
+        case "podcasts": return "podcasts"
+        case "charts": return "top songs chart"
+        case "mixes": return "music mixes"
+        case "albums": return "music albums"
+        case "rnb": return "contemporary r&b"
+        case "mandopop": return "mandopop"
+        case "electropop": return "electropop"
+        case "energize": return "energize music"
+        case "feel_good": return "feel good music"
+        case "workout": return "workout music"
+        case "chill": return "chill music"
+        case "party": return "party music"
+        case "romance": return "romance music"
+        case "commute": return "commute music"
+        case "focus": return "focus music"
+        case "sad": return "sad music"
+        case "sleep": return "sleep music"
+        default: return chipId
+        }
+    }
+}
+
 struct HomeCategory: Identifiable, Hashable {
     let id: String
     let source: HomeCategorySource
@@ -33,6 +129,7 @@ struct HomeCategory: Identifiable, Hashable {
         case "podcasts": return L("home.category.podcasts")
         case "news": return L("home.category.news")
         case "live": return L("home.category.live")
+        case "charts": return L("home.category.charts")
         case "mixes": return L("home.category.mixes")
         case "albums": return L("home.category.albums")
         case "rnb": return L("home.category.rnb")
@@ -52,29 +149,33 @@ struct HomeCategory: Identifiable, Hashable {
         }
     }
 
-    static let catalog: [HomeCategory] = [
-        HomeCategory(id: "all", source: .homeBrowse),
-        HomeCategory(id: "music", source: .search("music")),
-        HomeCategory(id: "new_release", source: .musicNewReleaseAlbums),
-        HomeCategory(id: "podcasts", source: .search("podcasts")),
-        HomeCategory(id: "news", source: .youtubeNews),
-        HomeCategory(id: "live", source: .live),
-        HomeCategory(id: "mixes", source: .search("music mixes")),
-        HomeCategory(id: "albums", source: .search("music albums")),
-        HomeCategory(id: "rnb", source: .search("contemporary r&b")),
-        HomeCategory(id: "mandopop", source: .search("mandopop")),
-        HomeCategory(id: "electropop", source: .search("electropop")),
-        HomeCategory(id: "energize", source: .search("energize music")),
-        HomeCategory(id: "feel_good", source: .search("feel good music")),
-        HomeCategory(id: "workout", source: .search("workout music")),
-        HomeCategory(id: "chill", source: .search("chill music")),
-        HomeCategory(id: "party", source: .search("party music")),
-        HomeCategory(id: "romance", source: .search("romance music")),
-        HomeCategory(id: "commute", source: .search("commute music")),
-        HomeCategory(id: "focus", source: .search("focus music")),
-        HomeCategory(id: "sad", source: .search("sad music")),
-        HomeCategory(id: "sleep", source: .search("sleep music")),
-    ]
+    static var catalog: [HomeCategory] {
+        let gl = YouTubeConstants.gl
+        return [
+            HomeCategory(id: "all", source: .homeBrowse),
+            HomeCategory(id: "music", source: .search(HomeLocalizedQuery.resolve("music", region: gl))),
+            HomeCategory(id: "new_release", source: .musicNewReleaseAlbums),
+            HomeCategory(id: "podcasts", source: .search(HomeLocalizedQuery.resolve("podcasts", region: gl))),
+            HomeCategory(id: "news", source: .youtubeNews),
+            HomeCategory(id: "live", source: .live),
+            HomeCategory(id: "charts", source: .search(HomeLocalizedQuery.resolve("charts", region: gl))),
+            HomeCategory(id: "mixes", source: .search(HomeLocalizedQuery.resolve("mixes", region: gl))),
+            HomeCategory(id: "albums", source: .search(HomeLocalizedQuery.resolve("albums", region: gl))),
+            HomeCategory(id: "rnb", source: .search(HomeLocalizedQuery.resolve("rnb", region: gl))),
+            HomeCategory(id: "mandopop", source: .search(HomeLocalizedQuery.resolve("mandopop", region: gl))),
+            HomeCategory(id: "electropop", source: .search(HomeLocalizedQuery.resolve("electropop", region: gl))),
+            HomeCategory(id: "energize", source: .search(HomeLocalizedQuery.resolve("energize", region: gl))),
+            HomeCategory(id: "feel_good", source: .search(HomeLocalizedQuery.resolve("feel_good", region: gl))),
+            HomeCategory(id: "workout", source: .search(HomeLocalizedQuery.resolve("workout", region: gl))),
+            HomeCategory(id: "chill", source: .search(HomeLocalizedQuery.resolve("chill", region: gl))),
+            HomeCategory(id: "party", source: .search(HomeLocalizedQuery.resolve("party", region: gl))),
+            HomeCategory(id: "romance", source: .search(HomeLocalizedQuery.resolve("romance", region: gl))),
+            HomeCategory(id: "commute", source: .search(HomeLocalizedQuery.resolve("commute", region: gl))),
+            HomeCategory(id: "focus", source: .search(HomeLocalizedQuery.resolve("focus", region: gl))),
+            HomeCategory(id: "sad", source: .search(HomeLocalizedQuery.resolve("sad", region: gl))),
+            HomeCategory(id: "sleep", source: .search(HomeLocalizedQuery.resolve("sleep", region: gl))),
+        ]
+    }
 
     static func merged(with dynamic: [HomeDynamicChip]) -> [HomeCategory] {
         var result = [catalog[0]]
@@ -226,6 +327,7 @@ final class HomeViewModel: ObservableObject {
         errorMessage = nil
         didRequestDynamicChips = false
         dynamicChips = HomeFeedStore.loadDynamicChips()
+        // Rebuild static chip search queries for the new `gl`.
         orderedCategories = HomeCategory.applyingSavedOrder(
             to: HomeCategory.merged(with: dynamicChips)
         )
