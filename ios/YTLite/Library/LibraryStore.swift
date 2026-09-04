@@ -637,6 +637,7 @@ final class LibraryStore {
             modelContext.delete(existing)
             save()
             onUnsubscribeChannel?(id)
+            AppAnalytics.libraryRemove(action: "subscribe")
             return false
         }
         let channel = UserSubscribedChannel(
@@ -652,6 +653,7 @@ final class LibraryStore {
         )
         modelContext.insert(channel)
         save()
+        AppAnalytics.libraryAdd(action: "subscribe")
         return true
     }
 
@@ -664,6 +666,7 @@ final class LibraryStore {
         guard let fav = favoritesPlaylist() else { return }
         if let entry = fav.entries.first(where: { $0.track?.trackId == item.videoId }) {
             modelContext.delete(entry)
+            AppAnalytics.libraryRemove(action: "like")
         } else {
             let track = upsertTrack(from: item)
             let entry = LibraryPlaylistEntry(position: fav.entries.count, track: track)
@@ -671,6 +674,7 @@ final class LibraryStore {
             fav.updatedAt = .now
             fav.isSynced = false
             ReviewPromptCoordinator.shared.recordPositiveAction()
+            AppAnalytics.libraryAdd(action: "like")
         }
         save()
     }
@@ -719,7 +723,12 @@ final class LibraryStore {
             playlist.updatedAt = .now
             playlist.isSynced = false
         }
-        if persist { save() }
+        if persist {
+            save()
+            if markDirty {
+                AppAnalytics.libraryAdd(action: "save")
+            }
+        }
     }
 
     func recordPlayback(_ item: NowPlayingItem, durationSeconds: Int = 0, progressMs: Int64 = 0) {
@@ -949,6 +958,7 @@ final class LibraryStore {
         playlist.updatedAt = .now
         playlist.isSynced = false
         save()
+        AppAnalytics.libraryRemove(action: "save")
     }
 
     func playlist(id playlistId: String) -> LibraryPlaylist? {

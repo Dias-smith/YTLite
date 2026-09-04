@@ -58,6 +58,7 @@ final class SearchViewModel: ObservableObject {
         activeResultsQuery = q
         suggestions = []
         isSuggestionsLoading = false
+        AppAnalytics.searchSubmit(query: q)
 
         suppressQuerySideEffects = true
         query = q
@@ -245,7 +246,7 @@ struct SearchView: View {
             .debugAction("search.play_first") {
                 let videos = viewModel.hits.compactMap(\.asVideoItem)
                 guard let first = videos.first else { return }
-                playback.play(items: videos, startAt: 0)
+                playback.play(items: videos, startAt: 0, analyticsSource: "search")
                 playerPresentation.isPresented = true
             }
         }
@@ -324,7 +325,12 @@ struct SearchView: View {
                             Button {
                                 let videos = viewModel.hits.compactMap(\.asVideoItem)
                                 let index = videos.firstIndex(of: item) ?? 0
-                                playback.play(items: videos.isEmpty ? [item] : videos, startAt: index)
+                                AppAnalytics.searchResultTap(type: "video")
+                                playback.play(
+                                    items: videos.isEmpty ? [item] : videos,
+                                    startAt: index,
+                                    analyticsSource: "search"
+                                )
                                 playerPresentation.present()
                             } label: {
                                 SearchVideoResultRow(item: item) {
@@ -339,6 +345,9 @@ struct SearchView: View {
                                 SearchChannelResultRow(channel: channel)
                             }
                             .buttonStyle(.plain)
+                            .simultaneousGesture(TapGesture().onEnded {
+                                AppAnalytics.searchResultTap(type: "channel")
+                            })
                             .gridCellColumns(columns)
                         case .playlist(let playlist):
                             NavigationLink {
@@ -347,6 +356,9 @@ struct SearchView: View {
                                 SearchPlaylistResultRow(playlist: playlist)
                             }
                             .buttonStyle(.plain)
+                            .simultaneousGesture(TapGesture().onEnded {
+                                AppAnalytics.searchResultTap(type: "playlist")
+                            })
                             .gridCellColumns(columns)
                         }
                     }
@@ -414,7 +426,8 @@ struct SearchView: View {
                             HStack(spacing: YTLiteLayout.stackLoose) {
                                 ForEach(memory.recentVideos) { item in
                                     Button {
-                                        playback.play(items: [item], startAt: 0)
+                                        AppAnalytics.searchResultTap(type: "video")
+                                        playback.play(items: [item], startAt: 0, analyticsSource: "search")
                                         playerPresentation.present()
                                     } label: {
                                         VStack(alignment: .leading, spacing: YTLiteLayout.stackDefault) {

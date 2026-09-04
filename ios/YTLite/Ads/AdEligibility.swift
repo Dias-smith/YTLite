@@ -19,19 +19,24 @@ enum AdEligibility {
     /// Whether ordinary full-screen ads (app open / interstitial) may load or show.
     static var allowsAds: Bool {
         guard AdMobConfig.adsEnabled else { return false }
+        if VipStore.shared.isVipActive { return false }
         return librarySongCount >= minimumLibrarySongCount
     }
 
     /// Rewarded unlock ads (theme / edit info) — not gated on library size.
     static var allowsRewardedAds: Bool {
-        AdMobConfig.adsEnabled && AdConsentManager.canRequestAds
+        guard AdMobConfig.adsEnabled, AdConsentManager.canRequestAds else { return false }
+        if VipStore.shared.isVipActive { return false }
+        return true
     }
 
     /// Call after library sync / local mutations that may cross the threshold.
     static func refreshInventoryIfEligible() {
         refreshRewardedInventoryIfEligible()
         let count = librarySongCount
-        guard allowsAds else {
+        let allowed = allowsAds
+        AppAnalytics.adEligibility(songs: count, allowed: allowed)
+        guard allowed else {
             AdProbe.log(
                 "eligibility.block",
                 "songs=\(count) need=\(minimumLibrarySongCount)"

@@ -66,6 +66,7 @@ firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.r
 firebase-analytics = { group = "com.google.firebase", name = "firebase-analytics" }
 firebase-crashlytics = { group = "com.google.firebase", name = "firebase-crashlytics" }
 firebase-config = { group = "com.google.firebase", name = "firebase-config" }
+billing-ktx = { group = "com.android.billingclient", name = "billing-ktx", version = "6.2.1" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

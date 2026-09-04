@@ -23,11 +23,14 @@ enum DailyListenNotificationScheduler {
         case .notDetermined:
             do {
                 let ok = try await center.requestAuthorization(options: [.alert, .sound, .badge])
+                AppAnalytics.notifPermission(status: ok ? "authorized" : "denied")
                 guard ok else { return }
             } catch {
+                AppAnalytics.notifPermission(status: "error")
                 return
             }
         case .denied:
+            AppAnalytics.notifPermission(status: "denied")
             return
         default:
             break

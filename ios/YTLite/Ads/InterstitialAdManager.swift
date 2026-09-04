@@ -115,6 +115,7 @@ final class InterstitialAdManager: NSObject {
             "interstitial.show",
             "placement=\(placement.rawValue) reason=\(reason)"
         )
+        AppAnalytics.adShow(format: "interstitial")
         ad.present(from: root)
         return true
     }

@@ -193,9 +193,11 @@ final class AuthService: ObservableObject {
         }
     }
 
-    func signInWithGoogle() async {
+    func signInWithGoogle(source: String = "unknown") async {
+        AppAnalytics.signInStart(provider: "google", source: source)
         guard let client else {
             lastError = "Supabase is not configured. Fill ios/Config/Secrets.xcconfig.local"
+            AppAnalytics.signInFail(provider: "google", error: lastError ?? "not_configured")
             return
         }
         isBusy = true
@@ -221,18 +223,22 @@ final class AuthService: ObservableObject {
             if let refresh = newSession.providerRefreshToken, !refresh.isEmpty {
                 storeRefreshToken(refresh)
             }
+            AppAnalytics.signInSuccess(provider: "google")
         } catch {
             if isOAuthCancel(error) {
                 lastError = nil
                 return
             }
             lastError = error.localizedDescription
+            AppAnalytics.signInFail(provider: "google", error: lastError ?? "unknown")
         }
     }
 
-    func signInWithApple() async {
+    func signInWithApple(source: String = "unknown") async {
+        AppAnalytics.signInStart(provider: "apple", source: source)
         guard client != nil else {
             lastError = "Supabase is not configured. Fill ios/Config/Secrets.xcconfig.local"
+            AppAnalytics.signInFail(provider: "apple", error: lastError ?? "not_configured")
             return
         }
         isBusy = true
@@ -245,22 +251,27 @@ final class AuthService: ObservableObject {
                 rawNonce: apple.rawNonce,
                 fullName: apple.fullName
             )
+            AppAnalytics.signInSuccess(provider: "apple")
         } catch {
             if isAppleCancel(error) {
                 lastError = nil
                 return
             }
             lastError = error.localizedDescription
+            AppAnalytics.signInFail(provider: "apple", error: lastError ?? "unknown")
         }
     }
 
     /// Completes Sign in with Apple from `SignInWithAppleButton`.
     func completeAppleSignIn(
         result: Result<ASAuthorization, Error>,
-        rawNonce: String?
+        rawNonce: String?,
+        source: String = "unknown"
     ) async {
+        AppAnalytics.signInStart(provider: "apple", source: source)
         guard client != nil else {
             lastError = "Supabase is not configured. Fill ios/Config/Secrets.xcconfig.local"
+            AppAnalytics.signInFail(provider: "apple", error: lastError ?? "not_configured")
             return
         }
         isBusy = true
@@ -273,6 +284,7 @@ final class AuthService: ObservableObject {
                 lastError = nil
             } else {
                 lastError = error.localizedDescription
+                AppAnalytics.signInFail(provider: "apple", error: lastError ?? "unknown")
             }
         case .success(let authorization):
             guard
@@ -282,6 +294,7 @@ final class AuthService: ObservableObject {
                 let rawNonce, !rawNonce.isEmpty
             else {
                 lastError = AppleSignInError.invalidCredential.localizedDescription
+                AppAnalytics.signInFail(provider: "apple", error: lastError ?? "invalid_credential")
                 return
             }
             do {
@@ -290,8 +303,10 @@ final class AuthService: ObservableObject {
                     rawNonce: rawNonce,
                     fullName: credential.fullName
                 )
+                AppAnalytics.signInSuccess(provider: "apple")
             } catch {
                 lastError = error.localizedDescription
+                AppAnalytics.signInFail(provider: "apple", error: lastError ?? "unknown")
             }
         }
     }
@@ -451,6 +466,7 @@ final class AuthService: ObservableObject {
             try await client.auth.signOut()
             session = nil
             clearStoredProviderToken()
+            AppAnalytics.signOut()
         } catch {
             lastError = error.localizedDescription
         }

@@ -1,15 +1,56 @@
+import StoreKit
 import SwiftUI
 
 struct SettingsView: View {
     @EnvironmentObject private var appModel: AppModel
     @EnvironmentObject private var playback: PlaybackController
+    @ObservedObject private var vip = VipStore.shared
     @ObservedObject private var adConsentStatus = AdConsentStatus.shared
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var rateUnavailableAlert = false
+    @State private var showVip = false
 
     var body: some View {
         let _ = adConsentStatus.revision
+        let _ = vip.revision
         Form {
+            Section {
+                Button {
+                    showVip = true
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: "crown.fill")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(YTLiteColor.accent)
+                            .frame(width: 36, height: 36)
+                            .background(YTLiteColor.surfaceElevated, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(L("vip.entry_title"))
+                                .font(YTLiteType.rowTitle)
+                                .foregroundStyle(YTLiteColor.onSurface)
+                            Text(
+                                vip.isVipActive
+                                    ? L("vip.entry_subtitle_active")
+                                    : L("vip.entry_subtitle")
+                            )
+                            .font(YTLiteType.meta)
+                            .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                        }
+
+                        Spacer(minLength: 0)
+
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(YTLiteColor.onSurfaceVariant.opacity(0.55))
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            } header: {
+                Text(L("vip.section"))
+            }
+
             Section {
                 NavigationLink {
                     ThemePickerView()
@@ -101,6 +142,18 @@ struct SettingsView: View {
 
                 LabeledContent(L("settings.about"), value: appVersionLabel)
             }
+
+            #if DEBUG
+            Section("Debug") {
+                Toggle(
+                    "Force VIP (debug)",
+                    isOn: Binding(
+                        get: { vip.debugForceVip },
+                        set: { vip.debugForceVip = $0 }
+                    )
+                )
+            }
+            #endif
         }
         .ytLiteContentWidth(
             720,
@@ -114,6 +167,9 @@ struct SettingsView: View {
             Button(L("common.ok"), role: .cancel) {}
         } message: {
             Text(L("settings.rate_unavailable"))
+        }
+        .fullScreenCover(isPresented: $showVip) {
+            VipView()
         }
     }
 
@@ -131,6 +187,364 @@ struct SettingsView: View {
             get: { playback.sleepTimerMinutes },
             set: { playback.setSleepTimer(minutes: $0) }
         )
+    }
+}
+
+/// Full-screen VIP / Premium paywall. Uses app theme colors (not competitor greens).
+struct VipView: View {
+    @Environment(\.dismiss) private var dismiss
+    @ObservedObject private var vip = VipStore.shared
+    @State private var selectedProductID: String?
+
+    private static let manageSubscriptionsURL =
+        URL(string: "https://apps.apple.com/account/subscriptions")!
+
+    var body: some View {
+        let _ = vip.revision
+        ZStack(alignment: .topTrailing) {
+            YTLiteColor.background
+                .ignoresSafeArea()
+
+            ScrollView {
+                VStack(spacing: 0) {
+                    header
+                        .padding(.top, 28)
+
+                    benefits
+                        .padding(.top, 28)
+                        .padding(.horizontal, 36)
+
+                    plansSection
+                        .padding(.top, 28)
+                        .padding(.horizontal, YTLiteLayout.screenPadding)
+
+                    subscribeButton
+                        .padding(.top, 20)
+                        .padding(.horizontal, YTLiteLayout.screenPadding)
+
+                    if let message = vip.lastErrorMessage, !message.isEmpty {
+                        Text(message)
+                            .font(YTLiteType.meta)
+                            .foregroundStyle(YTLiteColor.danger)
+                            .multilineTextAlignment(.center)
+                            .padding(.top, YTLiteLayout.stackLoose)
+                            .padding(.horizontal, YTLiteLayout.screenPadding)
+                    }
+
+                    Text(L("vip.legal_footer"))
+                        .font(YTLiteType.meta)
+                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                        .multilineTextAlignment(.center)
+                        .padding(.top, 20)
+                        .padding(.horizontal, 20)
+
+                    footerLinks
+                        .padding(.top, 16)
+                        .padding(.bottom, 28)
+                }
+            }
+
+            Button {
+                dismiss()
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                    .frame(width: 36, height: 36)
+                    .background(YTLiteColor.surfaceElevated, in: Circle())
+            }
+            .padding(.top, 12)
+            .padding(.trailing, 16)
+            .accessibilityLabel(L("common.close"))
+        }
+        .onAppear {
+            Task {
+                await vip.reloadPricing()
+                if selectedProductID == nil {
+                    selectedProductID = vip.products.first?.id ?? VipProductID.yearly
+                }
+            }
+        }
+        .onChange(of: vip.products.map(\.id)) { _, ids in
+            if selectedProductID == nil || !(ids.contains(selectedProductID ?? "")) {
+                selectedProductID = ids.first
+            }
+        }
+    }
+
+    private var header: some View {
+        VStack(spacing: 10) {
+            Image(systemName: "crown.fill")
+                .font(.system(size: 44))
+                .foregroundStyle(YTLiteColor.accent)
+                .padding(.bottom, 4)
+
+            Text(L("vip.hero_title"))
+                .font(.system(size: 28, weight: .bold))
+                .foregroundStyle(YTLiteColor.onSurface)
+
+            Text(L("vip.hero_subtitle"))
+                .font(YTLiteType.body)
+                .foregroundStyle(YTLiteColor.onSurfaceVariant)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private var benefits: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            benefitRow(icon: "nosign", text: L("vip.benefit_ad_free"))
+            benefitRow(icon: "play.circle", text: L("vip.benefit_playback"))
+            benefitRow(icon: "paintpalette", text: L("vip.benefit_themes"))
+        }
+        .frame(maxWidth: 320, alignment: .leading)
+        .frame(maxWidth: .infinity)
+    }
+
+    private func benefitRow(icon: String, text: String) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(YTLiteColor.accent)
+                .frame(width: 24, alignment: .center)
+            Text(text)
+                .font(YTLiteType.rowTitleMedium)
+                .foregroundStyle(YTLiteColor.onSurface)
+            Spacer(minLength: 0)
+        }
+    }
+
+    @ViewBuilder
+    private var plansSection: some View {
+        if vip.isVipActive {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(L("vip.status_active_message"))
+                    .font(YTLiteType.rowTitle)
+                    .foregroundStyle(YTLiteColor.accent)
+                if let expiration = vip.expirationDate {
+                    Text(
+                        "\(L("vip.expires")): \(expiration.formatted(date: .abbreviated, time: .omitted))"
+                    )
+                    .font(YTLiteType.meta)
+                    .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(16)
+            .background(YTLiteColor.surfaceElevated, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        } else if vip.isLoadingProducts && vip.products.isEmpty {
+            ProgressView()
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 24)
+        } else if vip.products.isEmpty {
+            Text(L("vip.products_unavailable"))
+                .font(YTLiteType.meta)
+                .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity)
+        } else {
+            VStack(spacing: 12) {
+                ForEach(vip.products, id: \.id) { product in
+                    planCard(for: product)
+                }
+            }
+        }
+    }
+
+    private func planCard(for product: Product) -> some View {
+        let selected = selectedProductID == product.id
+        let pricing = VipPlanPricing(
+            product: product,
+            eligibleForIntro: vip.introEligibleByProductID[product.id] ?? false
+        )
+        return Button {
+            selectedProductID = product.id
+        } label: {
+            HStack(alignment: .center, spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(displayName(for: product.id))
+                        .font(YTLiteType.rowTitle)
+                        .foregroundStyle(YTLiteColor.onSurface)
+
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text(pricing.priceLine)
+                            .font(.system(size: 20, weight: .bold))
+                            .foregroundStyle(YTLiteColor.onSurface)
+                        if let strike = pricing.strikethroughPrice {
+                            Text(strike)
+                                .font(YTLiteType.meta)
+                                .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                                .strikethrough()
+                        }
+                    }
+
+                    if let thenLine = pricing.thenLine {
+                        Text(thenLine)
+                            .font(YTLiteType.meta)
+                            .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                    }
+                }
+
+                Spacer(minLength: 8)
+
+                if let save = pricing.savePercent {
+                    Text(Lf("vip.save_percent", save))
+                        .font(YTLiteType.badge)
+                        .foregroundStyle(YTLiteColor.onAccent)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(YTLiteColor.accent, in: Capsule())
+                }
+            }
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                YTLiteColor.surfaceElevated,
+                in: RoundedRectangle(cornerRadius: 14, style: .continuous)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(selected ? YTLiteColor.accent : Color.clear, lineWidth: 2)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    @ViewBuilder
+    private var subscribeButton: some View {
+        if vip.isVipActive {
+            EmptyView()
+        } else {
+            Button {
+                guard let id = selectedProductID,
+                      let product = vip.products.first(where: { $0.id == id })
+                else { return }
+                Task { await vip.purchase(product) }
+            } label: {
+                Group {
+                    if vip.isPurchasing {
+                        ProgressView()
+                            .tint(YTLiteColor.onAccent)
+                    } else {
+                        Text(L("vip.buy"))
+                            .font(.system(size: 17, weight: .bold))
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: 52)
+                .foregroundStyle(YTLiteColor.onAccent)
+                .background(YTLiteColor.accent, in: Capsule())
+            }
+            .disabled(vip.isPurchasing || selectedProductID == nil || vip.products.isEmpty)
+        }
+    }
+
+    private var footerLinks: some View {
+        HStack(spacing: 0) {
+            footerLink(L("vip.restore")) {
+                Task { await vip.restorePurchases() }
+            }
+            footerLink(L("vip.manage")) {
+                AppLinks.open(Self.manageSubscriptionsURL)
+            }
+            footerLink(L("settings.terms_of_service")) {
+                AppLinks.open(AppLinks.termsOfService)
+            }
+            footerLink(L("settings.privacy_policy")) {
+                AppLinks.open(AppLinks.privacyPolicy)
+            }
+        }
+        .padding(.horizontal, 8)
+    }
+
+    private func footerLink(_ title: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(YTLiteType.meta)
+                .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func displayName(for productID: String) -> String {
+        switch productID {
+        case VipProductID.monthly: return L("vip.plan_monthly")
+        case VipProductID.yearly: return L("vip.plan_yearly")
+        default: return productID
+        }
+    }
+}
+
+private struct VipPlanPricing {
+    let priceLine: String
+    let strikethroughPrice: String?
+    let thenLine: String?
+    let savePercent: Int?
+
+    init(product: Product, eligibleForIntro: Bool) {
+        let regularPeriod = product.subscription?.subscriptionPeriod
+        let regular = product.displayPrice
+        let regularLine = Self.priceLine(amount: regular, period: regularPeriod, productID: product.id)
+
+        // Prefer App Store introductory offer when the account is eligible.
+        if eligibleForIntro, let intro = product.subscription?.introductoryOffer {
+            switch intro.paymentMode {
+            case .freeTrial:
+                priceLine = L("vip.price_free")
+                strikethroughPrice = regular
+                thenLine = Lf("vip.then_price", regularLine)
+                savePercent = 100
+            case .payAsYouGo, .payUpFront:
+                // Use the offer's own period (may differ from the base plan, e.g. P1M intro on yearly).
+                priceLine = Self.priceLine(
+                    amount: intro.displayPrice,
+                    period: intro.period,
+                    productID: product.id
+                )
+                strikethroughPrice = regular
+                thenLine = Lf("vip.then_price", regularLine)
+                let introValue = NSDecimalNumber(decimal: intro.price).doubleValue
+                let regularValue = NSDecimalNumber(decimal: product.price).doubleValue
+                if regularValue > 0, introValue < regularValue {
+                    savePercent = Int(((regularValue - introValue) / regularValue * 100).rounded())
+                } else {
+                    savePercent = nil
+                }
+            default:
+                priceLine = regularLine
+                strikethroughPrice = nil
+                thenLine = nil
+                savePercent = nil
+            }
+            return
+        }
+
+        priceLine = regularLine
+        strikethroughPrice = nil
+        thenLine = nil
+        savePercent = nil
+    }
+
+    private static func priceLine(
+        amount: String,
+        period: Product.SubscriptionPeriod?,
+        productID: String
+    ) -> String {
+        guard let period else {
+            return productID == VipProductID.yearly
+                ? Lf("vip.price_year", amount)
+                : Lf("vip.price_month", amount)
+        }
+        // Common 1-unit periods; otherwise show bare localized amount from StoreKit.
+        if period.value == 1 {
+            switch period.unit {
+            case .year: return Lf("vip.price_year", amount)
+            case .month: return Lf("vip.price_month", amount)
+            default: break
+            }
+        }
+        return amount
     }
 }
 

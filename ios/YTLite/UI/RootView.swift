@@ -118,9 +118,12 @@ struct RootView: View {
                             let trace = SyncProbe.newTraceId()
                             SyncProbe.currentTrace = trace
                             SyncProbe.logTrace("sync.start", "source=root_appear")
+                            AppAnalytics.librarySyncStart(source: "appear")
                             appModel.beginLibrarySync()
                             defer {
-                                SyncProbe.logTrace("sync.end", "source=root_appear total_ms=\(SyncProbe.ms(since: t0))")
+                                let ms = SyncProbe.ms(since: t0)
+                                SyncProbe.logTrace("sync.end", "source=root_appear total_ms=\(ms)")
+                                AppAnalytics.librarySyncEnd(ok: true, ms: ms)
                                 appModel.endLibrarySync()
                             }
                             await sync.syncBidirectional(store: store)
@@ -150,9 +153,12 @@ struct RootView: View {
                         source = "root_user_same"
                     }
                     SyncProbe.logTrace("sync.start", "source=\(source)")
+                    AppAnalytics.librarySyncStart(source: "login")
                     appModel.beginLibrarySync()
                     defer {
-                        SyncProbe.logTrace("sync.end", "source=\(source) total_ms=\(SyncProbe.ms(since: t0))")
+                        let ms = SyncProbe.ms(since: t0)
+                        SyncProbe.logTrace("sync.end", "source=\(source) total_ms=\(ms)")
+                        AppAnalytics.librarySyncEnd(ok: true, ms: ms)
                         appModel.endLibrarySync()
                     }
 

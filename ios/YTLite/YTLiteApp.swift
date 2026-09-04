@@ -34,6 +34,7 @@ struct YTLiteApp: App {
                 .environmentObject(appModel)
                 .environmentObject(authService)
                 .environmentObject(ReviewPromptCoordinator.shared)
+                .environmentObject(VipStore.shared)
                 .environment(\.locale, appModel.resolvedLocale)
                 .environment(\.layoutDirection, appModel.layoutDirection)
                 .id(appModel.themeRevision)
@@ -45,6 +46,7 @@ struct YTLiteApp: App {
 
                     ResolverRemoteConfigStore.restoreFromDisk()
                     await RemoteConfigStore.fetchAndActivate()
+                    await VipStore.shared.refresh()
                     appModel.syncAuth(authService)
                     ReviewPromptCoordinator.shared.recordActiveDay()
                     // Start after the first cooperative yield so early taps do not pay WKWebView startup.
@@ -66,6 +68,7 @@ struct YTLiteApp: App {
                 }
                 .onChange(of: scenePhase) { _, phase in
                     if phase == .active {
+                        AppAnalytics.appOpen(coldStart: false)
                         ReviewPromptCoordinator.shared.recordActiveDay()
                         playback.consumePendingDailyListenIfNeeded()
                         if playback.isPlaying {
@@ -73,6 +76,7 @@ struct YTLiteApp: App {
                         }
                     }
                     if phase == .background {
+                        AppAnalytics.appBackground()
                         playback.flushSession()
                         playback.prepareForBackgroundPlayback()
                     } else if phase == .inactive {
@@ -82,6 +86,9 @@ struct YTLiteApp: App {
                 }
                 .onReceive(NotificationCenter.default.publisher(for: .ytlitePlayFromDailyNotification)) { _ in
                     playback.consumePendingDailyListenIfNeeded()
+                }
+                .onAppear {
+                    AppAnalytics.appOpen(coldStart: true)
                 }
         }
         .modelContainer(modelContainer)

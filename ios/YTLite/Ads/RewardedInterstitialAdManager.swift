@@ -117,6 +117,7 @@ final class RewardedInterstitialAdManager: NSObject {
         self.completion = completion
         AdBootstrap.enforceMutedAds()
         AdProbe.log("rewarded.show", "reason=\(reason)")
+        AppAnalytics.adShow(format: "rewarded")
         ad.present(from: root) { [weak self] in
             Task { @MainActor in
                 self?.didEarnReward = true

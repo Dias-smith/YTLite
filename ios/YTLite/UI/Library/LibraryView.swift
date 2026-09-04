@@ -412,7 +412,7 @@ struct LibraryView: View {
                             .padding(.horizontal, 24)
                             .padding(.top, 12)
 
-                        SignInOptionsView(auth: auth) {
+                        SignInOptionsView(auth: auth, analyticsSource: "library") {
                             appModel.syncAuth(auth)
                             showSignInOptions = false
                             reload()
@@ -1122,7 +1122,7 @@ struct LibraryView: View {
             if isSelectionMode {
                 toggleSelection(item.videoId)
             } else {
-                playback.play(items: displayedSongs, startAt: displayedSongs.firstIndex(of: item) ?? 0)
+                playback.play(items: displayedSongs, startAt: displayedSongs.firstIndex(of: item) ?? 0, analyticsSource: "library")
                 playerPresentation.present()
             }
         } label: {
@@ -1149,7 +1149,7 @@ struct LibraryView: View {
             if isSelectionMode {
                 toggleSelection(item.videoId)
             } else {
-                playback.play(items: displayedSongs, startAt: displayedSongs.firstIndex(of: item) ?? 0)
+                playback.play(items: displayedSongs, startAt: displayedSongs.firstIndex(of: item) ?? 0, analyticsSource: "library")
                 playerPresentation.present()
             }
         } label: {
@@ -1349,8 +1349,13 @@ struct LibraryView: View {
         guard auth.isAuthenticated, let store, !appModel.isLibrarySyncing else { return }
         preferCompactLibrarySync = true
         Task {
+            let t0 = SyncProbe.now()
+            AppAnalytics.librarySyncStart(source: "manual")
             appModel.beginLibrarySync()
-            defer { appModel.endLibrarySync() }
+            defer {
+                AppAnalytics.librarySyncEnd(ok: true, ms: SyncProbe.ms(since: t0))
+                appModel.endLibrarySync()
+            }
             await LibrarySyncService(auth: auth).syncBidirectional(store: store)
             reload()
         }
@@ -1715,7 +1720,7 @@ struct HistoryDetailView: View {
                 } else {
                     ForEach(Array(tracks.enumerated()), id: \.element.id) { index, item in
                         Button {
-                            playback.play(items: tracks, startAt: index)
+                            playback.play(items: tracks, startAt: index, analyticsSource: "library")
                             playerPresentation.present()
                         } label: {
                             LibrarySongRow(item: item) {

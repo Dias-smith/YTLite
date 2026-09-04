@@ -82,6 +82,7 @@ final class AppOpenAdManager: NSObject {
         isShowingAd = true
         AdBootstrap.enforceMutedAds()
         AdProbe.log("app_open.show", "reason=\(reason)")
+        AppAnalytics.adShow(format: "app_open")
         ad.present(from: root)
         return true
     }

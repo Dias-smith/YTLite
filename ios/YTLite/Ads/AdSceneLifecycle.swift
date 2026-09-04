@@ -160,10 +160,12 @@ enum AdSceneLifecycle {
                 "lifecycle.pending.hold",
                 "library_songs=\(AdEligibility.librarySongCount) need=\(AdEligibility.minimumLibrarySongCount) source=\(source)"
             )
+            AppAnalytics.adSkipOrBlock(reason: "library_threshold")
             return
         }
         guard AdConsentManager.canRequestAds else {
             AdProbe.log("lifecycle.pending.hold", "no consent yet source=\(source)")
+            AppAnalytics.adSkipOrBlock(reason: "consent")
             return
         }
         guard !hasPresentedSinceForeground, let p = pending else { return }

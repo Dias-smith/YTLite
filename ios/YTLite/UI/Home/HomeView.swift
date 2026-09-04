@@ -450,6 +450,7 @@ final class HomeViewModel: ObservableObject {
             if page.entries.isEmpty {
                 errorMessage = "No videos in feed"
                 HomeFeedProbe.log("refresh.empty", "category=\(requestId)")
+                AppAnalytics.homeFeedLoad(ok: false, count: 0, category: requestId)
             } else {
                 errorMessage = nil
                 HomeFeedStore.save(
@@ -458,6 +459,7 @@ final class HomeViewModel: ObservableObject {
                     continuation: page.continuation,
                     allFeedUsesSearchPagination: requestId == "all" ? allFeedUsesSearchPagination : false
                 )
+                AppAnalytics.homeFeedLoad(ok: true, count: page.entries.count, category: requestId)
                 if force {
                     scrollToTopToken += 1
                     HomeFeedProbe.log("refresh.scrollTop", "token=\(scrollToTopToken)")
@@ -482,6 +484,7 @@ final class HomeViewModel: ObservableObject {
                 "category=\(requestId) err=\(error.localizedDescription)"
             )
             errorMessage = error.localizedDescription
+            AppAnalytics.homeFeedLoad(ok: false, count: entries.count, category: requestId)
             if entries.isEmpty {
                 applyStoredFeed(for: requestId)
             }
@@ -782,7 +785,7 @@ struct HomeView: View {
                                         onTap: {
                                             let queue = viewModel.playableVideos
                                             let playIndex = viewModel.playIndex(for: item)
-                                            playback.play(items: queue.isEmpty ? [item] : queue, startAt: playIndex)
+                                            playback.play(items: queue.isEmpty ? [item] : queue, startAt: playIndex, analyticsSource: "home")
                                             playerPresentation.present()
                                         },
                                         onMore: {
@@ -969,7 +972,7 @@ struct AlbumTracksView: View {
                             FeedVideoCard(
                                 item: item,
                                 onTap: {
-                                    playback.play(items: tracks, startAt: index)
+                                    playback.play(items: tracks, startAt: index, analyticsSource: "home")
                                     playerPresentation.present()
                                 },
                                 onMore: {

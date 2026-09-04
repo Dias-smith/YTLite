@@ -64,7 +64,7 @@ struct YouView: View {
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
 
-            SignInOptionsView(auth: auth) {
+            SignInOptionsView(auth: auth, analyticsSource: "you") {
                 appModel.syncAuth(auth)
                 await viewModel.loadYouTubeShelves(
                     token: auth.googleAccessToken,
@@ -102,7 +102,7 @@ struct YouView: View {
                         .foregroundStyle(YTLiteColor.onSurfaceVariant)
                     Button {
                         Task {
-                            await auth.signInWithGoogle()
+                            await auth.signInWithGoogle(source: "you")
                             appModel.syncAuth(auth)
                             await viewModel.loadYouTubeShelves(
                                 token: auth.googleAccessToken,
@@ -285,7 +285,7 @@ struct YouView: View {
             Button {
                 Task {
                     // Prefer re-consent without local sign-out dance (avoids wiping shelves on cancel).
-                    await auth.signInWithGoogle()
+                    await auth.signInWithGoogle(source: "you")
                     appModel.syncAuth(auth)
                     guard auth.lastError == nil else { return }
                     await viewModel.loadYouTubeShelves(

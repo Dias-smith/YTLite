@@ -26,6 +26,7 @@ final class ReviewPromptCoordinator: ObservableObject {
     /// Player fullscreen / auth UI / sync overlay — defer prompt until clear.
     private var busyFlags: Set<String> = []
     private var pendingPrompt = false
+    private var pendingReason: ReviewPromptReason?
     private var quietRetryTask: Task<Void, Never>?
     private var sessionCompletedVideoIds = Set<String>()
 
@@ -91,6 +92,7 @@ final class ReviewPromptCoordinator: ObservableObject {
         showSheet = false
         ReviewPromptStore.outcome = .loved
         ReviewPromptStore.lastPromptAt = Date()
+        AppAnalytics.reviewPromptAction(action: "love_it")
         requestSystemReview()
     }
 
@@ -98,6 +100,7 @@ final class ReviewPromptCoordinator: ObservableObject {
         showSheet = false
         ReviewPromptStore.outcome = .feedback
         ReviewPromptStore.lastPromptAt = Date()
+        AppAnalytics.reviewPromptAction(action: "not_really")
         if let url = AppLinks.suggestionsMailtoURL(subject: L("settings.suggestions_subject")) {
             AppLinks.open(url)
         }
@@ -107,13 +110,14 @@ final class ReviewPromptCoordinator: ObservableObject {
         showSheet = false
         ReviewPromptStore.outcome = .later
         ReviewPromptStore.lastPromptAt = Date()
+        AppAnalytics.reviewPromptAction(action: "later")
     }
 
     // MARK: - Gates
 
     func requestPromptIfEligible(reason: ReviewPromptReason) {
-        _ = reason
         guard !showSheet else { return }
+        pendingReason = reason
 
         if ReviewPromptStore.secondsSinceProcessStart < Self.quietSeconds {
             pendingPrompt = true
@@ -128,8 +132,7 @@ final class ReviewPromptCoordinator: ObservableObject {
             return
         }
 
-        pendingPrompt = false
-        showSheet = true
+        presentPrompt(reason: reason)
     }
 
     private func flushPendingIfPossible() {
@@ -144,8 +147,13 @@ final class ReviewPromptCoordinator: ObservableObject {
             return
         }
         guard busyFlags.isEmpty else { return }
+        presentPrompt(reason: pendingReason ?? .completedPlays)
+    }
+
+    private func presentPrompt(reason: ReviewPromptReason) {
         pendingPrompt = false
         showSheet = true
+        AppAnalytics.reviewPromptShow(reason: reason.rawValue)
     }
 
     private func cooldownAllowsPrompt() -> Bool {

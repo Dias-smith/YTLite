@@ -86,6 +86,9 @@ final class PlaybackController: ObservableObject {
     private var pendingResolvedDurationSeconds: Int = 0
     /// Prevents duplicate successful-play bookkeeping for the same queue item.
     private var successfulPlaybackRecordedVideoId: String?
+    /// Product analytics: where the current play request came from.
+    private var analyticsPlaySource: String = "unknown"
+    private var analyticsResolveStartedAt: CFAbsoluteTime?
     /// Probe-only: when current stream open began / which URL is loading.
     private var probeStreamStartedAt: CFAbsoluteTime?
     private var probeStreamURL: URL?
@@ -198,7 +201,7 @@ final class PlaybackController: ObservableObject {
         refreshRemoteCommandEnabled()
     }
 
-    func play(items: [VideoItem], startAt index: Int = 0, sourcePlaylistId: String? = nil) {
+    func play(items: [VideoItem], startAt index: Int = 0, sourcePlaylistId: String? = nil, analyticsSource: String = "unknown") {
         guard !items.isEmpty else { return }
         let start = index.clamped(to: 0...(items.count - 1))
         let selectedItem = items[start]
@@ -210,6 +213,7 @@ final class PlaybackController: ObservableObject {
             return
         }
 
+        analyticsPlaySource = analyticsSource
         self.sourcePlaylistId = sourcePlaylistId
         originalOrder = items
         PlaybackPreparer.shared.clear()
@@ -231,15 +235,16 @@ final class PlaybackController: ObservableObject {
     /// Consume a song queued by tapping the daily listen notification.
     func consumePendingDailyListenIfNeeded() {
         guard let item = PendingDailyListenPlayback.consume() else { return }
+        AppAnalytics.dailyListenTap()
         // Prefer the full library list so Up next stays useful after the jump.
         if let store = libraryStore {
             let songs = store.successfullyPlayedSongs()
             if let index = songs.firstIndex(where: { $0.videoId == item.videoId }) {
-                play(items: songs, startAt: index)
+                play(items: songs, startAt: index, analyticsSource: "notification")
                 return
             }
         }
-        play(items: [item], startAt: 0)
+        play(items: [item], startAt: 0, analyticsSource: "notification")
     }
 
     /// Jump within the existing Up next queue without rebuilding or reshuffling the list.
@@ -251,6 +256,9 @@ final class PlaybackController: ObservableObject {
             resumeCurrentPlaybackIfNeeded()
             return
         }
+        let fromId = nowPlaying?.videoId ?? ""
+        AppAnalytics.playSkip(fromId: fromId, toId: item.videoId)
+        analyticsPlaySource = "queue"
         queueIndex = target
         pendingSeekSeconds = 0
         playCurrentQueueItem()
@@ -273,19 +281,26 @@ final class PlaybackController: ObservableObject {
     }
 
     func playSearchItem(_ item: SearchVideoItem) {
-        play(items: [item], startAt: 0)
+        play(items: [item], startAt: 0, analyticsSource: "search")
     }
 
     /// Manual skip — advances even in Repeat One (Android detail `skipToNext`).
     func playNext() {
         guard !queue.isEmpty else { return }
+        let fromId = nowPlaying?.videoId ?? ""
         if queueIndex + 1 < queue.count {
             queueIndex += 1
+            let toId = queue[queueIndex].videoId
+            AppAnalytics.playSkip(fromId: fromId, toId: toId)
+            analyticsPlaySource = "queue"
             playCurrentQueueItem()
             return
         }
         if repeatMode == .all {
             queueIndex = 0
+            let toId = queue[queueIndex].videoId
+            AppAnalytics.playSkip(fromId: fromId, toId: toId)
+            analyticsPlaySource = "queue"
             playCurrentQueueItem()
         }
     }
@@ -293,13 +308,20 @@ final class PlaybackController: ObservableObject {
     /// Manual skip to the previous queue item (does not restart the current track).
     func playPrevious() {
         guard !queue.isEmpty else { return }
+        let fromId = nowPlaying?.videoId ?? ""
         if queueIndex > 0 {
             queueIndex -= 1
+            let toId = queue[queueIndex].videoId
+            AppAnalytics.playSkip(fromId: fromId, toId: toId)
+            analyticsPlaySource = "queue"
             playCurrentQueueItem()
             return
         }
         if repeatMode == .all {
             queueIndex = queue.count - 1
+            let toId = queue[queueIndex].videoId
+            AppAnalytics.playSkip(fromId: fromId, toId: toId)
+            analyticsPlaySource = "queue"
             playCurrentQueueItem()
         }
     }
@@ -539,6 +561,8 @@ final class PlaybackController: ObservableObject {
             videoId: item.videoId,
             "title=\(item.title.prefix(48)) index=\(queueIndex)/\(queue.count)"
         )
+        AppAnalytics.playRequest(videoId: item.videoId, source: analyticsPlaySource)
+        analyticsResolveStartedAt = PlayProbe.now()
         clearHLSQualityState()
         playbackStoreContext = nil
         playbackStoreThresholdMet = false
@@ -615,6 +639,12 @@ final class PlaybackController: ObservableObject {
                     if seekTo > 1 {
                         seek(to: seekTo)
                     }
+                    let resolveMs = analyticsResolveStartedAt.map { PlayProbe.ms(since: $0) } ?? 0
+                    AppAnalytics.playResolveOk(
+                        videoId: expectedVideoId,
+                        ms: resolveMs,
+                        source: SaltedLiteral.probeLocalSource
+                    )
                     if let playing = nowPlaying {
                         onPlaybackStarted?(playing)
                     }
@@ -755,6 +785,8 @@ final class PlaybackController: ObservableObject {
                 } else {
                     source = "cold"
                 }
+                let resolveMs = analyticsResolveStartedAt.map { PlayProbe.ms(since: $0) } ?? 0
+                AppAnalytics.playResolveOk(videoId: expectedVideoId, ms: resolveMs, source: source)
                 PlayProbe.log(
                     "play.avplayer.start",
                     videoId: expectedVideoId,
@@ -810,6 +842,11 @@ final class PlaybackController: ObservableObject {
                 isPlaying = false
                 lastError = Self.userFacingResolveError(error)
                 needsLoginForPlayback = Self.isLoginRequiredResolveError(error)
+                AppAnalytics.playResolveFail(
+                    videoId: expectedVideoId,
+                    error: lastError ?? error.localizedDescription,
+                    needsLogin: needsLoginForPlayback
+                )
                 let isTimeout: Bool = {
                     if case StreamResolver.StreamResolverError.timeout = error { return true }
                     let lower = error.localizedDescription.lowercased()
@@ -1475,6 +1512,11 @@ final class PlaybackController: ObservableObject {
                     self.isBuffering = false
                     self.isPlaying = false
                     self.lastError = err
+                    AppAnalytics.playFail(
+                        videoId: videoId ?? "",
+                        error: err,
+                        retried: self.streamOpenReresolveUsed || self.streamTimeoutReresolveUsed || self.preparePlaybackRetryUsed
+                    )
                     self.updateNowPlayingInfo()
                     self.refreshRemoteCommandEnabled()
                 @unknown default:
@@ -1902,6 +1944,9 @@ final class PlaybackController: ObservableObject {
         successfulPlaybackRecordedVideoId = videoId
         guard let playing = nowPlaying else { return }
 
+        let openMs = probeStreamElapsedMs()
+        AppAnalytics.playStart(videoId: videoId, openMs: openMs)
+
         libraryStore?.recordPlayback(
             playing,
             durationSeconds: pendingResolvedDurationSeconds
@@ -1934,6 +1979,9 @@ final class PlaybackController: ObservableObject {
 
     /// Android `GlobalPlaybackViewModel.handlePlaybackEnded`.
     private func handlePlaybackEnded() {
+        if let videoId = nowPlaying?.videoId {
+            AppAnalytics.playComplete(videoId: videoId)
+        }
         if repeatMode == .one {
             seek(to: 0)
             player?.playImmediately(atRate: playbackSpeed)

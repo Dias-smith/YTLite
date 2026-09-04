@@ -291,6 +291,9 @@ struct ShortsView: View {
             }
         }
         .ignoresSafeArea(edges: usesPhoneFrame ? [] : .bottom)
+        .onAppear {
+            AppAnalytics.shortsOpen()
+        }
     }
 
     private func shortsFrame(in size: CGSize) -> CGSize {

@@ -10,6 +10,7 @@ struct ThemePickerView: View {
     @EnvironmentObject private var appModel: AppModel
     @ObservedObject private var themes = ThemeStore.shared
     @ObservedObject private var rewardUnlocks = RewardUnlockStore.shared
+    @ObservedObject private var vip = VipStore.shared
     @State private var editorDraft: ThemeEditorDraft?
     @State private var pendingRewardAction: ThemeRewardAction?
     @State private var showRewardPrompt = false
@@ -153,7 +154,8 @@ struct ThemePickerView: View {
 
     private var themesUnlockedToday: Bool {
         _ = rewardUnlocks.revision
-        return rewardUnlocks.isUnlockedToday(.themes)
+        _ = vip.revision
+        return vip.isVipActive || rewardUnlocks.isUnlockedToday(.themes)
     }
 
     private func requiresReward(_ palette: ThemePalette) -> Bool {

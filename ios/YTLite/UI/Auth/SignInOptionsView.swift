@@ -6,6 +6,8 @@ struct SignInOptionsView: View {
     @ObservedObject var auth: AuthService
     /// When false, only Google is offered (e.g. playback needs YouTube OAuth).
     var showsAppleSignIn: Bool = true
+    /// Analytics `source` for sign_in_* events.
+    var analyticsSource: String = "unknown"
     var onSignedIn: (() async -> Void)?
 
     @Environment(\.colorScheme) private var colorScheme
@@ -21,7 +23,11 @@ struct SignInOptionsView: View {
                     request.nonce = AuthNonce.sha256(nonce)
                 } onCompletion: { result in
                     Task {
-                        await auth.completeAppleSignIn(result: result, rawNonce: appleNonce)
+                        await auth.completeAppleSignIn(
+                            result: result,
+                            rawNonce: appleNonce,
+                            source: analyticsSource
+                        )
                         if auth.isAuthenticated {
                             await onSignedIn?()
                         }
@@ -35,7 +41,7 @@ struct SignInOptionsView: View {
 
             Button {
                 Task {
-                    await auth.signInWithGoogle()
+                    await auth.signInWithGoogle(source: analyticsSource)
                     if auth.isAuthenticated {
                         await onSignedIn?()
                     }

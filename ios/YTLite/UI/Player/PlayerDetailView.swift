@@ -133,6 +133,14 @@ struct PlayerDetailView: View {
                 if !playback.isBuffering {
                     bumpOverlayAutoHide()
                 }
+                if shouldShowPlaybackLoginPrompt {
+                    AppAnalytics.playbackLoginPrompt(hasGoogle: hasYouTubeGoogleAccess)
+                }
+            }
+            .onChange(of: shouldShowPlaybackLoginPrompt) { _, show in
+                if show {
+                    AppAnalytics.playbackLoginPrompt(hasGoogle: hasYouTubeGoogleAccess)
+                }
             }
             .onChange(of: isPresentingAdBlockingSheet) { _, blocked in
                 AdSceneLifecycle.setUIBlocked("player_detail_sheet", blocked: blocked)
@@ -244,7 +252,8 @@ struct PlayerDetailView: View {
                         .padding(.horizontal, YTLiteLayout.screenPadding)
                     Button {
                         Task {
-                            await auth.signInWithGoogle()
+                            AppAnalytics.playbackLoginContinue()
+                            await auth.signInWithGoogle(source: "player")
                             if auth.isAuthenticated {
                                 appModel.syncAuth(auth)
                                 showPlaybackSignIn = false
@@ -1258,7 +1267,8 @@ struct PlayerDetailView: View {
                         if isSelectionMode {
                             toggleSelection(item.videoId)
                         } else {
-                            playback.play(items: related, startAt: index)
+                            playback.play(items: related, startAt: index, analyticsSource: "related")
+                            AppAnalytics.relatedTap()
                         }
                     }
                 }
