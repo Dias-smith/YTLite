@@ -7005,13 +7005,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Welcome to YouLite"
+            "value": "Welcome to Mixtube"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "欢迎使用 YouLite"
+            "value": "欢迎使用 Mixtube"
           }
         }
       }
@@ -7075,49 +7075,49 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "YouLite"
+            "value": "Mixtube"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "YouLite"
+            "value": "Mixtube"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "YouLite"
+            "value": "Mixtube"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "YouLite"
+            "value": "Mixtube"
           }
         },
         "hi": {
           "stringUnit": {
             "state": "translated",
-            "value": "YouLite"
+            "value": "Mixtube"
           }
         },
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "YouLite"
+            "value": "Mixtube"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "YouLite"
+            "value": "Mixtube"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "YouLite"
+            "value": "Mixtube"
           }
         }
       }
@@ -8280,49 +8280,49 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "Enjoying YouLite?"
+            "value": "Enjoying Mixtube?"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Enjoying YouLite?"
+            "value": "Enjoying Mixtube?"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Enjoying YouLite?"
+            "value": "Enjoying Mixtube?"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Enjoying YouLite?"
+            "value": "Enjoying Mixtube?"
           }
         },
         "hi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Enjoying YouLite?"
+            "value": "Enjoying Mixtube?"
           }
         },
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Enjoying YouLite?"
+            "value": "Enjoying Mixtube?"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "喜欢 YouLite 吗？"
+            "value": "喜欢 Mixtube 吗？"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "喜歡 YouLite 嗎？"
+            "value": "喜歡 Mixtube 嗎？"
           }
         }
       }
@@ -9957,49 +9957,49 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "اقتراحات YouLite"
+            "value": "اقتراحات Mixtube"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "YouLite Suggestions"
+            "value": "Mixtube Suggestions"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sugerencias de YouLite"
+            "value": "Sugerencias de Mixtube"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Suggestions YouLite"
+            "value": "Suggestions Mixtube"
           }
         },
         "hi": {
           "stringUnit": {
             "state": "translated",
-            "value": "YouLite सुझाव"
+            "value": "Mixtube सुझाव"
           }
         },
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sugestões YouLite"
+            "value": "Sugestões Mixtube"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "YouLite 意见反馈"
+            "value": "Mixtube 意见反馈"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "YouLite 意見回饋"
+            "value": "Mixtube 意見回饋"
           }
         }
       }
@@ -11551,7 +11551,7 @@
         }
       }
     },
-    "This permanently deletes your YouLite account and cloud library data (playlists, history, subscriptions, and metadata). This can't be undone.": {},
+    "This permanently deletes your Mixtube account and cloud library data (playlists, history, subscriptions, and metadata). This can't be undone.": {},
     "toast.added_to_queue": {
       "extractionState": "manual",
       "localizations": {
@@ -12512,49 +12512,49 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "YouLite Premium"
+            "value": "Mixtube Premium"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "YouLite 会员"
+            "value": "Mixtube 会员"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "YouLite 會員"
+            "value": "Mixtube 會員"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "YouLite Premium"
+            "value": "Mixtube Premium"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "YouLite Premium"
+            "value": "Mixtube Premium"
           }
         },
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "YouLite Premium"
+            "value": "Mixtube Premium"
           }
         },
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "YouLite Premium"
+            "value": "Mixtube Premium"
           }
         },
         "hi": {
           "stringUnit": {
             "state": "translated",
-            "value": "YouLite Premium"
+            "value": "Mixtube Premium"
           }
         }
       }

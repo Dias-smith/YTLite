@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">YTLite</string>
+    <string name="app_name">Mixtube</string>
     <string name="nav_home">首页</string>
     <string name="nav_shorts">Shorts</string>
     <string name="nav_subscriptions">订阅</string>
@@ -191,7 +191,7 @@
     <string name="vip_entry_title">去除广告</string>
     <string name="vip_entry_subtitle">订阅以去除全部广告</string>
     <string name="vip_entry_subtitle_active">会员已开通</string>
-    <string name="vip_hero_title">YouLite 会员</string>
+    <string name="vip_hero_title">Mixtube 会员</string>
     <string name="vip_hero_subtitle">畅享无广告体验</string>
     <string name="vip_benefits">会员权益</string>
     <string name="vip_benefit_ad_free">去除全部广告</string>

@@ -1,12 +1,13 @@
-/* YouLite marketing site — shared styles */
+/* Mixtube marketing site — shared styles */
 
 :root {
   --ink: #0c0d0f;
   --ink-elevated: #16181c;
   --paper: #f4f1ec;
   --muted: #8a8680;
-  --accent: #ff6a00;
-  --accent-deep: #c45500;
+  --accent: #ff5a2a;
+  --accent-deep: #e11d6a;
+  --accent-hot: #ff8a33;
   --line: rgba(244, 241, 236, 0.12);
   --font-display: "Syne", "Avenir Next", "Segoe UI", sans-serif;
   --font-body: "DM Sans", "Helvetica Neue", sans-serif;
@@ -47,7 +48,7 @@ a {
 }
 
 a:hover {
-  color: #ff8a33;
+  color: var(--accent-hot);
 }
 
 /* —— Site chrome —— */
@@ -117,8 +118,9 @@ a:hover {
   inset: 0;
   pointer-events: none;
   background:
-    radial-gradient(ellipse 80% 55% at 70% 15%, rgba(255, 106, 0, 0.28), transparent 55%),
-    radial-gradient(ellipse 50% 40% at 10% 80%, rgba(40, 90, 120, 0.35), transparent 60%),
+    radial-gradient(ellipse 80% 55% at 70% 15%, rgba(255, 90, 42, 0.3), transparent 55%),
+    radial-gradient(ellipse 45% 35% at 20% 70%, rgba(225, 29, 106, 0.22), transparent 60%),
+    radial-gradient(ellipse 50% 40% at 10% 80%, rgba(40, 90, 120, 0.28), transparent 60%),
     linear-gradient(165deg, #12141a 0%, var(--ink) 45%, #08090b 100%);
 }
 
@@ -139,7 +141,13 @@ a:hover {
   right: -4%;
   top: 12%;
   border-radius: 50%;
-  background: radial-gradient(circle at 35% 35%, #ff8a33, var(--accent) 40%, transparent 70%);
+  background: radial-gradient(
+    circle at 35% 35%,
+    var(--accent-hot),
+    var(--accent) 38%,
+    var(--accent-deep) 62%,
+    transparent 72%
+  );
   filter: blur(2px);
   opacity: 0.55;
   animation: orb-drift 14s ease-in-out infinite alternate;
@@ -203,7 +211,7 @@ a:hover {
 }
 
 .btn-primary:hover {
-  background: #ff7f1f;
+  background: var(--accent-hot);
   color: #140800;
 }
 

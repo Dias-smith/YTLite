@@ -1,4 +1,4 @@
-# YouLite
+# Mixtube
 
 Hybrid YouTube / music-style client (repo / package ids may still say `YTLite` / `ytlite`).
 

@@ -35,6 +35,6 @@ struct AppSidebar: View {
         .listStyle(.sidebar)
         .scrollContentBackground(.hidden)
         .background(YTLiteColor.surface)
-        .navigationTitle("YouLite")
+        .navigationTitle("Mixtube")
     }
 }

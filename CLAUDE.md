@@ -10,12 +10,12 @@ This is a **monorepo**. The iOS app lives under `ios/`. Do not treat the Android
 
 | Field | Value |
 |-------|--------|
-| Display name | YouLite |
+| Display name | Mixtube |
 | Xcode project | `ios/YTLite.xcodeproj` |
 | Project / Target name | `YTLite` |
 | **Scheme Name** | `YTLite` |
 | **Bundle ID** | `com.ytlite.player` |
-| Product name (`PRODUCT_NAME`) | `YouLite` (produces `YouLite.app`) |
+| Product name (`PRODUCT_NAME`) | `Mixtube` (produces `Mixtube.app`) |
 | Default Simulator | `iPhone 17 Pro` |
 | Language | Swift 5.0 |
 | Minimum iOS | 17.0 (`TARGETED_DEVICE_FAMILY` = iPhone + iPad) |
@@ -46,7 +46,7 @@ Secrets: `ios/Config/Secrets.xcconfig.local` (gitignored). Sync from Android `lo
 
 | Path | Role |
 |------|------|
-| `ios/` | YouLite iOS (this CLAUDE.md’s primary target) |
+| `ios/` | Mixtube iOS (this CLAUDE.md’s primary target) |
 | `app/` | Android (Jetpack Compose) — feature parity reference, not iOS code |
 | `prd/` | Product specs (`prd/IOS_MVP_SCOPE.md` for iOS) |
 | `shared/resolution/` | Cross-platform stream-resolver assets |
@@ -105,7 +105,7 @@ Tabs (see `RootView`): Home / Shorts / Search / You / Library, plus mini player 
 - Localization: `L("key.path")` and `Lf("key.path", args)` from `AppLanguage.swift`. Add keys to `Localizable.xcstrings` — never hard-code user-visible English in UI.
 - Theme tokens: `YTLiteColor.*`, `YTLiteType.*`, `YTLiteLayout.*`, `YTLiteAdaptive.*`. Do not introduce ad-hoc `Color.black` / magic font sizes for product UI.
 - Probe / debug logs: tagged print such as `[YTLite.HomeFeed]`. Keep behind existing probe types; do not spam production logs.
-- URL scheme: `ytlite://` (auth callback `ytlite://auth-callback`). Bundle ID stays `com.ytlite.player` even when the display name is YouLite.
+- URL scheme: `ytlite://` (auth callback `ytlite://auth-callback`). Bundle ID stays `com.ytlite.player` even when the display name is Mixtube.
 
 ### UI style to preserve
 

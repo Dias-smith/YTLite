@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">YTLite</string>
+    <string name="app_name">Mixtube</string>
     <string name="nav_home">Home</string>
     <string name="nav_shorts">Shorts</string>
     <string name="nav_subscriptions">Subs</string>
@@ -207,7 +207,7 @@
     <string name="vip_entry_title">Remove Ads</string>
     <string name="vip_entry_subtitle">Subscribe to remove all ads</string>
     <string name="vip_entry_subtitle_active">Premium is active</string>
-    <string name="vip_hero_title">YouLite Premium</string>
+    <string name="vip_hero_title">Mixtube Premium</string>
     <string name="vip_hero_subtitle">Enjoy an ad-free experience</string>
     <string name="vip_benefits">Benefits</string>
     <string name="vip_benefit_ad_free">Remove all ads</string>

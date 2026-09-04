@@ -140,7 +140,7 @@
 		3F25F35684A83A600A625701 /* PlaylistActionContext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistActionContext.swift; sourceTree = "<group>"; };
 		42FC3949402F83619C537A0F /* AdConsentManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdConsentManager.swift; sourceTree = "<group>"; };
 		4304E3E3EC343C5F5E914EBA /* EditTrackMetadataSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditTrackMetadataSheet.swift; sourceTree = "<group>"; };
-		44EBD8B1BFEA37CB163553EB /* YouLite.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = YouLite.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		44EBD8B1BFEA37CB163553EB /* Mixtube.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Mixtube.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		496F688C233012874D29141D /* AuthNonce.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthNonce.swift; sourceTree = "<group>"; };
 		4F148613909F22D6432E97CD /* PlaybackController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackController.swift; sourceTree = "<group>"; };
 		5A76E914564581D50AA61C93 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
@@ -515,7 +515,7 @@
 		DF27C9EE4607BE8FB57E954A /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				44EBD8B1BFEA37CB163553EB /* YouLite.app */,
+				44EBD8B1BFEA37CB163553EB /* Mixtube.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -606,7 +606,7 @@
 				0C59CF5F40C1CC69EA3B79E6 /* GoogleMobileAds */,
 			);
 			productName = YTLite;
-			productReference = 44EBD8B1BFEA37CB163553EB /* YouLite.app */;
+			productReference = 44EBD8B1BFEA37CB163553EB /* Mixtube.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -915,7 +915,7 @@
 				DEVELOPMENT_TEAM = 8S748AQ4H7;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = YTLite/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = YouLite;
+				INFOPLIST_KEY_CFBundleDisplayName = Mixtube;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -923,7 +923,7 @@
 				);
 				MARKETING_VERSION = 1.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.ytlite.player;
-				PRODUCT_NAME = YouLite;
+				PRODUCT_NAME = Mixtube;
 				SDKROOT = iphoneos;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited)";
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -944,7 +944,7 @@
 				DEVELOPMENT_TEAM = 8S748AQ4H7;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = YTLite/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = YouLite;
+				INFOPLIST_KEY_CFBundleDisplayName = Mixtube;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -952,7 +952,7 @@
 				);
 				MARKETING_VERSION = 1.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.ytlite.player;
-				PRODUCT_NAME = YouLite;
+				PRODUCT_NAME = Mixtube;
 				SDKROOT = iphoneos;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited)";
 				TARGETED_DEVICE_FAMILY = "1,2";

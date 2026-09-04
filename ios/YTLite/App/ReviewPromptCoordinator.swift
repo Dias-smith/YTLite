@@ -10,7 +10,7 @@ enum ReviewPromptReason: String {
     case youShelf
 }
 
-/// Coordinates when to show the custom “Enjoying YouLite?” sheet and routes outcomes.
+/// Coordinates when to show the custom “Enjoying Mixtube?” sheet and routes outcomes.
 @MainActor
 final class ReviewPromptCoordinator: ObservableObject {
     static let shared = ReviewPromptCoordinator()
