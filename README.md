@@ -18,7 +18,7 @@ iOS MVP priorities: [`prd/IOS_MVP_SCOPE.md`](prd/IOS_MVP_SCOPE.md).
 Static files live in [`website/`](website/) (landing, privacy, terms, support).
 
 **Production URL:** [https://www.ytlite.cc/](https://www.ytlite.cc/)  
-**Contact:** [jimo.cgg@gmail.com](mailto:jimo.cgg@gmail.com)
+**Contact:** [diasjayanthasumith@gmail.com](mailto:diasjayanthasumith@gmail.com)
 
 > Use **www** for HTTPS links until GitHub Pages provisions a valid certificate for the apex (`ytlite.cc` currently serves `*.github.io`, which Safari flags as “Connection Is Not Private”).
 

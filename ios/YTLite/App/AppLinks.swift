@@ -7,7 +7,7 @@ enum AppLinks {
     static let privacyPolicy = URL(string: "https://www.ytlite.cc/privacy.html")!
     static let termsOfService = URL(string: "https://www.ytlite.cc/terms.html")!
     static let support = URL(string: "https://www.ytlite.cc/support.html")!
-    static let suggestionsEmail = "jimo.cgg@gmail.com"
+    static let suggestionsEmail = "diasjayanthasumith@gmail.com"
 
     /// Numeric App Store ID (no “id” prefix). From `APP_STORE_ID` in Secrets.xcconfig.
     static var appStoreId: String? {
