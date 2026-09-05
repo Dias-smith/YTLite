@@ -4,6 +4,7 @@ import android.app.Application
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.ytlite.player.R
 import com.ytlite.player.data.firebase.RemoteConfigRepository
 import com.ytlite.player.data.network.VpnStatus
 import com.ytlite.player.data.model.CaptionTrack
@@ -219,7 +220,7 @@ class GlobalPlaybackViewModel(
         val items = snapshot.items.map { it.toQueueItem() }
         if (items.isEmpty()) return
         val repeatMode = runCatching { QueueRepeatMode.valueOf(snapshot.repeatMode) }
-            .getOrDefault(QueueRepeatMode.OFF)
+            .getOrDefault(QueueRepeatMode.ALL)
         val originalOrder = snapshot.originalOrder?.map { it.toQueueItem() }
         PlayQueueRepository.restore(
             items = items,
@@ -475,10 +476,29 @@ class GlobalPlaybackViewModel(
     fun cycleRepeatMode() {
         val mode = PlayQueueRepository.cycleRepeatMode()
         PlaybackManager.setRepeatMode(mode)
+        val messageRes = when (mode) {
+            QueueRepeatMode.OFF -> R.string.player_mode_repeat_off
+            QueueRepeatMode.ALL -> R.string.player_mode_repeat_all
+            QueueRepeatMode.ONE -> R.string.player_mode_repeat_one
+        }
+        showPlaybackModeToast(messageRes)
     }
 
     fun toggleShuffle() {
         PlayQueueRepository.toggleShuffle()
+        val enabled = PlayQueueRepository.state.value.shuffleEnabled
+        showPlaybackModeToast(
+            if (enabled) R.string.player_mode_shuffle else R.string.player_mode_sequential,
+        )
+    }
+
+    private fun showPlaybackModeToast(messageRes: Int) {
+        val context = appContext ?: return
+        android.widget.Toast.makeText(
+            context,
+            context.getString(messageRes),
+            android.widget.Toast.LENGTH_SHORT,
+        ).show()
     }
 
     fun setUpNextPlaybackMode(mode: UpNextPlaybackMode) {
@@ -496,6 +516,14 @@ class GlobalPlaybackViewModel(
             } else {
                 PlaybackManager.stop()
             }
+        }
+    }
+
+    fun deleteFromLibrary(videoId: String) {
+        viewModelScope.launch {
+            val ownerKey = authRepository?.currentSession()?.ownerKey ?: return@launch
+            libraryRepository?.removeTracksFromLocalLibrary(ownerKey, listOf(videoId))
+            removeFromQueue(videoId)
         }
     }
 

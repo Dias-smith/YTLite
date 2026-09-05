@@ -63,12 +63,27 @@ object RemoteConfigRepository {
 
     private fun defaultValues(): Map<String, Any> = mapOf(
         Keys.ALLOW_OFFLINE to false,
+        Keys.ADS_INTERVAL to ADS_INTERVAL_DEFAULT_SECONDS,
     )
 
     object Keys {
         /** When true, play local media cache/download without re-resolving stream URLs. */
         const val ALLOW_OFFLINE = "allow_offline"
+
+        /** Seconds between two ordinary full-screen ads (app open / interstitial). */
+        const val ADS_INTERVAL = "ads_interval"
     }
 
+    private const val ADS_INTERVAL_DEFAULT_SECONDS = 120L
+
     fun allowOffline(): Boolean = getBoolean(Keys.ALLOW_OFFLINE)
+
+    /**
+     * Minimum seconds between two ordinary full-screen ads.
+     * Negative / missing → default 120. Zero means no cooldown.
+     */
+    fun adsIntervalSeconds(): Long {
+        val raw = getLong(Keys.ADS_INTERVAL)
+        return if (raw < 0L) ADS_INTERVAL_DEFAULT_SECONDS else raw
+    }
 }

@@ -17,6 +17,9 @@ interface PlaybackHistoryDao {
     @Query("UPDATE playback_history SET isSynced = 1 WHERE historyId = :historyId")
     suspend fun markSynced(historyId: String)
 
+    @Query("DELETE FROM playback_history WHERE ownerKey = :ownerKey AND trackId = :trackId")
+    suspend fun deleteByTrack(ownerKey: String, trackId: String)
+
     @Query("UPDATE playback_history SET ownerKey = :newOwnerKey WHERE ownerKey = :oldOwnerKey")
     suspend fun migrateOwnerKey(oldOwnerKey: String, newOwnerKey: String)
 }

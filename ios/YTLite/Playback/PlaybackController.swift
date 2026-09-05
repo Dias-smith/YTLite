@@ -11,8 +11,8 @@ final class PlaybackController: ObservableObject {
     @Published private(set) var queueIndex: Int = 0
     /// Playlist that loaded the current queue (Android `sourcePlaylistId`); nil for ad-hoc queues.
     @Published private(set) var sourcePlaylistId: String?
-    @Published private(set) var shuffleEnabled: Bool = false
-    @Published private(set) var repeatMode: QueueRepeatMode = .off
+    @Published private(set) var shuffleEnabled: Bool = true
+    @Published private(set) var repeatMode: QueueRepeatMode = .all
     @Published private(set) var isPlaying: Bool = false
     @Published var playbackSpeed: Float = 1.0 {
         didSet {
@@ -1676,8 +1676,7 @@ final class PlaybackController: ObservableObject {
         queueIndex = 0
         sourcePlaylistId = nil
         originalOrder = nil
-        shuffleEnabled = false
-        repeatMode = .off
+        // Keep shuffle / repeat preferences across stop.
         positionSeconds = 0
         durationSeconds = 0
         pendingSeekSeconds = 0

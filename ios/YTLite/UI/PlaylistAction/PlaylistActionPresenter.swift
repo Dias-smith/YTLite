@@ -58,7 +58,7 @@ final class PlaylistActionPresenter: ObservableObject {
         toastTask?.cancel()
         toastMessage = message
         toastTask = Task {
-            try? await Task.sleep(nanoseconds: 1_800_000_000)
+            try? await Task.sleep(nanoseconds: YTLiteToastBanner.displayNanoseconds)
             guard !Task.isCancelled else { return }
             toastMessage = nil
         }

@@ -367,6 +367,10 @@ enum TrackThumbnailStorage {
         }
     }
 
+    static func deleteFile(for trackId: String) {
+        try? FileManager.default.removeItem(at: fileURL(for: trackId))
+    }
+
     private static func trackId(fromLocalToken raw: String) -> String? {
         guard raw.hasPrefix(tokenPrefix) else { return nil }
         let id = String(raw.dropFirst(tokenPrefix.count))

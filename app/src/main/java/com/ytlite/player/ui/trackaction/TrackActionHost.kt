@@ -35,6 +35,7 @@ data class TrackActionNavigation(
 fun TrackActionHost(
     @Suppress("UNUSED_PARAMETER") navigation: TrackActionNavigation = TrackActionNavigation(),
     onRemoveFromQueue: ((String) -> Unit)? = null,
+    onDeleteFromLibrary: ((String) -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
     val application = LocalContext.current.applicationContext as Application
@@ -90,6 +91,11 @@ fun TrackActionHost(
             onViewLyrics = { videoId -> lyricsVideoId = videoId },
             onRemoveFromQueue = if (context.showRemoveFromQueue) {
                 { onRemoveFromQueue?.invoke(context.videoId) }
+            } else {
+                null
+            },
+            onDeleteFromLibrary = if (context.showDeleteFromLibrary) {
+                { onDeleteFromLibrary?.invoke(context.videoId) }
             } else {
                 null
             },

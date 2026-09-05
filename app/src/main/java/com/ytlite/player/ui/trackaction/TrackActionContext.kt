@@ -33,6 +33,7 @@ data class TrackActionContext(
     val playlistId: String? = null,
     val playlistSource: DataSource = DataSource.LOCAL,
     val showRemoveFromQueue: Boolean = false,
+    val showDeleteFromLibrary: Boolean = false,
 ) {
     fun toQueueItem() = QueueItem(
         videoId = videoId,
@@ -118,6 +119,7 @@ data class TrackActionContext(
             album = song.album,
             year = song.year,
             source = TrackActionSource.LIBRARY,
+            showDeleteFromLibrary = true,
         )
 
         fun fromPlaylistTrack(
@@ -136,6 +138,7 @@ data class TrackActionContext(
             source = TrackActionSource.LIBRARY,
             playlistId = playlistId,
             playlistSource = source,
+            showDeleteFromLibrary = source == DataSource.LOCAL,
         )
 
         fun fromSearchVideo(video: SearchResultItem.Video) = TrackActionContext(

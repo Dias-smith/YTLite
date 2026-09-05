@@ -267,6 +267,7 @@
     <string name="library_action_download">Download</string>
     <string name="library_action_save_playlist">Save to playlist</string>
     <string name="library_action_remove_playlist">Remove from playlist</string>
+    <string name="library_action_delete_from_library">Delete from Library</string>
     <string name="library_action_remove_locked">Read-only on YouTube playlists</string>
     <string name="library_action_edit_metadata">Edit info</string>
     <string name="playlist_action_shuffle_play">Shuffle play</string>
@@ -374,6 +375,7 @@
     <string name="toast_not_interested">Marked as not interested</string>
     <string name="toast_remove_not_interested">Removed not interested</string>
     <string name="toast_removed_from_queue">Removed from queue</string>
+    <string name="toast_song_deleted">Song deleted</string>
     <string name="toast_removed_from_playlist">Removed from playlist</string>
     <string name="lyrics_loading">Loading lyrics…</string>
     <string name="lyrics_empty">No lyrics available for this video</string>

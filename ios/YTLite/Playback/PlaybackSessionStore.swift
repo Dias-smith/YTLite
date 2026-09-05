@@ -26,8 +26,8 @@ struct PlaybackSessionSnapshot: Codable, Equatable {
         durationSeconds: Double = 0,
         channelId: String? = nil,
         channelAvatarURL: String? = nil,
-        repeatMode: QueueRepeatMode = .off,
-        shuffleEnabled: Bool = false,
+        repeatMode: QueueRepeatMode = .all,
+        shuffleEnabled: Bool = true,
         originalOrder: [PersistedQueueItem]? = nil
     ) {
         self.items = items
@@ -58,9 +58,9 @@ struct PlaybackSessionSnapshot: Codable, Equatable {
         } else if let mode = try c.decodeIfPresent(QueueRepeatMode.self, forKey: .repeatMode) {
             repeatMode = mode
         } else {
-            repeatMode = .off
+            repeatMode = .all
         }
-        shuffleEnabled = try c.decodeIfPresent(Bool.self, forKey: .shuffleEnabled) ?? false
+        shuffleEnabled = try c.decodeIfPresent(Bool.self, forKey: .shuffleEnabled) ?? true
         originalOrder = try c.decodeIfPresent([PersistedQueueItem].self, forKey: .originalOrder)
     }
 

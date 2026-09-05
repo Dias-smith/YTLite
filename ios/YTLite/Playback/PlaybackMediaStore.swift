@@ -82,6 +82,26 @@ actor PlaybackMediaStore {
         inflightVideoIds.remove(videoId)
     }
 
+    /// Deletes cached progressive media for a video (index + on-disk files).
+    func remove(videoId: String) {
+        loadIndexIfNeeded()
+        cancelPersist(videoId: videoId)
+        if let entry = index.removeValue(forKey: videoId) {
+            let fileURL = rootDirectory.appendingPathComponent(entry.relativePath)
+            try? fileManager.removeItem(at: fileURL)
+            try? fileManager.removeItem(at: fileURL.appendingPathExtension("partial"))
+            let dir = fileURL.deletingLastPathComponent()
+            if let remaining = try? fileManager.contentsOfDirectory(atPath: dir.path), remaining.isEmpty {
+                try? fileManager.removeItem(at: dir)
+            }
+        }
+        let videoDir = rootDirectory.appendingPathComponent(videoId, isDirectory: true)
+        if fileManager.fileExists(atPath: videoDir.path) {
+            try? fileManager.removeItem(at: videoDir)
+        }
+        persistIndex()
+    }
+
     // MARK: - Private
 
     private var rootDirectory: URL {

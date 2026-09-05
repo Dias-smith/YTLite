@@ -15,11 +15,12 @@ enum AdFullScreenCoordinator {
         }
         if observesCooldown, let lastOrdinaryAdFinishedAt {
             let elapsed = Date().timeIntervalSince(lastOrdinaryAdFinishedAt)
-            let remaining = max(0, AdMobConfig.interstitialCooldown - elapsed)
+            let cooldown = RemoteConfigStore.adsInterval
+            let remaining = max(0, cooldown - elapsed)
             guard remaining <= 0 else {
                 AdProbe.log(
                     "fullscreen.begin.skip",
-                    "cooldown remaining=\(Int(remaining))s reason=\(reason)"
+                    "cooldown remaining=\(Int(remaining))s interval=\(Int(cooldown))s reason=\(reason)"
                 )
                 return false
             }

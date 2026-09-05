@@ -654,6 +654,10 @@ class LibraryRepository(
         withContext(Dispatchers.IO) {
             trackIds.distinct().forEach { trackId ->
                 playlistTrackDao.deleteTrackFromAllLocalPlaylists(ownerKey, trackId)
+                userTrackLastPlayedDao.delete(ownerKey, trackId)
+                playbackHistoryDao.deleteByTrack(ownerKey, trackId)
+                userTrackMetadataDao.delete(ownerKey, trackId)
+                PlaybackCacheJanitor.purgeVideo(appContext, trackId)
             }
         }
 

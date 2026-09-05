@@ -23,12 +23,20 @@ final class TrackActionPresenter: ObservableObject {
         showActions = true
     }
 
-    func present(item: VideoItem, playlistId: String? = nil, canRemoveFromPlaylist: Bool = false) {
+    func present(
+        item: VideoItem,
+        playlistId: String? = nil,
+        canRemoveFromPlaylist: Bool = false,
+        canRemoveFromQueue: Bool = false,
+        canDeleteFromLibrary: Bool = false
+    ) {
         present(
             TrackActionContext(
                 item: item,
                 playlistId: playlistId,
-                canRemoveFromPlaylist: canRemoveFromPlaylist
+                canRemoveFromPlaylist: canRemoveFromPlaylist,
+                canRemoveFromQueue: canRemoveFromQueue,
+                canDeleteFromLibrary: canDeleteFromLibrary
             )
         )
     }
@@ -79,7 +87,7 @@ final class TrackActionPresenter: ObservableObject {
         toastTask?.cancel()
         toastMessage = message
         toastTask = Task {
-            try? await Task.sleep(nanoseconds: 1_800_000_000)
+            try? await Task.sleep(nanoseconds: YTLiteToastBanner.displayNanoseconds)
             guard !Task.isCancelled else { return }
             toastMessage = nil
         }

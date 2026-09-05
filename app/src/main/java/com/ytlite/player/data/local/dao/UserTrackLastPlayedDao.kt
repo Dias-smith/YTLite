@@ -71,6 +71,9 @@ interface UserTrackLastPlayedDao {
     @Query("DELETE FROM user_track_last_played WHERE ownerKey = :ownerKey")
     suspend fun deleteByOwner(ownerKey: String)
 
+    @Query("DELETE FROM user_track_last_played WHERE ownerKey = :ownerKey AND trackId = :trackId")
+    suspend fun delete(ownerKey: String, trackId: String)
+
     @Query("UPDATE user_track_last_played SET ownerKey = :newOwnerKey WHERE ownerKey = :oldOwnerKey")
     suspend fun migrateOwnerKey(oldOwnerKey: String, newOwnerKey: String)
 }

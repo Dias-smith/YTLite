@@ -56,6 +56,7 @@ fun TrackActionBottomSheet(
     onEditMetadata: (TrackActionContext) -> Unit,
     onViewLyrics: (String) -> Unit,
     onRemoveFromQueue: (() -> Unit)? = null,
+    onDeleteFromLibrary: (() -> Unit)? = null,
 ) {
     val application = LocalContext.current.applicationContext as Application
     val viewModel: TrackActionViewModel = viewModel(
@@ -211,7 +212,7 @@ fun TrackActionBottomSheet(
                 },
             )
 
-            if (context.showRemoveFromQueue || uiState.canRemoveFromPlaylist) {
+            if (context.showRemoveFromQueue || context.showDeleteFromLibrary || uiState.canRemoveFromPlaylist) {
                 HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
             }
             if (context.showRemoveFromQueue) {
@@ -232,6 +233,17 @@ fun TrackActionBottomSheet(
                     onClick = {
                         viewModel.removeFromPlaylist()
                         toast(R.string.toast_removed_from_playlist)
+                        onDismiss()
+                    },
+                )
+            }
+            if (context.showDeleteFromLibrary) {
+                TrackMenuRow(
+                    icon = Icons.Outlined.DeleteOutline,
+                    label = stringResource(R.string.library_action_delete_from_library),
+                    onClick = {
+                        onDeleteFromLibrary?.invoke()
+                        toast(R.string.toast_song_deleted)
                         onDismiss()
                     },
                 )

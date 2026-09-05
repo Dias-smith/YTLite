@@ -250,7 +250,8 @@
     <string name="library_action_add_queue">加入队列</string>
     <string name="library_action_download">下载</string>
     <string name="library_action_save_playlist">保存到播放列表</string>
-    <string name="library_action_remove_playlist">从播放列表移除</string>
+    <string name="library_action_remove_playlist">从歌单中移除</string>
+    <string name="library_action_delete_from_library">从 Library 中删除</string>
     <string name="library_action_remove_locked">YouTube 播放列表为只读</string>
     <string name="library_action_edit_metadata">编辑信息</string>
     <string name="edit_metadata_saved">曲目信息已保存</string>
@@ -328,6 +329,7 @@
     <string name="toast_not_interested">已标记为不感兴趣</string>
     <string name="toast_remove_not_interested">已撤销不感兴趣</string>
     <string name="toast_removed_from_queue">已从队列移除</string>
+    <string name="toast_song_deleted">已删除歌曲</string>
     <string name="toast_removed_from_playlist">已从播放列表移除</string>
     <string name="player_remove_from_queue">从队列移除</string>
     <string name="account_switcher_title">账号</string>

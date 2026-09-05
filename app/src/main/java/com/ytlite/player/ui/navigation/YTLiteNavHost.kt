@@ -100,6 +100,7 @@ fun YTLiteNavHost(modifier: Modifier = Modifier) {
             },
         ),
         onRemoveFromQueue = globalPlaybackViewModel::removeFromQueue,
+        onDeleteFromLibrary = globalPlaybackViewModel::deleteFromLibrary,
     ) {
         PlaylistActionHost(
             onShufflePlay = { items, sourcePlaylistId ->

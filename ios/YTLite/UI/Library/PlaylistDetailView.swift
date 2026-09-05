@@ -25,7 +25,6 @@ struct PlaylistDetailView: View {
     }
 
     private var canEdit: Bool { livePlaylist.systemType == nil }
-    private var canRemoveTracks: Bool { livePlaylist.systemType == nil }
     private var canReorder: Bool { sort == .manual }
 
     private var entryRows: [PlaylistDetailTrack] {
@@ -283,7 +282,8 @@ struct PlaylistDetailView: View {
                 trackActions.present(
                     item: row.item,
                     playlistId: livePlaylist.playlistId,
-                    canRemoveFromPlaylist: canRemoveTracks
+                    canRemoveFromPlaylist: true,
+                    canDeleteFromLibrary: true
                 )
             } label: {
                 Image(systemName: "ellipsis")

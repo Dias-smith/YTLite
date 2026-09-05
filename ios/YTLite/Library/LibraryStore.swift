@@ -556,15 +556,44 @@ final class LibraryStore {
             playlist.isSynced = false
         }
         for id in ids {
-            var descriptor = FetchDescriptor<UserTrackLastPlayed>(
+            var lastPlayedDescriptor = FetchDescriptor<UserTrackLastPlayed>(
                 predicate: #Predicate { $0.ownerKey == key && $0.trackId == id }
             )
-            descriptor.fetchLimit = 1
-            if let row = try? modelContext.fetch(descriptor).first {
+            lastPlayedDescriptor.fetchLimit = 1
+            if let row = try? modelContext.fetch(lastPlayedDescriptor).first {
                 modelContext.delete(row)
+            }
+
+            let historyDescriptor = FetchDescriptor<PlaybackHistoryItem>(
+                predicate: #Predicate { $0.ownerKey == key && $0.trackId == id }
+            )
+            if let rows = try? modelContext.fetch(historyDescriptor) {
+                for row in rows {
+                    modelContext.delete(row)
+                }
+            }
+
+            var metaDescriptor = FetchDescriptor<UserTrackMetadata>(
+                predicate: #Predicate { $0.ownerKey == key && $0.trackId == id }
+            )
+            metaDescriptor.fetchLimit = 1
+            if let meta = try? modelContext.fetch(metaDescriptor).first {
+                if let thumb = meta.customThumbnailUrl {
+                    TrackThumbnailStorage.deleteIfLocal(thumb)
+                }
+                TrackThumbnailStorage.deleteFile(for: id)
+                modelContext.delete(meta)
+            } else {
+                TrackThumbnailStorage.deleteFile(for: id)
             }
         }
         save()
+        let purgeIds = Array(ids)
+        Task {
+            for videoId in purgeIds {
+                await PlaybackMediaStore.shared.remove(videoId: videoId)
+            }
+        }
     }
 
     func playbackHistory(limit: Int = 50) -> [PlaybackHistoryItem] {

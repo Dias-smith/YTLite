@@ -240,6 +240,10 @@ enum FirebaseBootstrap {
 /// Thin wrapper around Firebase Remote Config (parity with Android `RemoteConfigRepository`).
 enum RemoteConfigStore {
     private static let allowOfflineKey = "allow_offline"
+    private static let adsIntervalKey = "ads_interval"
+
+    /// Local fallback when Remote Config is unavailable or misconfigured.
+    private static let adsIntervalDefaultSeconds: TimeInterval = AdMobConfig.interstitialCooldown
 
     static func configure() {
         guard isFirebaseAvailable else { return }
@@ -253,6 +257,7 @@ enum RemoteConfigStore {
         remoteConfig.configSettings = settings
         remoteConfig.setDefaults([
             allowOfflineKey: NSNumber(value: false),
+            adsIntervalKey: NSNumber(value: adsIntervalDefaultSeconds),
         ])
     }
 
@@ -262,6 +267,7 @@ enum RemoteConfigStore {
         guard isFirebaseAvailable else { return false }
         do {
             let status = try await RemoteConfig.remoteConfig().fetchAndActivate()
+            AdProbe.log("remote_config.ads_interval", "\(Int(adsInterval))s")
             return status != .error
         } catch {
             return false
@@ -272,6 +278,18 @@ enum RemoteConfigStore {
     static var allowOffline: Bool {
         guard isFirebaseAvailable else { return false }
         return RemoteConfig.remoteConfig().configValue(forKey: allowOfflineKey).boolValue
+    }
+
+    /// Minimum seconds between two ordinary full-screen ads (app open / interstitial).
+    static var adsInterval: TimeInterval {
+        guard isFirebaseAvailable else { return adsIntervalDefaultSeconds }
+        let raw = RemoteConfig.remoteConfig()
+            .configValue(forKey: adsIntervalKey)
+            .numberValue
+            .doubleValue
+        // Negative / NaN → default. Zero means no cooldown.
+        guard raw.isFinite, raw >= 0 else { return adsIntervalDefaultSeconds }
+        return raw
     }
 
     private static var isFirebaseAvailable: Bool {

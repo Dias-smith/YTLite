@@ -74,7 +74,8 @@ struct PlayerDetailView: View {
     @State private var relatedSourceVideoId: String?
     @State private var relatedLoading = false
     @State private var relatedError: String?
-    @State private var subscribeToast: String?
+    /// In-player toast (root `TrackActionHost` toast sits behind this sheet).
+    @State private var playerToast: String?
     @State private var showPlaybackSignIn = false
 
     @State private var showSortMenu = false
@@ -385,6 +386,12 @@ struct PlayerDetailView: View {
         .onChange(of: trackActions.menuCloseToken) { _, _ in
             playerTrackMenu = nil
         }
+        .onChange(of: trackActions.toastMessage) { _, message in
+            // Mirror host toasts (save-to-playlist, track menu) onto this sheet.
+            if let message, !message.isEmpty {
+                showPlayerToast(message)
+            }
+        }
         .onChange(of: appModel.contentLocaleRevision) { _, _ in
             // Related / radio queue is region-sensitive via InnerTube `gl`.
             related = []
@@ -394,6 +401,13 @@ struct PlayerDetailView: View {
             if tab == .related {
                 Task { await loadRelated() }
             }
+        }
+        .ytLiteToast($playerToast, bottomPadding: 40)
+    }
+
+    private func showPlayerToast(_ message: String) {
+        withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) {
+            playerToast = message
         }
     }
 
@@ -840,7 +854,7 @@ struct PlayerDetailView: View {
             Button {
                 guard canSubscribe else { return }
                 let nowSubscribed = playback.toggleChannelSubscribe()
-                subscribeToast = nowSubscribed ? L("player.subscribed") : L("player.unsubscribed")
+                showPlayerToast(nowSubscribed ? L("player.subscribed") : L("player.unsubscribed"))
             } label: {
                 Text(subscribed ? L("player.subscribed") : L("player.subscribe"))
                     .font(YTLiteType.badge)
@@ -858,22 +872,6 @@ struct PlayerDetailView: View {
         }
         .task(id: playback.nowPlaying?.channelId) {
             await resolveChannelAvatarIfNeeded()
-        }
-        .overlay(alignment: .bottom) {
-            if let subscribeToast {
-                Text(subscribeToast)
-                    .font(YTLiteType.meta.weight(.semibold))
-                    .foregroundStyle(YTLiteColor.onSurface)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 8)
-                    .background(YTLiteColor.surfaceVariant, in: Capsule())
-                    .offset(y: 36)
-                    .transition(.opacity)
-                    .task(id: subscribeToast) {
-                        try? await Task.sleep(nanoseconds: 1_400_000_000)
-                        self.subscribeToast = nil
-                    }
-            }
         }
     }
 
@@ -918,6 +916,7 @@ struct PlayerDetailView: View {
                 tint: playback.isFavorite ? YTLiteColor.accent : YTLiteColor.onSurface
             ) {
                 playback.toggleFavorite()
+                showPlayerToast(playback.isFavorite ? L("toast.liked") : L("toast.unliked"))
             }
             actionItem(
                 title: L("player.dislike"),
@@ -925,11 +924,15 @@ struct PlayerDetailView: View {
                 tint: playback.isDisliked ? YTLiteColor.accent : YTLiteColor.onSurface
             ) {
                 playback.toggleDislike()
+                showPlayerToast(
+                    playback.isDisliked ? L("toast.not_interested") : L("toast.remove_not_interested")
+                )
             }
             actionItem(title: L("common.share"), icon: "arrowshape.turn.up.right") {
                 if let item = playback.nowPlaying {
                     shareURL = item.watchShareURL
                     showShareSheet = true
+                    showPlayerToast(L("toast.share_ready"))
                 }
             }
             actionItem(title: L("common.save"), icon: "bookmark") {
@@ -963,13 +966,14 @@ struct PlayerDetailView: View {
     private var transportControls: some View {
         HStack {
             Button {
-                playback.toggleShuffle()
+                let enabled = playback.toggleShuffle()
+                showPlayerToast(enabled ? L("toast.shuffle_on") : L("toast.shuffle_off"))
             } label: {
                 Image(systemName: "shuffle")
                     .font(.title3)
                     .foregroundStyle(playback.shuffleEnabled ? YTLiteColor.accent : YTLiteColor.onSurface)
             }
-            .accessibilityLabel(playback.shuffleEnabled ? "Shuffle on" : "Sequential")
+            .accessibilityLabel(playback.shuffleEnabled ? L("toast.shuffle_on") : L("toast.shuffle_off"))
             Spacer()
             Button { playback.playPrevious() } label: {
                 Image(systemName: "backward.fill")
@@ -1001,7 +1005,8 @@ struct PlayerDetailView: View {
             .disabled(!playback.hasNextInQueue)
             Spacer()
             Button {
-                playback.cycleRepeatMode()
+                let mode = playback.cycleRepeatMode()
+                showPlayerToast(repeatModeToast(mode))
             } label: {
                 Image(systemName: playback.repeatMode.systemImage)
                     .font(.title3)
@@ -1013,11 +1018,19 @@ struct PlayerDetailView: View {
         .padding(.vertical, YTLiteLayout.stackTight)
     }
 
+    private func repeatModeToast(_ mode: QueueRepeatMode) -> String {
+        switch mode {
+        case .off: return L("toast.repeat_off")
+        case .all: return L("toast.repeat_all")
+        case .one: return L("toast.repeat_one")
+        }
+    }
+
     private var repeatAccessibilityLabel: String {
         switch playback.repeatMode {
-        case .off: return "Repeat off"
-        case .all: return "Repeat all"
-        case .one: return "Repeat one"
+        case .off: return L("toast.repeat_off")
+        case .all: return L("toast.repeat_all")
+        case .one: return L("toast.repeat_one")
         }
     }
 
@@ -1363,12 +1376,16 @@ struct PlayerDetailView: View {
                 channelName: item.channelName,
                 thumbnailURL: item.thumbnailURL,
                 durationText: item.durationText
-            )
+            ),
+            canRemoveFromQueue: false
         )
     }
 
-    private func openTrackMenu(_ item: VideoItem) {
-        let ctx = TrackActionContext(item: item)
+    private func openTrackMenu(_ item: VideoItem, canRemoveFromQueue: Bool? = nil) {
+        let ctx = TrackActionContext(
+            item: item,
+            canRemoveFromQueue: canRemoveFromQueue ?? (tab == .upNext)
+        )
         trackActions.context = ctx
         playerTrackMenu = ctx
     }

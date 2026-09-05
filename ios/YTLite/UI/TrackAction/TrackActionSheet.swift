@@ -66,15 +66,36 @@ struct TrackActionSheet: View {
                         title: isNotInterested ? "Undo not interested" : "Not interested"
                     ) { toggleNotInterested() }
 
-                    if context.canRemoveFromPlaylist, let playlistId = context.playlistId {
+                    if context.canRemoveFromQueue || context.canRemoveFromPlaylist || context.canDeleteFromLibrary {
                         Divider().overlay(YTLiteColor.surfaceVariant)
                             .padding(.vertical, 4)
-                        actionRow(systemImage: "trash", title: L("action.remove_from_playlist")) {
+                    }
+
+                    if context.canRemoveFromQueue {
+                        actionRow(systemImage: "trash", title: L("player.remove_from_queue")) {
+                            playback.removeFromQueue(videoIds: [context.videoId])
+                            trackActions.showToast(L("toast.removed_from_queue"))
+                            dismiss()
+                        }
+                    }
+
+                    if context.canRemoveFromPlaylist, let playlistId = context.playlistId {
+                        actionRow(systemImage: "text.badge.minus", title: L("action.remove_from_playlist")) {
                             if let playlist = store?.playlist(id: playlistId) {
                                 store?.remove(trackId: context.videoId, from: playlist)
                                 trackActions.notifyListsChanged()
                                 trackActions.showToast(L("toast.removed_from_playlist"))
                             }
+                            dismiss()
+                        }
+                    }
+
+                    if context.canDeleteFromLibrary {
+                        actionRow(systemImage: "trash", title: L("action.delete_from_library"), destructive: true) {
+                            store?.removeTracksFromLocalLibrary(trackIds: [context.videoId])
+                            playback.removeFromQueue(videoIds: [context.videoId])
+                            trackActions.notifyListsChanged()
+                            trackActions.showToast(L("toast.song_deleted"))
                             dismiss()
                         }
                     }
@@ -136,22 +157,27 @@ struct TrackActionSheet: View {
         store?.metadata(for: context.videoId)?.customArtistName ?? context.channelName
     }
 
-    private func actionRow(systemImage: String, title: String, action: @escaping () -> Void) -> some View {
+    private func actionRow(
+        systemImage: String,
+        title: String,
+        destructive: Bool = false,
+        action: @escaping () -> Void
+    ) -> some View {
         Button(action: action) {
-            actionRowLabel(systemImage: systemImage, title: title)
+            actionRowLabel(systemImage: systemImage, title: title, destructive: destructive)
         }
         .buttonStyle(.plain)
     }
 
-    private func actionRowLabel(systemImage: String, title: String) -> some View {
+    private func actionRowLabel(systemImage: String, title: String, destructive: Bool = false) -> some View {
         HStack(spacing: YTLiteLayout.stackLoose) {
             Image(systemName: systemImage)
                 .font(.system(size: 18, weight: .regular))
-                .foregroundStyle(YTLiteColor.onSurface)
+                .foregroundStyle(destructive ? YTLiteColor.danger : YTLiteColor.onSurface)
                 .frame(width: 28, alignment: .center)
             Text(title)
                 .font(YTLiteType.body)
-                .foregroundStyle(YTLiteColor.onSurface)
+                .foregroundStyle(destructive ? YTLiteColor.danger : YTLiteColor.onSurface)
             Spacer()
         }
         .padding(.horizontal, YTLiteLayout.screenPadding)
@@ -175,7 +201,7 @@ struct TrackActionSheet: View {
         }
         let liked = store.isFavorite(videoId: context.videoId)
         isLiked = liked
-        trackActions.showToast(liked ? "Liked" : "Removed from Liked videos")
+        trackActions.showToast(liked ? L("toast.liked") : L("toast.unliked"))
         trackActions.notifyListsChanged()
         dismiss()
     }
@@ -190,7 +216,9 @@ struct TrackActionSheet: View {
         if context.videoId == playback.nowPlaying?.videoId {
             playback.refreshFavoriteState()
         }
-        trackActions.showToast(nowBlocked ? "Got it, we'll show fewer videos like this" : "Removed from Not interested")
+        trackActions.showToast(
+            nowBlocked ? L("toast.not_interested") : L("toast.remove_not_interested")
+        )
         trackActions.notifyListsChanged()
         dismiss()
     }

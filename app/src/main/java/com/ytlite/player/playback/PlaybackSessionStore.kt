@@ -61,8 +61,8 @@ data class PersistedQueueItem(
 data class PlaybackSessionSnapshot(
     val items: List<PersistedQueueItem> = emptyList(),
     val currentIndex: Int = 0,
-    val repeatMode: String = QueueRepeatMode.OFF.name,
-    val shuffleEnabled: Boolean = false,
+    val repeatMode: String = QueueRepeatMode.ALL.name,
+    val shuffleEnabled: Boolean = true,
     val sourcePlaylistId: String? = null,
     val originalOrder: List<PersistedQueueItem>? = null,
     val positionMs: Long = 0L,

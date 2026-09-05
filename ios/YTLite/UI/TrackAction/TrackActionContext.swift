@@ -12,6 +12,10 @@ struct TrackActionContext: Identifiable, Equatable, Sendable {
     /// When set and `canRemoveFromPlaylist` is true, show Remove from playlist.
     let playlistId: String?
     let canRemoveFromPlaylist: Bool
+    /// When true, show Remove from Up next / queue.
+    let canRemoveFromQueue: Bool
+    /// When true, show Delete (remove from all playlists + clear local cache).
+    let canDeleteFromLibrary: Bool
 
     init(
         videoId: String,
@@ -20,7 +24,9 @@ struct TrackActionContext: Identifiable, Equatable, Sendable {
         thumbnailURL: URL? = nil,
         durationText: String? = nil,
         playlistId: String? = nil,
-        canRemoveFromPlaylist: Bool = false
+        canRemoveFromPlaylist: Bool = false,
+        canRemoveFromQueue: Bool = false,
+        canDeleteFromLibrary: Bool = false
     ) {
         self.videoId = videoId
         self.title = title
@@ -29,12 +35,16 @@ struct TrackActionContext: Identifiable, Equatable, Sendable {
         self.durationText = durationText
         self.playlistId = playlistId
         self.canRemoveFromPlaylist = canRemoveFromPlaylist
+        self.canRemoveFromQueue = canRemoveFromQueue
+        self.canDeleteFromLibrary = canDeleteFromLibrary
     }
 
     init(
         item: VideoItem,
         playlistId: String? = nil,
-        canRemoveFromPlaylist: Bool = false
+        canRemoveFromPlaylist: Bool = false,
+        canRemoveFromQueue: Bool = false,
+        canDeleteFromLibrary: Bool = false
     ) {
         self.init(
             videoId: item.videoId,
@@ -43,7 +53,9 @@ struct TrackActionContext: Identifiable, Equatable, Sendable {
             thumbnailURL: item.thumbnailURL,
             durationText: item.durationText,
             playlistId: playlistId,
-            canRemoveFromPlaylist: canRemoveFromPlaylist
+            canRemoveFromPlaylist: canRemoveFromPlaylist,
+            canRemoveFromQueue: canRemoveFromQueue,
+            canDeleteFromLibrary: canDeleteFromLibrary
         )
     }
 

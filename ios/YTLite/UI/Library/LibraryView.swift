@@ -1134,7 +1134,7 @@ struct LibraryView: View {
                 }
                 LibrarySongRow(item: item, compactLeading: isSelectionMode) {
                     if !isSelectionMode {
-                        trackActions.present(item: item)
+                        trackActions.present(item: item, canDeleteFromLibrary: true)
                     }
                 }
             }

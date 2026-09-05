@@ -90,19 +90,10 @@ struct TrackActionHost<Content: View>: View {
             .onDisappear {
                 AdSceneLifecycle.setUIBlocked("track_action_host", blocked: false)
             }
-            .overlay(alignment: .bottom) {
-                if let message = presenter.toastMessage ?? playlistPresenter.toastMessage {
-                    Text(message)
-                        .font(YTLiteType.meta.weight(.semibold))
-                        .foregroundStyle(YTLiteColor.onSurface)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 10)
-                        .background(YTLiteColor.surfaceVariant, in: Capsule())
-                        .padding(.bottom, 88)
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
-                        .animation(.easeOut(duration: 0.2), value: message)
-                }
-            }
+            .ytLiteToast(
+                presenter.toastMessage ?? playlistPresenter.toastMessage,
+                bottomPadding: 96
+            )
     }
 
     private func commitRename() {

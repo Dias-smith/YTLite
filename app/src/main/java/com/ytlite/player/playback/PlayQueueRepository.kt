@@ -15,8 +15,8 @@ enum class QueueRepeatMode {
 data class PlayQueueState(
     val items: List<QueueItem> = emptyList(),
     val currentIndex: Int = 0,
-    val repeatMode: QueueRepeatMode = QueueRepeatMode.OFF,
-    val shuffleEnabled: Boolean = false,
+    val repeatMode: QueueRepeatMode = QueueRepeatMode.ALL,
+    val shuffleEnabled: Boolean = true,
     val sourcePlaylistId: String? = null,
 ) {
     val currentItem: QueueItem? = items.getOrNull(currentIndex)
@@ -70,8 +70,8 @@ object PlayQueueRepository {
                 clearSourcePlaylist -> null
                 else -> sourcePlaylistId ?: preserved.sourcePlaylistId
             },
-            repeatMode = if (preservePlaybackMode) preserved.repeatMode else QueueRepeatMode.OFF,
-            shuffleEnabled = if (preservePlaybackMode) preserved.shuffleEnabled else false,
+            repeatMode = if (preservePlaybackMode) preserved.repeatMode else QueueRepeatMode.ALL,
+            shuffleEnabled = if (preservePlaybackMode) preserved.shuffleEnabled else true,
         )
     }
 
