@@ -918,6 +918,15 @@ final class LibraryStore {
         return true
     }
 
+    func setPlaylistPinned(_ playlist: LibraryPlaylist, pinned: Bool) {
+        guard playlist.systemType != SystemPlaylistType.favorites else { return }
+        // History is not a LibraryPlaylist system type here; Watch later may pin.
+        playlist.isPinned = pinned
+        playlist.updatedAt = .now
+        playlist.isSynced = false
+        save()
+    }
+
     func renamePlaylist(_ playlist: LibraryPlaylist, name: String) {
         guard playlist.systemType == nil else { return }
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)

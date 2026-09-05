@@ -15,6 +15,7 @@ struct YTLiteApp: App {
         FirebaseBootstrap.configure()
         Analytics.setAnalyticsCollectionEnabled(true)
         AppNotificationCenterDelegate.shared.install()
+        WatchConnectivityBridge.shared.activate()
         let config = AppConfig.fromBundle()
         _authService = StateObject(wrappedValue: AuthService(config: config))
         modelContainer = Self.makeModelContainer()
@@ -44,6 +45,8 @@ struct YTLiteApp: App {
                 .task {
                     // First frame, then ATT, then UMP / AdMob.
                     await Task.yield()
+                    WatchConnectivityBridge.shared.activate()
+                    WatchPlaybackHost.shared.start(playback: playback)
                     await AdConsentManager.requestTrackingAuthorizationAtLaunch()
 
                     ResolverRemoteConfigStore.restoreFromDisk()

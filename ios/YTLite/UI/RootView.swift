@@ -109,6 +109,7 @@ struct RootView: View {
                             await DailyListenNotificationScheduler.refresh(using: store)
                         }
                     }
+                    WatchLibraryHost.shared.start(store: store, playback: playback, auth: auth)
                     store.onUnsubscribeChannel = { channelId in
                         Task { await sync.deleteSubscribedChannel(channelId: channelId) }
                     }
@@ -165,6 +166,7 @@ struct RootView: View {
                     guard let next else {
                         // Sign out → guest bucket (keep prior user buckets).
                         libraryStore.setOwnerKey(OwnerKeyStore.stableGuestOwnerKey)
+                        WatchLibraryHost.shared.refresh()
                         AdEligibility.refreshInventoryIfEligible()
                         await DailyListenNotificationScheduler.refresh(using: libraryStore)
                         return
@@ -190,6 +192,7 @@ struct RootView: View {
                     }
                     AdEligibility.refreshInventoryIfEligible()
                     await DailyListenNotificationScheduler.refresh(using: libraryStore)
+                    WatchLibraryHost.shared.refresh()
                 }
             }
             .onChange(of: appModel.isLibrarySyncing) { _, syncing in

@@ -444,6 +444,32 @@ final class PlaybackController: ObservableObject {
         persistSession(immediate: true)
     }
 
+    /// Move an existing queue item to the end without interrupting the current track.
+    func moveToEndOfQueue(videoId: String) {
+        guard let idx = queue.firstIndex(where: { $0.videoId == videoId }) else { return }
+        guard idx != queue.count - 1 else { return }
+        let item = queue[idx]
+        let currentId = nowPlaying?.videoId
+            ?? (queue.indices.contains(queueIndex) ? queue[queueIndex].videoId : nil)
+        var next = queue
+        next.remove(at: idx)
+        next.append(item)
+        queue = next
+        if let currentId, let newIdx = next.firstIndex(where: { $0.videoId == currentId }) {
+            queueIndex = newIdx
+        } else {
+            queueIndex = min(queueIndex, max(0, next.count - 1))
+        }
+        if var order = originalOrder,
+           let orderIdx = order.firstIndex(where: { $0.videoId == videoId }) {
+            let moved = order.remove(at: orderIdx)
+            order.append(moved)
+            originalOrder = order
+        }
+        persistSession(immediate: true)
+        refreshRemoteCommandEnabled()
+    }
+
     /// Reorder the queue while keeping the current track selected.
     func reorderQueue(by areInIncreasingOrder: (VideoItem, VideoItem) -> Bool) {
         guard queue.count > 1 else { return }
