@@ -2,12 +2,12 @@ import SwiftUI
 
 @main
 struct YTLiteWatchApp: App {
-    @ObservedObject private var bridge = WatchConnectivityBridge.shared
-
     var body: some Scene {
         WindowGroup {
             WatchRootView()
-                .environmentObject(bridge)
+                // Avoid `@ObservedObject` on `App` — observing the shared bridge here
+                // caused AttributeGraph cycles with EnvironmentObject descendants.
+                .environmentObject(WatchConnectivityBridge.shared)
                 .onAppear {
                     WatchPlaybackClient.shared.start()
                     WatchLibraryClient.shared.start()

@@ -46,6 +46,22 @@ final class WatchLibraryHost {
         bridge.onEnvelope { [weak self] envelope in
             self?.handle(envelope)
         }
+        bridge.$activationState
+            .removeDuplicates()
+            .sink { [weak self] state in
+                if state == .activated {
+                    self?.pushSnapshot(force: true)
+                }
+            }
+            .store(in: &bridgeCancellables)
+        bridge.$isWatchAppInstalled
+            .removeDuplicates()
+            .sink { [weak self] installed in
+                if installed {
+                    self?.pushSnapshot(force: true)
+                }
+            }
+            .store(in: &bridgeCancellables)
         bridge.$isReachable
             .removeDuplicates()
             .sink { [weak self] reachable in

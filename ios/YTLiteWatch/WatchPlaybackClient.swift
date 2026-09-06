@@ -12,6 +12,7 @@ final class WatchPlaybackClient: ObservableObject {
 
     private var didBind = false
     private var cancellables = Set<AnyCancellable>()
+    private var snapshotRetry: AnyCancellable?
 
     private init() {}
 
@@ -25,6 +26,7 @@ final class WatchPlaybackClient: ObservableObject {
         if bridge.isReachable {
             requestSnapshot()
         }
+        startSnapshotRetryLoop()
     }
 
     private func bindIfNeeded() {
@@ -34,11 +36,15 @@ final class WatchPlaybackClient: ObservableObject {
         bridge.onEnvelope { [weak self] envelope in
             self?.handle(envelope)
         }
-        if let cached = bridge.receivedApplicationContextEnvelope(),
-           cached.kind == .playbackSnapshot,
-           let body = try? cached.decodePayload(WatchConnectivityProtocol.PlaybackSnapshot.self) {
-            snapshot = body
-        }
+        ingestCachedApplicationContext()
+        bridge.$activationState
+            .removeDuplicates()
+            .sink { [weak self] state in
+                guard state == .activated else { return }
+                self?.ingestCachedApplicationContext()
+                self?.requestSnapshot()
+            }
+            .store(in: &cancellables)
         bridge.$isReachable
             .removeDuplicates()
             .sink { [weak self] reachable in
@@ -49,8 +55,43 @@ final class WatchPlaybackClient: ObservableObject {
             .store(in: &cancellables)
     }
 
+    private func startSnapshotRetryLoop() {
+        snapshotRetry?.cancel()
+        snapshotRetry = Timer.publish(every: 2.5, on: .main, in: .common)
+            .autoconnect()
+            .sink { [weak self] _ in
+                guard let self else { return }
+                // Keep polling until we have a real now-playing id (Simulator delivery is flaky).
+                if self.snapshot?.videoId == nil {
+                    self.ingestCachedApplicationContext()
+                    self.requestSnapshot()
+                }
+            }
+    }
+
+    private func ingestCachedApplicationContext() {
+        let bridge = WatchConnectivityBridge.shared
+        guard let cached = bridge.receivedApplicationContextEnvelope(),
+              cached.kind == .playbackSnapshot,
+              let body = try? cached.decodePayload(WatchConnectivityProtocol.PlaybackSnapshot.self) else {
+            return
+        }
+        snapshot = body
+    }
+
     func requestSnapshot() {
-        send(kind: .syncRequestSnapshot, body: WatchConnectivityProtocol.EmptyBody())
+        let bridge = WatchConnectivityBridge.shared
+        // Soft poll — don't surface "open iPhone" for background sync attempts.
+        guard bridge.activationState == .activated, bridge.isReachable else { return }
+        do {
+            let envelope = try WatchConnectivityProtocol.Envelope.make(
+                kind: .syncRequestSnapshot,
+                body: WatchConnectivityProtocol.EmptyBody()
+            )
+            _ = bridge.send(envelope)
+        } catch {
+            // Best-effort.
+        }
     }
 
     func togglePlayPause() {

@@ -34,6 +34,14 @@ final class WatchLibraryClient: ObservableObject {
         bridge.onEnvelope { [weak self] envelope in
             self?.handle(envelope)
         }
+        bridge.$activationState
+            .removeDuplicates()
+            .sink { [weak self] state in
+                if state == .activated {
+                    self?.requestSnapshot()
+                }
+            }
+            .store(in: &cancellables)
         bridge.$isReachable
             .removeDuplicates()
             .sink { [weak self] reachable in
@@ -46,7 +54,17 @@ final class WatchLibraryClient: ObservableObject {
     }
 
     func requestSnapshot() {
-        send(kind: .syncRequestSnapshot, body: WatchConnectivityProtocol.EmptyBody())
+        let bridge = WatchConnectivityBridge.shared
+        guard bridge.activationState == .activated, bridge.isReachable else { return }
+        do {
+            let envelope = try WatchConnectivityProtocol.Envelope.make(
+                kind: .syncRequestSnapshot,
+                body: WatchConnectivityProtocol.EmptyBody()
+            )
+            _ = bridge.send(envelope)
+        } catch {
+            // Best-effort.
+        }
     }
 
     func requireConnected() -> Bool {

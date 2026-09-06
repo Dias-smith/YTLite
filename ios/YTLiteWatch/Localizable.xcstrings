@@ -1,890 +1,919 @@
 {
-  "sourceLanguage": "en",
-  "strings": {
-    "watch.phone_required": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Open Mixtube on iPhone"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "请在 iPhone 上打开 Mixtube"
+  "sourceLanguage" : "en",
+  "strings" : {
+    "·" : {
+
+    },
+    "%@ %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ %2$@"
           }
         }
       }
     },
-    "watch.phone_disconnected_readonly": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Phone disconnected · Read only"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "手机未连接 · 只读"
+    "%@%%" : {
+
+    },
+    "LIVE" : {
+
+    },
+    "Showing %@ of %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Showing %1$@ of %2$@"
           }
         }
       }
     },
-    "watch.nothing_playing": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Nothing playing"
+    "watch.add_to_end" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add to end"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "暂无播放"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "加到队尾"
           }
         }
       }
     },
-    "watch.play_on_iphone_hint": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Start playback on iPhone"
+    "watch.add_to_queue" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add to queue"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "请先在 iPhone 上开始播放"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "加入队列"
           }
         }
       }
     },
-    "watch.extracting": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Loading…"
+    "watch.cancel" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancel"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "加载中…"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "取消"
           }
         }
       }
     },
-    "watch.volume_crown_hint": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Crown for volume"
+    "watch.controls_blocked" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Controls unavailable until Mixtube is open on iPhone"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "用表冠调节音量"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请先在 iPhone 打开 Mixtube 后再遥控"
           }
         }
       }
     },
-    "watch.speed": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Speed"
+    "watch.create_playlist" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New playlist"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "倍速"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新建播放列表"
           }
         }
       }
     },
-    "watch.done": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Done"
+    "watch.delete" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "完成"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "删除"
           }
         }
       }
     },
-    "watch.queue": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Queue"
+    "watch.delete_playlist" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete playlist?"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "队列"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "删除播放列表？"
           }
         }
       }
     },
-    "watch.queue_empty": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Queue empty"
+    "watch.done" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Done"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "队列为空"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "完成"
           }
         }
       }
     },
-    "watch.queue_empty_hint": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Play something on iPhone"
+    "watch.edit_info" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Edit info"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "请在 iPhone 上播放内容"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "编辑信息"
           }
         }
       }
     },
-    "watch.queue_readonly_hint": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Connect iPhone to control the queue"
+    "watch.extracting" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Loading…"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "连接 iPhone 后可控制队列"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "加载中…"
           }
         }
       }
     },
-    "watch.library": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Library"
+    "watch.field_album" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Album"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "曲库"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "专辑"
           }
         }
       }
     },
-    "watch.library_empty": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Library empty"
+    "watch.field_artist" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Artist"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "曲库为空"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "艺人"
           }
         }
       }
     },
-    "watch.library_sync_hint": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Waiting for iPhone sync…"
+    "watch.field_title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Title"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "正在等待 iPhone 同步…"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "标题"
           }
         }
       }
     },
-    "watch.playlists": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Playlists"
+    "watch.field_year" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Year"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "播放列表"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "年份"
           }
         }
       }
     },
-    "watch.history": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "History"
+    "watch.guest" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Guest"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "历史"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "访客"
           }
         }
       }
     },
-    "watch.tracks": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "tracks"
+    "watch.history" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "History"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "首"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "历史"
           }
         }
       }
     },
-    "watch.guest": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Guest"
+    "watch.library" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Library"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "访客"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "曲库"
           }
         }
       }
     },
-    "watch.signed_in": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Signed in"
+    "watch.library_empty" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Library empty"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "已登录"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "曲库为空"
           }
         }
       }
     },
-    "watch.create_playlist": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "New playlist"
+    "watch.library_sync_hint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waiting for iPhone sync…"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "新建播放列表"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在等待 iPhone 同步…"
           }
         }
       }
     },
-    "watch.rename_playlist": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Rename"
+    "watch.like" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Like"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "重命名"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "喜欢"
           }
         }
       }
     },
-    "watch.delete_playlist": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Delete playlist?"
+    "watch.name" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Name"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "删除播放列表？"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "名称"
           }
         }
       }
     },
-    "watch.delete": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Delete"
+    "watch.not_interested" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not interested"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "删除"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不感兴趣"
           }
         }
       }
     },
-    "watch.cancel": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cancel"
+    "watch.nothing_playing" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nothing playing"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "取消"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暂无播放"
           }
         }
       }
     },
-    "watch.save": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Save"
+    "watch.phone_disconnected_readonly" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Phone disconnected · Read only"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "保存"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "手机未连接 · 只读"
           }
         }
       }
     },
-    "watch.name": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Name"
+    "watch.phone_required" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Mixtube on iPhone"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "名称"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请在 iPhone 上打开 Mixtube"
           }
         }
       }
     },
-    "watch.rename": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Rename"
+    "watch.pin" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pin"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "重命名"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "置顶"
           }
         }
       }
     },
-    "watch.pin": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Pin"
+    "watch.play" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Play"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "置顶"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "播放"
           }
         }
       }
     },
-    "watch.unpin": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Unpin"
+    "watch.play_next" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Play next"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "取消置顶"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下一首播放"
           }
         }
       }
     },
-    "watch.shuffle_play": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Shuffle play"
+    "watch.play_on_iphone_hint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Start playback on iPhone"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "随机播放"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请先在 iPhone 上开始播放"
           }
         }
       }
     },
-    "watch.playlist_empty": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No tracks"
+    "watch.playlist_empty" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No tracks"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "暂无曲目"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暂无曲目"
           }
         }
       }
     },
-    "watch.playlist_missing": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Playlist unavailable"
+    "watch.playlist_missing" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Playlist unavailable"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "播放列表不可用"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "播放列表不可用"
           }
         }
       }
     },
-    "watch.play": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Play"
+    "watch.playlists" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Playlists"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "播放"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "播放列表"
           }
         }
       }
     },
-    "watch.play_next": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Play next"
+    "watch.queue" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Queue"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "下一首播放"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "队列"
           }
         }
       }
     },
-    "watch.add_to_end": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Add to end"
+    "watch.queue_empty" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Queue empty"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "加到队尾"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "队列为空"
           }
         }
       }
     },
-    "watch.add_to_queue": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Add to queue"
+    "watch.queue_empty_hint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Play something on iPhone"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "加入队列"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请在 iPhone 上播放内容"
           }
         }
       }
     },
-    "watch.remove": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Remove"
+    "watch.queue_readonly_hint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect iPhone to control the queue"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "移除"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "连接 iPhone 后可控制队列"
           }
         }
       }
     },
-    "watch.remove_from_history": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Remove from history"
+    "watch.remove" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "从历史中移除"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "移除"
           }
         }
       }
     },
-    "watch.like": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Like"
+    "watch.remove_from_history" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove from history"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "喜欢"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "从历史中移除"
           }
         }
       }
     },
-    "watch.unlike": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Unlike"
+    "watch.rename" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rename"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "取消喜欢"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重命名"
           }
         }
       }
     },
-    "watch.save_to_playlist": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Save to playlist"
+    "watch.rename_playlist" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rename"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "保存到播放列表"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重命名"
           }
         }
       }
     },
-    "watch.edit_info": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Edit info"
+    "watch.save" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "编辑信息"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保存"
           }
         }
       }
     },
-    "watch.share": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Share"
+    "watch.save_to_playlist" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save to playlist"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "分享"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保存到播放列表"
           }
         }
       }
     },
-    "watch.share_opened": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Share opened on iPhone"
+    "watch.share" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Share"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "已在 iPhone 上打开分享"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "分享"
           }
         }
       }
     },
-    "watch.share_failed": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Share failed"
+    "watch.share_failed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Share failed"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "分享失败"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "分享失败"
           }
         }
       }
     },
-    "watch.not_interested": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Not interested"
+    "watch.share_opened" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Share opened on iPhone"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "不感兴趣"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已在 iPhone 上打开分享"
           }
         }
       }
     },
-    "watch.field_title": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Title"
+    "watch.shuffle_play" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shuffle play"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "标题"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "随机播放"
           }
         }
       }
     },
-    "watch.field_artist": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Artist"
+    "watch.signed_in" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Signed in"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "艺人"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已登录"
           }
         }
       }
     },
-    "watch.field_album": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Album"
+    "watch.speed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Speed"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "专辑"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "倍速"
           }
         }
       }
     },
-    "watch.field_year": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Year"
+    "watch.tracks" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "tracks"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "年份"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "首"
           }
         }
       }
     },
-    "watch.controls_blocked": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Controls unavailable until Mixtube is open on iPhone"
+    "watch.unlike" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unlike"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "请先在 iPhone 打开 Mixtube 后再遥控"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "取消喜欢"
+          }
+        }
+      }
+    },
+    "watch.unpin" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unpin"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "取消置顶"
+          }
+        }
+      }
+    },
+    "watch.volume_crown_hint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Crown for volume"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "用表冠调节音量"
           }
         }
       }
     }
   },
-  "version": "1.0"
+  "version" : "1.0"
 }

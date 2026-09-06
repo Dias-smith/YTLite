@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 54;
+	objectVersion = 63;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -102,7 +102,7 @@
 		B1E22E0A0E88381A7926E3B8 /* InfoPlist.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 170B1D755BE24DFE60E09D15 /* InfoPlist.xcstrings */; };
 		B2479042A405753375DFFF80 /* TrackActionSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2507497952E4DBF5107AAB37 /* TrackActionSheet.swift */; };
 		B2BB95E3E9EF1863E8E890A1 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = D8C7436F66145066500D2402 /* Assets.xcassets */; };
-		B47C1BC528C739B85E8D9FAD /* YTLite Watch App.app in Embed Dependencies */ = {isa = PBXBuildFile; fileRef = 5BD940F58CB5E24CE6D14334 /* YTLite Watch App.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		B47C1BC528C739B85E8D9FAD /* Mixtube.app in Embed Dependencies */ = {isa = PBXBuildFile; fileRef = 5BD940F58CB5E24CE6D14334 /* Mixtube.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		B494AD7002271EC189B3B807 /* AppChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25442A901E96D0DDD22BA084 /* AppChrome.swift */; };
 		B55211F14C644D55BA4640EC /* PlaybackEqualizerPresets.swift in Sources */ = {isa = PBXBuildFile; fileRef = D99707A101EB325B31044467 /* PlaybackEqualizerPresets.swift */; };
 		B5851BD5F592B0AED825CA0D /* MainTabBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B4731471EE13027FBEBDD87 /* MainTabBar.swift */; };
@@ -156,7 +156,7 @@
 			dstPath = "";
 			dstSubfolderSpec = 13;
 			files = (
-				B47C1BC528C739B85E8D9FAD /* YTLite Watch App.app in Embed Dependencies */,
+				B47C1BC528C739B85E8D9FAD /* Mixtube.app in Embed Dependencies */,
 			);
 			name = "Embed Dependencies";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -202,12 +202,12 @@
 		4304E3E3EC343C5F5E914EBA /* EditTrackMetadataSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditTrackMetadataSheet.swift; sourceTree = "<group>"; };
 		434F92C460A095DE6033DDDC /* HLSMasterPlaylist.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HLSMasterPlaylist.swift; sourceTree = "<group>"; };
 		4485B717C9F34EE0E7961AD2 /* YTLiteWatchApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YTLiteWatchApp.swift; sourceTree = "<group>"; };
-		44EBD8B1BFEA37CB163553EB /* YTLite.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = YTLite.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		44EBD8B1BFEA37CB163553EB /* Mixtube.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Mixtube.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		47C40FB76C18A469B03EFE2C /* PlaybackMediaStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackMediaStore.swift; sourceTree = "<group>"; };
 		496F688C233012874D29141D /* AuthNonce.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthNonce.swift; sourceTree = "<group>"; };
 		4F148613909F22D6432E97CD /* PlaybackController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackController.swift; sourceTree = "<group>"; };
 		5A76E914564581D50AA61C93 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
-		5BD940F58CB5E24CE6D14334 /* YTLite Watch App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "YTLite Watch App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		5BD940F58CB5E24CE6D14334 /* Mixtube.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Mixtube.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		5CC3E87622C393A7C74ACF92 /* PlaybackSessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackSessionStore.swift; sourceTree = "<group>"; };
 		5E2C45DEAA65E1A67289B7E1 /* WatchTrackRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchTrackRow.swift; sourceTree = "<group>"; };
 		5F60984D6226BFEC61765B98 /* StreamResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamResolver.swift; sourceTree = "<group>"; };
@@ -590,8 +590,8 @@
 		DF27C9EE4607BE8FB57E954A /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				5BD940F58CB5E24CE6D14334 /* YTLite Watch App.app */,
-				44EBD8B1BFEA37CB163553EB /* YTLite.app */,
+				5BD940F58CB5E24CE6D14334 /* Mixtube.app */,
+				44EBD8B1BFEA37CB163553EB /* Mixtube.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -718,7 +718,7 @@
 			packageProductDependencies = (
 			);
 			productName = "YTLite Watch App";
-			productReference = 5BD940F58CB5E24CE6D14334 /* YTLite Watch App.app */;
+			productReference = 5BD940F58CB5E24CE6D14334 /* Mixtube.app */;
 			productType = "com.apple.product-type.application";
 		};
 		E5A6BFBC1A4F74FC530383E8 /* YTLite */ = {
@@ -744,7 +744,7 @@
 				0C59CF5F40C1CC69EA3B79E6 /* GoogleMobileAds */,
 			);
 			productName = YTLite;
-			productReference = 44EBD8B1BFEA37CB163553EB /* YTLite.app */;
+			productReference = 44EBD8B1BFEA37CB163553EB /* Mixtube.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -757,11 +757,9 @@
 				LastUpgradeCheck = 1600;
 				TargetAttributes = {
 					513B30FBF357334F1B09A359 = {
-						DevelopmentTeam = "";
 						ProvisioningStyle = Automatic;
 					};
 					E5A6BFBC1A4F74FC530383E8 = {
-						DevelopmentTeam = "";
 						ProvisioningStyle = Automatic;
 					};
 				};
@@ -788,7 +786,6 @@
 				2804343E1E0634B83C50B636 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */,
 				A4DE782A5061B5C8A8FFBDA8 /* XCRemoteSwiftPackageReference "supabase-swift" */,
 			);
-			preferredProjectObjectVersion = 54;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -970,7 +967,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = 8S748AQ4H7;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Mixtube;
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.ytlite.player;
@@ -1115,7 +1112,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = 8S748AQ4H7;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Mixtube;
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.ytlite.player;
@@ -1141,7 +1138,7 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_LANGUAGE = en;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = 8S748AQ4H7;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = YTLite/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1166,7 +1163,7 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_LANGUAGE = en;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = 8S748AQ4H7;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = YTLite/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (

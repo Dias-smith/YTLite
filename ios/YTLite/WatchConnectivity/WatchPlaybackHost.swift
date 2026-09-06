@@ -35,6 +35,22 @@ final class WatchPlaybackHost {
         bridge.onEnvelope { [weak self] envelope in
             self?.handle(envelope)
         }
+        bridge.$activationState
+            .removeDuplicates()
+            .sink { [weak self] state in
+                if state == .activated {
+                    self?.pushAll(force: true)
+                }
+            }
+            .store(in: &bridgeCancellables)
+        bridge.$isWatchAppInstalled
+            .removeDuplicates()
+            .sink { [weak self] installed in
+                if installed {
+                    self?.pushAll(force: true)
+                }
+            }
+            .store(in: &bridgeCancellables)
         bridge.$isReachable
             .removeDuplicates()
             .sink { [weak self] reachable in
@@ -175,17 +191,17 @@ final class WatchPlaybackHost {
         guard let playback else { return }
         let snapshot = makePlaybackSnapshot(from: playback)
         if !force, snapshot == lastPushedPlayback { return }
-        lastPushedPlayback = snapshot
         send(kind: .playbackSnapshot, body: snapshot, updateContext: true)
+        lastPushedPlayback = snapshot
     }
 
     private func pushQueue(force: Bool = false) {
         guard let playback else { return }
         let snapshot = makeQueueSnapshot(from: playback)
         if !force, snapshot == lastPushedQueue { return }
-        lastPushedQueue = snapshot
         // Keep application context for Now Playing; queue is interactive-only.
         send(kind: .queueSnapshot, body: snapshot, updateContext: false)
+        lastPushedQueue = snapshot
     }
 
     private func send<T: Encodable>(
@@ -197,16 +213,19 @@ final class WatchPlaybackHost {
             let envelope = try WatchConnectivityProtocol.Envelope.make(kind: kind, body: body)
             let bridge = WatchConnectivityBridge.shared
             if updateContext {
-                bridge.updateApplicationContext(envelope)
+                // Queues until WCSession activates when needed.
+                _ = bridge.updateApplicationContext(envelope)
             }
             if bridge.isReachable {
-                _ = bridge.send(envelope)
-            } else if !updateContext {
-                // Queue still useful when Watch wakes later.
+                let sent = bridge.send(envelope)
+                print("[YTLite.WatchConnectivity] push kind=\(kind.rawValue) reachable send=\(sent)")
+            } else {
+                // Simulator often reports asymmetric reachability — still deliver via userInfo.
                 bridge.transferUserInfo(envelope)
+                print("[YTLite.WatchConnectivity] push kind=\(kind.rawValue) via transferUserInfo (not reachable)")
             }
         } catch {
-            // Best-effort push.
+            print("[YTLite.WatchConnectivity] push encode failed: \(error)")
         }
     }
 
