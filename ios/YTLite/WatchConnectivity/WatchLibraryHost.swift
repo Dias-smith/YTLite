@@ -62,6 +62,14 @@ final class WatchLibraryHost {
                 }
             }
             .store(in: &bridgeCancellables)
+        bridge.$hasWatchCounterpartSession
+            .removeDuplicates()
+            .sink { [weak self] active in
+                if active {
+                    self?.pushSnapshot(force: true)
+                }
+            }
+            .store(in: &bridgeCancellables)
         bridge.$isReachable
             .removeDuplicates()
             .sink { [weak self] reachable in
@@ -281,6 +289,7 @@ final class WatchLibraryHost {
     }
 
     private func pushSnapshot(force: Bool = false) {
+        guard WatchConnectivityBridge.shared.isWatchDeliveryAvailable else { return }
         guard let store else { return }
         let snapshot = makeSnapshot(from: store)
         if !force, snapshot == lastPushed { return }

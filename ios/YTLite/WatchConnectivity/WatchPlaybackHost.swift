@@ -46,8 +46,22 @@ final class WatchPlaybackHost {
         bridge.$isWatchAppInstalled
             .removeDuplicates()
             .sink { [weak self] installed in
+                guard let self else { return }
                 if installed {
+                    self.pushAll(force: true)
+                    self.configurePositionTimer(playing: self.playback?.isPlaying == true)
+                } else if !WatchConnectivityBridge.shared.isWatchDeliveryAvailable {
+                    self.positionTimer?.cancel()
+                    self.positionTimer = nil
+                }
+            }
+            .store(in: &bridgeCancellables)
+        bridge.$hasWatchCounterpartSession
+            .removeDuplicates()
+            .sink { [weak self] active in
+                if active {
                     self?.pushAll(force: true)
+                    self?.configurePositionTimer(playing: self?.playback?.isPlaying == true)
                 }
             }
             .store(in: &bridgeCancellables)
@@ -56,6 +70,7 @@ final class WatchPlaybackHost {
             .sink { [weak self] reachable in
                 if reachable {
                     self?.pushAll(force: true)
+                    self?.configurePositionTimer(playing: self?.playback?.isPlaying == true)
                 }
             }
             .store(in: &bridgeCancellables)
@@ -104,7 +119,7 @@ final class WatchPlaybackHost {
     private func configurePositionTimer(playing: Bool) {
         positionTimer?.cancel()
         positionTimer = nil
-        guard playing else { return }
+        guard playing, WatchConnectivityBridge.shared.isWatchDeliveryAvailable else { return }
         positionTimer = Timer.publish(every: 2.0, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in
@@ -183,11 +198,13 @@ final class WatchPlaybackHost {
     }
 
     private func pushAll(force: Bool = false) {
+        guard WatchConnectivityBridge.shared.isWatchDeliveryAvailable else { return }
         pushPlayback(force: force)
         pushQueue(force: force)
     }
 
     private func pushPlayback(force: Bool = false) {
+        guard WatchConnectivityBridge.shared.isWatchDeliveryAvailable else { return }
         guard let playback else { return }
         let snapshot = makePlaybackSnapshot(from: playback)
         if !force, snapshot == lastPushedPlayback { return }
@@ -196,10 +213,10 @@ final class WatchPlaybackHost {
     }
 
     private func pushQueue(force: Bool = false) {
+        guard WatchConnectivityBridge.shared.isWatchDeliveryAvailable else { return }
         guard let playback else { return }
         let snapshot = makeQueueSnapshot(from: playback)
         if !force, snapshot == lastPushedQueue { return }
-        // Keep application context for Now Playing; queue is interactive-only.
         send(kind: .queueSnapshot, body: snapshot, updateContext: false)
         lastPushedQueue = snapshot
     }
@@ -213,19 +230,16 @@ final class WatchPlaybackHost {
             let envelope = try WatchConnectivityProtocol.Envelope.make(kind: kind, body: body)
             let bridge = WatchConnectivityBridge.shared
             if updateContext {
-                // Queues until WCSession activates when needed.
                 _ = bridge.updateApplicationContext(envelope)
             }
+            // Always queue background transfer when interactive path is unavailable —
+            // Xcode Watch installs often leave isReachable false on the phone.
             if bridge.isReachable {
-                let sent = bridge.send(envelope)
-                print("[YTLite.WatchConnectivity] push kind=\(kind.rawValue) reachable send=\(sent)")
-            } else {
-                // Simulator often reports asymmetric reachability — still deliver via userInfo.
-                bridge.transferUserInfo(envelope)
-                print("[YTLite.WatchConnectivity] push kind=\(kind.rawValue) via transferUserInfo (not reachable)")
+                _ = bridge.send(envelope)
             }
+            bridge.transferUserInfo(envelope)
         } catch {
-            print("[YTLite.WatchConnectivity] push encode failed: \(error)")
+            // Best-effort.
         }
     }
 

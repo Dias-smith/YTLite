@@ -17,6 +17,8 @@ final class WatchConnectivityBridge: NSObject, ObservableObject {
     @Published private(set) var isWatchAppInstalled: Bool = false
     /// iOS: whether a Watch is paired.
     @Published private(set) var isPaired: Bool = false
+    /// iOS: Watch sent us at least one interactive message this process (Xcode direct-install recovery).
+    @Published private(set) var hasWatchCounterpartSession: Bool = false
     @Published private(set) var lastErrorMessage: String?
 
     private var session: WCSession?
@@ -26,6 +28,16 @@ final class WatchConnectivityBridge: NSObject, ObservableObject {
     private var pendingApplicationContext: WatchConnectivityProtocol.Envelope?
     /// Interactive / queue payloads queued until activation completes.
     private var pendingTransfers: [WatchConnectivityProtocol.Envelope] = []
+    #if os(iOS)
+    private var didLogWaitingForWatchInstall = false
+    #endif
+    #if os(watchOS)
+    /// `isReachable` can stay true while sendMessage always times out (Xcode sideload / stale WC).
+    private var interactiveSendSuspended = false
+    private var didLogInteractiveSuspend = false
+    #endif
+    private var lastBackgroundTransferAt: [String: Date] = [:]
+    private var isFlushingPending = false
     #if targetEnvironment(simulator)
     private var simulatorLinkConnected = false
     #endif
@@ -87,6 +99,20 @@ final class WatchConnectivityBridge: NSObject, ObservableObject {
         handlers.append(handler)
     }
 
+    /// Whether the phone should spend work pushing Watch snapshots / transfers.
+    var isWatchDeliveryAvailable: Bool {
+        #if targetEnvironment(simulator)
+        return simulatorLinkConnected || isReachable
+        #elseif os(iOS)
+        // `isWatchAppInstalled` stays false when the Watch app was installed only via Xcode
+        // Watch scheme (not through the iPhone Watch app). Still deliver if reachable or we've
+        // already received an interactive message from the Watch.
+        return isWatchAppInstalled || isReachable || hasWatchCounterpartSession
+        #else
+        return isReachable
+        #endif
+    }
+
     @discardableResult
     func send(_ envelope: WatchConnectivityProtocol.Envelope, reply: ((Result<WatchConnectivityProtocol.Envelope, Error>) -> Void)? = nil) -> Bool {
         #if targetEnvironment(simulator)
@@ -118,28 +144,43 @@ final class WatchConnectivityBridge: NSObject, ObservableObject {
             let data = try JSONEncoder().encode(envelope)
             let message: [String: Any] = ["envelope": data]
 
-            if session.isReachable {
-                session.sendMessage(message, replyHandler: { replyMessage in
-                    Task { @MainActor in
-                        do {
-                            let replyEnvelope = try Self.decodeEnvelope(from: replyMessage)
-                            reply?(.success(replyEnvelope))
-                        } catch {
-                            reply?(.failure(error))
+            #if os(watchOS)
+            let allowInteractive = session.isReachable && !interactiveSendSuspended
+            #else
+            let allowInteractive = session.isReachable
+            #endif
+
+            if allowInteractive {
+                // Prefer no-reply for fire-and-forget; reply timeouts drop Watch→Phone handshakes.
+                if let reply {
+                    session.sendMessage(message, replyHandler: { replyMessage in
+                        Task { @MainActor in
+                            do {
+                                let replyEnvelope = try Self.decodeEnvelope(from: replyMessage)
+                                reply(.success(replyEnvelope))
+                            } catch {
+                                reply(.failure(error))
+                            }
                         }
-                    }
-                }, errorHandler: { error in
-                    Task { @MainActor in
-                        self.lastErrorMessage = error.localizedDescription
-                        // Interactive path failed — still queue for later delivery.
-                        session.transferUserInfo(message)
-                        reply?(.failure(error))
-                    }
-                })
+                    }, errorHandler: { error in
+                        Task { @MainActor in
+                            self.noteInteractiveSendFailure(error)
+                            self.queueBackgroundTransfer(message, kind: envelope.kind.rawValue)
+                            reply(.failure(error))
+                        }
+                    })
+                } else {
+                    session.sendMessage(message, replyHandler: nil, errorHandler: { error in
+                        Task { @MainActor in
+                            self.noteInteractiveSendFailure(error)
+                            self.queueBackgroundTransfer(message, kind: envelope.kind.rawValue)
+                        }
+                    })
+                }
                 return true
             }
 
-            session.transferUserInfo(message)
+            queueBackgroundTransfer(message, kind: envelope.kind.rawValue)
             if let reply {
                 let ack = WatchConnectivityProtocol.Envelope(
                     kind: .ack,
@@ -157,6 +198,31 @@ final class WatchConnectivityBridge: NSObject, ObservableObject {
         }
     }
 
+    private func noteInteractiveSendFailure(_ error: Error) {
+        lastErrorMessage = error.localizedDescription
+        #if os(watchOS)
+        interactiveSendSuspended = true
+        if !didLogInteractiveSuspend {
+            didLogInteractiveSuspend = true
+            print("[YTLite.WatchConnectivity] sendMessage failed: \(error.localizedDescription) — using background transfers until reachability flips")
+        }
+        #else
+        print("[YTLite.WatchConnectivity] sendMessage failed: \(error.localizedDescription) — queued transferUserInfo")
+        #endif
+    }
+
+    private func queueBackgroundTransfer(_ message: [String: Any], kind: String) {
+        guard let session, session.activationState == .activated else { return }
+        // Avoid flooding outstandingUserInfoTransfers from the Watch retry loop.
+        if session.outstandingUserInfoTransfers.count >= 8 { return }
+        let now = Date()
+        if let last = lastBackgroundTransferAt[kind], now.timeIntervalSince(last) < 3.0 {
+            return
+        }
+        lastBackgroundTransferAt[kind] = now
+        session.transferUserInfo(message)
+    }
+
     @discardableResult
     func updateApplicationContext(_ envelope: WatchConnectivityProtocol.Envelope) -> Bool {
         #if targetEnvironment(simulator)
@@ -172,10 +238,13 @@ final class WatchConnectivityBridge: NSObject, ObservableObject {
             pendingApplicationContext = envelope
             return false
         }
-        guard canAttemptWatchDelivery else {
-            pendingApplicationContext = envelope
+        #if os(iOS)
+        // applicationContext requires a recognized companion install; skip when only reachable.
+        guard session.isWatchAppInstalled else {
             return false
         }
+        #endif
+        // watchOS: always allowed — used as Watch→Phone handshake when sendMessage times out.
         do {
             let data = try JSONEncoder().encode(envelope)
             try session.updateApplicationContext([
@@ -201,38 +270,25 @@ final class WatchConnectivityBridge: NSObject, ObservableObject {
             pendingTransfers.removeFirst(pendingTransfers.count - 32)
         }
         #else
-        guard let session, session.activationState == .activated else {
-            pendingTransfers.append(envelope)
-            if pendingTransfers.count > 32 {
-                pendingTransfers.removeFirst(pendingTransfers.count - 32)
-            }
-            return
-        }
-        guard canAttemptWatchDelivery else {
-            pendingTransfers.append(envelope)
-            if pendingTransfers.count > 32 {
-                pendingTransfers.removeFirst(pendingTransfers.count - 32)
-            }
-            return
-        }
+        guard let session, session.activationState == .activated else { return }
+        guard canAttemptWatchDelivery else { return }
         do {
             let data = try JSONEncoder().encode(envelope)
-            session.transferUserInfo(["envelope": data])
+            queueBackgroundTransfer(["envelope": data], kind: envelope.kind.rawValue)
         } catch {
             lastErrorMessage = error.localizedDescription
         }
         #endif
     }
 
-    /// Simulator often reports `isPaired` / `isWatchAppInstalled` as false even when both apps run.
-    /// On device we still require the Watch companion to be installed before delivery APIs.
+    /// True when WCSession APIs other than applicationContext may be used.
     private var canAttemptWatchDelivery: Bool {
         guard let session, session.activationState == .activated else { return false }
         #if os(iOS)
         #if targetEnvironment(simulator)
         return true
         #else
-        return session.isWatchAppInstalled
+        return session.isWatchAppInstalled || session.isReachable || hasWatchCounterpartSession
         #endif
         #else
         return true
@@ -240,6 +296,9 @@ final class WatchConnectivityBridge: NSObject, ObservableObject {
     }
 
     private func flushPending() {
+        guard !isFlushingPending else { return }
+        isFlushingPending = true
+        defer { isFlushingPending = false }
         #if targetEnvironment(simulator)
         guard simulatorLinkConnected else {
             print("[YTLite.WatchConnectivity] waiting for Simulator file-link peer")
@@ -257,10 +316,22 @@ final class WatchConnectivityBridge: NSObject, ObservableObject {
         #else
         guard let session, session.activationState == .activated else { return }
         #if os(iOS)
+        // Pick up Watch→Phone applicationContext that arrived before hosts bound.
+        if let pendingContext = receivedApplicationContextEnvelope() {
+            dispatch(pendingContext)
+        }
         if !canAttemptWatchDelivery {
-            print("[YTLite.WatchConnectivity] waiting for Watch app install paired=\(session.isPaired) installed=\(session.isWatchAppInstalled) reachable=\(session.isReachable)")
+            if !didLogWaitingForWatchInstall {
+                didLogWaitingForWatchInstall = true
+                if session.isPaired, !session.isWatchAppInstalled {
+                    print("[YTLite.WatchConnectivity] Watch not ready (paired=true installed=false reachable=\(session.isReachable)) — keep MixtubeWatch open; if this stays false, reinstall via iPhone scheme (embeds Watch) or Watch app → Available Apps")
+                } else {
+                    print("[YTLite.WatchConnectivity] Watch not ready (paired=\(session.isPaired) installed=\(session.isWatchAppInstalled) reachable=\(session.isReachable)) — open MixtubeWatch on the Watch")
+                }
+            }
             return
         }
+        didLogWaitingForWatchInstall = false
         #endif
         if let pending = pendingApplicationContext {
             _ = updateApplicationContext(pending)
@@ -286,22 +357,34 @@ final class WatchConnectivityBridge: NSObject, ObservableObject {
     }
 
     private func refreshReachability() {
+        #if os(iOS)
+        let wasAvailable = isWatchDeliveryAvailable
+        #endif
+        #if os(watchOS)
+        let wasReachable = isReachable
+        #endif
         #if targetEnvironment(simulator)
         isReachable = simulatorLinkConnected || (session?.isReachable ?? false)
         #else
         isReachable = session?.isReachable ?? false
         #endif
+        #if os(watchOS)
+        // Clear stale interactive suspension when the system reports a reachability edge.
+        if !wasReachable, isReachable {
+            interactiveSendSuspended = false
+            didLogInteractiveSuspend = false
+        }
+        #endif
         #if os(iOS)
-        let wasInstalled = isWatchAppInstalled
         isPaired = session?.isPaired ?? false
         #if targetEnvironment(simulator)
-        // Treat Simulator link as "installed" for host push gating / UI.
         isWatchAppInstalled = simulatorLinkConnected || (session?.isWatchAppInstalled ?? false)
         #else
         isWatchAppInstalled = session?.isWatchAppInstalled ?? false
         #endif
-        if !wasInstalled, isWatchAppInstalled {
-            print("[YTLite.WatchConnectivity] Watch counterpart available — flushing pending")
+        if !wasAvailable, isWatchDeliveryAvailable {
+            print("[YTLite.WatchConnectivity] Watch counterpart available installed=\(isWatchAppInstalled) reachable=\(isReachable) counterpartSession=\(hasWatchCounterpartSession) — flushing")
+            didLogWaitingForWatchInstall = false
             flushPending()
         }
         #endif
@@ -314,7 +397,22 @@ final class WatchConnectivityBridge: NSObject, ObservableObject {
         #endif
     }
 
+    private func noteWatchCounterpartSession() {
+        #if os(iOS)
+        let wasAvailable = isWatchDeliveryAvailable
+        if !hasWatchCounterpartSession {
+            hasWatchCounterpartSession = true
+            print("[YTLite.WatchConnectivity] interactive Watch session detected")
+        }
+        if !wasAvailable, isWatchDeliveryAvailable {
+            didLogWaitingForWatchInstall = false
+            flushPending()
+        }
+        #endif
+    }
+
     private func dispatch(_ envelope: WatchConnectivityProtocol.Envelope) {
+        noteWatchCounterpartSession()
         print("[YTLite.WatchConnectivity] recv kind=\(envelope.kind.rawValue)")
         for handler in handlers {
             handler(envelope)
@@ -340,7 +438,7 @@ final class WatchConnectivityBridge: NSObject, ObservableObject {
     }
     #endif
 
-    private static func decodeEnvelope(from message: [String: Any]) throws -> WatchConnectivityProtocol.Envelope {
+    nonisolated private static func decodeEnvelope(from message: [String: Any]) throws -> WatchConnectivityProtocol.Envelope {
         if let data = message["envelope"] as? Data {
             let envelope = try JSONDecoder().decode(WatchConnectivityProtocol.Envelope.self, from: data)
             if envelope.version > WatchConnectivityProtocol.protocolVersion {
@@ -413,27 +511,16 @@ extension WatchConnectivityBridge: WCSessionDelegate {
     }
 
     nonisolated func session(_ session: WCSession, didReceiveMessage message: [String: Any]) {
-        #if os(iOS)
+        let decoded = Result { try Self.decodeEnvelope(from: message) }
         Task { @MainActor in
+            #if os(iOS)
             self.withBackgroundTask {
-                do {
-                    let envelope = try Self.decodeEnvelope(from: message)
-                    self.dispatch(envelope)
-                } catch {
-                    self.lastErrorMessage = error.localizedDescription
-                }
+                self.applyDecodedMessage(decoded)
             }
+            #else
+            self.applyDecodedMessage(decoded)
+            #endif
         }
-        #else
-        Task { @MainActor in
-            do {
-                let envelope = try Self.decodeEnvelope(from: message)
-                self.dispatch(envelope)
-            } catch {
-                self.lastErrorMessage = error.localizedDescription
-            }
-        }
-        #endif
     }
 
     nonisolated func session(
@@ -441,34 +528,22 @@ extension WatchConnectivityBridge: WCSessionDelegate {
         didReceiveMessage message: [String: Any],
         replyHandler: @escaping ([String: Any]) -> Void
     ) {
-        #if os(iOS)
-        Task { @MainActor in
-            self.withBackgroundTask {
-                self.handleMessage(message, replyHandler: replyHandler)
-            }
-        }
-        #else
-        Task { @MainActor in
-            self.handleMessage(message, replyHandler: replyHandler)
-        }
-        #endif
-    }
-
-    @MainActor
-    private func handleMessage(_ message: [String: Any], replyHandler: @escaping ([String: Any]) -> Void) {
-        do {
-            let envelope = try Self.decodeEnvelope(from: message)
-            dispatch(envelope)
+        // Reply immediately on the WCSession queue — delayed MainActor hops time out on Watch.
+        let decoded = Result { try Self.decodeEnvelope(from: message) }
+        switch decoded {
+        case .success(let envelope):
             let ack = WatchConnectivityProtocol.Envelope(
                 kind: .ack,
-                payload: try JSONEncoder().encode(
+                payload: try? JSONEncoder().encode(
                     WatchConnectivityProtocol.AckBody(requestId: envelope.id, ok: true, message: nil)
                 )
             )
-            let data = try JSONEncoder().encode(ack)
-            replyHandler(["envelope": data])
-        } catch {
-            lastErrorMessage = error.localizedDescription
+            if let data = try? JSONEncoder().encode(ack) {
+                replyHandler(["envelope": data])
+            } else {
+                replyHandler([:])
+            }
+        case .failure(let error):
             let err = WatchConnectivityProtocol.Envelope(
                 kind: .error,
                 payload: try? JSONEncoder().encode(
@@ -484,6 +559,25 @@ extension WatchConnectivityBridge: WCSessionDelegate {
             } else {
                 replyHandler([:])
             }
+        }
+        Task { @MainActor in
+            #if os(iOS)
+            self.withBackgroundTask {
+                self.applyDecodedMessage(decoded)
+            }
+            #else
+            self.applyDecodedMessage(decoded)
+            #endif
+        }
+    }
+
+    @MainActor
+    private func applyDecodedMessage(_ decoded: Result<WatchConnectivityProtocol.Envelope, Error>) {
+        switch decoded {
+        case .success(let envelope):
+            dispatch(envelope)
+        case .failure(let error):
+            lastErrorMessage = error.localizedDescription
         }
     }
 

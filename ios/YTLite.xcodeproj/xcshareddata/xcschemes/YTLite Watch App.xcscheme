@@ -15,7 +15,7 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "513B30FBF357334F1B09A359"
-               BuildableName = "Mixtube.app"
+               BuildableName = "MixtubeWatch.app"
                BlueprintName = "YTLite Watch App"
                ReferencedContainer = "container:YTLite.xcodeproj">
             </BuildableReference>
@@ -31,7 +31,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "513B30FBF357334F1B09A359"
-            BuildableName = "Mixtube.app"
+            BuildableName = "MixtubeWatch.app"
             BlueprintName = "YTLite Watch App"
             ReferencedContainer = "container:YTLite.xcodeproj">
          </BuildableReference>
@@ -48,14 +48,13 @@
       ignoresPersistentStateOnLaunch = "NO"
       debugDocumentVersioning = "YES"
       debugServiceExtension = "internal"
-      allowLocationSimulation = "YES"
-      notificationPayloadFile = "Example/watchOSSample/SampleWatchAppWatchKitExtension/PushNotificationPayload.apns">
+      allowLocationSimulation = "YES">
       <BuildableProductRunnable
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "513B30FBF357334F1B09A359"
-            BuildableName = "Mixtube.app"
+            BuildableName = "MixtubeWatch.app"
             BlueprintName = "YTLite Watch App"
             ReferencedContainer = "container:YTLite.xcodeproj">
          </BuildableReference>
@@ -72,7 +71,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "513B30FBF357334F1B09A359"
-            BuildableName = "Mixtube.app"
+            BuildableName = "MixtubeWatch.app"
             BlueprintName = "YTLite Watch App"
             ReferencedContainer = "container:YTLite.xcodeproj">
          </BuildableReference>

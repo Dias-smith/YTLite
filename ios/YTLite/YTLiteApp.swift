@@ -15,7 +15,6 @@ struct YTLiteApp: App {
         FirebaseBootstrap.configure()
         Analytics.setAnalyticsCollectionEnabled(true)
         AppNotificationCenterDelegate.shared.install()
-        WatchConnectivityBridge.shared.activate()
         let config = AppConfig.fromBundle()
         _authService = StateObject(wrappedValue: AuthService(config: config))
         modelContainer = Self.makeModelContainer()
@@ -43,10 +42,12 @@ struct YTLiteApp: App {
                 .id("\(appModel.themeRevision)-\(appModel.languageCode)")
                 .preferredColorScheme(appModel.themeColorScheme)
                 .task {
-                    // First frame, then ATT, then UMP / AdMob.
+                    // First frame, then wire WatchConnectivity before ATT / ads so Watch
+                    // handshakes are not dropped while consent / RemoteConfig run.
                     await Task.yield()
                     WatchConnectivityBridge.shared.activate()
                     WatchPlaybackHost.shared.start(playback: playback)
+
                     await AdConsentManager.requestTrackingAuthorizationAtLaunch()
 
                     ResolverRemoteConfigStore.restoreFromDisk()

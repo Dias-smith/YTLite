@@ -13,6 +13,7 @@ final class WatchPlaybackClient: ObservableObject {
     private var didBind = false
     private var cancellables = Set<AnyCancellable>()
     private var snapshotRetry: AnyCancellable?
+    private var didQueueBackgroundHandshake = false
 
     private init() {}
 
@@ -57,11 +58,11 @@ final class WatchPlaybackClient: ObservableObject {
 
     private func startSnapshotRetryLoop() {
         snapshotRetry?.cancel()
-        snapshotRetry = Timer.publish(every: 2.5, on: .main, in: .common)
+        snapshotRetry = Timer.publish(every: 5.0, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in
                 guard let self else { return }
-                // Keep polling until we have a real now-playing id (Simulator delivery is flaky).
+                // Keep polling until we have a real now-playing id (device WC can be one-way stale).
                 if self.snapshot?.videoId == nil {
                     self.ingestCachedApplicationContext()
                     self.requestSnapshot()
@@ -81,14 +82,17 @@ final class WatchPlaybackClient: ObservableObject {
 
     func requestSnapshot() {
         let bridge = WatchConnectivityBridge.shared
-        // Soft poll — don't surface "open iPhone" for background sync attempts.
-        guard bridge.activationState == .activated, bridge.isReachable else { return }
+        guard bridge.activationState == .activated else { return }
         do {
             let envelope = try WatchConnectivityProtocol.Envelope.make(
                 kind: .syncRequestSnapshot,
                 body: WatchConnectivityProtocol.EmptyBody()
             )
+            // Prefer background channels: sendMessage often times out while isReachable stays stale.
+            _ = bridge.updateApplicationContext(envelope)
+            bridge.transferUserInfo(envelope)
             _ = bridge.send(envelope)
+            didQueueBackgroundHandshake = true
         } catch {
             // Best-effort.
         }
