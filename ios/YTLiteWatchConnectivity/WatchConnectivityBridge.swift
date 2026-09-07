@@ -140,40 +140,47 @@ final class WatchConnectivityBridge: NSObject, ObservableObject {
                                 reply(.failure(error))
                             }
                         }
-                    }, errorHandler: { error in
+                    }, errorHandler: { _ in
                         Task { @MainActor in
-                            self.lastErrorMessage = error.localizedDescription
-                            self.queueBackgroundTransfer(message, kind: envelope.kind.rawValue)
-                            reply(.failure(error))
+                            // Stale isReachable is common; background delivery still works — don't surface WC noise.
+                            self.deliverViaBackground(message, kind: envelope.kind.rawValue, requestId: envelope.id, reply: reply)
                         }
                     })
                 } else {
-                    session.sendMessage(message, replyHandler: nil, errorHandler: { error in
+                    session.sendMessage(message, replyHandler: nil, errorHandler: { _ in
                         Task { @MainActor in
-                            self.lastErrorMessage = error.localizedDescription
-                            self.queueBackgroundTransfer(message, kind: envelope.kind.rawValue)
+                            self.deliverViaBackground(message, kind: envelope.kind.rawValue, requestId: envelope.id, reply: nil)
                         }
                     })
                 }
                 return true
             }
 
-            queueBackgroundTransfer(message, kind: envelope.kind.rawValue)
-            if let reply {
-                let ack = WatchConnectivityProtocol.Envelope(
-                    kind: .ack,
-                    payload: try? JSONEncoder().encode(
-                        WatchConnectivityProtocol.AckBody(requestId: envelope.id, ok: true, message: "queued")
-                    )
-                )
-                reply(.success(ack))
-            }
+            deliverViaBackground(message, kind: envelope.kind.rawValue, requestId: envelope.id, reply: reply)
             return true
         } catch {
             lastErrorMessage = error.localizedDescription
             reply?(.failure(error))
             return false
         }
+    }
+
+    /// Queues `transferUserInfo` without treating interactive-send failure as a user-visible error.
+    private func deliverViaBackground(
+        _ message: [String: Any],
+        kind: String,
+        requestId: String,
+        reply: ((Result<WatchConnectivityProtocol.Envelope, Error>) -> Void)?
+    ) {
+        queueBackgroundTransfer(message, kind: kind)
+        guard let reply else { return }
+        let ack = WatchConnectivityProtocol.Envelope(
+            kind: .ack,
+            payload: try? JSONEncoder().encode(
+                WatchConnectivityProtocol.AckBody(requestId: requestId, ok: true, message: "queued")
+            )
+        )
+        reply(.success(ack))
     }
 
     private func queueBackgroundTransfer(_ message: [String: Any], kind: String) {

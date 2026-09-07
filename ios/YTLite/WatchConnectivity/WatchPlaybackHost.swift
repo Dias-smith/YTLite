@@ -154,6 +154,11 @@ final class WatchPlaybackHost {
                 playback.playbackSpeed = nearest
             }
             pushPlayback(force: true)
+        case .transportSetVolume:
+            if let body = try? envelope.decodePayload(WatchConnectivityProtocol.VolumeBody.self) {
+                SystemOutputVolume.set(body.volume)
+                pushPlayback(force: true)
+            }
         case .queuePlayIndex:
             if let body = try? envelope.decodePayload(WatchConnectivityProtocol.IndexBody.self) {
                 playback?.playQueueIndex(body.index)

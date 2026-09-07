@@ -122,6 +122,16 @@ final class WatchPlaybackClient: ObservableObject {
         send(kind: .transportSetSpeed, body: WatchConnectivityProtocol.SpeedBody(speed: speed))
     }
 
+    func setVolume(_ volume: Float) {
+        let clamped = min(max(volume, 0), 1)
+        // Optimistic local mirror until phone pushes the next snapshot.
+        if var current = snapshot {
+            current.outputVolume = clamped
+            snapshot = current
+        }
+        send(kind: .transportSetVolume, body: WatchConnectivityProtocol.VolumeBody(volume: clamped))
+    }
+
     func playQueueIndex(_ index: Int) {
         send(kind: .queuePlayIndex, body: WatchConnectivityProtocol.IndexBody(index: index))
     }

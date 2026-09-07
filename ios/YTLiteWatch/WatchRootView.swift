@@ -7,6 +7,10 @@ struct WatchRootView: View {
     var body: some View {
         TabView {
             WatchNowPlayingView()
+                .containerBackground(for: .tabView) {
+                    Color.black
+                }
+                .ignoresSafeArea()
                 .tag(0)
             WatchQueueView()
                 .tag(1)
@@ -14,6 +18,7 @@ struct WatchRootView: View {
                 .tag(2)
         }
         .tabViewStyle(.verticalPage)
+        .scrollIndicators(.hidden)
     }
 }
 

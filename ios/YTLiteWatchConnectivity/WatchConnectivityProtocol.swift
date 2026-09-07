@@ -44,6 +44,7 @@ enum WatchConnectivityProtocol {
         case transportSetShuffle = "transport.setShuffle"
         case transportCycleRepeat = "transport.cycleRepeat"
         case transportSetSpeed = "transport.setSpeed"
+        case transportSetVolume = "transport.setVolume"
         case queuePlayIndex = "queue.play"
         case queueRemove = "queue.remove"
         case queuePlayNext = "queue.playNext"
@@ -99,6 +100,11 @@ enum WatchConnectivityProtocol {
         var speed: Float
     }
 
+    struct VolumeBody: Codable, Sendable, Equatable {
+        /// iPhone system output volume, 0…1.
+        var volume: Float
+    }
+
     struct IndexBody: Codable, Sendable, Equatable {
         var index: Int
     }
@@ -130,7 +136,7 @@ enum WatchConnectivityProtocol {
         var isExtracting: Bool
         var isSeekable: Bool
         var errorMessage: String?
-        /// iPhone system output volume 0…1 (read-only on Watch; crown controls system volume).
+        /// iPhone system output volume 0…1 (Watch can set via `transport.setVolume`).
         var outputVolume: Float?
 
         /// Speeds accepted by iPhone `PlaybackController.speedOptions`.
