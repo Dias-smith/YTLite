@@ -37,7 +37,7 @@ targets:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         CODE_SIGN_STYLE: Automatic
         CODE_SIGN_ENTITLEMENTS: YTLite/YTLite.entitlements
-        DEVELOPMENT_TEAM: ""
+        DEVELOPMENT_TEAM: "8S748AQ4H7"
         SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited)"
         VALIDATE_PRODUCT: NO
         DEVELOPMENT_LANGUAGE: en
@@ -47,6 +47,8 @@ targets:
       properties:
         com.apple.developer.applesignin:
           - Default
+        com.apple.security.application-groups:
+          - group.com.ytlite.player
     configFiles:
       Debug: Config/Debug.xcconfig
       Release: Config/Release.xcconfig
@@ -61,10 +63,62 @@ targets:
         product: FirebaseRemoteConfig
       - package: google-mobile-ads
         product: GoogleMobileAds
+      # Embed & Sign into Watch/ — App Store rejects Watch apps under PlugIns (ITMS-90680).
       - target: YTLite Watch App
         embed: true
-        copy:
-          destination: plugins
+        codeSign: true
+    # Xcode 26 local device install sometimes looks under PlugIns/; App Store requires Watch/.
+    # Debug: also mirror into PlugIns for local companion discovery.
+    # Release/Archive: ensure only Watch/ remains (no PlugIns copy, no symlink).
+    postbuildScripts:
+      - name: Place Watch companion for store and device
+        basedOnDependencyAnalysis: false
+        script: |
+          set -euo pipefail
+          APP_ROOT="${TARGET_BUILD_DIR}/${WRAPPER_NAME}"
+          WATCH_DIR="${APP_ROOT}/Watch"
+          WATCH_APP="${WATCH_DIR}/MixtubeWatch.app"
+          PLUGINS_DIR="${APP_ROOT}/PlugIns"
+          PLUGINS_APP="${PLUGINS_DIR}/MixtubeWatch.app"
+
+          # Prefer whatever the Embed phase produced.
+          SRC=""
+          if [ -d "$WATCH_APP" ] && [ ! -L "$WATCH_APP" ]; then
+            SRC="$WATCH_APP"
+          elif [ -d "$PLUGINS_APP" ] && [ ! -L "$PLUGINS_APP" ]; then
+            SRC="$PLUGINS_APP"
+          fi
+          if [ -z "$SRC" ]; then
+            echo "[YTLite] ERROR: MixtubeWatch.app missing under Watch/ or PlugIns/"
+            exit 1
+          fi
+
+          mkdir -p "$WATCH_DIR"
+          if [ "$SRC" != "$WATCH_APP" ]; then
+            rm -rf "$WATCH_APP"
+            ditto "$SRC" "$WATCH_APP"
+            echo "[YTLite] Copied companion to Watch/MixtubeWatch.app"
+          fi
+
+          # App Store (Release/Archive): Watch apps must not live under PlugIns/.
+          if [ "${CONFIGURATION}" = "Release" ] || [ "${ACTION:-}" = "install" ]; then
+            if [ -e "$PLUGINS_APP" ]; then
+              rm -rf "$PLUGINS_APP"
+              echo "[YTLite] Removed PlugIns/MixtubeWatch.app for App Store packaging"
+            fi
+            # Drop empty PlugIns dir if we emptied it.
+            if [ -d "$PLUGINS_DIR" ] && [ -z "$(ls -A "$PLUGINS_DIR" 2>/dev/null || true)" ]; then
+              rmdir "$PLUGINS_DIR" 2>/dev/null || true
+            fi
+          else
+            # Debug: keep a real copy under PlugIns for Xcode 26 local install paths.
+            mkdir -p "$PLUGINS_DIR"
+            if [ ! -d "$PLUGINS_APP" ] || [ -L "$PLUGINS_APP" ]; then
+              rm -rf "$PLUGINS_APP"
+              ditto "$WATCH_APP" "$PLUGINS_APP"
+              echo "[YTLite] Mirrored companion to PlugIns/MixtubeWatch.app (Debug)"
+            fi
+          fi
 
   YTLite Watch App:
     type: application
@@ -75,21 +129,46 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.ytlite.player.watchkitapp
-        PRODUCT_NAME: Mixtube
+        # Must be a strict prefix child of com.ytlite.player.
+        PRODUCT_NAME: MixtubeWatch
         PRODUCT_MODULE_NAME: YTLiteWatch
+        MARKETING_VERSION: "1.0.0"
+        CURRENT_PROJECT_VERSION: "1"
         GENERATE_INFOPLIST_FILE: true
+        INFOPLIST_FILE: YTLiteWatch/Info.plist
         INFOPLIST_KEY_CFBundleDisplayName: Mixtube
         INFOPLIST_KEY_WKCompanionAppBundleIdentifier: com.ytlite.player
         INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp: false
+        CODE_SIGN_ENTITLEMENTS: YTLiteWatch/YTLiteWatch.entitlements
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         CODE_SIGN_STYLE: Automatic
-        DEVELOPMENT_TEAM: ""
+        DEVELOPMENT_TEAM: "8S748AQ4H7"
         TARGETED_DEVICE_FAMILY: "4"
         SDKROOT: watchos
         SUPPORTED_PLATFORMS: "watchos watchsimulator"
         SUPPORTS_MACCATALYST: false
+        SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: false
+        SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: false
         WATCHOS_DEPLOYMENT_TARGET: "10.0"
+        # Companion packaging: install via iPhone embed, not as a top-level phone product.
         SKIP_INSTALL: true
+    # Project-level IPHONEOS_DEPLOYMENT_TARGET can leak MinimumOSVersion~ipad into the Watch
+    # Info.plist and confuse companion discovery on iPhone.
+    postCompileScripts:
+      - name: Strip iOS Info.plist leaks from Watch
+        basedOnDependencyAnalysis: false
+        script: |
+          set -e
+          PLIST="${TARGET_BUILD_DIR}/${INFOPLIST_PATH}"
+          if [ -f "$PLIST" ]; then
+            /usr/libexec/PlistBuddy -c "Delete :MinimumOSVersion~ipad" "$PLIST" 2>/dev/null || true
+            /usr/libexec/PlistBuddy -c "Delete :UISupportedInterfaceOrientations~ipad" "$PLIST" 2>/dev/null || true
+          fi
+    entitlements:
+      path: YTLiteWatch/YTLiteWatch.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.com.ytlite.player
     dependencies: []
 
 schemes:

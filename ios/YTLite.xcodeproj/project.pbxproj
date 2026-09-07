@@ -153,8 +153,8 @@
 		49ADE8FC7525265DF919FECC /* Embed Watch Content */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
-			dstPath = "";
-			dstSubfolderSpec = 13;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+			dstSubfolderSpec = 16;
 			files = (
 				B47C1BC528C739B85E8D9FAD /* MixtubeWatch.app in Embed Watch Content */,
 			);
@@ -734,7 +734,7 @@
 				48DEAB09EB9D6C006AA105BE /* Resources */,
 				52F99378DC3297096FC624E2 /* Frameworks */,
 				49ADE8FC7525265DF919FECC /* Embed Watch Content */,
-				A98F6686E91CF6EAC74A996E /* Link Watch companion discovery path */,
+				A98F6686E91CF6EAC74A996E /* Place Watch companion for store and device */,
 			);
 			buildRules = (
 			);
@@ -828,7 +828,7 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		A98F6686E91CF6EAC74A996E /* Link Watch companion discovery path */ = {
+		A98F6686E91CF6EAC74A996E /* Place Watch companion for store and device */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
 			buildActionMask = 2147483647;
@@ -838,14 +838,14 @@
 			);
 			inputPaths = (
 			);
-			name = "Link Watch companion discovery path";
+			name = "Place Watch companion for store and device";
 			outputFileListPaths = (
 			);
 			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -euo pipefail\nAPP_ROOT=\"${TARGET_BUILD_DIR}/${WRAPPER_NAME}\"\nSRC=\"${APP_ROOT}/PlugIns/MixtubeWatch.app\"\nDEST_DIR=\"${APP_ROOT}/Watch\"\nDEST=\"${DEST_DIR}/MixtubeWatch.app\"\nif [ ! -d \"$SRC\" ]; then\n  echo \"[YTLite] ERROR: missing $SRC\"\n  exit 1\nfi\nmkdir -p \"$DEST_DIR\"\nrm -rf \"$DEST\"\nln -s \"../PlugIns/MixtubeWatch.app\" \"$DEST\"\necho \"[YTLite] Linked Watch/MixtubeWatch.app -> ../PlugIns/MixtubeWatch.app\"\n";
+			shellScript = "set -euo pipefail\nAPP_ROOT=\"${TARGET_BUILD_DIR}/${WRAPPER_NAME}\"\nWATCH_DIR=\"${APP_ROOT}/Watch\"\nWATCH_APP=\"${WATCH_DIR}/MixtubeWatch.app\"\nPLUGINS_DIR=\"${APP_ROOT}/PlugIns\"\nPLUGINS_APP=\"${PLUGINS_DIR}/MixtubeWatch.app\"\n\nSRC=\"\"\nif [ -d \"$WATCH_APP\" ] && [ ! -L \"$WATCH_APP\" ]; then\n  SRC=\"$WATCH_APP\"\nelif [ -d \"$PLUGINS_APP\" ] && [ ! -L \"$PLUGINS_APP\" ]; then\n  SRC=\"$PLUGINS_APP\"\nfi\nif [ -z \"$SRC\" ]; then\n  echo \"[YTLite] ERROR: MixtubeWatch.app missing under Watch/ or PlugIns/\"\n  exit 1\nfi\n\nmkdir -p \"$WATCH_DIR\"\nif [ \"$SRC\" != \"$WATCH_APP\" ]; then\n  rm -rf \"$WATCH_APP\"\n  ditto \"$SRC\" \"$WATCH_APP\"\n  echo \"[YTLite] Copied companion to Watch/MixtubeWatch.app\"\nfi\n\nif [ \"${CONFIGURATION}\" = \"Release\" ] || [ \"${ACTION:-}\" = \"install\" ]; then\n  if [ -e \"$PLUGINS_APP\" ]; then\n    rm -rf \"$PLUGINS_APP\"\n    echo \"[YTLite] Removed PlugIns/MixtubeWatch.app for App Store packaging\"\n  fi\n  if [ -d \"$PLUGINS_DIR\" ] && [ -z \"$(ls -A \"$PLUGINS_DIR\" 2>/dev/null || true)\" ]; then\n    rmdir \"$PLUGINS_DIR\" 2>/dev/null || true\n  fi\nelse\n  mkdir -p \"$PLUGINS_DIR\"\n  if [ ! -d \"$PLUGINS_APP\" ] || [ -L \"$PLUGINS_APP\" ]; then\n    rm -rf \"$PLUGINS_APP\"\n    ditto \"$WATCH_APP\" \"$PLUGINS_APP\"\n    echo \"[YTLite] Mirrored companion to PlugIns/MixtubeWatch.app (Debug)\"\n  fi\nfi\n";
 		};
 		D51AC7BB983E9AA1CA1070F7 /* Strip iOS Info.plist leaks from Watch */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -1198,6 +1198,7 @@
 				CODE_SIGN_ENTITLEMENTS = YTLite/YTLite.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_LANGUAGE = en;
 				DEVELOPMENT_TEAM = 8S748AQ4H7;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -1226,6 +1227,7 @@
 				CODE_SIGN_ENTITLEMENTS = YTLite/YTLite.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_LANGUAGE = en;
 				DEVELOPMENT_TEAM = 8S748AQ4H7;
 				GENERATE_INFOPLIST_FILE = NO;
