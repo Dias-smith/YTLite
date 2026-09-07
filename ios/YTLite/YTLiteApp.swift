@@ -42,8 +42,6 @@ struct YTLiteApp: App {
                 .id("\(appModel.themeRevision)-\(appModel.languageCode)")
                 .preferredColorScheme(appModel.themeColorScheme)
                 .task {
-                    // First frame, then wire WatchConnectivity before ATT / ads so Watch
-                    // handshakes are not dropped while consent / RemoteConfig run.
                     await Task.yield()
                     WatchConnectivityBridge.shared.activate()
                     WatchPlaybackHost.shared.start(playback: playback)

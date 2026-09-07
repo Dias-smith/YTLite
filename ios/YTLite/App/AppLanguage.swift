@@ -235,18 +235,14 @@ enum AppContentRegion: String, CaseIterable, Identifiable, Sendable {
 
     static func fromStored(_ raw: String?) -> AppContentRegion {
         guard let raw, let match = AppContentRegion(rawValue: raw.uppercased()) else {
-            return defaultForDevice()
+            return .US
         }
         return match
     }
 
+    /// First-launch / invalid storage fallback — always United States.
     static func defaultForDevice() -> AppContentRegion {
-        if let code = Locale.current.region?.identifier.uppercased(),
-           AppContentRegion(rawValue: code) != nil
-        {
-            return AppContentRegion(rawValue: code)!
-        }
-        return .US
+        .US
     }
 
     static var sortedForPicker: [AppContentRegion] {

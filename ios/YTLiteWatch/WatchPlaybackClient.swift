@@ -12,8 +12,6 @@ final class WatchPlaybackClient: ObservableObject {
 
     private var didBind = false
     private var cancellables = Set<AnyCancellable>()
-    private var snapshotRetry: AnyCancellable?
-    private var didQueueBackgroundHandshake = false
 
     private init() {}
 
@@ -24,10 +22,10 @@ final class WatchPlaybackClient: ObservableObject {
         let bridge = WatchConnectivityBridge.shared
         bridge.activate()
         bindIfNeeded()
-        if bridge.isReachable {
+        if bridge.activationState == .activated {
+            ingestCachedApplicationContext()
             requestSnapshot()
         }
-        startSnapshotRetryLoop()
     }
 
     private func bindIfNeeded() {
@@ -56,20 +54,6 @@ final class WatchPlaybackClient: ObservableObject {
             .store(in: &cancellables)
     }
 
-    private func startSnapshotRetryLoop() {
-        snapshotRetry?.cancel()
-        snapshotRetry = Timer.publish(every: 5.0, on: .main, in: .common)
-            .autoconnect()
-            .sink { [weak self] _ in
-                guard let self else { return }
-                // Keep polling until we have a real now-playing id (device WC can be one-way stale).
-                if self.snapshot?.videoId == nil {
-                    self.ingestCachedApplicationContext()
-                    self.requestSnapshot()
-                }
-            }
-    }
-
     private func ingestCachedApplicationContext() {
         let bridge = WatchConnectivityBridge.shared
         guard let cached = bridge.receivedApplicationContextEnvelope(),
@@ -88,11 +72,7 @@ final class WatchPlaybackClient: ObservableObject {
                 kind: .syncRequestSnapshot,
                 body: WatchConnectivityProtocol.EmptyBody()
             )
-            // Prefer background channels: sendMessage often times out while isReachable stays stale.
-            _ = bridge.updateApplicationContext(envelope)
-            bridge.transferUserInfo(envelope)
             _ = bridge.send(envelope)
-            didQueueBackgroundHandshake = true
         } catch {
             // Best-effort.
         }

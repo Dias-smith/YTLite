@@ -143,8 +143,7 @@ final class YTLiteAppDelegate: NSObject, UIApplicationDelegate {
         // Configure before any Firebase SDK touches the default app (Analytics swizzling, etc.).
         FirebaseBootstrap.configure()
         application.beginReceivingRemoteControlEvents()
-        // Activate WCSession before first frame / ads so Watch handshakes are not dropped
-        // while RemoteConfig / ATT run (Xcode Watch installs often stay installed=false).
+        // Activate WCSession early so Watch can connect before first frame / consent.
         Task { @MainActor in
             WatchConnectivityBridge.shared.activate()
         }

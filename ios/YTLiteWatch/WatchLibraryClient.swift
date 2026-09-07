@@ -22,7 +22,7 @@ final class WatchLibraryClient: ObservableObject {
         let bridge = WatchConnectivityBridge.shared
         bridge.activate()
         bindIfNeeded()
-        if bridge.isReachable {
+        if bridge.activationState == .activated {
             requestSnapshot()
         }
     }
@@ -55,7 +55,7 @@ final class WatchLibraryClient: ObservableObject {
 
     func requestSnapshot() {
         let bridge = WatchConnectivityBridge.shared
-        guard bridge.activationState == .activated, bridge.isReachable else { return }
+        guard bridge.activationState == .activated else { return }
         do {
             let envelope = try WatchConnectivityProtocol.Envelope.make(
                 kind: .syncRequestSnapshot,

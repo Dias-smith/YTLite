@@ -62,14 +62,6 @@ final class WatchLibraryHost {
                 }
             }
             .store(in: &bridgeCancellables)
-        bridge.$hasWatchCounterpartSession
-            .removeDuplicates()
-            .sink { [weak self] active in
-                if active {
-                    self?.pushSnapshot(force: true)
-                }
-            }
-            .store(in: &bridgeCancellables)
         bridge.$isReachable
             .removeDuplicates()
             .sink { [weak self] reachable in

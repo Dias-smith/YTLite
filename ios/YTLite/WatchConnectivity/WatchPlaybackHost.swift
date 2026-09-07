@@ -56,15 +56,6 @@ final class WatchPlaybackHost {
                 }
             }
             .store(in: &bridgeCancellables)
-        bridge.$hasWatchCounterpartSession
-            .removeDuplicates()
-            .sink { [weak self] active in
-                if active {
-                    self?.pushAll(force: true)
-                    self?.configurePositionTimer(playing: self?.playback?.isPlaying == true)
-                }
-            }
-            .store(in: &bridgeCancellables)
         bridge.$isReachable
             .removeDuplicates()
             .sink { [weak self] reachable in
@@ -232,12 +223,11 @@ final class WatchPlaybackHost {
             if updateContext {
                 _ = bridge.updateApplicationContext(envelope)
             }
-            // Always queue background transfer when interactive path is unavailable —
-            // Xcode Watch installs often leave isReachable false on the phone.
             if bridge.isReachable {
                 _ = bridge.send(envelope)
+            } else {
+                bridge.transferUserInfo(envelope)
             }
-            bridge.transferUserInfo(envelope)
         } catch {
             // Best-effort.
         }
