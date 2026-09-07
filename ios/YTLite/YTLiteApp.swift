@@ -46,6 +46,7 @@ struct YTLiteApp: App {
                     WatchConnectivityBridge.shared.activate()
                     WatchPlaybackHost.shared.start(playback: playback)
 
+                    // ATT / UMP only while foreground-active (deferred if launched into background).
                     await AdConsentManager.requestTrackingAuthorizationAtLaunch()
 
                     ResolverRemoteConfigStore.restoreFromDisk()
@@ -77,6 +78,10 @@ struct YTLiteApp: App {
                         playback.consumePendingDailyListenIfNeeded()
                         if playback.isPlaying {
                             playback.prepareForBackgroundPlayback()
+                        }
+                        Task {
+                            await AdConsentManager.resumeDeferredPromptsIfNeeded()
+                            await DailyListenNotificationScheduler.refresh(using: playback.libraryStore)
                         }
                     }
                     if phase == .background {

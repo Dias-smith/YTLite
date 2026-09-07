@@ -5,6 +5,7 @@ import android.util.Log
 import com.google.firebase.remoteconfig.FirebaseRemoteConfig
 import com.google.firebase.remoteconfig.remoteConfigSettings
 import kotlinx.coroutines.tasks.await
+import org.json.JSONObject
 
 /**
  * Thin wrapper around Firebase Remote Config.
@@ -18,11 +19,21 @@ object RemoteConfigRepository {
     private const val PROD_FETCH_INTERVAL_SECONDS = 12 * 60 * 60L
     private const val DEBUG_FETCH_INTERVAL_SECONDS = 0L
 
+    /** Local fallback JSON; effective offline stays false until a remote value is activated. */
+    private const val ALLOW_OFFLINE_DEFAULT_JSON =
+        """{"enable":false,"version":"0.0.0"}"""
+
+    private const val ADS_INTERVAL_DEFAULT_SECONDS = 120L
+
     @Volatile
     private var initialized = false
 
+    @Volatile
+    private var appContext: Context? = null
+
     fun init(context: Context, isDebuggable: Boolean) {
         if (initialized) return
+        appContext = context.applicationContext
         val remoteConfig = FirebaseRemoteConfig.getInstance()
         val settings = remoteConfigSettings {
             minimumFetchIntervalInSeconds = if (isDebuggable) {
@@ -62,21 +73,34 @@ object RemoteConfigRepository {
         FirebaseRemoteConfig.getInstance().getDouble(key)
 
     private fun defaultValues(): Map<String, Any> = mapOf(
-        Keys.ALLOW_OFFLINE to false,
+        Keys.ALLOW_OFFLINE to ALLOW_OFFLINE_DEFAULT_JSON,
         Keys.ADS_INTERVAL to ADS_INTERVAL_DEFAULT_SECONDS,
     )
 
     object Keys {
-        /** When true, play local media cache/download without re-resolving stream URLs. */
+        /**
+         * JSON: `{ "enable": Bool, "version": "x.y.z" }`.
+         * Not fetched → false. App ≥ version → enable. App < version → true.
+         */
         const val ALLOW_OFFLINE = "allow_offline"
 
         /** Seconds between two ordinary full-screen ads (app open / interstitial). */
         const val ADS_INTERVAL = "ads_interval"
     }
 
-    private const val ADS_INTERVAL_DEFAULT_SECONDS = 120L
-
-    fun allowOffline(): Boolean = getBoolean(Keys.ALLOW_OFFLINE)
+    /**
+     * When true, play local media cache/download without re-resolving stream URLs.
+     *
+     * Remote JSON: `{ "enable": Bool, "version": "x.y.z" }`
+     * - Not fetched yet (default/static source) → `false`
+     * - App version ≥ `version` → `enable`
+     * - App version < `version` → `true`
+     */
+    fun allowOffline(): Boolean {
+        val value = FirebaseRemoteConfig.getInstance().getValue(Keys.ALLOW_OFFLINE)
+        if (value.source != FirebaseRemoteConfig.VALUE_SOURCE_REMOTE) return false
+        return resolveAllowOffline(value.asString())
+    }
 
     /**
      * Minimum seconds between two ordinary full-screen ads.
@@ -85,5 +109,37 @@ object RemoteConfigRepository {
     fun adsIntervalSeconds(): Long {
         val raw = getLong(Keys.ADS_INTERVAL)
         return if (raw < 0L) ADS_INTERVAL_DEFAULT_SECONDS else raw
+    }
+
+    private fun resolveAllowOffline(raw: String): Boolean {
+        val trimmed = raw.trim()
+        if (trimmed.isEmpty()) return false
+        return runCatching {
+            val obj = JSONObject(trimmed)
+            val enable = obj.optBoolean("enable", false)
+            val gateVersion = obj.optString("version", "0.0.0")
+            val current = currentAppVersionName()
+            // Older than the gate version → always allow offline.
+            if (compareSemver(current, gateVersion) < 0) true else enable
+        }.getOrDefault(false)
+    }
+
+    private fun currentAppVersionName(): String {
+        val context = appContext ?: return "0"
+        return runCatching {
+            context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "0"
+        }.getOrDefault("0")
+    }
+
+    private fun compareSemver(a: String, b: String): Int {
+        val pa = a.split('.').map { it.toIntOrNull() ?: 0 }
+        val pb = b.split('.').map { it.toIntOrNull() ?: 0 }
+        val n = maxOf(pa.size, pb.size)
+        for (i in 0 until n) {
+            val x = pa.getOrElse(i) { 0 }
+            val y = pb.getOrElse(i) { 0 }
+            if (x != y) return x.compareTo(y)
+        }
+        return 0
     }
 }

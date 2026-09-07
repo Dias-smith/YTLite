@@ -136,7 +136,7 @@ enum WatchConnectivityProtocol {
         var isExtracting: Bool
         var isSeekable: Bool
         var errorMessage: String?
-        /// iPhone system output volume 0…1 (Watch can set via `transport.setVolume`).
+        /// App playback volume 0…1 (`AVPlayer.volume`), controlled from Watch.
         var outputVolume: Float?
 
         /// Speeds accepted by iPhone `PlaybackController.speedOptions`.

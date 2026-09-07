@@ -21,6 +21,10 @@ enum DailyListenNotificationScheduler {
         let settings = await center.notificationSettings()
         switch settings.authorizationStatus {
         case .notDetermined:
+            guard AppPermissionPromptGate.canPresent else {
+                // Never prompt for notification permission while backgrounded (e.g. playback).
+                return
+            }
             do {
                 let ok = try await center.requestAuthorization(options: [.alert, .sound, .badge])
                 AppAnalytics.notifPermission(status: ok ? "authorized" : "denied")

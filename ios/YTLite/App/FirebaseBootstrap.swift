@@ -242,8 +242,18 @@ enum RemoteConfigStore {
     private static let allowOfflineKey = "allow_offline"
     private static let adsIntervalKey = "ads_interval"
 
+    /// Local fallback JSON when Remote Config is unavailable.
+    /// Effective offline is still `false` until a **remote** value is activated.
+    private static let allowOfflineDefaultJSON =
+        "{\"enable\":false,\"version\":\"0.0.0\"}"
+
     /// Local fallback when Remote Config is unavailable or misconfigured.
     private static let adsIntervalDefaultSeconds: TimeInterval = AdMobConfig.interstitialCooldown
+
+    private struct AllowOfflineConfig: Decodable {
+        var enable: Bool
+        var version: String
+    }
 
     static func configure() {
         guard isFirebaseAvailable else { return }
@@ -256,7 +266,7 @@ enum RemoteConfigStore {
         #endif
         remoteConfig.configSettings = settings
         remoteConfig.setDefaults([
-            allowOfflineKey: NSNumber(value: false),
+            allowOfflineKey: allowOfflineDefaultJSON as NSString,
             adsIntervalKey: NSNumber(value: adsIntervalDefaultSeconds),
         ])
     }
@@ -268,6 +278,7 @@ enum RemoteConfigStore {
         do {
             let status = try await RemoteConfig.remoteConfig().fetchAndActivate()
             AdProbe.log("remote_config.ads_interval", "\(Int(adsInterval))s")
+            AdProbe.log("remote_config.allow_offline", "\(allowOffline)")
             return status != .error
         } catch {
             return false
@@ -275,9 +286,16 @@ enum RemoteConfigStore {
     }
 
     /// When true, play local media store without re-resolving stream URLs.
+    ///
+    /// Remote JSON: `{ "enable": Bool, "version": "x.y.z" }`
+    /// - Not fetched yet (default/static source) → `false`
+    /// - App version ≥ `version` → `enable`
+    /// - App version < `version` → `true`
     static var allowOffline: Bool {
         guard isFirebaseAvailable else { return false }
-        return RemoteConfig.remoteConfig().configValue(forKey: allowOfflineKey).boolValue
+        let value = RemoteConfig.remoteConfig().configValue(forKey: allowOfflineKey)
+        guard value.source == .remote else { return false }
+        return resolveAllowOffline(from: value.stringValue)
     }
 
     /// Minimum seconds between two ordinary full-screen ads (app open / interstitial).
@@ -290,6 +308,36 @@ enum RemoteConfigStore {
         // Negative / NaN → default. Zero means no cooldown.
         guard raw.isFinite, raw >= 0 else { return adsIntervalDefaultSeconds }
         return raw
+    }
+
+    private static func resolveAllowOffline(from raw: String) -> Bool {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty,
+              let data = trimmed.data(using: .utf8),
+              let cfg = try? JSONDecoder().decode(AllowOfflineConfig.self, from: data)
+        else {
+            return false
+        }
+        let current = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0"
+        // Older than the gate version → always allow offline.
+        if compareSemver(current, cfg.version) == .orderedAscending {
+            return true
+        }
+        return cfg.enable
+    }
+
+    /// Numeric semver compare: `1.2.0` vs `1.10.0`.
+    private static func compareSemver(_ a: String, _ b: String) -> ComparisonResult {
+        let pa = a.split(separator: ".").map { Int($0) ?? 0 }
+        let pb = b.split(separator: ".").map { Int($0) ?? 0 }
+        let n = max(pa.count, pb.count)
+        for i in 0..<n {
+            let x = i < pa.count ? pa[i] : 0
+            let y = i < pb.count ? pb[i] : 0
+            if x < y { return .orderedAscending }
+            if x > y { return .orderedDescending }
+        }
+        return .orderedSame
     }
 
     private static var isFirebaseAvailable: Bool {

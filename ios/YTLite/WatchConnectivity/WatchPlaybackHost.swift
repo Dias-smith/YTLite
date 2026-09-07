@@ -1,6 +1,7 @@
-import AVFoundation
 import Combine
 import Foundation
+import MediaPlayer
+import UIKit
 
 /// iPhone-side Watch companion host: playback + queue snapshots and remote commands.
 @MainActor
@@ -16,7 +17,6 @@ final class WatchPlaybackHost {
     private var didBindBridge = false
     private var lastPushedPlayback: WatchConnectivityProtocol.PlaybackSnapshot?
     private var lastPushedQueue: WatchConnectivityProtocol.QueueSnapshot?
-    private var volumeObservation: NSKeyValueObservation?
 
     private init() {}
 
@@ -24,7 +24,6 @@ final class WatchPlaybackHost {
         self.playback = playback
         bindBridgeIfNeeded()
         observePlayback(playback)
-        observeOutputVolume()
         pushAll(force: true)
     }
 
@@ -97,16 +96,6 @@ final class WatchPlaybackHost {
             .store(in: &playbackCancellables)
     }
 
-    private func observeOutputVolume() {
-        volumeObservation?.invalidate()
-        let session = AVAudioSession.sharedInstance()
-        volumeObservation = session.observe(\.outputVolume, options: [.new]) { [weak self] _, _ in
-            Task { @MainActor in
-                self?.pushPlayback(force: true)
-            }
-        }
-    }
-
     private func configurePositionTimer(playing: Bool) {
         positionTimer?.cancel()
         positionTimer = nil
@@ -156,6 +145,9 @@ final class WatchPlaybackHost {
             pushPlayback(force: true)
         case .transportSetVolume:
             if let body = try? envelope.decodePayload(WatchConnectivityProtocol.VolumeBody.self) {
+                // Prefer AVPlayer volume — works while iPhone is backgrounded.
+                // System MPVolumeView is best-effort only (often no-op in background).
+                playback?.setPlayerVolume(body.volume)
                 SystemOutputVolume.set(body.volume)
                 pushPlayback(force: true)
             }
@@ -261,7 +253,7 @@ final class WatchPlaybackHost {
             isExtracting: playback.isBuffering,
             isSeekable: hasDuration && !isLive,
             errorMessage: playback.lastError,
-            outputVolume: AVAudioSession.sharedInstance().outputVolume
+            outputVolume: playback.playerVolume
         )
     }
 
@@ -282,5 +274,42 @@ final class WatchPlaybackHost {
             return max(0, items.count - 1)
         }()
         return WatchConnectivityProtocol.QueueSnapshot(currentIndex: currentIndex, items: items)
+    }
+}
+
+/// Best-effort system output volume via `MPVolumeView` (often unavailable in background).
+@MainActor
+private enum SystemOutputVolume {
+    private static var hiddenVolumeView: MPVolumeView?
+
+    static func set(_ value: Float) {
+        let clamped = min(max(value, 0), 1)
+        let view = volumeView()
+        apply(clamped, on: view)
+        // Slider may appear only after layout when first attached.
+        DispatchQueue.main.async {
+            apply(clamped, on: view)
+        }
+    }
+
+    private static func apply(_ value: Float, on view: MPVolumeView) {
+        view.layoutIfNeeded()
+        guard let slider = view.subviews.compactMap({ $0 as? UISlider }).first else { return }
+        guard abs(slider.value - value) > 0.004 else { return }
+        slider.value = value
+    }
+
+    private static func volumeView() -> MPVolumeView {
+        if let hiddenVolumeView { return hiddenVolumeView }
+        let view = MPVolumeView(frame: CGRect(x: -2000, y: -2000, width: 1, height: 1))
+        view.alpha = 0.01
+        view.isUserInteractionEnabled = false
+        let windows = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap(\.windows)
+        let host = windows.first(where: \.isKeyWindow) ?? windows.first
+        host?.addSubview(view)
+        hiddenVolumeView = view
+        return view
     }
 }

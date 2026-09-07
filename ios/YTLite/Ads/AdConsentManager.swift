@@ -1,6 +1,7 @@
 import AppTrackingTransparency
 import Combine
 import Foundation
+import UIKit
 import UserMessagingPlatform
 
 @MainActor
@@ -15,11 +16,14 @@ final class AdConsentStatus: ObservableObject {
     }
 }
 
-/// UMP consent + ATT. ATT is requested at app launch (before UMP).
+/// UMP consent + ATT. Prompts are deferred while the app is backgrounded / inactive.
 @MainActor
 enum AdConsentManager {
-    private static var hasStartedConsentThisSession = false
+    private static var hasUpdatedConsentInfoThisSession = false
+    private static var hasPresentedConsentFormThisSession = false
     private static var hasRequestedATTThisSession = false
+    private static var pendingATT = false
+    private static var pendingConsentForm = false
 
     static var canRequestAds: Bool {
         ConsentInformation.shared.canRequestAds
@@ -29,12 +33,32 @@ enum AdConsentManager {
         ConsentInformation.shared.privacyOptionsRequirementStatus == .required
     }
 
-    /// Call once at launch, before UMP / AdMob, so the system ATT sheet appears immediately.
+    /// Call once at launch, before UMP / AdMob. Skips (and defers) when not foreground-active.
     static func requestTrackingAuthorizationAtLaunch() async {
         guard AdMobConfig.adsEnabled else { return }
         guard !hasRequestedATTThisSession else { return }
+        guard AppPermissionPromptGate.canPresent else {
+            pendingATT = true
+            AdProbe.log("att.defer", "app_not_active")
+            return
+        }
+        pendingATT = false
         hasRequestedATTThisSession = true
         await requestTrackingAuthorizationIfNeeded()
+    }
+
+    /// Resume ATT / UMP form after returning to foreground.
+    static func resumeDeferredPromptsIfNeeded() async {
+        guard AppPermissionPromptGate.canPresent else { return }
+        if pendingATT, !hasRequestedATTThisSession {
+            AdProbe.log("att.resume")
+            await requestTrackingAuthorizationAtLaunch()
+        }
+        if pendingConsentForm {
+            AdProbe.log("consent.form.resume")
+            _ = await gatherConsentIfNeeded()
+            await AdBootstrap.startIfNeeded()
+        }
     }
 
     @discardableResult
@@ -43,43 +67,52 @@ enum AdConsentManager {
             AdProbe.log("consent.skip", "adsEnabled=false")
             return false
         }
-        guard !hasStartedConsentThisSession else {
-            AdProbe.log("consent.stored", "canRequestAds=\(canRequestAds)")
-            return canRequestAds
-        }
-        hasStartedConsentThisSession = true
-        AdProbe.log("consent.info_update.start")
 
-        let parameters = makeRequestParameters()
-        await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
-            ConsentInformation.shared.requestConsentInfoUpdate(with: parameters) { error in
-                if let error {
-                    AdProbe.log("consent.info_update.fail", error.localizedDescription)
-                } else {
-                    AdProbe.log(
-                        "consent.info_update.ok",
-                        "canRequestAds=\(ConsentInformation.shared.canRequestAds)"
-                    )
-                }
-                cont.resume()
-            }
-        }
-
-        await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
-            ConsentForm.loadAndPresentIfRequired(from: nil) { error in
-                Task { @MainActor in
+        if !hasUpdatedConsentInfoThisSession {
+            hasUpdatedConsentInfoThisSession = true
+            AdProbe.log("consent.info_update.start")
+            let parameters = makeRequestParameters()
+            await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
+                ConsentInformation.shared.requestConsentInfoUpdate(with: parameters) { error in
                     if let error {
-                        AdProbe.log("consent.form.fail", error.localizedDescription)
+                        AdProbe.log("consent.info_update.fail", error.localizedDescription)
                     } else {
                         AdProbe.log(
-                            "consent.form.done",
-                            "canRequestAds=\(canRequestAds) privacyOptions=\(isPrivacyOptionsRequired)"
+                            "consent.info_update.ok",
+                            "canRequestAds=\(ConsentInformation.shared.canRequestAds)"
                         )
                     }
-                    AdConsentStatus.shared.refresh()
                     cont.resume()
                 }
             }
+        }
+
+        if !hasPresentedConsentFormThisSession {
+            guard AppPermissionPromptGate.canPresent else {
+                pendingConsentForm = true
+                AdProbe.log("consent.form.defer", "app_not_active")
+                return canRequestAds
+            }
+            pendingConsentForm = false
+            hasPresentedConsentFormThisSession = true
+            await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
+                ConsentForm.loadAndPresentIfRequired(from: nil) { error in
+                    Task { @MainActor in
+                        if let error {
+                            AdProbe.log("consent.form.fail", error.localizedDescription)
+                        } else {
+                            AdProbe.log(
+                                "consent.form.done",
+                                "canRequestAds=\(canRequestAds) privacyOptions=\(isPrivacyOptionsRequired)"
+                            )
+                        }
+                        AdConsentStatus.shared.refresh()
+                        cont.resume()
+                    }
+                }
+            }
+        } else {
+            AdProbe.log("consent.stored", "canRequestAds=\(canRequestAds)")
         }
 
         return canRequestAds
@@ -89,6 +122,12 @@ enum AdConsentManager {
     private static func requestTrackingAuthorizationIfNeeded() async {
         guard AdMobConfig.adsEnabled else { return }
         guard #available(iOS 14, *) else { return }
+        guard AppPermissionPromptGate.canPresent else {
+            pendingATT = true
+            hasRequestedATTThisSession = false
+            AdProbe.log("att.defer", "app_not_active_mid_request")
+            return
+        }
         let status = ATTrackingManager.trackingAuthorizationStatus
         guard status == .notDetermined else {
             AdProbe.log("att.skip", "status=\(status.rawValue)")
@@ -100,6 +139,10 @@ enum AdConsentManager {
     }
 
     static func presentPrivacyOptions() async {
+        guard AppPermissionPromptGate.canPresent else {
+            AdProbe.log("consent.privacy_options.skip", "app_not_active")
+            return
+        }
         AdProbe.log("consent.privacy_options.present")
         AdSceneLifecycle.setUIBlocked("privacy_options", blocked: true)
         defer {
@@ -121,8 +164,11 @@ enum AdConsentManager {
     #if DEBUG
     static func resetForTesting() {
         ConsentInformation.shared.reset()
-        hasStartedConsentThisSession = false
+        hasUpdatedConsentInfoThisSession = false
+        hasPresentedConsentFormThisSession = false
         hasRequestedATTThisSession = false
+        pendingATT = false
+        pendingConsentForm = false
         AdConsentStatus.shared.refresh()
         AdProbe.log("consent.reset")
     }
@@ -137,5 +183,13 @@ enum AdConsentManager {
         parameters.debugSettings = debugSettings
         #endif
         return parameters
+    }
+}
+
+/// System permission / consent UI must only appear while Mixtube is foreground-active.
+@MainActor
+enum AppPermissionPromptGate {
+    static var canPresent: Bool {
+        UIApplication.shared.applicationState == .active
     }
 }

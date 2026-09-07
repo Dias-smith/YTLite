@@ -50,6 +50,10 @@ final class PlaybackController: ObservableObject {
 
     static let speedOptions: [Float] = [0.5, 0.75, 1, 1.25, 1.5, 2, 3, 5, 8]
     private static let speedKey = "playback_speed"
+    private static let playerVolumeKey = "playback_player_volume"
+
+    /// App-relative AVPlayer volume 0…1 (Watch remote + local). Multiplies with system output volume.
+    @Published private(set) var playerVolume: Float = 1.0
 
     /// Forwards to `progress` without publishing on this object.
     var positionSeconds: Double {
@@ -192,6 +196,9 @@ final class PlaybackController: ObservableObject {
         let stored = UserDefaults.standard.object(forKey: Self.speedKey) as? Float
         if let stored, Self.speedOptions.contains(stored) {
             playbackSpeed = stored
+        }
+        if let storedVolume = UserDefaults.standard.object(forKey: Self.playerVolumeKey) as? Float {
+            playerVolume = min(max(storedVolume, 0), 1)
         }
         activatePlaybackAudioSession()
         configureAudioInterruptions()
@@ -1062,6 +1069,7 @@ final class PlaybackController: ObservableObject {
         }
         if let player {
             player.audiovisualBackgroundPlaybackPolicy = .continuesIfPossible
+            player.volume = playerVolume
             observePlayerTimeControl(player, expectedVideoId: nowPlaying?.videoId)
         }
         player?.allowsExternalPlayback = true
@@ -1575,6 +1583,16 @@ final class PlaybackController: ObservableObject {
                 self?.refreshRemoteCommandEnabled()
             }
         }
+    }
+
+    /// Watch / remote relative volume (0…1). Applied to `AVPlayer.volume`.
+    func setPlayerVolume(_ volume: Float) {
+        let clamped = min(max(volume, 0), 1)
+        if abs(playerVolume - clamped) > 0.001 {
+            playerVolume = clamped
+            UserDefaults.standard.set(clamped, forKey: Self.playerVolumeKey)
+        }
+        player?.volume = clamped
     }
 
     func togglePlayPause() {
