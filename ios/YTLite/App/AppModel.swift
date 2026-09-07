@@ -29,7 +29,7 @@ final class AppModel: ObservableObject {
     }
 
     /// When false, hide PiP controls and block starting Picture in Picture.
-    @Published var pictureInPictureEnabled: Bool = true {
+    @Published var pictureInPictureEnabled: Bool = false {
         didSet {
             UserDefaults.standard.set(pictureInPictureEnabled, forKey: Self.pictureInPictureKey)
             guard !isHydratingStoredPreferences else { return }

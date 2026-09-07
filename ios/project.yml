@@ -100,6 +100,8 @@ schemes:
         YTLite Watch App: [build]
     run:
       config: Debug
+      # Keep phone as the runnable; Watch embeds via the iOS target dependency.
+      executable: YTLite
   YTLite Watch App:
     build:
       targets:

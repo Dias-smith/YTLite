@@ -66,7 +66,7 @@ class AppPreferences(context: Context) {
 
     companion object {
         const val DEFAULT_NIGHT_MODE = true
-        const val DEFAULT_PICTURE_IN_PICTURE = true
+        const val DEFAULT_PICTURE_IN_PICTURE = false
         const val LANGUAGE_SYSTEM = "system"
         const val LANGUAGE_EN = "en"
         const val LANGUAGE_ZH = "zh"

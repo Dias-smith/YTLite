@@ -12,12 +12,12 @@ extension Notification.Name {
 enum PictureInPictureSettings {
     static let defaultsKey = "picture_in_picture_enabled"
 
-    /// Default ON when the user has never toggled the setting.
+    /// Default OFF when the user has never toggled the setting.
     static var isEnabled: Bool {
         if UserDefaults.standard.object(forKey: defaultsKey) != nil {
             return UserDefaults.standard.bool(forKey: defaultsKey)
         }
-        return true
+        return false
     }
 }
 
@@ -31,7 +31,7 @@ struct PipPlayerView: UIViewControllerRepresentable {
     var playbackSpeed: Float = 1.0
     /// Android mini uses ZOOM; detail canvas uses fit.
     var videoGravity: AVLayerVideoGravity = .resizeAspect
-    var pictureInPictureEnabled: Bool = true
+    var pictureInPictureEnabled: Bool = false
 
     func makeUIViewController(context: Context) -> PlayerSurfaceController {
         let controller = PlayerSurfaceController()
@@ -90,7 +90,7 @@ final class PlayerSurfaceController: UIViewController, AVPictureInPictureControl
     private var isFullscreenActive = false
     private var prefersPlaying = false
     private var playbackSpeed: Float = 1.0
-    private var pictureInPictureEnabled = true
+    private var pictureInPictureEnabled = false
     private weak var configuredPlayer: AVPlayer?
     private var lifecycleObservers: [NSObjectProtocol] = []
     /// When PiP is off, detach the layer on resign-active so iOS cannot open a floating window;
@@ -185,7 +185,7 @@ final class PlayerSurfaceController: UIViewController, AVPictureInPictureControl
         videoGravity: AVLayerVideoGravity = .resizeAspect,
         isPlaying: Bool = false,
         playbackSpeed: Float = 1.0,
-        pictureInPictureEnabled: Bool = true
+        pictureInPictureEnabled: Bool = false
     ) {
         prefersPlaying = isPlaying
         self.playbackSpeed = playbackSpeed
