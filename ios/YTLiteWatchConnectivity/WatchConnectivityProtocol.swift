@@ -138,6 +138,8 @@ enum WatchConnectivityProtocol {
         var errorMessage: String?
         /// App playback volume 0…1 (`AVPlayer.volume`), controlled from Watch.
         var outputVolume: Float?
+        /// Monotonic wall-clock stamp so receivers can drop stale queued transfers.
+        var updatedAt: TimeInterval?
 
         /// Speeds accepted by iPhone `PlaybackController.speedOptions`.
         static let speedOptions: [Float] = [0.5, 0.75, 1, 1.25, 1.5, 2, 3, 5, 8]
@@ -156,6 +158,7 @@ enum WatchConnectivityProtocol {
     struct QueueSnapshot: Codable, Sendable, Equatable {
         var currentIndex: Int
         var items: [QueueTrackDTO]
+        var updatedAt: TimeInterval?
     }
 
     struct LibraryTrackDTO: Codable, Sendable, Equatable, Identifiable {

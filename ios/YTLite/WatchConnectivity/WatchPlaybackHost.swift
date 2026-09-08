@@ -218,11 +218,13 @@ final class WatchPlaybackHost {
             let envelope = try WatchConnectivityProtocol.Envelope.make(kind: kind, body: body)
             let bridge = WatchConnectivityBridge.shared
             if updateContext {
+                // Latest-wins channel — do not also queue transferUserInfo for playback,
+                // or Watch will animate through every queued track when the phone reconnects.
                 _ = bridge.updateApplicationContext(envelope)
             }
             if bridge.isReachable {
                 _ = bridge.send(envelope)
-            } else {
+            } else if !updateContext {
                 bridge.transferUserInfo(envelope)
             }
         } catch {
@@ -253,7 +255,8 @@ final class WatchPlaybackHost {
             isExtracting: playback.isBuffering,
             isSeekable: hasDuration && !isLive,
             errorMessage: playback.lastError,
-            outputVolume: playback.playerVolume
+            outputVolume: playback.playerVolume,
+            updatedAt: Date().timeIntervalSince1970
         )
     }
 
@@ -273,7 +276,11 @@ final class WatchPlaybackHost {
             if playback.queueIndex < items.count { return playback.queueIndex }
             return max(0, items.count - 1)
         }()
-        return WatchConnectivityProtocol.QueueSnapshot(currentIndex: currentIndex, items: items)
+        return WatchConnectivityProtocol.QueueSnapshot(
+            currentIndex: currentIndex,
+            items: items,
+            updatedAt: Date().timeIntervalSince1970
+        )
     }
 }
 

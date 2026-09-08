@@ -12,6 +12,8 @@ final class WatchPlaybackClient: ObservableObject {
 
     private var didBind = false
     private var cancellables = Set<AnyCancellable>()
+    private var lastPlaybackUpdatedAt: TimeInterval = 0
+    private var lastQueueUpdatedAt: TimeInterval = 0
 
     private init() {}
 
@@ -61,6 +63,8 @@ final class WatchPlaybackClient: ObservableObject {
               let body = try? cached.decodePayload(WatchConnectivityProtocol.PlaybackSnapshot.self) else {
             return
         }
+        guard body.updatedAt ?? 0 >= lastPlaybackUpdatedAt else { return }
+        lastPlaybackUpdatedAt = body.updatedAt ?? lastPlaybackUpdatedAt
         snapshot = body
     }
 
@@ -175,11 +179,16 @@ final class WatchPlaybackClient: ObservableObject {
         switch envelope.kind {
         case .playbackSnapshot:
             if let body = try? envelope.decodePayload(WatchConnectivityProtocol.PlaybackSnapshot.self) {
+                // Drop stale queued transfers so Now Playing jumps straight to current track.
+                guard (body.updatedAt ?? 0) >= lastPlaybackUpdatedAt else { return }
+                lastPlaybackUpdatedAt = body.updatedAt ?? lastPlaybackUpdatedAt
                 snapshot = body
                 lastCommandError = nil
             }
         case .queueSnapshot:
             if let body = try? envelope.decodePayload(WatchConnectivityProtocol.QueueSnapshot.self) {
+                guard (body.updatedAt ?? 0) >= lastQueueUpdatedAt else { return }
+                lastQueueUpdatedAt = body.updatedAt ?? lastQueueUpdatedAt
                 queue = body
                 WatchQueueMirrorStore.save(body)
                 lastCommandError = nil

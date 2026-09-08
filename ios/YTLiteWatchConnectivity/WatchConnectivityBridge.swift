@@ -117,10 +117,7 @@ final class WatchConnectivityBridge: NSObject, ObservableObject {
         #endif
 
         guard let session, session.activationState == .activated else {
-            pendingTransfers.append(envelope)
-            if pendingTransfers.count > 32 {
-                pendingTransfers.removeFirst(pendingTransfers.count - 32)
-            }
+            enqueuePending(envelope)
             reply?(.failure(BridgeError.notActivated))
             return false
         }
@@ -185,6 +182,11 @@ final class WatchConnectivityBridge: NSObject, ObservableObject {
 
     private func queueBackgroundTransfer(_ message: [String: Any], kind: String) {
         guard let session, session.activationState == .activated else { return }
+        // Playback uses applicationContext (latest-wins). Queuing transferUserInfo for every
+        // track change makes Watch animate through the backlog when the phone reconnects.
+        if kind == WatchConnectivityProtocol.Kind.playbackSnapshot.rawValue {
+            return
+        }
         if session.outstandingUserInfoTransfers.count >= 8 { return }
         let now = Date()
         if let last = lastBackgroundTransferAt[kind], now.timeIntervalSince(last) < 2.0 {
@@ -192,6 +194,27 @@ final class WatchConnectivityBridge: NSObject, ObservableObject {
         }
         lastBackgroundTransferAt[kind] = now
         session.transferUserInfo(message)
+    }
+
+    private func enqueuePending(_ envelope: WatchConnectivityProtocol.Envelope) {
+        pendingTransfers.removeAll { $0.kind == envelope.kind }
+        pendingTransfers.append(envelope)
+        if pendingTransfers.count > 32 {
+            pendingTransfers.removeFirst(pendingTransfers.count - 32)
+        }
+    }
+
+    /// Keep only the latest envelope per kind (order preserved by first appearance).
+    private func coalescePending(_ items: [WatchConnectivityProtocol.Envelope]) -> [WatchConnectivityProtocol.Envelope] {
+        var latest: [WatchConnectivityProtocol.Kind: WatchConnectivityProtocol.Envelope] = [:]
+        var order: [WatchConnectivityProtocol.Kind] = []
+        for envelope in items {
+            if latest[envelope.kind] == nil {
+                order.append(envelope.kind)
+            }
+            latest[envelope.kind] = envelope
+        }
+        return order.compactMap { latest[$0] }
     }
 
     @discardableResult
@@ -229,10 +252,7 @@ final class WatchConnectivityBridge: NSObject, ObservableObject {
     func transferUserInfo(_ envelope: WatchConnectivityProtocol.Envelope) {
         #if targetEnvironment(simulator)
         if sendViaSimulatorLink(envelope) { return }
-        pendingTransfers.append(envelope)
-        if pendingTransfers.count > 32 {
-            pendingTransfers.removeFirst(pendingTransfers.count - 32)
-        }
+        enqueuePending(envelope)
         #else
         guard let session, session.activationState == .activated else { return }
         guard canAttemptWatchDelivery else { return }
@@ -267,7 +287,7 @@ final class WatchConnectivityBridge: NSObject, ObservableObject {
         if let pending = pendingApplicationContext {
             _ = updateApplicationContext(pending)
         }
-        let queued = pendingTransfers
+        let queued = coalescePending(pendingTransfers)
         pendingTransfers.removeAll()
         for envelope in queued {
             _ = send(envelope)
@@ -283,7 +303,7 @@ final class WatchConnectivityBridge: NSObject, ObservableObject {
         if let pending = pendingApplicationContext {
             _ = updateApplicationContext(pending)
         }
-        let queued = pendingTransfers
+        let queued = coalescePending(pendingTransfers)
         pendingTransfers.removeAll()
         for envelope in queued {
             _ = send(envelope)

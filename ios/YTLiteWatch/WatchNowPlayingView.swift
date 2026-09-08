@@ -271,14 +271,13 @@ struct WatchNowPlayingView: View {
                     }
                 }
             } else {
-                LinearGradient(
-                    colors: [
-                        Color(red: 0.12, green: 0.28, blue: 0.32),
-                        Color(red: 0.08, green: 0.12, blue: 0.18)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
+                Image("BrandLogo")
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: size.width, height: size.height)
+                    .clipped()
+                    .blur(radius: 22)
+                    .opacity(0.55)
             }
             Color.black.opacity(0.42)
         }
@@ -502,10 +501,11 @@ private struct WatchArtworkView: View {
 
     private var placeholder: some View {
         ZStack {
-            Color.white.opacity(0.12)
-            Image(systemName: "music.note")
-                .font(.title)
-                .foregroundStyle(.white.opacity(0.55))
+            Color.black.opacity(0.35)
+            Image("BrandLogo")
+                .resizable()
+                .scaledToFit()
+                .padding(20)
         }
     }
 }
