@@ -139,14 +139,14 @@ final class WatchConnectivityBridge: NSObject, ObservableObject {
                         }
                     }, errorHandler: { _ in
                         Task { @MainActor in
-                            // Stale isReachable is common; background delivery still works — don't surface WC noise.
-                            self.deliverViaBackground(message, kind: envelope.kind.rawValue, requestId: envelope.id, reply: reply)
+                            // Stale isReachable is common; keep latest snapshot for flush / context.
+                            self.handleInteractiveSendFailure(envelope, message: message, reply: reply)
                         }
                     })
                 } else {
                     session.sendMessage(message, replyHandler: nil, errorHandler: { _ in
                         Task { @MainActor in
-                            self.deliverViaBackground(message, kind: envelope.kind.rawValue, requestId: envelope.id, reply: nil)
+                            self.handleInteractiveSendFailure(envelope, message: message, reply: nil)
                         }
                     })
                 }
@@ -154,12 +154,46 @@ final class WatchConnectivityBridge: NSObject, ObservableObject {
             }
 
             deliverViaBackground(message, kind: envelope.kind.rawValue, requestId: envelope.id, reply: reply)
+            if envelope.kind == .playbackSnapshot || envelope.kind == .queueSnapshot {
+                enqueuePending(envelope)
+            }
             return true
         } catch {
             lastErrorMessage = error.localizedDescription
             reply?(.failure(error))
             return false
         }
+    }
+
+    /// When interactive delivery fails, prefer latest-wins pending + applicationContext over
+    /// building a `transferUserInfo` backlog of every track change.
+    private func handleInteractiveSendFailure(
+        _ envelope: WatchConnectivityProtocol.Envelope,
+        message: [String: Any],
+        reply: ((Result<WatchConnectivityProtocol.Envelope, Error>) -> Void)?
+    ) {
+        refreshReachability()
+        if envelope.kind == .playbackSnapshot || envelope.kind == .queueSnapshot {
+            enqueuePending(envelope)
+            if envelope.kind == .playbackSnapshot {
+                _ = updateApplicationContext(envelope)
+            }
+            if let reply {
+                let ack = WatchConnectivityProtocol.Envelope(
+                    kind: .ack,
+                    payload: try? JSONEncoder().encode(
+                        WatchConnectivityProtocol.AckBody(
+                            requestId: envelope.id,
+                            ok: true,
+                            message: "queued-latest"
+                        )
+                    )
+                )
+                reply(.success(ack))
+            }
+            return
+        }
+        deliverViaBackground(message, kind: envelope.kind.rawValue, requestId: envelope.id, reply: reply)
     }
 
     /// Queues `transferUserInfo` without treating interactive-send failure as a user-visible error.
@@ -202,6 +236,11 @@ final class WatchConnectivityBridge: NSObject, ObservableObject {
         if pendingTransfers.count > 32 {
             pendingTransfers.removeFirst(pendingTransfers.count - 32)
         }
+    }
+
+    /// Keep only the newest envelope of this kind for the next activation / reachability flush.
+    func enqueueLatest(_ envelope: WatchConnectivityProtocol.Envelope) {
+        enqueuePending(envelope)
     }
 
     /// Keep only the latest envelope per kind (order preserved by first appearance).
@@ -430,7 +469,11 @@ extension WatchConnectivityBridge: WCSessionDelegate {
 
     nonisolated func sessionReachabilityDidChange(_ session: WCSession) {
         Task { @MainActor in
+            let wasReachable = self.isReachable
             self.refreshReachability()
+            if !wasReachable, self.isReachable {
+                self.flushPending()
+            }
         }
     }
 

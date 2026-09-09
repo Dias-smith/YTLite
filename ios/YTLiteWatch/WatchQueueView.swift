@@ -4,7 +4,7 @@ import SwiftUI
 /// Disconnected: last mirror browsable read-only with open-phone CTA (mutations blocked).
 struct WatchQueueView: View {
     @EnvironmentObject private var bridge: WatchConnectivityBridge
-    @ObservedObject private var playback = WatchPlaybackClient.shared
+    @EnvironmentObject private var playback: WatchPlaybackClient
 
     private var canControl: Bool { bridge.isReachable }
 

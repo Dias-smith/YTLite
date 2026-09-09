@@ -3,7 +3,7 @@ import SwiftUI
 /// Now Playing home — Apple Music–style single screen (artwork, remaining, ±15, ring progress).
 struct WatchNowPlayingView: View {
     @EnvironmentObject private var bridge: WatchConnectivityBridge
-    @ObservedObject private var playback = WatchPlaybackClient.shared
+    @EnvironmentObject private var playback: WatchPlaybackClient
 
     @State private var showMore = false
     @State private var showSpeedPicker = false

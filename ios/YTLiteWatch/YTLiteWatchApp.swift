@@ -18,6 +18,7 @@ struct YTLiteWatchApp: App {
             // Avoid `@ObservedObject` on `App` — observing the shared bridge here
             // caused AttributeGraph cycles with EnvironmentObject descendants.
             .environmentObject(WatchConnectivityBridge.shared)
+            .environmentObject(WatchPlaybackClient.shared)
             .onAppear {
                 WatchPlaybackClient.shared.start()
                 WatchLibraryClient.shared.start()

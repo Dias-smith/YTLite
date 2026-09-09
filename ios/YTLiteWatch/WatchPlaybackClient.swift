@@ -14,6 +14,7 @@ final class WatchPlaybackClient: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private var lastPlaybackUpdatedAt: TimeInterval = 0
     private var lastQueueUpdatedAt: TimeInterval = 0
+    private var reconcileTask: Task<Void, Never>?
 
     private init() {}
 
@@ -83,15 +84,21 @@ final class WatchPlaybackClient: ObservableObject {
     }
 
     func togglePlayPause() {
+        applyOptimisticPlayPause()
         send(kind: .transportPlayPause, body: WatchConnectivityProtocol.EmptyBody())
+        scheduleReconcile()
     }
 
     func playNext() {
+        applyOptimisticSkip(forward: true)
         send(kind: .transportNext, body: WatchConnectivityProtocol.EmptyBody())
+        scheduleReconcile()
     }
 
     func playPrevious() {
+        applyOptimisticSkip(forward: false)
         send(kind: .transportPrevious, body: WatchConnectivityProtocol.EmptyBody())
+        scheduleReconcile()
     }
 
     func seek(to position: Double) {
@@ -111,7 +118,14 @@ final class WatchPlaybackClient: ObservableObject {
     }
 
     func setShuffle(_ enabled: Bool) {
+        if var current = snapshot {
+            current.shuffleEnabled = enabled
+            current.updatedAt = Date().timeIntervalSince1970
+            lastPlaybackUpdatedAt = max(lastPlaybackUpdatedAt, current.updatedAt ?? 0)
+            snapshot = current
+        }
         send(kind: .transportSetShuffle, body: WatchConnectivityProtocol.BoolBody(value: enabled))
+        scheduleReconcile()
     }
 
     func toggleShuffle() {
@@ -119,11 +133,25 @@ final class WatchPlaybackClient: ObservableObject {
     }
 
     func cycleRepeat() {
+        if var current = snapshot {
+            current.repeatMode = nextRepeatMode(current.repeatMode)
+            current.updatedAt = Date().timeIntervalSince1970
+            lastPlaybackUpdatedAt = max(lastPlaybackUpdatedAt, current.updatedAt ?? 0)
+            snapshot = current
+        }
         send(kind: .transportCycleRepeat, body: WatchConnectivityProtocol.EmptyBody())
+        scheduleReconcile()
     }
 
     func setSpeed(_ speed: Float) {
+        if var current = snapshot {
+            current.speed = speed
+            current.updatedAt = Date().timeIntervalSince1970
+            lastPlaybackUpdatedAt = max(lastPlaybackUpdatedAt, current.updatedAt ?? 0)
+            snapshot = current
+        }
         send(kind: .transportSetSpeed, body: WatchConnectivityProtocol.SpeedBody(speed: speed))
+        scheduleReconcile()
     }
 
     func setVolume(_ volume: Float) {
@@ -137,7 +165,9 @@ final class WatchPlaybackClient: ObservableObject {
     }
 
     func playQueueIndex(_ index: Int) {
+        applyOptimisticQueueIndex(index)
         send(kind: .queuePlayIndex, body: WatchConnectivityProtocol.IndexBody(index: index))
+        scheduleReconcile()
     }
 
     func removeFromQueue(videoIds: [String]) {
@@ -172,6 +202,104 @@ final class WatchPlaybackClient: ObservableObject {
             }
         } catch {
             lastCommandError = error.localizedDescription
+        }
+    }
+
+    /// Phone often applies the command while backgrounded, but the return snapshot can lag
+    /// or drop when `sendMessage` fails — refresh local chrome immediately.
+    private func applyOptimisticPlayPause() {
+        guard var current = snapshot, current.videoId != nil else { return }
+        current.isPlaying.toggle()
+        current.updatedAt = Date().timeIntervalSince1970
+        lastPlaybackUpdatedAt = max(lastPlaybackUpdatedAt, current.updatedAt ?? 0)
+        snapshot = current
+    }
+
+    private func applyOptimisticSkip(forward: Bool) {
+        guard var queueSnapshot = queue, !queueSnapshot.items.isEmpty else { return }
+        let count = queueSnapshot.items.count
+        let current = queueSnapshot.currentIndex
+        let nextIndex: Int
+        if forward {
+            if current + 1 < count {
+                nextIndex = current + 1
+            } else if snapshot?.repeatMode == "ALL" {
+                nextIndex = 0
+            } else {
+                return
+            }
+        } else {
+            if current > 0 {
+                nextIndex = current - 1
+            } else if snapshot?.repeatMode == "ALL" {
+                nextIndex = count - 1
+            } else {
+                return
+            }
+        }
+        applyOptimisticQueueIndex(nextIndex)
+    }
+
+    private func applyOptimisticQueueIndex(_ index: Int) {
+        guard var queueSnapshot = queue,
+              queueSnapshot.items.indices.contains(index)
+        else { return }
+        let item = queueSnapshot.items[index]
+        let stamp = Date().timeIntervalSince1970
+        queueSnapshot.currentIndex = index
+        queueSnapshot.updatedAt = stamp
+        lastQueueUpdatedAt = max(lastQueueUpdatedAt, stamp)
+        queue = queueSnapshot
+
+        var playback = snapshot ?? WatchConnectivityProtocol.PlaybackSnapshot(
+            videoId: nil,
+            title: nil,
+            artist: nil,
+            thumbnailURL: nil,
+            position: 0,
+            duration: nil,
+            isPlaying: true,
+            shuffleEnabled: false,
+            repeatMode: "OFF",
+            speed: 1,
+            isExtracting: true,
+            isSeekable: false,
+            errorMessage: nil,
+            outputVolume: nil,
+            updatedAt: stamp
+        )
+        playback.videoId = item.videoId
+        playback.title = item.title
+        playback.artist = item.artist
+        playback.thumbnailURL = item.thumbnailURL
+        playback.position = 0
+        playback.duration = nil
+        playback.isPlaying = true
+        playback.isExtracting = true
+        playback.isSeekable = false
+        playback.errorMessage = nil
+        playback.updatedAt = stamp
+        lastPlaybackUpdatedAt = max(lastPlaybackUpdatedAt, stamp)
+        snapshot = playback
+    }
+
+    private func nextRepeatMode(_ raw: String) -> String {
+        switch raw {
+        case "OFF": return "ALL"
+        case "ALL": return "ONE"
+        default: return "OFF"
+        }
+    }
+
+    /// Pull authoritative phone state after local chrome updates (covers dropped pushes).
+    private func scheduleReconcile() {
+        reconcileTask?.cancel()
+        reconcileTask = Task { @MainActor in
+            for delayNs in [250_000_000, 800_000_000, 1_800_000_000] as [UInt64] {
+                try? await Task.sleep(nanoseconds: delayNs)
+                guard !Task.isCancelled else { return }
+                requestSnapshot()
+            }
         }
     }
 

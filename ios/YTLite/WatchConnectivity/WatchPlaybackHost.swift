@@ -17,6 +17,7 @@ final class WatchPlaybackHost {
     private var didBindBridge = false
     private var lastPushedPlayback: WatchConnectivityProtocol.PlaybackSnapshot?
     private var lastPushedQueue: WatchConnectivityProtocol.QueueSnapshot?
+    private var pushRetryTask: Task<Void, Never>?
 
     private init() {}
 
@@ -114,16 +115,20 @@ final class WatchPlaybackHost {
         case .transportPlayPause:
             playback?.togglePlayPause()
             pushAll(force: true)
+            schedulePushRetry()
         case .transportNext:
             playback?.playNext()
             pushAll(force: true)
+            schedulePushRetry()
         case .transportPrevious:
             playback?.playPrevious()
             pushAll(force: true)
+            schedulePushRetry()
         case .transportSeek:
             if let body = try? envelope.decodePayload(WatchConnectivityProtocol.SeekBody.self) {
                 playback?.seek(to: body.position)
                 pushPlayback(force: true)
+                schedulePushRetry()
             }
         case .transportSetShuffle:
             if let body = try? envelope.decodePayload(WatchConnectivityProtocol.BoolBody.self),
@@ -132,9 +137,11 @@ final class WatchPlaybackHost {
                 playback.toggleShuffle()
             }
             pushAll(force: true)
+            schedulePushRetry()
         case .transportCycleRepeat:
             playback?.cycleRepeatMode()
             pushAll(force: true)
+            schedulePushRetry()
         case .transportSetSpeed:
             if let body = try? envelope.decodePayload(WatchConnectivityProtocol.SpeedBody.self),
                let playback {
@@ -143,6 +150,7 @@ final class WatchPlaybackHost {
                 playback.playbackSpeed = nearest
             }
             pushPlayback(force: true)
+            schedulePushRetry()
         case .transportSetVolume:
             if let body = try? envelope.decodePayload(WatchConnectivityProtocol.VolumeBody.self) {
                 // Prefer AVPlayer volume — works while iPhone is backgrounded.
@@ -150,22 +158,26 @@ final class WatchPlaybackHost {
                 playback?.setPlayerVolume(body.volume)
                 SystemOutputVolume.set(body.volume)
                 pushPlayback(force: true)
+                schedulePushRetry()
             }
         case .queuePlayIndex:
             if let body = try? envelope.decodePayload(WatchConnectivityProtocol.IndexBody.self) {
                 playback?.playQueueIndex(body.index)
                 pushAll(force: true)
+                schedulePushRetry()
             }
         case .queueRemove:
             if let body = try? envelope.decodePayload(WatchConnectivityProtocol.IdsBody.self) {
                 playback?.removeFromQueue(videoIds: Set(body.ids))
                 pushAll(force: true)
+                schedulePushRetry()
             }
         case .queuePlayNext:
             if let body = try? envelope.decodePayload(WatchConnectivityProtocol.VideoIdBody.self),
                let item = queueItem(videoId: body.videoId) {
                 playback?.insertNext(item)
                 pushAll(force: true)
+                schedulePushRetry()
             }
         case .queueAppend:
             if let body = try? envelope.decodePayload(WatchConnectivityProtocol.VideoIdBody.self) {
@@ -175,9 +187,22 @@ final class WatchPlaybackHost {
                     playback?.appendToQueue(item)
                 }
                 pushAll(force: true)
+                schedulePushRetry()
             }
         default:
             break
+        }
+    }
+
+    /// Watch often stays reachable only briefly after a command; retry while the window is open.
+    private func schedulePushRetry() {
+        pushRetryTask?.cancel()
+        pushRetryTask = Task { @MainActor in
+            for delayNs in [150_000_000, 450_000_000, 1_200_000_000] as [UInt64] {
+                try? await Task.sleep(nanoseconds: delayNs)
+                guard !Task.isCancelled else { return }
+                pushAll(force: true)
+            }
         }
     }
 
@@ -224,7 +249,11 @@ final class WatchPlaybackHost {
             }
             if bridge.isReachable {
                 _ = bridge.send(envelope)
-            } else if !updateContext {
+            } else if updateContext {
+                // Stale isReachable is common while iPhone is backgrounded after a Watch
+                // command. Keep the latest playback envelope for the next reachability flush.
+                bridge.enqueueLatest(envelope)
+            } else {
                 bridge.transferUserInfo(envelope)
             }
         } catch {
