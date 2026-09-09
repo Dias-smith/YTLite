@@ -1,18 +1,21 @@
 package com.ytlite.player.ui.subscriptions
 
+import android.app.Application
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -29,23 +32,19 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import android.app.Application
-import coil.compose.AsyncImage
 import com.ytlite.player.R
 import com.ytlite.player.data.model.SubscriptionChannel
 import com.ytlite.player.data.model.VideoItem
+import com.ytlite.player.data.repository.LibraryItemMapper
 import com.ytlite.player.playback.QueueItem
 import com.ytlite.player.ui.home.VideoFeedItem
 import com.ytlite.player.ui.image.rememberYTLiteImageLoader
-import com.ytlite.player.ui.image.thumbnailRequest
 import com.ytlite.player.ui.player.toQueueItem
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -110,16 +109,40 @@ fun ChannelVideosScreen(
                     }
                 },
                 actions = {
-                    AsyncImage(
-                        model = thumbnailRequest(LocalContext.current, channel.avatarUrl),
-                        imageLoader = imageLoader,
-                        contentDescription = channel.title,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .padding(end = 12.dp)
-                            .size(32.dp)
-                            .clip(CircleShape),
-                    )
+                    if (LibraryItemMapper.isBrowsableChannelId(channel.channelId)) {
+                        val subscribed = uiState.isSubscribed
+                        Button(
+                            onClick = { viewModel.toggleSubscribe() },
+                            shape = RoundedCornerShape(50),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (subscribed) {
+                                    MaterialTheme.colorScheme.surfaceVariant
+                                } else {
+                                    MaterialTheme.colorScheme.primary
+                                },
+                                contentColor = if (subscribed) {
+                                    MaterialTheme.colorScheme.onSurface
+                                } else {
+                                    MaterialTheme.colorScheme.onPrimary
+                                },
+                            ),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                            modifier = Modifier
+                                .padding(end = 8.dp)
+                                .height(32.dp),
+                        ) {
+                            Text(
+                                text = stringResource(
+                                    if (subscribed) {
+                                        R.string.player_subscribed
+                                    } else {
+                                        R.string.player_subscribe
+                                    },
+                                ),
+                                style = MaterialTheme.typography.labelMedium,
+                            )
+                        }
+                    }
                 },
             )
         },

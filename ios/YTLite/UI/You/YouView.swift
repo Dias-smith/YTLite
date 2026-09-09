@@ -935,7 +935,12 @@ struct ChannelVideosView: View {
     @State private var videos: [VideoItem] = []
     @State private var isLoading = true
     @State private var errorMessage: String?
+    @State private var isSubscribed = false
     @EnvironmentObject private var playerPresentation: PlayerPresentation
+
+    private var canSubscribe: Bool {
+        ChannelID.isBrowsable(channel.channelId)
+    }
 
     var body: some View {
         Group {
@@ -969,12 +974,59 @@ struct ChannelVideosView: View {
         .background(YTLiteColor.background)
         .ytLiteMiniPlayerScrollInset()
         .navigationTitle(channel.title)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                if canSubscribe {
+                    Button {
+                        toggleSubscribe()
+                    } label: {
+                        Text(isSubscribed ? L("player.subscribed") : L("player.subscribe"))
+                            .font(YTLiteType.badge)
+                            .foregroundStyle(isSubscribed ? YTLiteColor.onSurface : YTLiteColor.onMedia)
+                            .padding(.horizontal, YTLiteLayout.stackLoose)
+                            .padding(.vertical, 6)
+                            .background(
+                                isSubscribed ? YTLiteColor.surfaceVariant : YTLiteColor.accent,
+                                in: Capsule()
+                            )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+        .onAppear { refreshSubscribeState() }
         .onChange(of: trackActions.listEpoch) { _, _ in
             videos = store?.filterNotInterested(videos) ?? videos
+            refreshSubscribeState()
+        }
+        .onChange(of: playback.isChannelSubscribed) { _, _ in
+            refreshSubscribeState()
         }
         .task(id: channel.channelId) {
+            refreshSubscribeState()
             await loadVideos()
         }
+    }
+
+    private func refreshSubscribeState() {
+        isSubscribed = store?.isSubscribed(channelId: channel.channelId) ?? false
+    }
+
+    private func toggleSubscribe() {
+        guard canSubscribe else { return }
+        let avatar = channel.thumbnailURL?.absoluteString
+        let nowSubscribed = store?.toggleSubscribeChannel(
+            channelId: channel.channelId,
+            title: channel.title,
+            avatarUrl: avatar
+        ) ?? false
+        isSubscribed = nowSubscribed
+        if playback.nowPlaying?.channelId == channel.channelId {
+            playback.refreshSubscribeState()
+        }
+        trackActions.showToast(nowSubscribed ? L("player.subscribed") : L("player.unsubscribed"))
+        trackActions.notifyListsChanged()
     }
 
     private func loadVideos() async {

@@ -12,4 +12,5 @@ data class ChannelVideosUiState(
     val isLoading: Boolean = false,
     val isLoadingMore: Boolean = false,
     val errorMessage: String? = null,
+    val isSubscribed: Boolean = false,
 )

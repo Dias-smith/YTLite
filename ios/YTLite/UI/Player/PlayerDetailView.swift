@@ -51,6 +51,7 @@ struct PlayerDetailView: View {
     @EnvironmentObject private var trackActions: TrackActionPresenter
     @EnvironmentObject private var appModel: AppModel
     @EnvironmentObject private var auth: AuthService
+    @EnvironmentObject private var playerPresentation: PlayerPresentation
     @Environment(\.libraryStore) private var store
     @Environment(\.dismiss) private var dismiss
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
@@ -85,6 +86,8 @@ struct PlayerDetailView: View {
     @State private var showBatchAdd = false
     /// Local rich-menu presentation — must be on this sheet, not Root's TrackActionHost.
     @State private var playerTrackMenu: TrackActionContext?
+    /// Channel uploads browser opened from the channel row.
+    @State private var channelSheetItem: ChannelItem?
     /// Interactive dismiss offset for iPad fullScreenCover (follows the finger).
     @State private var dismissDragOffset: CGFloat = 0
 
@@ -104,6 +107,7 @@ struct PlayerDetailView: View {
             || showBatchAdd
             || showSortMenu
             || playerTrackMenu != nil
+            || channelSheetItem != nil
     }
 
     /// Google OAuth with YouTube scopes — required for some restricted streams.
@@ -351,6 +355,23 @@ struct PlayerDetailView: View {
                 .presentationDetents([.fraction(0.72), .large])
                 .presentationDragIndicator(.hidden)
                 .presentationContentInteraction(.scrolls)
+        }
+        .sheet(item: $channelSheetItem) { channel in
+            NavigationStack {
+                ChannelVideosView(channel: channel)
+                    .environmentObject(playback)
+                    .environmentObject(trackActions)
+                    .environmentObject(playerPresentation)
+                    .environment(\.libraryStore, store)
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button(L("common.close")) { channelSheetItem = nil }
+                        }
+                    }
+            }
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+            .presentationBackground(YTLiteColor.background)
         }
         .onChange(of: playback.isPlaying) { _, playing in
             if playing, !playback.isBuffering { bumpOverlayAutoHide() }
@@ -838,18 +859,28 @@ struct PlayerDetailView: View {
 
     private var channelRow: some View {
         HStack(spacing: 10) {
-            channelAvatar
-                .frame(width: 28, height: 28)
-                .clipShape(Circle())
+            let canOpenChannel = playback.nowPlaying?.canSubscribeChannel == true
+            Button {
+                openChannelVideosIfPossible()
+            } label: {
+                HStack(spacing: 10) {
+                    channelAvatar
+                        .frame(width: 28, height: 28)
+                        .clipShape(Circle())
 
-            Text(playback.nowPlaying?.channelName ?? "")
-                .font(YTLiteType.body)
-                .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                .lineLimit(1)
+                    Text(playback.nowPlaying?.channelName ?? "")
+                        .font(YTLiteType.body)
+                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                        .lineLimit(1)
+                }
+            }
+            .buttonStyle(.plain)
+            .disabled(!canOpenChannel)
+            .opacity(canOpenChannel ? 1 : 0.55)
 
             Spacer(minLength: 8)
 
-            let canSubscribe = playback.nowPlaying?.canSubscribeChannel == true
+            let canSubscribe = canOpenChannel
             let subscribed = playback.isChannelSubscribed
             Button {
                 guard canSubscribe else { return }
@@ -873,6 +904,19 @@ struct PlayerDetailView: View {
         .task(id: playback.nowPlaying?.channelId) {
             await resolveChannelAvatarIfNeeded()
         }
+    }
+
+    private func openChannelVideosIfPossible() {
+        guard let item = playback.nowPlaying,
+              item.canSubscribeChannel,
+              let channelId = item.channelId
+        else { return }
+        channelSheetItem = ChannelItem(
+            channelId: channelId,
+            title: item.channelName.isEmpty ? L("common.channel") : item.channelName,
+            subtitle: L("common.channel"),
+            thumbnailURL: item.channelAvatarURL ?? item.thumbnailURL
+        )
     }
 
     @ViewBuilder
