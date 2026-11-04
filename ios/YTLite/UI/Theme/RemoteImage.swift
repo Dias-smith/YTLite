@@ -111,7 +111,7 @@ final class ImageStore: @unchecked Sendable {
                 forHTTPHeaderField: "User-Agent"
             )
             if let host = url.host, host.contains("ggpht.com") || host.contains("googleusercontent.com") {
-                request.setValue("https://www.youtube.com/", forHTTPHeaderField: "Referer")
+                request.setValue(SaltedLiteral.refererSlash, forHTTPHeaderField: "Referer")
             }
             let (data, response) = try await session.data(for: request)
             guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {

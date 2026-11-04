@@ -4,7 +4,7 @@ import SwiftUI
 /// Equal-prominence Google + Sign in with Apple (App Store Guideline 4.8).
 struct SignInOptionsView: View {
     @ObservedObject var auth: AuthService
-    /// When false, only Google is offered (e.g. playback needs YouTube OAuth).
+    /// When false, only Google is offered (e.g. playback needs catalog OAuth).
     var showsAppleSignIn: Bool = true
     /// Analytics `source` for sign_in_* events.
     var analyticsSource: String = "unknown"

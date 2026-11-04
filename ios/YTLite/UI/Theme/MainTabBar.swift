@@ -8,10 +8,9 @@ struct MainTabBar: View {
     private var items: [(AppTab, String, String)] {
         [
             (.home, L("tab.home"), "house.fill"),
-            (.shorts, L("tab.shorts"), "play.rectangle.on.rectangle.fill"),
             (.search, L("tab.search"), "magnifyingglass"),
-            // Android: guest "Subs" → authenticated "YouTube"
-            (.you, isAuthenticated ? L("tab.youtube") : L("tab.subs"), "play.square.fill"),
+            // Android: guest "Subs" → authenticated "catalog"
+            (.you, isAuthenticated ? L("tab.account") : L("tab.subs"), "play.square.fill"),
             (.library, L("tab.library"), "rectangle.stack.fill"),
         ]
     }

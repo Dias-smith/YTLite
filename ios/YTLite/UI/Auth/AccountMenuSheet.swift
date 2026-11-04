@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// YouTube-style account menu for Library (and reusable elsewhere).
+/// catalog-style account menu for Library (and reusable elsewhere).
 struct AccountMenuSheet: View {
     @ObservedObject var auth: AuthService
 

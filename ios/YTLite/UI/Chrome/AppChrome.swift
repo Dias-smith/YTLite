@@ -35,17 +35,6 @@ struct AppChrome<Content: View>: View {
                 AdSceneLifecycle.cancelPlayStartInterstitial()
             }
         }
-        // Shorts is unavailable on regular width (iPad) — leave the tab if we land there.
-        .onChange(of: isRegular) { _, regular in
-            if regular, selectedTab == .shorts {
-                selectedTab = .home
-            }
-        }
-        .onAppear {
-            if isRegular, selectedTab == .shorts {
-                selectedTab = .home
-            }
-        }
     }
 
     private var compactChrome: some View {
@@ -102,7 +91,7 @@ struct AppChrome<Content: View>: View {
     }
 
     private var showsMiniPlayer: Bool {
-        playback.nowPlaying != nil && selectedTab != .shorts
+        playback.nowPlaying != nil
     }
 
     private var miniPlayerBottomInset: CGFloat {

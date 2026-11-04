@@ -39,22 +39,27 @@ enum PlaybackStorePolicy {
         return "bin"
     }
 
-    /// Skip resolve and play local cache only when offline is allowed and VPN is off.
-    static var allowsDirectOfflinePlayback: Bool {
-        RemoteConfigStore.allowOffline && !NetworkVpnStatus.isActive
+    /// Skip resolve and play local cache only when kickoff is allowed and VPN is off.
+    static var allowsDirectKickoffPlayback: Bool {
+        RemoteConfigStore.allowKickoff && !NetworkVpnStatus.isActive
     }
 }
 
-/// Best-effort VPN detection via system proxy scoped interfaces (`utun` / `ipsec` / …).
+/// Best-effort VPN detection via system proxy scoped interfaces.
+/// Prefer exact / prefix matches — bare `contains("tun")` false-positives on system `utun*`.
 enum NetworkVpnStatus {
     static var isActive: Bool {
         guard let settings = CFNetworkCopySystemProxySettings()?.takeRetainedValue() as? [String: Any],
               let scoped = settings["__SCOPED__"] as? [String: Any]
         else { return false }
-        let markers = ["tap", "tun", "ppp", "ipsec", "utun"]
         return scoped.keys.contains { key in
             let lower = key.lowercased()
-            return markers.contains { lower.contains($0) }
+            if lower.hasPrefix("utun") { return false }
+            return lower.hasPrefix("tap")
+                || lower.hasPrefix("tun")
+                || lower.hasPrefix("ppp")
+                || lower.hasPrefix("ipsec")
+                || lower.contains("ipsec")
         }
     }
 }

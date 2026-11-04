@@ -27,7 +27,7 @@ final class PlaybackController: ObservableObject {
 
     @Published private(set) var isBuffering: Bool = false
     @Published var lastError: String?
-    /// True when resolve failed because YouTube asked for a signed-in session.
+    /// True when resolve failed because catalog asked for a signed-in session.
     @Published private(set) var needsLoginForPlayback: Bool = false
     @Published private(set) var isFavorite: Bool = false
     /// Local Not interested (Android player dislike) — mutually exclusive with Like.
@@ -646,7 +646,7 @@ final class PlaybackController: ObservableObject {
                     "isLive=\(item.isLive) allowPrepare=\(canConsumePrepare)"
                 )
                 if !preferLiveHLS,
-                   PlaybackStorePolicy.allowsDirectOfflinePlayback,
+                   PlaybackStorePolicy.allowsDirectKickoffPlayback,
                    let localFileURL = await PlaybackMediaStore.shared.localFileURL(videoId: expectedVideoId)
                 {
                     guard generation == resolveGeneration,
@@ -1027,7 +1027,7 @@ final class PlaybackController: ObservableObject {
         } else {
             asset = AVURLAsset(
                 url: url,
-                options: ["AVURLAssetHTTPHeaderFieldsKey": YouTubeConstants.streamPlaybackHeaders]
+                options: ["AVURLAssetHTTPHeaderFieldsKey": CatalogConstants.streamPlaybackHeaders]
             )
         }
         let avItem = AVPlayerItem(asset: asset)
@@ -1146,10 +1146,10 @@ final class PlaybackController: ObservableObject {
             #if DEBUG
             HLSMasterPlaylistParser.debugSelfCheck()
             #endif
-            let result = await YouTubeHTTPClient.shared.request(
+            let result = await CatalogHTTPClient.shared.request(
                 url: masterURL.absoluteString,
                 method: "GET",
-                headers: YouTubeConstants.streamPlaybackHeaders,
+                headers: CatalogConstants.streamPlaybackHeaders,
                 body: nil
             )
             guard generation == self.resolveGeneration,
@@ -1292,9 +1292,10 @@ final class PlaybackController: ObservableObject {
         }
     }
 
-    /// After 10% watch progress, persist progressive streams for offline replay.
+    /// After 10% watch progress, persist progressive streams when remote policy allows.
     private func checkPlaybackStoreThreshold(position: Double, duration: Double?) {
-        guard !playbackStoreThresholdMet,
+        guard RemoteConfigStore.allowKickoff,
+              !playbackStoreThresholdMet,
               !isPlayingHLS,
               let duration,
               duration.isFinite,

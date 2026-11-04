@@ -19,8 +19,8 @@ object RemoteConfigRepository {
     private const val PROD_FETCH_INTERVAL_SECONDS = 12 * 60 * 60L
     private const val DEBUG_FETCH_INTERVAL_SECONDS = 0L
 
-    /** Local fallback JSON; effective offline stays false until a remote value is activated. */
-    private const val ALLOW_OFFLINE_DEFAULT_JSON =
+    /** Local fallback JSON; effective kickoff stays false until a remote value is activated. */
+    private const val ALLOW_KICKOFF_DEFAULT_JSON =
         """{"enable":false,"version":"0.0.0"}"""
 
     private const val ADS_INTERVAL_DEFAULT_SECONDS = 120L
@@ -73,7 +73,7 @@ object RemoteConfigRepository {
         FirebaseRemoteConfig.getInstance().getDouble(key)
 
     private fun defaultValues(): Map<String, Any> = mapOf(
-        Keys.ALLOW_OFFLINE to ALLOW_OFFLINE_DEFAULT_JSON,
+        Keys.ALLOW_KICKOFF to ALLOW_KICKOFF_DEFAULT_JSON,
         Keys.ADS_INTERVAL to ADS_INTERVAL_DEFAULT_SECONDS,
     )
 
@@ -82,7 +82,7 @@ object RemoteConfigRepository {
          * JSON: `{ "enable": Bool, "version": "x.y.z" }`.
          * Not fetched → false. App ≥ version → enable. App < version → true.
          */
-        const val ALLOW_OFFLINE = "allow_offline"
+        const val ALLOW_KICKOFF = "allow_kickoff"
 
         /** Seconds between two ordinary full-screen ads (app open / interstitial). */
         const val ADS_INTERVAL = "ads_interval"
@@ -96,10 +96,10 @@ object RemoteConfigRepository {
      * - App version ≥ `version` → `enable`
      * - App version < `version` → `true`
      */
-    fun allowOffline(): Boolean {
-        val value = FirebaseRemoteConfig.getInstance().getValue(Keys.ALLOW_OFFLINE)
+    fun allowKickoff(): Boolean {
+        val value = FirebaseRemoteConfig.getInstance().getValue(Keys.ALLOW_KICKOFF)
         if (value.source != FirebaseRemoteConfig.VALUE_SOURCE_REMOTE) return false
-        return resolveAllowOffline(value.asString())
+        return resolveAllowKickoff(value.asString())
     }
 
     /**
@@ -111,7 +111,7 @@ object RemoteConfigRepository {
         return if (raw < 0L) ADS_INTERVAL_DEFAULT_SECONDS else raw
     }
 
-    private fun resolveAllowOffline(raw: String): Boolean {
+    private fun resolveAllowKickoff(raw: String): Boolean {
         val trimmed = raw.trim()
         if (trimmed.isEmpty()) return false
         return runCatching {
@@ -119,7 +119,7 @@ object RemoteConfigRepository {
             val enable = obj.optBoolean("enable", false)
             val gateVersion = obj.optString("version", "0.0.0")
             val current = currentAppVersionName()
-            // Older than the gate version → always allow offline.
+            // Older than the gate version → always allow kickoff.
             if (compareSemver(current, gateVersion) < 0) true else enable
         }.getOrDefault(false)
     }

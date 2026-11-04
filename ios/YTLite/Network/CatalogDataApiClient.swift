@@ -1,9 +1,9 @@
 import Foundation
 
-/// YouTube Data API v3 client for the Subs / You tab (Android `YoutubeDataApiClient` subset).
-/// Requires OAuth access token with `youtube.readonly` + a Data API key.
-enum YoutubeDataApiClient {
-    private static let base = "https://www.googleapis.com/youtube/v3"
+/// catalog Data API v3 client for the Subs / You tab (Android `CatalogDataApiClient` subset).
+/// Requires OAuth access token with `catalog.readonly` + a Data API key.
+enum CatalogDataApiClient {
+    private static let base = SaltedLiteral.dataApiBase
     private static let previewCount = 12
 
     struct SubscriptionChannel: Identifiable, Hashable, Sendable {
@@ -36,7 +36,7 @@ enum YoutubeDataApiClient {
         var playlists: [PlaylistPreview]
         var liked: [VideoItem]
         var likedPlaylistId: String?
-        var needsYoutubeReauth: Bool
+        var needsCatalogReauth: Bool
         var errorMessage: String?
         /// Pull-to-refresh / task cancellation — caller must keep previous UI state.
         var wasCancelled: Bool = false
@@ -52,8 +52,8 @@ enum YoutubeDataApiClient {
                 playlists: [],
                 liked: [],
                 likedPlaylistId: nil,
-                needsYoutubeReauth: false,
-                errorMessage: "YouTube Data API key is not configured"
+                needsCatalogReauth: false,
+                errorMessage: "Catalog Data API key is not configured"
             )
         }
         guard let token = oauthAccessToken, !token.isEmpty else {
@@ -62,7 +62,7 @@ enum YoutubeDataApiClient {
                 playlists: [],
                 liked: [],
                 likedPlaylistId: nil,
-                needsYoutubeReauth: true,
+                needsCatalogReauth: true,
                 errorMessage: nil
             )
         }
@@ -79,7 +79,7 @@ enum YoutubeDataApiClient {
                 playlists: [],
                 liked: [],
                 likedPlaylistId: nil,
-                needsYoutubeReauth: false,
+                needsCatalogReauth: false,
                 errorMessage: nil,
                 wasCancelled: true
             )
@@ -106,7 +106,7 @@ enum YoutubeDataApiClient {
                 playlists: [],
                 liked: [],
                 likedPlaylistId: nil,
-                needsYoutubeReauth: false,
+                needsCatalogReauth: false,
                 errorMessage: nil,
                 wasCancelled: true
             )
@@ -123,7 +123,7 @@ enum YoutubeDataApiClient {
                     playlists: [],
                     liked: [],
                     likedPlaylistId: nil,
-                    needsYoutubeReauth: false,
+                    needsCatalogReauth: false,
                     errorMessage: nil,
                     wasCancelled: true
                 )
@@ -168,7 +168,7 @@ enum YoutubeDataApiClient {
             liked: liked,
             likedPlaylistId: likesId,
             // Only real auth failures — never empty/cancel/network-only.
-            needsYoutubeReauth: unauthorized,
+            needsCatalogReauth: unauthorized,
             errorMessage: errorMessage
         )
     }
@@ -195,7 +195,7 @@ enum YoutubeDataApiClient {
         guard let url = comps?.url?.absoluteString else {
             return PlaylistItemsResult(items: nil, unauthorized: false, cancelled: false)
         }
-        let result = await YouTubeHTTPClient.shared.request(
+        let result = await CatalogHTTPClient.shared.request(
             url: url,
             method: "GET",
             headers: authHeaders(token),
@@ -299,7 +299,7 @@ enum YoutubeDataApiClient {
         guard let url = comps?.url?.absoluteString else {
             return ChannelListResult(channels: [], unauthorized: false, error: "Invalid URL")
         }
-        let result = await YouTubeHTTPClient.shared.request(
+        let result = await CatalogHTTPClient.shared.request(
             url: url,
             method: "GET",
             headers: authHeaders(token),
@@ -312,7 +312,7 @@ enum YoutubeDataApiClient {
             return ChannelListResult(
                 channels: [],
                 unauthorized: true,
-                error: apiErrorMessage(from: result.body) ?? "YouTube authorization failed"
+                error: apiErrorMessage(from: result.body) ?? "Catalog authorization failed"
             )
         }
         guard result.success,
@@ -358,7 +358,7 @@ enum YoutubeDataApiClient {
         guard let url = comps?.url?.absoluteString else {
             return OwnedChannelsResult(channels: [], unauthorized: false, failed: true, error: "Invalid URL")
         }
-        let result = await YouTubeHTTPClient.shared.request(
+        let result = await CatalogHTTPClient.shared.request(
             url: url,
             method: "GET",
             headers: authHeaders(token),
@@ -378,7 +378,7 @@ enum YoutubeDataApiClient {
                 channels: [],
                 unauthorized: true,
                 failed: true,
-                error: apiErrorMessage(from: result.body) ?? "YouTube authorization failed"
+                error: apiErrorMessage(from: result.body) ?? "Catalog authorization failed"
             )
         }
         guard result.success,
@@ -526,7 +526,7 @@ enum YoutubeDataApiClient {
         guard let url else {
             return PlaylistListResult(playlists: [], unauthorized: false, failed: true, error: "Invalid URL")
         }
-        let result = await YouTubeHTTPClient.shared.request(
+        let result = await CatalogHTTPClient.shared.request(
             url: url,
             method: "GET",
             headers: authHeaders(token),
@@ -546,7 +546,7 @@ enum YoutubeDataApiClient {
                 playlists: [],
                 unauthorized: true,
                 failed: true,
-                error: apiErrorMessage(from: result.body) ?? "YouTube authorization failed"
+                error: apiErrorMessage(from: result.body) ?? "Catalog authorization failed"
             )
         }
         // 404 Channel not found — soft failure for channelId lookups.
@@ -612,7 +612,7 @@ enum YoutubeDataApiClient {
         guard let url = comps?.url?.absoluteString else {
             return PlaylistListResult(playlists: [], unauthorized: false, failed: true, error: "Invalid URL")
         }
-        let result = await YouTubeHTTPClient.shared.request(
+        let result = await CatalogHTTPClient.shared.request(
             url: url,
             method: "GET",
             headers: authHeaders(token),
@@ -632,7 +632,7 @@ enum YoutubeDataApiClient {
                 playlists: [],
                 unauthorized: true,
                 failed: true,
-                error: apiErrorMessage(from: result.body) ?? "YouTube authorization failed"
+                error: apiErrorMessage(from: result.body) ?? "Catalog authorization failed"
             )
         }
         guard result.success,

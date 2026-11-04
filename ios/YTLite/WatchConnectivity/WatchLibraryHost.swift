@@ -244,7 +244,7 @@ final class WatchLibraryHost {
             sendShareResult(requestId: requestId, ok: false, message: "missing_video")
             return
         }
-        let url = URL(string: "https://www.youtube.com/watch?v=\(videoId)")!
+        let url = URL(string: CatalogURL.watchURL(videoId: videoId))!
         guard let presenter = UIApplication.shared.topViewController else {
             sendShareResult(requestId: requestId, ok: false, message: "no_presenter")
             return

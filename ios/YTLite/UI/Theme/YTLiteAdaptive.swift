@@ -6,9 +6,6 @@ enum YTLiteAdaptive {
     static let contentMaxWidth: CGFloat = 980
     /// Mini player dock width on regular width.
     static let miniPlayerDockWidth: CGFloat = 520
-    /// Centered Shorts “phone” frame.
-    static let shortsFrameWidth: CGFloat = 420
-    static let shortsAspect: CGFloat = 9.0 / 16.0
 
     static func isRegularWidth(_ sizeClass: UserInterfaceSizeClass?) -> Bool {
         sizeClass == .regular

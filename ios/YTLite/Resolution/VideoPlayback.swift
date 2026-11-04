@@ -86,11 +86,11 @@ enum PlayProbe {
     /// Classify resolver HTTP URLs for timeout diagnosis.
     static func httpKind(url: String) -> String {
         let u = url.lowercased()
-        if u.contains("/youtubei/v1/player") { return "player" }
-        if u.contains("/youtubei/v1/next") { return "next" }
-        if u.contains("/youtubei/v1/") { return "innertube" }
-        if u.contains("googlevideo.com") { return "googlevideo" }
-        if u.contains("youtube.com/") || u.contains("youtu.be/") { return "html" }
+        if u.contains(SaltedLiteral.pathPlayerNeedle) { return "player" }
+        if u.contains(SaltedLiteral.pathNextNeedle) { return "next" }
+        if u.contains(SaltedLiteral.pathCatalogApiNeedle) { return "catalog" }
+        if u.contains(SaltedLiteral.hostGooglevideo) { return "cdn" }
+        if u.contains(SaltedLiteral.hostSiteDomainSlash) || u.contains(SaltedLiteral.hostShortLinkSlash) { return "html" }
         return "other"
     }
 
@@ -107,8 +107,8 @@ enum PlayProbe {
         let kind: String
         if url.pathExtension.lowercased() == "m3u8" || url.absoluteString.contains("manifest/hls") {
             kind = "hls"
-        } else if host.contains("googlevideo") {
-            kind = "googlevideo"
+        } else if host.contains(SaltedLiteral.hostGooglevideoShort) {
+            kind = "cdn"
         } else {
             kind = "other"
         }
@@ -144,9 +144,11 @@ enum PlayProbe {
     }
 
     static func log(_ stage: String, videoId: String? = nil, _ detail: String = "") {
+        #if DEBUG
         let idPart = videoId.map { " id=\($0)" } ?? ""
         let detailPart = detail.isEmpty ? "" : " | \(detail)"
         print("[\(tag)] [\(stage)]\(idPart)\(detailPart)")
+        #endif
     }
 
     static func log(
@@ -155,10 +157,12 @@ enum PlayProbe {
         trace: String?,
         _ detail: String = ""
     ) {
+        #if DEBUG
         let tracePart = trace.map { " t=\($0)" } ?? ""
         let idPart = videoId.map { " id=\($0)" } ?? ""
         let detailPart = detail.isEmpty ? "" : " | \(detail)"
         print("[\(tag)] [\(stage)]\(idPart)\(tracePart)\(detailPart)")
+        #endif
     }
 }
 
@@ -191,7 +195,7 @@ struct VideoPlayback: Sendable, Equatable {
     let videoId: String
     let title: String
     let channelName: String
-    /// YouTube channel id (e.g. `UC…`) when extract provides it — Android `channelID`.
+    /// catalog channel id (e.g. `UC…`) when extract provides it — Android `channelID`.
     let channelId: String?
     let durationSeconds: Int
     let formats: [StreamFormat]
@@ -249,7 +253,7 @@ enum PlaybackFormatSelector {
     /// Muxed A+V only for progressive; preferred order is itag 18 → 22 → 37.
     static func select(formats: [StreamFormat], preferVideo: Bool) -> StreamFormat? {
         if preferVideo {
-            for itag in YouTubeConstants.preferredVideoItags {
+            for itag in CatalogConstants.preferredVideoItags {
                 if let hit = formats.first(where: {
                     $0.itag == itag && $0.isMuxed
                 }) {
@@ -268,7 +272,7 @@ enum PlaybackFormatSelector {
             // Never return adaptive video-only — AVPlayer reports "Cannot Open".
             return nil
         } else {
-            for itag in YouTubeConstants.preferredAudioItags {
+            for itag in CatalogConstants.preferredAudioItags {
                 if let hit = formats.first(where: { $0.itag == itag && $0.isAudioOnly }) {
                     return hit
                 }
@@ -513,12 +517,12 @@ enum ResolveResultMapper {
 
     private static func extractVideoId(from url: String?) -> String? {
         guard let url else { return nil }
-        return YouTubeURL.videoId(from: url)
+        return CatalogURL.videoId(from: url)
     }
 }
 
 /// When InnerTube JS clients return UNPLAYABLE:
-/// 1) ANDROID `/youtubei/v1/player` with `signatureTimestamp` (direct googlevideo URLs, no nsig)
+/// 1) ANDROID `/catalogi/v1/player` with `signatureTimestamp` (direct googlevideo URLs, no nsig)
 /// 2) scrape `ytInitialPlayerResponse` from watch HTML (often 403 without nsig — last resort)
 enum WatchPagePlayerFallback {
     /// Cap so a hung ANDROID player never burns the full URLSession request timeout
@@ -526,7 +530,7 @@ enum WatchPagePlayerFallback {
     private static let fastPathDeadlineSeconds: TimeInterval = 6
 
     /// One-request fast path using the configured Android client and STS.
-    /// Falls back to the WKWebView resolver when YouTube rejects this client.
+    /// Falls back to the WKWebView resolver when catalog rejects this client.
     /// Hard-capped so failure is fail-fast (does not wait ~30s HTTP timeout).
     static func extractFast(videoId: String) async -> VideoPlayback? {
         let id = videoId.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -597,8 +601,8 @@ enum WatchPagePlayerFallback {
         let cfg = ResolverRemoteConfigStore.current
         // Normalize Shorts → watch before scraping (never hit /shorts/{id}).
         let pages = [
-            YouTubeURL.canonicalWatchURL(YouTubeURL.watchURL(videoId: id)),
-            YouTubeURL.canonicalWatchURL("https://m.youtube.com/watch?v=\(id)"),
+            CatalogURL.canonicalWatchURL(CatalogURL.watchURL(videoId: id)),
+            CatalogURL.canonicalWatchURL("\(SaltedLiteral.hostMobile)/watch?v=\(id)"),
         ]
         var lastError: Error = StreamResolver.StreamResolverError.resolveFailed("unplayable")
         var signatureTimestamp = cfg.signatureTimestamp
@@ -635,7 +639,7 @@ enum WatchPagePlayerFallback {
                     throw StreamResolver.StreamResolverError.resolveFailed("watch page fallback disabled")
                 }
                 guard let player = extractPlayerResponseJSON(from: html) else {
-                    PlayProbe.log("extract.fallback.fail", videoId: id, "no ytInitialPlayerResponse")
+                    PlayProbe.log("extract.fallback.fail", videoId: id, "no player json")
                     continue
                 }
                 let mapped = try mapPlayerResponse(player, fallbackVideoId: id, source: "html")
@@ -675,7 +679,7 @@ enum WatchPagePlayerFallback {
         throw lastError
     }
 
-    /// ANDROID Innertube player on `www.youtube.com` — returns plain `url` formats (no `n=`).
+    /// ANDROID Innertube player on `www.catalog.com` — returns plain `url` formats (no `n=`).
     private static func extractViaAndroidPlayer(
         videoId: String,
         signatureTimestamp: Int,
@@ -683,7 +687,7 @@ enum WatchPagePlayerFallback {
         requestTimeout: TimeInterval? = nil
     ) async -> VideoPlayback? {
         let androidUA =
-            "com.google.android.youtube/\(clientVersion) (Linux; U; Android 11) gzip"
+            "\(SaltedLiteral.androidPackagePrefix)\(clientVersion) (Linux; U; Android 11) gzip"
         PlayProbe.log(
             "extract.fallback.android.begin",
             videoId: videoId,
@@ -699,7 +703,7 @@ enum WatchPagePlayerFallback {
                     "userAgent": androidUA,
                     "osName": "Android",
                     "osVersion": "11",
-                    "hl": YouTubeConstants.hl,
+                    "hl": CatalogConstants.hl,
                     "timeZone": "UTC",
                     "utcOffsetMinutes": 0,
                 ],
@@ -720,16 +724,16 @@ enum WatchPagePlayerFallback {
             PlayProbe.log("extract.fallback.android.fail", videoId: videoId, "body encode")
             return nil
         }
-        let result = await YouTubeHTTPClient.shared.request(
-            url: "https://www.youtube.com/youtubei/v1/player?prettyPrint=false",
+        let result = await CatalogHTTPClient.shared.request(
+            url: "\(SaltedLiteral.hostWWW)\(SaltedLiteral.pathPlayer)",
             method: "POST",
             headers: [
                 "User-Agent": androidUA,
                 "Content-Type": "application/json",
-                "X-YouTube-Client-Name": "3",
-                "X-YouTube-Client-Version": clientVersion,
-                "Origin": "https://www.youtube.com",
-                "Referer": "https://www.youtube.com/",
+                SaltedLiteral.headerClientName: "3",
+                SaltedLiteral.headerClientVersion: clientVersion,
+                "Origin": SaltedLiteral.hostWWW,
+                "Referer": SaltedLiteral.refererSlash,
             ],
             body: bodyText,
             timeout: requestTimeout
@@ -798,12 +802,12 @@ enum WatchPagePlayerFallback {
     }
 
     private static func fetchHTML(_ url: String) async throws -> String {
-        let result = await YouTubeHTTPClient.shared.request(
+        let result = await CatalogHTTPClient.shared.request(
             url: url,
             method: "GET",
             headers: [
-                "User-Agent": YouTubeConstants.userAgent,
-                "Referer": "https://www.youtube.com/",
+                "User-Agent": CatalogConstants.userAgent,
+                "Referer": SaltedLiteral.refererSlash,
                 "Accept-Language": "en-US,en;q=0.9",
                 "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
             ],
@@ -819,7 +823,7 @@ enum WatchPagePlayerFallback {
 
     /// Locates `ytInitialPlayerResponse = {...}` (skips `= null` stubs).
     private static func extractPlayerResponseJSON(from html: String) -> [String: Any]? {
-        let marker = "ytInitialPlayerResponse = "
+        let marker = SaltedLiteral.markerPlayerResponse
         var searchStart = html.startIndex
         while let markerRange = html.range(of: marker, range: searchStart..<html.endIndex) {
             let after = html[markerRange.upperBound...]
@@ -897,7 +901,7 @@ enum WatchPagePlayerFallback {
 
         let streaming = player["streamingData"] as? [String: Any] ?? [:]
         let hlsManifestURL = (streaming["hlsManifestUrl"] as? String)?
-            .youtubeUnescaped
+            .catalogUnescaped
             .nilIfEmpty
             .flatMap(URL.init(string:))
         // Prefer progressive `formats` (muxed) over adaptiveFragments for AVPlayer.
@@ -905,7 +909,7 @@ enum WatchPagePlayerFallback {
         let adaptive = streaming["adaptiveFormats"] as? [[String: Any]] ?? []
         let formats: [StreamFormat] = (progressive + adaptive).compactMap { item in
             guard let urlString = (item["url"] as? String)?.nilIfEmpty,
-                  let url = URL(string: urlString.youtubeUnescaped)
+                  let url = URL(string: urlString.catalogUnescaped)
             else { return nil }
             let mime = (item["mimeType"] as? String) ?? (item["type"] as? String) ?? ""
             let codecs = mimeCodecs(mime)
@@ -997,8 +1001,8 @@ private extension Dictionary where Key == String, Value == Any {
 private extension String {
     var nilIfEmpty: String? { isEmpty ? nil : self }
 
-    /// YouTube HTML embeds `&` as `\u0026`.
-    var youtubeUnescaped: String {
+    /// catalog HTML embeds `&` as `\u0026`.
+    var catalogUnescaped: String {
         replacingOccurrences(of: "\\u0026", with: "&")
             .replacingOccurrences(of: "\\/", with: "/")
     }

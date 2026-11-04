@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Subscriptions / You tab — aligned with Android `YoutubeYouScreen`.
+/// Subscriptions / You tab — aligned with Android `CatalogYouScreen`.
 struct YouView: View {
     @EnvironmentObject private var auth: AuthService
     @EnvironmentObject private var appModel: AppModel
@@ -37,9 +37,9 @@ struct YouView: View {
                     return
                 }
                 let token = await auth.ensureFreshGoogleAccessToken()
-                await viewModel.loadYouTubeShelves(
+                await viewModel.loadCatalogShelves(
                     token: token,
-                    apiKey: appModel.config.youtubeDataAPIKey
+                    apiKey: appModel.config.catalogDataAPIKey
                 )
             }
         }
@@ -66,9 +66,9 @@ struct YouView: View {
 
             SignInOptionsView(auth: auth, analyticsSource: "you") {
                 appModel.syncAuth(auth)
-                await viewModel.loadYouTubeShelves(
+                await viewModel.loadCatalogShelves(
                     token: auth.googleAccessToken,
-                    apiKey: appModel.config.youtubeDataAPIKey
+                    apiKey: appModel.config.catalogDataAPIKey
                 )
                 if let store {
                     let t0 = SyncProbe.now()
@@ -86,7 +86,7 @@ struct YouView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    /// Apple (or any session without YouTube OAuth) — explain and guide to Google.
+    /// Apple (or any session without catalog OAuth) — explain and guide to Google.
     private var appleSignedInYouPlaceholder: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
@@ -104,13 +104,13 @@ struct YouView: View {
                         Task {
                             await auth.signInWithGoogle(source: "you")
                             appModel.syncAuth(auth)
-                            await viewModel.loadYouTubeShelves(
+                            await viewModel.loadCatalogShelves(
                                 token: auth.googleAccessToken,
-                                apiKey: appModel.config.youtubeDataAPIKey
+                                apiKey: appModel.config.catalogDataAPIKey
                             )
                         }
                     } label: {
-                        Text(L("you.sign_in_with_google_for_youtube"))
+                        Text(L("you.sign_in_with_google_for_catalog"))
                             .font(YTLiteType.labelEmphasized)
                             .foregroundStyle(YTLiteColor.onAccent)
                             .padding(.horizontal, 16)
@@ -133,15 +133,15 @@ struct YouView: View {
         .ytLiteMiniPlayerScrollInset()
     }
 
-    // MARK: - Authenticated (Android YoutubeYouScreen order)
+    // MARK: - Authenticated (Android CatalogYouScreen order)
 
     private var signedInContent: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
                 profileHeader
 
-                if viewModel.needsYoutubeReauth {
-                    youtubeReauthBanner
+                if viewModel.needsCatalogReauth {
+                    catalogReauthBanner
                 }
 
                 if let err = viewModel.errorMessage, !err.isEmpty {
@@ -154,8 +154,8 @@ struct YouView: View {
                 youSection(
                     title: L("you.subscriptions"),
                     isEmpty: viewModel.channels.isEmpty,
-                    emptyText: viewModel.needsYoutubeReauth
-                        ? "Sign in again to grant YouTube access"
+                    emptyText: viewModel.needsCatalogReauth
+                        ? "Sign in again to grant catalog access"
                         : L("you.channels_empty"),
                     emptySystemImage: "person.2",
                     showViewAll: !viewModel.channels.isEmpty
@@ -182,8 +182,8 @@ struct YouView: View {
                 youSection(
                     title: L("you.playlists"),
                     isEmpty: viewModel.playlists.isEmpty,
-                    emptyText: viewModel.needsYoutubeReauth
-                        ? "Sign in again to grant YouTube access"
+                    emptyText: viewModel.needsCatalogReauth
+                        ? "Sign in again to grant catalog access"
                         : L("you.playlists_empty"),
                     emptySystemImage: "list.bullet.rectangle",
                     showViewAll: !viewModel.playlists.isEmpty
@@ -205,7 +205,7 @@ struct YouView: View {
                         HStack(spacing: 12) {
                             ForEach(viewModel.playlists) { playlist in
                                 NavigationLink {
-                                    YoutubePlaylistItemsView(
+                                    CatalogPlaylistItemsView(
                                         playlistId: playlist.playlistId,
                                         title: playlist.title
                                     )
@@ -227,15 +227,15 @@ struct YouView: View {
                 youSection(
                     title: L("you.liked"),
                     isEmpty: viewModel.liked.isEmpty,
-                    emptyText: viewModel.needsYoutubeReauth
-                        ? "Sign in again to grant YouTube access"
+                    emptyText: viewModel.needsCatalogReauth
+                        ? "Sign in again to grant catalog access"
                         : L("you.playlist_empty"),
                     emptySystemImage: "hand.thumbsup",
                     showViewAll: !viewModel.liked.isEmpty
                 ) {
                     EmptyView()
                 } viewAll: {
-                    YoutubePlaylistItemsView(
+                    CatalogPlaylistItemsView(
                         playlistId: viewModel.likedPlaylistId ?? "LL",
                         title: L("you.liked")
                     )
@@ -267,14 +267,14 @@ struct YouView: View {
         .ytLiteMiniPlayerScrollInset()
         .refreshable {
             let token = await auth.ensureFreshGoogleAccessToken()
-            await viewModel.loadYouTubeShelves(
+            await viewModel.loadCatalogShelves(
                 token: token,
-                apiKey: appModel.config.youtubeDataAPIKey
+                apiKey: appModel.config.catalogDataAPIKey
             )
         }
     }
 
-    private var youtubeReauthBanner: some View {
+    private var catalogReauthBanner: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(L("you.access_needed"))
                 .font(YTLiteType.rowTitle)
@@ -288,9 +288,9 @@ struct YouView: View {
                     await auth.signInWithGoogle(source: "you")
                     appModel.syncAuth(auth)
                     guard auth.lastError == nil else { return }
-                    await viewModel.loadYouTubeShelves(
+                    await viewModel.loadCatalogShelves(
                         token: auth.googleAccessToken,
-                        apiKey: appModel.config.youtubeDataAPIKey
+                        apiKey: appModel.config.catalogDataAPIKey
                     )
                 }
             } label: {
@@ -339,9 +339,9 @@ struct YouView: View {
                     Task {
                         await auth.switchAccount()
                         appModel.syncAuth(auth)
-                        await viewModel.loadYouTubeShelves(
+                        await viewModel.loadCatalogShelves(
                             token: auth.googleAccessToken,
-                            apiKey: appModel.config.youtubeDataAPIKey
+                            apiKey: appModel.config.catalogDataAPIKey
                         )
                     }
                 } label: {
@@ -439,11 +439,11 @@ struct YouView: View {
 
 @MainActor
 final class YouViewModel: ObservableObject {
-    @Published private(set) var channels: [YoutubeDataApiClient.SubscriptionChannel] = []
-    @Published private(set) var playlists: [YoutubeDataApiClient.PlaylistPreview] = []
+    @Published private(set) var channels: [CatalogDataApiClient.SubscriptionChannel] = []
+    @Published private(set) var playlists: [CatalogDataApiClient.PlaylistPreview] = []
     @Published private(set) var liked: [VideoItem] = []
     @Published private(set) var likedPlaylistId: String?
-    @Published private(set) var needsYoutubeReauth = false
+    @Published private(set) var needsCatalogReauth = false
     @Published private(set) var errorMessage: String?
     @Published private(set) var hasLoadedOnce = false
     @Published private(set) var isLoading = false
@@ -453,19 +453,19 @@ final class YouViewModel: ObservableObject {
         playlists = []
         liked = []
         likedPlaylistId = nil
-        needsYoutubeReauth = false
+        needsCatalogReauth = false
         errorMessage = nil
         hasLoadedOnce = true
     }
 
-    func loadYouTubeShelves(token: String?, apiKey: String) async {
+    func loadCatalogShelves(token: String?, apiKey: String) async {
         // Run fetch outside the caller's cancellation domain (SwiftUI `.refreshable`
         // often cancels when `@Published` flips, aborting URLSession mid-flight).
         let token = token
         let apiKey = apiKey
         await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
             Task.detached(priority: .userInitiated) {
-                let snap = await YoutubeDataApiClient.loadYouPage(
+                let snap = await CatalogDataApiClient.loadYouPage(
                     oauthAccessToken: token,
                     apiKey: apiKey
                 )
@@ -477,7 +477,7 @@ final class YouViewModel: ObservableObject {
         }
     }
 
-    func applySnapshot(_ snap: YoutubeDataApiClient.YouPageSnapshot) {
+    func applySnapshot(_ snap: CatalogDataApiClient.YouPageSnapshot) {
         hasLoadedOnce = true
         isLoading = false
 
@@ -487,8 +487,8 @@ final class YouViewModel: ObservableObject {
             return
         }
 
-        if snap.needsYoutubeReauth {
-            needsYoutubeReauth = true
+        if snap.needsCatalogReauth {
+            needsCatalogReauth = true
             errorMessage = nil
             // Still apply any partial shelves (e.g. InnerTube liked) when present.
             if !snap.subscriptions.isEmpty { channels = snap.subscriptions }
@@ -500,7 +500,7 @@ final class YouViewModel: ObservableObject {
             return
         }
 
-        needsYoutubeReauth = false
+        needsCatalogReauth = false
         errorMessage = snap.errorMessage
         channels = snap.subscriptions
         playlists = snap.playlists
@@ -517,7 +517,7 @@ final class YouViewModel: ObservableObject {
 // MARK: - Cards
 
 private struct YouChannelCard: View {
-    let channel: YoutubeDataApiClient.SubscriptionChannel
+    let channel: CatalogDataApiClient.SubscriptionChannel
 
     var body: some View {
         VStack(spacing: 8) {
@@ -613,7 +613,7 @@ private struct YouVideoShelfCard: View {
 // MARK: - View all pages
 
 struct SubscriptionChannelsListView: View {
-    let channels: [YoutubeDataApiClient.SubscriptionChannel]
+    let channels: [CatalogDataApiClient.SubscriptionChannel]
 
     var body: some View {
         Group {
@@ -662,7 +662,7 @@ struct SubscriptionChannelsListView: View {
 }
 
 struct YouPlaylistsListView: View {
-    let playlists: [YoutubeDataApiClient.PlaylistPreview]
+    let playlists: [CatalogDataApiClient.PlaylistPreview]
 
     var body: some View {
         Group {
@@ -675,7 +675,7 @@ struct YouPlaylistsListView: View {
             } else {
                 List(playlists) { playlist in
                     NavigationLink {
-                        YoutubePlaylistItemsView(
+                        CatalogPlaylistItemsView(
                             playlistId: playlist.playlistId,
                             title: playlist.title
                         )
@@ -714,8 +714,8 @@ struct YouPlaylistsListView: View {
     }
 }
 
-/// Remote YouTube playlist items via Data API (not local LibraryStore).
-struct YoutubePlaylistItemsView: View {
+/// Remote catalog playlist items via Data API (not local LibraryStore).
+struct CatalogPlaylistItemsView: View {
     let playlistId: String
     let title: String
 
@@ -792,17 +792,17 @@ struct YoutubePlaylistItemsView: View {
         errorMessage = nil
         defer { isLoading = false }
         guard let token = auth.googleAccessToken else {
-            errorMessage = "Sign in again to grant YouTube access"
+            errorMessage = "Sign in again to grant catalog access"
             items = []
             return
         }
-        let key = appModel.config.youtubeDataAPIKey
+        let key = appModel.config.catalogDataAPIKey
         guard !key.isEmpty else {
-            errorMessage = "YouTube Data API key is not configured"
+            errorMessage = "Catalog Data API key is not configured"
             items = []
             return
         }
-        items = await YoutubeDataApiClient.listPlaylistItems(
+        items = await CatalogDataApiClient.listPlaylistItems(
             token: token,
             apiKey: key,
             playlistId: playlistId,

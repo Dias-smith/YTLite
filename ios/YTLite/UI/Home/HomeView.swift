@@ -16,7 +16,7 @@ enum HomeCategorySource: Hashable {
     case search(String)
     case innerTube(HomeChipEndpoint)
     case live
-    case youtubeNews
+    case catalogNews
 }
 
 /// Region-aware search queries for static Home chips (Content Region `gl`).
@@ -150,13 +150,13 @@ struct HomeCategory: Identifiable, Hashable {
     }
 
     static var catalog: [HomeCategory] {
-        let gl = YouTubeConstants.gl
+        let gl = CatalogConstants.gl
         return [
             HomeCategory(id: "all", source: .homeBrowse),
             HomeCategory(id: "music", source: .search(HomeLocalizedQuery.resolve("music", region: gl))),
             HomeCategory(id: "new_release", source: .musicNewReleaseAlbums),
             HomeCategory(id: "podcasts", source: .search(HomeLocalizedQuery.resolve("podcasts", region: gl))),
-            HomeCategory(id: "news", source: .youtubeNews),
+            HomeCategory(id: "news", source: .catalogNews),
             HomeCategory(id: "live", source: .live),
             HomeCategory(id: "charts", source: .search(HomeLocalizedQuery.resolve("charts", region: gl))),
             HomeCategory(id: "mixes", source: .search(HomeLocalizedQuery.resolve("mixes", region: gl))),
@@ -192,7 +192,7 @@ struct HomeCategory: Identifiable, Hashable {
                     id: matchingStatic?.id ?? chip.id,
                     source: key == "live"
                         ? .live
-                        : (key == "news" ? .youtubeNews : .innerTube(chip.endpoint)),
+                        : (key == "news" ? .catalogNews : .innerTube(chip.endpoint)),
                     customTitle: chip.title
                 )
             )
@@ -690,7 +690,7 @@ final class HomeViewModel: ObservableObject {
                 entries: page.videos.map { .track($0) },
                 continuation: page.continuation
             )
-        case .youtubeNews:
+        case .catalogNews:
             let page = try await InnerTubeClient.fetchNewsVideosPage(continuation: token)
             return FeedPage(
                 entries: page.videos.map { .track($0) },

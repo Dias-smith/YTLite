@@ -82,6 +82,20 @@ actor PlaybackMediaStore {
         inflightVideoIds.remove(videoId)
     }
 
+    /// Wipes the entire progressive media cache (index + files).
+    func clearAll() {
+        loadIndexIfNeeded()
+        for videoId in Array(persistTasks.keys) {
+            cancelPersist(videoId: videoId)
+        }
+        inflightVideoIds.removeAll()
+        index.removeAll()
+        if fileManager.fileExists(atPath: rootDirectory.path) {
+            try? fileManager.removeItem(at: rootDirectory)
+        }
+        loadedIndex = false
+    }
+
     /// Deletes cached progressive media for a video (index + on-disk files).
     func remove(videoId: String) {
         loadIndexIfNeeded()
@@ -168,7 +182,7 @@ actor PlaybackMediaStore {
 
         var request = URLRequest(url: sourceURL)
         request.httpMethod = "GET"
-        for (key, value) in YouTubeConstants.streamPlaybackHeaders {
+        for (key, value) in CatalogConstants.streamPlaybackHeaders {
             request.setValue(value, forHTTPHeaderField: key)
         }
 

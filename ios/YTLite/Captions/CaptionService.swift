@@ -21,10 +21,10 @@ enum CaptionService {
             urlString += urlString.contains("?") ? "&fmt=vtt" : "?fmt=vtt"
         }
         guard let url = URL(string: urlString) else { return nil }
-        let result = await YouTubeHTTPClient.shared.request(
+        let result = await CatalogHTTPClient.shared.request(
             url: url.absoluteString,
             method: "GET",
-            headers: ["User-Agent": YouTubeConstants.userAgent],
+            headers: ["User-Agent": CatalogConstants.userAgent],
             body: nil
         )
         guard result.success, !result.body.isEmpty else { return nil }

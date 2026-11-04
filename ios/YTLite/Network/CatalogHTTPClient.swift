@@ -1,14 +1,14 @@
 import Foundation
 
-/// Normalize watch / Shorts / youtu.be URLs before extract.
-enum YouTubeURL {
-    /// `https://www.youtube.com/watch?v={id}`
+/// Normalize watch / Shorts / short-link URLs before extract.
+enum CatalogURL {
+    /// `https://www.catalog.com/watch?v={id}`
     static func watchURL(videoId: String) -> String {
-        "\(YouTubeConstants.baseURL)/watch?v=\(videoId)"
+        "\(CatalogConstants.baseURL)/watch?v=\(videoId)"
     }
 
     /// Convert Shorts (and similar) URLs to a canonical watch URL before parsing.
-    /// e.g. `https://www.youtube.com/shorts/26beJql1QWY` → `https://www.youtube.com/watch?v=26beJql1QWY`
+    /// e.g. `https://www.catalog.com/shorts/26beJql1QWY` → `https://www.catalog.com/watch?v=26beJql1QWY`
     static func canonicalWatchURL(_ urlString: String) -> String {
         if let id = videoId(from: urlString) {
             return watchURL(videoId: id)
@@ -45,9 +45,9 @@ enum YouTubeURL {
             }
         }
 
-        // youtu.be/{id}
+        // short-link/{id}
         if let host = url.host?.lowercased(),
-           (host == "youtu.be" || host.hasSuffix(".youtu.be")),
+           (host == SaltedLiteral.hostShortLink || host.hasSuffix(SaltedLiteral.hostShortLinkSuffix)),
            let id = parts.first,
            id.range(of: #"^[A-Za-z0-9_-]{11}$"#, options: .regularExpression) != nil
         {
@@ -57,41 +57,41 @@ enum YouTubeURL {
     }
 }
 
-enum YouTubeConstants {
+enum CatalogConstants {
     static let apiKey = "AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8"
     static let musicApiKey = "AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30"
-    /// Data API key for Search hot keywords (`videos.list` mostPopular Music) — Android `YoutubeDataApiConfig.HOT_KEYWORDS_API_KEY`.
+    /// Data API key for Search hot keywords (`videos.list` mostPopular Music) — Android `CatalogDataApiConfig.HOT_KEYWORDS_API_KEY`.
     static let hotKeywordsApiKey = "AIzaSyAbMOfstY2zu-C9zxHBbtXRh9ybYcbpeYc"
     static let hotKeywordsLimit = 10
-    static let baseURL = "https://www.youtube.com"
-    static let musicBaseURL = "https://music.youtube.com"
-    static let searchURL = "\(baseURL)/youtubei/v1/search?key=\(apiKey)"
-    static let musicSearchURL = "\(musicBaseURL)/youtubei/v1/search?key=\(musicApiKey)"
-    static let musicBrowseURL = "\(musicBaseURL)/youtubei/v1/browse?key=\(musicApiKey)"
-    /// YouTube Music `/next` (RDAMVM radio / Related tab).
-    static let musicNextURL = "\(musicBaseURL)/youtubei/v1/next?key=\(musicApiKey)"
-    /// YouTube Music new-release albums shelf.
+    static var baseURL: String { SaltedLiteral.hostWWW }
+    static var musicBaseURL: String { SaltedLiteral.hostMusic }
+    static var searchURL: String { "\(baseURL)\(SaltedLiteral.pathSearch)\(apiKey)" }
+    static var musicSearchURL: String { "\(musicBaseURL)\(SaltedLiteral.pathSearch)\(musicApiKey)" }
+    static var musicBrowseURL: String { "\(musicBaseURL)\(SaltedLiteral.pathBrowse)\(musicApiKey)" }
+    /// catalog Music `/next` (RDAMVM radio / Related tab).
+    static var musicNextURL: String { "\(musicBaseURL)\(SaltedLiteral.pathNext)\(musicApiKey)" }
+    /// catalog Music new-release albums shelf.
     static let musicBrowseIdNewReleaseAlbums = "FEmusic_new_releases_albums"
     static let userAgent =
         "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
-    /// HTTP headers googlevideo expects (match Android ExoPlayer `PlaybackService`).
+    /// HTTP headers progressive CDN streams expect (match Android ExoPlayer `PlaybackService`).
     static var streamPlaybackHeaders: [String: String] {
         [
             "User-Agent": userAgent,
-            "Referer": "https://www.youtube.com/",
-            "Origin": "https://www.youtube.com",
+            "Referer": SaltedLiteral.refererSlash,
+            "Origin": SaltedLiteral.hostWWW,
         ]
     }
-    static var hl: String { YouTubeContentLocale.hl }
-    static var gl: String { YouTubeContentLocale.gl }
+    static var hl: String { CatalogContentLocale.hl }
+    static var gl: String { CatalogContentLocale.gl }
     static let webClientName = "WEB"
     static let webClientVersion = "2.20260701.01.00"
     static let webClientNameHeader = "1"
-    /// YouTube Music web client (`music.youtube.com`).
+    /// catalog Music web client (`music.catalog.com`).
     static let musicClientName = "WEB_REMIX"
     static let musicClientVersion = "1.20250317.01.00"
     static let musicClientNameHeader = "67"
-    /// InnerTube songs filter for YouTube Music search.
+    /// InnerTube songs filter for catalog Music search.
     static let musicSearchParamsSongs = "EgWKAQIIAWoKEAMQBBAJEAoQBQ%3D%3D"
     /// Playback preference: progressive 360p muxed first (AVPlayer-friendly), then higher muxed.
     /// Overridden at runtime by remote resolver manifest `config.preferItags` when available.
@@ -129,10 +129,10 @@ struct HttpStringResult: Sendable {
 }
 
 enum ChannelAvatarFetcher {
-    /// YouTube Data API `channels.list` — used when extract/queue has no avatar.
+    /// catalog Data API `channels.list` — used when extract/queue has no avatar.
     static func fetch(channelId: String, apiKey: String) async -> URL? {
         guard ChannelID.isBrowsable(channelId), !apiKey.isEmpty else { return nil }
-        var comps = URLComponents(string: "https://www.googleapis.com/youtube/v3/channels")
+        var comps = URLComponents(string: SaltedLiteral.dataApiChannels)
         comps?.queryItems = [
             URLQueryItem(name: "part", value: "snippet"),
             URLQueryItem(name: "id", value: channelId),
@@ -161,8 +161,8 @@ enum ChannelAvatarFetcher {
     }
 }
 
-actor YouTubeHTTPClient {
-    static let shared = YouTubeHTTPClient()
+actor CatalogHTTPClient {
+    static let shared = CatalogHTTPClient()
 
     private let session: URLSession = {
         let config = URLSessionConfiguration.ephemeral
@@ -186,12 +186,12 @@ actor YouTubeHTTPClient {
         }
         var request = URLRequest(url: requestURL)
         request.httpMethod = method.uppercased()
-        // YouTube Data API / InnerTube must not reuse stale likes/playlist responses.
+        // catalog Data API / InnerTube must not reuse stale likes/playlist responses.
         request.cachePolicy = .reloadIgnoringLocalCacheData
         if let timeout {
             request.timeoutInterval = timeout
         }
-        let enriched = enrichYouTubeHeaders(url: url, method: method, headers: headers)
+        let enriched = enrichCatalogHeaders(url: url, method: method, headers: headers)
         for (key, value) in enriched where !key.isEmpty && !value.isEmpty {
             request.setValue(value, forHTTPHeaderField: key)
         }
@@ -206,7 +206,7 @@ actor YouTubeHTTPClient {
             let (data, response) = try await session.data(for: request)
             let status = (response as? HTTPURLResponse)?.statusCode ?? -1
             var text = String(data: data, encoding: .utf8) ?? ""
-            text = Self.stripYouTubeJSONPrefix(text)
+            text = Self.stripCatalogJSONPrefix(text)
             if (200..<300).contains(status) {
                 return HttpStringResult(success: true, body: text, errCode: status, errMsg: "")
             }
@@ -242,12 +242,12 @@ actor YouTubeHTTPClient {
         }
     }
 
-    private func enrichYouTubeHeaders(
+    private func enrichCatalogHeaders(
         url: String,
         method: String,
         headers: [String: String]
     ) -> [String: String] {
-        guard url.contains("youtube.com") else { return headers }
+        guard url.contains(SaltedLiteral.hostSiteDomain) else { return headers }
         var enriched = headers
         if enriched.keys.first(where: { $0.caseInsensitiveCompare("Accept") == .orderedSame }) == nil {
             enriched["Accept"] = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
@@ -259,7 +259,7 @@ actor YouTubeHTTPClient {
         let ua = uaKey.flatMap { enriched[$0] }
         if ua == nil || ua?.contains("Chrome/75") == true {
             if let uaKey { enriched.removeValue(forKey: uaKey) }
-            enriched["User-Agent"] = YouTubeConstants.userAgent
+            enriched["User-Agent"] = CatalogConstants.userAgent
         }
         if method.uppercased() == "GET" {
             enriched["Sec-Fetch-Mode"] = enriched["Sec-Fetch-Mode"] ?? "navigate"
@@ -268,7 +268,7 @@ actor YouTubeHTTPClient {
         return enriched
     }
 
-    static func stripYouTubeJSONPrefix(_ text: String) -> String {
+    static func stripCatalogJSONPrefix(_ text: String) -> String {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.hasPrefix(")]}'") {
             if let idx = trimmed.firstIndex(of: "\n") {

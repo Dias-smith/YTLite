@@ -55,7 +55,7 @@ struct VideoItem: Identifiable, Hashable, Sendable {
     }
 
     var watchURL: URL {
-        URL(string: YouTubeURL.watchURL(videoId: videoId))!
+        URL(string: CatalogURL.watchURL(videoId: videoId))!
     }
 }
 

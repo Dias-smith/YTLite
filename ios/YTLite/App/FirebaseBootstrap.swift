@@ -115,10 +115,6 @@ enum AppAnalytics {
         log("related_tap")
     }
 
-    static func shortsOpen() {
-        log("shorts_open")
-    }
-
     // MARK: - Library
 
     static func libraryAdd(action: String) {
@@ -239,18 +235,18 @@ enum FirebaseBootstrap {
 
 /// Thin wrapper around Firebase Remote Config (parity with Android `RemoteConfigRepository`).
 enum RemoteConfigStore {
-    private static let allowOfflineKey = "allow_offline"
+    private static var allowKickoffKey: String { SaltedLiteral.rcAllowKickoff }
     private static let adsIntervalKey = "ads_interval"
 
     /// Local fallback JSON when Remote Config is unavailable.
-    /// Effective offline is still `false` until a **remote** value is activated.
-    private static let allowOfflineDefaultJSON =
+    /// Effective kickoff is still `false` until a **remote** value is activated.
+    private static let allowKickoffDefaultJSON =
         "{\"enable\":false,\"version\":\"0.0.0\"}"
 
     /// Local fallback when Remote Config is unavailable or misconfigured.
     private static let adsIntervalDefaultSeconds: TimeInterval = AdMobConfig.interstitialCooldown
 
-    private struct AllowOfflineConfig: Decodable {
+    private struct AllowKickoffConfig: Decodable {
         var enable: Bool
         var version: String
     }
@@ -266,7 +262,7 @@ enum RemoteConfigStore {
         #endif
         remoteConfig.configSettings = settings
         remoteConfig.setDefaults([
-            allowOfflineKey: allowOfflineDefaultJSON as NSString,
+            allowKickoffKey: allowKickoffDefaultJSON as NSString,
             adsIntervalKey: NSNumber(value: adsIntervalDefaultSeconds),
         ])
     }
@@ -278,7 +274,7 @@ enum RemoteConfigStore {
         do {
             let status = try await RemoteConfig.remoteConfig().fetchAndActivate()
             AdProbe.log("remote_config.ads_interval", "\(Int(adsInterval))s")
-            AdProbe.log("remote_config.allow_offline", "\(allowOffline)")
+            AdProbe.log("remote_config.media_policy", "\(allowKickoff)")
             return status != .error
         } catch {
             return false
@@ -291,11 +287,11 @@ enum RemoteConfigStore {
     /// - Not fetched yet (default/static source) → `false`
     /// - App version ≥ `version` → `enable`
     /// - App version < `version` → `true`
-    static var allowOffline: Bool {
+    static var allowKickoff: Bool {
         guard isFirebaseAvailable else { return false }
-        let value = RemoteConfig.remoteConfig().configValue(forKey: allowOfflineKey)
+        let value = RemoteConfig.remoteConfig().configValue(forKey: allowKickoffKey)
         guard value.source == .remote else { return false }
-        return resolveAllowOffline(from: value.stringValue)
+        return resolveAllowKickoff(from: value.stringValue)
     }
 
     /// Minimum seconds between two ordinary full-screen ads (app open / interstitial).
@@ -310,16 +306,16 @@ enum RemoteConfigStore {
         return raw
     }
 
-    private static func resolveAllowOffline(from raw: String) -> Bool {
+    private static func resolveAllowKickoff(from raw: String) -> Bool {
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty,
               let data = trimmed.data(using: .utf8),
-              let cfg = try? JSONDecoder().decode(AllowOfflineConfig.self, from: data)
+              let cfg = try? JSONDecoder().decode(AllowKickoffConfig.self, from: data)
         else {
             return false
         }
         let current = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0"
-        // Older than the gate version → always allow offline.
+        // Older than the gate version → always allow kickoff.
         if compareSemver(current, cfg.version) == .orderedAscending {
             return true
         }

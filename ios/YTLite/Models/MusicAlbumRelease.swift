@@ -1,6 +1,6 @@
 import Foundation
 
-/// YouTube Music album / EP / single card from `FEmusic_new_releases_albums`.
+/// catalog Music album / EP / single card from `FEmusic_new_releases_albums`.
 struct MusicAlbumRelease: Identifiable, Hashable, Sendable {
     var id: String { browseId }
     let browseId: String

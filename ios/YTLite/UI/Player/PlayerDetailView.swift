@@ -110,8 +110,8 @@ struct PlayerDetailView: View {
             || channelSheetItem != nil
     }
 
-    /// Google OAuth with YouTube scopes — required for some restricted streams.
-    private var hasYouTubeGoogleAccess: Bool {
+    /// Google OAuth with catalog scopes — required for some restricted streams.
+    private var hasCatalogGoogleAccess: Bool {
         auth.googleAccessToken != nil
     }
 
@@ -120,13 +120,13 @@ struct PlayerDetailView: View {
     }
 
     /// Guest / Apple-only: playback failed → prompt Google sign-in instead of generic error copy.
-    private var shouldPromptYouTubeSignInForPlaybackFailure: Bool {
-        hasPlaybackFailure && !hasYouTubeGoogleAccess
+    private var shouldPromptCatalogSignInForPlaybackFailure: Bool {
+        hasPlaybackFailure && !hasCatalogGoogleAccess
     }
 
     private var shouldShowPlaybackLoginPrompt: Bool {
         !playback.isBuffering
-            && (playback.needsLoginForPlayback || shouldPromptYouTubeSignInForPlaybackFailure)
+            && (playback.needsLoginForPlayback || shouldPromptCatalogSignInForPlaybackFailure)
     }
 
     var body: some View {
@@ -139,12 +139,12 @@ struct PlayerDetailView: View {
                     bumpOverlayAutoHide()
                 }
                 if shouldShowPlaybackLoginPrompt {
-                    AppAnalytics.playbackLoginPrompt(hasGoogle: hasYouTubeGoogleAccess)
+                    AppAnalytics.playbackLoginPrompt(hasGoogle: hasCatalogGoogleAccess)
                 }
             }
             .onChange(of: shouldShowPlaybackLoginPrompt) { _, show in
                 if show {
-                    AppAnalytics.playbackLoginPrompt(hasGoogle: hasYouTubeGoogleAccess)
+                    AppAnalytics.playbackLoginPrompt(hasGoogle: hasCatalogGoogleAccess)
                 }
             }
             .onChange(of: isPresentingAdBlockingSheet) { _, blocked in
@@ -942,7 +942,7 @@ struct PlayerDetailView: View {
             playback.updateChannelAvatar(stored)
             return
         }
-        let apiKey = appModel.config.youtubeDataAPIKey
+        let apiKey = appModel.config.catalogDataAPIKey
         if let url = await ChannelAvatarFetcher.fetch(channelId: channelId, apiKey: apiKey) {
             playback.updateChannelAvatar(url)
             if let channel = store?.subscribedChannel(id: channelId) {
@@ -1386,7 +1386,7 @@ struct PlayerDetailView: View {
     }
 
     private var playbackSignInCanvasPrompt: some View {
-        let showsRetry = hasYouTubeGoogleAccess && playback.needsLoginForPlayback
+        let showsRetry = hasCatalogGoogleAccess && playback.needsLoginForPlayback
         return VStack(spacing: 10) {
             Image(systemName: showsRetry
                   ? "arrow.clockwise.circle"
@@ -1394,7 +1394,7 @@ struct PlayerDetailView: View {
                 .font(.system(size: 28, weight: .semibold))
             Text(showsRetry ? L("player.playback_retry_title") : L("player.sign_in_to_play"))
                 .font(YTLiteType.labelEmphasized)
-            Text(showsRetry ? L("common.retry") : L("you.sign_in_with_google_for_youtube"))
+            Text(showsRetry ? L("common.retry") : L("you.sign_in_with_google_for_catalog"))
                 .font(YTLiteType.meta)
                 .opacity(0.85)
         }
@@ -1405,7 +1405,7 @@ struct PlayerDetailView: View {
     }
 
     private func openPlaybackSignInOrRetry() {
-        if hasYouTubeGoogleAccess {
+        if hasCatalogGoogleAccess {
             playback.retryCurrentAfterAuth()
         } else {
             showPlaybackSignIn = true
@@ -1672,7 +1672,7 @@ private extension Comparable {
 
 private extension NowPlayingItem {
     var watchShareURL: URL {
-        URL(string: "https://www.youtube.com/watch?v=\(videoId)")!
+        URL(string: CatalogURL.watchURL(videoId: videoId))!
     }
 }
 

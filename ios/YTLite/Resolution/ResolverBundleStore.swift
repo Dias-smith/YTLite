@@ -37,7 +37,7 @@ enum ResolverRemoteConfigStore {
         if let data = try? JSONEncoder().encode(config) {
             UserDefaults.standard.set(data, forKey: defaultsKey)
         }
-        YouTubeConstants.applyPreferredVideoItags(config.preferItags)
+        CatalogConstants.applyPreferredVideoItags(config.preferItags)
     }
 
     static func restoreFromDisk() {
@@ -53,7 +53,7 @@ actor ResolverBundleStore {
     /// Remote Storage bucket + asset names — must match published Supabase objects.
     private enum RemoteContract {
         static let storageBucket = "resolution"
-        static let scriptFile = "resolution.js"
+        static var scriptFile: String { SaltedLiteral.scriptResolution }
         static let bridgeHTML = "bridge.html"
         static let bridgeIOSHTML = "bridge-ios.html"
     }

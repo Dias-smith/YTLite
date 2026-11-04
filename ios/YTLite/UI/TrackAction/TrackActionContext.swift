@@ -70,6 +70,6 @@ struct TrackActionContext: Identifiable, Equatable, Sendable {
     }
 
     var watchURL: URL {
-        URL(string: "https://www.youtube.com/watch?v=\(videoId)")!
+        URL(string: CatalogURL.watchURL(videoId: videoId))!
     }
 }

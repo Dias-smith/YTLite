@@ -47,7 +47,7 @@ enum YTLiteType {
     static let body = Font.subheadline
     /// Secondary meta: channel, views (~12)
     static let meta = Font.system(size: 12, weight: .regular)
-    /// Home feed large-card title (YouTube-like ~14 semibold)
+    /// Home feed large-card title (catalog-like ~14 semibold)
     static let feedTitle = Font.system(size: 14, weight: .semibold)
     /// Home feed meta under title (~12)
     static let feedMeta = Font.system(size: 12, weight: .regular)

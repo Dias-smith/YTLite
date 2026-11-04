@@ -51,6 +51,10 @@ struct YTLiteApp: App {
 
                     ResolverRemoteConfigStore.restoreFromDisk()
                     await RemoteConfigStore.fetchAndActivate()
+                    // Default policy: no local stream cache unless remote explicitly allows it.
+                    if !RemoteConfigStore.allowKickoff {
+                        await PlaybackMediaStore.shared.clearAll()
+                    }
                     await VipStore.shared.refresh()
                     appModel.syncAuth(authService)
                     ReviewPromptCoordinator.shared.recordActiveDay()

@@ -182,10 +182,10 @@ func Lf(_ key: String, _ arguments: CVarArg...) -> String {
     return String(format: format, locale: AppLocalization.locale, arguments: arguments)
 }
 
-// MARK: - YouTube content locale (InnerTube hl / gl)
+// MARK: - catalog content locale (InnerTube hl / gl)
 
-/// Thread-safe InnerTube `hl` / `gl` applied to all YouTube API requests.
-enum YouTubeContentLocale {
+/// Thread-safe InnerTube `hl` / `gl` applied to all catalog API requests.
+enum CatalogContentLocale {
     private static let lock = NSLock()
     private static var _hl = "en"
     private static var _gl = "US"
@@ -218,7 +218,7 @@ enum YouTubeContentLocale {
     }
 }
 
-/// Supported YouTube content regions (`gl`). Labels follow the active app UI locale.
+/// Supported catalog content regions (`gl`). Labels follow the active app UI locale.
 enum AppContentRegion: String, CaseIterable, Identifiable, Sendable {
     case US, GB, CA, AU, NZ, IE
     case BR, MX, AR, CL, CO, PE
@@ -264,11 +264,11 @@ enum AppContentLocale {
         #endif
     }
 
-    static func youtubeHL(for language: AppLanguage) -> String {
-        youtubeHL(from: language.locale)
+    static func catalogHL(for language: AppLanguage) -> String {
+        catalogHL(from: language.locale)
     }
 
-    static func youtubeHL(from locale: Locale) -> String {
+    static func catalogHL(from locale: Locale) -> String {
         let id = locale.identifier
             .replacingOccurrences(of: "_", with: "-")
             .lowercased()
@@ -285,9 +285,9 @@ enum AppContentLocale {
         return "en"
     }
 
-    static func syncYouTubeFromAppLanguage(_ language: AppLanguage, regionCode: String) -> Bool {
-        YouTubeContentLocale.apply(
-            hl: youtubeHL(for: language),
+    static func syncCatalogFromAppLanguage(_ language: AppLanguage, regionCode: String) -> Bool {
+        CatalogContentLocale.apply(
+            hl: catalogHL(for: language),
             gl: regionCode.uppercased()
         )
     }

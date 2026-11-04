@@ -48,7 +48,7 @@ final class StreamResolver: NSObject, WKScriptMessageHandler {
 
     /// JS / asset names that must match the published remote bundle.
     private enum RemoteContract {
-        static let scriptFile = "resolution.js"
+        static var scriptFile: String { SaltedLiteral.scriptResolution }
         static let jsBridgeObject = "window.resolver"
         static let onReady = "onResolverReady"
         static let onError = "onResolverError"
@@ -90,7 +90,7 @@ final class StreamResolver: NSObject, WKScriptMessageHandler {
     }
 
     func resolvePlayback(videoId: String, preferLiveHLS: Bool = false) async throws -> VideoPlayback {
-        let id = YouTubeURL.videoId(from: videoId) ?? videoId
+        let id = CatalogURL.videoId(from: videoId) ?? videoId
         let trace = PlayProbe.newTraceId()
         let t0 = PlayProbe.now()
         let inflight = PlayProbe.markResolveEnter()
@@ -289,8 +289,8 @@ final class StreamResolver: NSObject, WKScriptMessageHandler {
         )
         PlayProbe.log("resolve.bridge.ready", videoId: videoId, trace: trace)
         // Always resolve via canonical watch URL (Shorts URLs → /watch?v=…).
-        let id = YouTubeURL.videoId(from: videoId) ?? videoId
-        let watchURL = YouTubeURL.canonicalWatchURL(YouTubeURL.watchURL(videoId: id))
+        let id = CatalogURL.videoId(from: videoId) ?? videoId
+        let watchURL = CatalogURL.canonicalWatchURL(CatalogURL.watchURL(videoId: id))
         PlayProbe.log("resolve.normalize", videoId: id, trace: trace, "url=\(watchURL)")
         let uid = UUID().uuidString
         let envelope: [String: Any] = [
@@ -566,7 +566,7 @@ final class StreamResolver: NSObject, WKScriptMessageHandler {
             "\(method) kind=\(kind) \(shortURL) cb=\(callbackId.prefix(8)) activeUid=\(probeActiveInvokeUID ?? "-") httpInflight=\(httpInflight) \(PlayProbe.concurrencySnapshot())"
         )
 
-        let result = await YouTubeHTTPClient.shared.request(
+        let result = await CatalogHTTPClient.shared.request(
             url: url,
             method: method,
             headers: headers,
@@ -683,8 +683,8 @@ final class StreamResolver: NSObject, WKScriptMessageHandler {
             return
         }
         let t0 = PlayProbe.now()
-        let result = await YouTubeHTTPClient.shared.request(
-            url: "\(YouTubeConstants.baseURL)/",
+        let result = await CatalogHTTPClient.shared.request(
+            url: "\(CatalogConstants.baseURL)/",
             method: "GET",
             headers: [:],
             body: nil,

@@ -13,7 +13,7 @@ enum HomeFeedStore {
     private static let lock = NSLock()
 
     private static func localeKey() -> String {
-        "\(YouTubeConstants.hl)_\(YouTubeConstants.gl)"
+        "\(CatalogConstants.hl)_\(CatalogConstants.gl)"
     }
 
     private static func memoryKey(for categoryId: String) -> String {

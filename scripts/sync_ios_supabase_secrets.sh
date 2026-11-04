@@ -40,7 +40,7 @@ body = "\n".join([
     f"SUPABASE_URL = {url_xc}",
     f"SUPABASE_ANON_KEY = {anon}",
     f"GOOGLE_CLIENT_ID = {google}",
-    f"YOUTUBE_DATA_API_KEY = {yt}",
+    f"CATALOG_DATA_API_KEY = {yt}",
     "",
 ])
 dst.write_text(body)

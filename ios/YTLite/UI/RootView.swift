@@ -25,8 +25,6 @@ struct RootView: View {
                     switch selectedTab {
                     case .home:
                         HomeView()
-                    case .shorts:
-                        ShortsView()
                     case .search:
                         SearchView()
                     case .you:
@@ -48,7 +46,6 @@ struct RootView: View {
             }
             .debugView("tab.\(Self.debugTabName(selectedTab))")
             .debugAction("tab.home") { selectedTab = .home }
-            .debugAction("tab.shorts") { selectedTab = .shorts }
             .debugAction("tab.search") { selectedTab = .search }
             .debugAction("tab.you") { selectedTab = .you }
             .debugAction("tab.library") { selectedTab = .library }
@@ -221,14 +218,13 @@ struct RootView: View {
 }
 
 enum AppTab: Hashable {
-    case home, shorts, search, you, library
+    case home, search, you, library
 }
 
 extension RootView {
     fileprivate static func debugTabName(_ tab: AppTab) -> String {
         switch tab {
         case .home: return "home"
-        case .shorts: return "shorts"
         case .search: return "search"
         case .you: return "you"
         case .library: return "library"

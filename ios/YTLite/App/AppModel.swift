@@ -17,14 +17,14 @@ final class AppModel: ObservableObject {
             let migrated = AppLanguage.migrateStoredCode(languageCode)
             UserDefaults.standard.set(migrated, forKey: "app_language")
             AppLocalization.apply(AppLanguage.fromStored(migrated))
-            applyYouTubeContentLocaleIfNeeded()
+            applyCatalogContentLocaleIfNeeded()
         }
     }
 
     @Published var contentRegionCode: String {
         didSet {
             UserDefaults.standard.set(contentRegionCode, forKey: AppContentLocale.contentRegionKey)
-            applyYouTubeContentLocaleIfNeeded()
+            applyCatalogContentLocaleIfNeeded()
         }
     }
 
@@ -89,7 +89,7 @@ final class AppModel: ObservableObject {
             pictureInPictureEnabled = UserDefaults.standard.bool(forKey: Self.pictureInPictureKey)
         }
         isHydratingStoredPreferences = false
-        _ = AppContentLocale.syncYouTubeFromAppLanguage(appLanguage, regionCode: contentRegionCode)
+        _ = AppContentLocale.syncCatalogFromAppLanguage(appLanguage, regionCode: contentRegionCode)
 
         if AppContentLocale.shouldPresentLocaleSetupOnLaunch {
             isAwaitingLocaleSetup = true
@@ -144,7 +144,7 @@ final class AppModel: ObservableObject {
         #if !DEBUG
         UserDefaults.standard.set(true, forKey: AppContentLocale.localeSetupCompletedKey)
         #endif
-        _ = AppContentLocale.syncYouTubeFromAppLanguage(appLanguage, regionCode: contentRegionCode)
+        _ = AppContentLocale.syncCatalogFromAppLanguage(appLanguage, regionCode: contentRegionCode)
         contentLocaleRevision += 1
         HomeFeedStore.invalidateMemoryCache()
         InnerTubeClient.invalidateHotKeywordsCache()
@@ -152,9 +152,9 @@ final class AppModel: ObservableObject {
         showLocaleSetupSheet = false
     }
 
-    private func applyYouTubeContentLocaleIfNeeded() {
+    private func applyCatalogContentLocaleIfNeeded() {
         guard !isHydratingStoredPreferences else { return }
-        let changed = AppContentLocale.syncYouTubeFromAppLanguage(appLanguage, regionCode: contentRegionCode)
+        let changed = AppContentLocale.syncCatalogFromAppLanguage(appLanguage, regionCode: contentRegionCode)
         guard changed else { return }
         contentLocaleRevision += 1
         HomeFeedStore.invalidateMemoryCache()
@@ -168,7 +168,7 @@ struct AppConfig: Sendable {
     var supabaseURL: String
     var supabaseAnonKey: String
     var googleClientID: String
-    var youtubeDataAPIKey: String
+    var catalogDataAPIKey: String
 
     static func fromBundle() -> AppConfig {
         let info = Bundle.main.infoDictionary ?? [:]
@@ -176,7 +176,7 @@ struct AppConfig: Sendable {
             supabaseURL: info["SUPABASE_URL"] as? String ?? "",
             supabaseAnonKey: info["SUPABASE_ANON_KEY"] as? String ?? "",
             googleClientID: info["GOOGLE_CLIENT_ID"] as? String ?? "",
-            youtubeDataAPIKey: info["YOUTUBE_DATA_API_KEY"] as? String ?? ""
+            catalogDataAPIKey: info[SaltedLiteral.infoCatalogDataApiKey] as? String ?? ""
         )
     }
 

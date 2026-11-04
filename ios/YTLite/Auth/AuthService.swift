@@ -170,7 +170,7 @@ final class AuthService: ObservableObject {
     }
 
     private static let googleOAuthScopes =
-        "openid email profile https://www.googleapis.com/auth/youtube.readonly"
+        SaltedLiteral.oauthReadonlyScope
 
     init(config: AppConfig) {
         guard config.isConfigured,
@@ -209,7 +209,7 @@ final class AuthService: ObservableObject {
                 redirectTo: URL(string: "ytlite://auth-callback"),
                 scopes: Self.googleOAuthScopes,
                 queryParams: [
-                    // Ensure youtube.readonly is (re)granted — incremental auth / stale sessions often omit it.
+                    // Ensure catalog.readonly is (re)granted — incremental auth / stale sessions often omit it.
                     (name: "prompt", value: "consent"),
                     (name: "access_type", value: "offline"),
                 ]

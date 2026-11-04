@@ -61,7 +61,7 @@ final class NextTrackPrimer {
             do {
                 let asset = AVURLAsset(
                     url: url,
-                    options: ["AVURLAssetHTTPHeaderFieldsKey": YouTubeConstants.streamPlaybackHeaders]
+                    options: ["AVURLAssetHTTPHeaderFieldsKey": CatalogConstants.streamPlaybackHeaders]
                 )
                 let isPlayable = try await asset.load(.isPlayable)
                 guard !Task.isCancelled, gen == self.generation else { return }

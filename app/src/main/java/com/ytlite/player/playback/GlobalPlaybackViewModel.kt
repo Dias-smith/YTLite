@@ -408,7 +408,7 @@ class GlobalPlaybackViewModel(
             PlaybackManager.syncRepeatMode()
             return
         }
-        if (RemoteConfigRepository.allowOffline()) {
+        if (RemoteConfigRepository.allowKickoff()) {
             val ctx = appContext
             val vpnActive = ctx != null && VpnStatus.isActive(ctx)
             if (!vpnActive) {

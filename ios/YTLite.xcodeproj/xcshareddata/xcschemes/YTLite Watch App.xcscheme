@@ -55,7 +55,6 @@
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "513B30FBF357334F1B09A359"
             BuildableName = "MixtubeWatch.app"
-            BlueprintName = "YTLite Watch App"
             ReferencedContainer = "container:YTLite.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
@@ -72,7 +71,6 @@
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "513B30FBF357334F1B09A359"
             BuildableName = "MixtubeWatch.app"
-            BlueprintName = "YTLite Watch App"
             ReferencedContainer = "container:YTLite.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>

@@ -22,7 +22,7 @@ open YTLite.xcodeproj
 ./scripts/sync_ios_supabase_secrets.sh
 ```
 
-写入 [`ios/Config/Secrets.xcconfig.local`](Config/Secrets.xcconfig.local)：`SUPABASE_URL`、`SUPABASE_ANON_KEY`（可选 `GOOGLE_CLIENT_ID`、`YOUTUBE_DATA_API_KEY`）。
+写入 [`ios/Config/Secrets.xcconfig.local`](Config/Secrets.xcconfig.local)：`SUPABASE_URL`、`SUPABASE_ANON_KEY`（可选 `GOOGLE_CLIENT_ID`、`CATALOG_DATA_API_KEY`）。
 
 2. **Auth Redirect URL**（iOS OAuth 必配；Android ID Token 不需要）：
 
@@ -54,17 +54,17 @@ Google Cloud Web 客户端的 Authorized redirect 应为
 - Apple Developer → App ID `com.ytlite.player` → 启用 **Sign In with Apple**。
 - Xcode Target 已含 Capability（`YTLite.entitlements`）。
 - Supabase Dashboard → Authentication → Providers → **Apple** → Enable，按 [iOS 文档](https://supabase.com/docs/guides/auth/social-login/auth-apple?platform=ios) 填写 Client IDs（bundle id）与 Secret（Team ID / Key ID / `.p8`）。
-- You 页对仅 Apple 登录用户会提示改用 Google 以加载 YouTube Data API 货架。
+- You 页对仅 Apple 登录用户会提示改用 Google 以加载 Catalog Data API 货架。
 
 ## Features
 
-- Tabs: **Home / Shorts / Search / You / Library**
+- Tabs: **Home / Search / You / Library**
 - Stream resolver + play queue + speed + Share
 - SwiftData library + Supabase auth/sync
 - **PiP** via `AVPlayerViewController`
 - **Lyrics** caption sheet (VTT)
 - **You**: Liked, Trending music, channel/playlist deep browse
 
-Still later: Cookie Web login, Data API subscriptions (needs YouTube OAuth token).
+Still later: Cookie Web login, Data API subscriptions (needs Catalog OAuth token).
 
 Shared assets: [`shared/resolution/`](../shared/resolution/)

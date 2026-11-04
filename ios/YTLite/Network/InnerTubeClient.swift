@@ -32,11 +32,13 @@ struct HomeFeedPageResult: Sendable {
 }
 
 enum InnerTubeClient {
-    static let browseURL = "\(YouTubeConstants.baseURL)/youtubei/v1/browse?key=\(YouTubeConstants.apiKey)"
+    static var browseURL: String {
+        "\(CatalogConstants.baseURL)\(SaltedLiteral.pathBrowse)\(CatalogConstants.apiKey)"
+    }
     static let homeBrowseId = "FEwhat_to_watch"
     /// Android `NetworkConfig.HOME_SEARCH_QUERY` — browse empty fallback for All tab.
     static let homeSearchFallbackQuery = "music"
-    /// YouTube Explore → News hub channel (obsolete `FEnews` returns HTTP 400 on WEB).
+    /// catalog Explore → News hub channel (obsolete `FEnews` returns HTTP 400 on WEB).
     static let newsBrowseId = "UCYfdidRxbB8Qhf0Nx7ioOYw"
 
     static func searchVideos(query: String) async throws -> [VideoItem] {
@@ -58,7 +60,7 @@ enum InnerTubeClient {
             }
         }
         let json = try await postJSON(
-            url: YouTubeConstants.searchURL,
+            url: CatalogConstants.searchURL,
             body: body,
             label: continuation == nil ? "search_videos" : "search_videos_cont"
         )
@@ -74,7 +76,7 @@ enum InnerTubeClient {
         }
     }
 
-    /// Current YouTube live streams. The opaque params value is YouTube's "Live" feature filter.
+    /// Current catalog live streams. The opaque params value is catalog's "Live" feature filter.
     static func fetchLiveVideos() async throws -> [VideoItem] {
         try await fetchLiveVideosPage().videos
     }
@@ -88,7 +90,7 @@ enum InnerTubeClient {
             body["params"] = "EgJAAQ%3D%3D"
         }
         let json = try await postJSON(
-            url: YouTubeConstants.searchURL,
+            url: CatalogConstants.searchURL,
             body: body,
             label: continuation == nil ? "search_live" : "search_live_cont"
         )
@@ -100,7 +102,7 @@ enum InnerTubeClient {
         }
     }
 
-    /// YouTube News hub (channel browse) with search fallback.
+    /// catalog News hub (channel browse) with search fallback.
     static func fetchNewsVideos() async throws -> [VideoItem] {
         try await fetchNewsVideosPage().videos
     }
@@ -152,18 +154,18 @@ enum InnerTubeClient {
     }
 
     /// Tabbed search.
-    /// - All: videos from YouTube Music songs; channels / playlists from www
-    /// - Videos: www YouTube video search
+    /// - All: videos from catalog Music songs; channels / playlists from www
+    /// - Videos: www catalog video search
     /// - Channels / Playlists: www
     static func search(query: String, tab: SearchResultTab) async throws -> [SearchHit] {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return [] }
         switch tab {
         case .videos, .channels, .playlists:
-            return try await searchYouTube(query: trimmed, tab: tab)
+            return try await searchCatalog(query: trimmed, tab: tab)
         case .all:
             async let songsTask = searchMusicSongs(query: trimmed)
-            async let webTask = searchYouTube(query: trimmed, tab: .all)
+            async let webTask = searchCatalog(query: trimmed, tab: .all)
             let songs = try await songsTask
             let webHits = try await webTask
             var hits: [SearchHit] = songs.map { .video($0) }
@@ -179,22 +181,22 @@ enum InnerTubeClient {
         }
     }
 
-    /// YouTube Music song search (`WEB_REMIX` + songs filter).
+    /// catalog Music song search (`WEB_REMIX` + songs filter).
     static func searchMusicSongs(query: String) async throws -> [VideoItem] {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return [] }
         let body: [String: Any] = [
             "context": musicClientContext(),
             "query": trimmed,
-            "params": YouTubeConstants.musicSearchParamsSongs,
+            "params": CatalogConstants.musicSearchParamsSongs,
         ]
         let json = try await postJSON(
-            url: YouTubeConstants.musicSearchURL,
+            url: CatalogConstants.musicSearchURL,
             body: body,
             label: "music_search_songs",
-            clientNameHeader: YouTubeConstants.musicClientNameHeader,
-            clientVersion: YouTubeConstants.musicClientVersion,
-            origin: YouTubeConstants.musicBaseURL
+            clientNameHeader: CatalogConstants.musicClientNameHeader,
+            clientVersion: CatalogConstants.musicClientVersion,
+            origin: CatalogConstants.musicBaseURL
         )
         nonisolated(unsafe) let payload = json
         return await parseOffMain {
@@ -202,7 +204,7 @@ enum InnerTubeClient {
         }
     }
 
-    private static func searchYouTube(query: String, tab: SearchResultTab) async throws -> [SearchHit] {
+    private static func searchCatalog(query: String, tab: SearchResultTab) async throws -> [SearchHit] {
         var body: [String: Any] = [
             "context": clientContext(),
             "query": query,
@@ -211,7 +213,7 @@ enum InnerTubeClient {
             body["params"] = params
         }
         let json = try await postJSON(
-            url: YouTubeConstants.searchURL,
+            url: CatalogConstants.searchURL,
             body: body,
             label: "search_\(tab.rawValue)"
         )
@@ -221,7 +223,7 @@ enum InnerTubeClient {
         }
     }
 
-    /// Google Suggest autocomplete for YouTube (`ds=yt`), same as Android `fetchSuggestQueries`.
+    /// Google Suggest autocomplete for catalog (`ds=yt`), same as Android `fetchSuggestQueries`.
     static func fetchSuggestQueries(query: String) async -> [String] {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return [] }
@@ -230,11 +232,11 @@ enum InnerTubeClient {
         let encoded = trimmed.addingPercentEncoding(withAllowedCharacters: allowed) ?? trimmed
         let url =
             "https://suggestqueries.google.com/complete/search?client=firefox&ds=yt&q=\(encoded)"
-        let result = await YouTubeHTTPClient.shared.request(
+        let result = await CatalogHTTPClient.shared.request(
             url: url,
             method: "GET",
             headers: [
-                "User-Agent": YouTubeConstants.userAgent,
+                "User-Agent": CatalogConstants.userAgent,
                 "Accept": "application/json",
             ],
             body: nil
@@ -355,7 +357,7 @@ enum InnerTubeClient {
         }
     }
 
-    /// YouTube Music radio queue (`RDAMVM…`) for Related tab — same as Android `fetchMusicRadioNext`.
+    /// catalog Music radio queue (`RDAMVM…`) for Related tab — same as Android `fetchMusicRadioNext`.
     static func fetchMusicRelatedVideos(videoId: String) async throws -> [VideoItem] {
         let id = videoId.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !id.isEmpty else { return [] }
@@ -367,12 +369,12 @@ enum InnerTubeClient {
             "contentCheckOk": true,
         ]
         let json = try await postJSON(
-            url: YouTubeConstants.musicNextURL,
+            url: CatalogConstants.musicNextURL,
             body: body,
             label: "music_radio_next",
-            clientNameHeader: YouTubeConstants.musicClientNameHeader,
-            clientVersion: YouTubeConstants.musicClientVersion,
-            origin: YouTubeConstants.musicBaseURL
+            clientNameHeader: CatalogConstants.musicClientNameHeader,
+            clientVersion: CatalogConstants.musicClientVersion,
+            origin: CatalogConstants.musicBaseURL
         )
         nonisolated(unsafe) let payload = json
         return await parseOffMain {
@@ -380,7 +382,7 @@ enum InnerTubeClient {
         }
     }
 
-    /// YouTube Music browse (`WEB_REMIX`).
+    /// catalog Music browse (`WEB_REMIX`).
     static func browseMusic(browseId: String, params: String? = nil) async throws -> Any {
         var body: [String: Any] = [
             "context": musicClientContext(),
@@ -390,18 +392,18 @@ enum InnerTubeClient {
             body["params"] = params
         }
         return try await postJSON(
-            url: YouTubeConstants.musicBrowseURL,
+            url: CatalogConstants.musicBrowseURL,
             body: body,
             label: "music_browse",
-            clientNameHeader: YouTubeConstants.musicClientNameHeader,
-            clientVersion: YouTubeConstants.musicClientVersion,
-            origin: YouTubeConstants.musicBaseURL
+            clientNameHeader: CatalogConstants.musicClientNameHeader,
+            clientVersion: CatalogConstants.musicClientVersion,
+            origin: CatalogConstants.musicBaseURL
         )
     }
 
     /// New-release album/EP/single cards from Music.
     static func fetchMusicNewReleaseAlbums() async throws -> [MusicAlbumRelease] {
-        let json = try await browseMusic(browseId: YouTubeConstants.musicBrowseIdNewReleaseAlbums)
+        let json = try await browseMusic(browseId: CatalogConstants.musicBrowseIdNewReleaseAlbums)
         nonisolated(unsafe) let payload = json
         return await parseOffMain {
             VideoJSONParser.parseMusicAlbumReleases(from: payload)
@@ -512,7 +514,7 @@ enum InnerTubeClient {
             "query": trimmed,
             "params": "EgIQAg%3D%3D",
         ]
-        let json = try await postJSON(url: YouTubeConstants.searchURL, body: body, label: "search_channels")
+        let json = try await postJSON(url: CatalogConstants.searchURL, body: body, label: "search_channels")
         return VideoJSONParser.parseChannels(from: json)
     }
 
@@ -524,7 +526,7 @@ enum InnerTubeClient {
             "query": trimmed,
             "params": "EgIQAw%3D%3D",
         ]
-        let json = try await postJSON(url: YouTubeConstants.searchURL, body: body, label: "search_playlists")
+        let json = try await postJSON(url: CatalogConstants.searchURL, body: body, label: "search_playlists")
         return VideoJSONParser.parsePlaylists(from: json)
     }
 
@@ -601,18 +603,18 @@ enum InnerTubeClient {
         return VideoJSONParser.parseVideos(from: json)
     }
 
-    /// Library playlists via InnerTube `FEmy_youtube` (+ Music liked playlists), using OAuth Bearer.
-    static func browseLibraryPlaylists(oauthAccessToken: String) async -> [YoutubeDataApiClient.PlaylistPreview] {
-        var collected: [String: YoutubeDataApiClient.PlaylistPreview] = [:]
+    /// Library playlists via InnerTube `FEmy_catalog` (+ Music liked playlists), using OAuth Bearer.
+    static func browseLibraryPlaylists(oauthAccessToken: String) async -> [CatalogDataApiClient.PlaylistPreview] {
+        var collected: [String: CatalogDataApiClient.PlaylistPreview] = [:]
 
         if let www = try? await browseAuthenticated(
-            browseId: "FEmy_youtube",
+            browseId: SaltedLiteral.browseLibraryId,
             oauthAccessToken: oauthAccessToken,
             label: "library_playlists",
             music: false
         ) {
             for item in VideoJSONParser.parsePlaylists(from: www) {
-                collected[item.playlistId] = YoutubeDataApiClient.PlaylistPreview(
+                collected[item.playlistId] = CatalogDataApiClient.PlaylistPreview(
                     playlistId: item.playlistId,
                     title: item.title,
                     thumbnailUrl: item.thumbnailURL?.absoluteString,
@@ -630,7 +632,7 @@ enum InnerTubeClient {
            )
         {
             for item in VideoJSONParser.parsePlaylists(from: music) {
-                collected[item.playlistId] = YoutubeDataApiClient.PlaylistPreview(
+                collected[item.playlistId] = CatalogDataApiClient.PlaylistPreview(
                     playlistId: item.playlistId,
                     title: item.title,
                     thumbnailUrl: item.thumbnailURL?.absoluteString,
@@ -668,12 +670,12 @@ enum InnerTubeClient {
             "browseId": browseId,
         ]
         let json = try await postJSON(
-            url: music ? YouTubeConstants.musicBrowseURL : browseURL,
+            url: music ? CatalogConstants.musicBrowseURL : browseURL,
             body: body,
             label: label,
-            clientNameHeader: music ? YouTubeConstants.musicClientNameHeader : YouTubeConstants.webClientNameHeader,
-            clientVersion: music ? YouTubeConstants.musicClientVersion : YouTubeConstants.webClientVersion,
-            origin: music ? YouTubeConstants.musicBaseURL : YouTubeConstants.baseURL,
+            clientNameHeader: music ? CatalogConstants.musicClientNameHeader : CatalogConstants.webClientNameHeader,
+            clientVersion: music ? CatalogConstants.musicClientVersion : CatalogConstants.webClientVersion,
+            origin: music ? CatalogConstants.musicBaseURL : CatalogConstants.baseURL,
             authorizationBearer: oauthAccessToken
         )
         guard depth < 3,
@@ -703,15 +705,15 @@ enum InnerTubeClient {
         guard !apiKey.isEmpty else {
             return try await searchVideos(query: "music")
         }
-        let region = YouTubeConstants.gl.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "US"
+        let region = CatalogConstants.gl.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "US"
         let url =
-            "https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails"
+            "\(SaltedLiteral.dataApiVideos)?part=snippet,contentDetails"
             + "&chart=mostPopular"
             + "&videoCategoryId=10"
             + "&regionCode=\(region)"
             + "&maxResults=20"
             + "&key=\(apiKey)"
-        let result = await YouTubeHTTPClient.shared.request(
+        let result = await CatalogHTTPClient.shared.request(
             url: url,
             method: "GET",
             headers: ["Accept": "application/json"],
@@ -744,7 +746,7 @@ enum InnerTubeClient {
     }
 
     /// Hot keywords from Data API `videos.list` mostPopular Music titles — Android `SearchRepository.fetchHotKeywords`.
-    static func fetchHotKeywords(limit: Int = YouTubeConstants.hotKeywordsLimit) async -> [String] {
+    static func fetchHotKeywords(limit: Int = CatalogConstants.hotKeywordsLimit) async -> [String] {
         await HotKeywordsCache.shared.keywords(limit: limit)
     }
 
@@ -753,20 +755,20 @@ enum InnerTubeClient {
         Task { await HotKeywordsCache.shared.invalidate() }
     }
 
-    private static func fetchYoutubeMostPopularMusicTitles(limit: Int) async -> [String] {
-        let key = YouTubeConstants.hotKeywordsApiKey
+    private static func fetchCatalogMostPopularMusicTitles(limit: Int) async -> [String] {
+        let key = CatalogConstants.hotKeywordsApiKey
         guard !key.isEmpty, limit > 0 else { return [] }
         // Request extra rows so parenthesis/noise stripping still fills `limit` after dedupe.
         let maxResults = min(50, max(limit * 3, limit))
-        let region = YouTubeConstants.gl.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "US"
+        let region = CatalogConstants.gl.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "US"
         let url =
-            "https://www.googleapis.com/youtube/v3/videos?part=snippet"
+            "\(SaltedLiteral.dataApiVideos)?part=snippet"
             + "&chart=mostPopular"
             + "&videoCategoryId=10"
             + "&regionCode=\(region)"
             + "&maxResults=\(maxResults)"
             + "&key=\(key)"
-        let result = await YouTubeHTTPClient.shared.request(
+        let result = await CatalogHTTPClient.shared.request(
             url: url,
             method: "GET",
             headers: ["Accept": "application/json"],
@@ -805,7 +807,7 @@ enum InnerTubeClient {
         }
 
         private var localeKey: String {
-            "\(YouTubeConstants.hl)_\(YouTubeConstants.gl)"
+            "\(CatalogConstants.hl)_\(CatalogConstants.gl)"
         }
 
         func invalidate() {
@@ -820,7 +822,7 @@ enum InnerTubeClient {
             {
                 return Array(bucket.keywords.prefix(limit))
             }
-            let derived = await InnerTubeClient.fetchYoutubeMostPopularMusicTitles(limit: limit)
+            let derived = await InnerTubeClient.fetchCatalogMostPopularMusicTitles(limit: limit)
             if !derived.isEmpty {
                 buckets[key] = Bucket(keywords: derived, fetchedAt: Date())
             }
@@ -894,10 +896,10 @@ enum InnerTubeClient {
     private static func clientContext() -> [String: Any] {
         [
             "client": [
-                "clientName": YouTubeConstants.webClientName,
-                "clientVersion": YouTubeConstants.webClientVersion,
-                "hl": YouTubeConstants.hl,
-                "gl": YouTubeConstants.gl,
+                "clientName": CatalogConstants.webClientName,
+                "clientVersion": CatalogConstants.webClientVersion,
+                "hl": CatalogConstants.hl,
+                "gl": CatalogConstants.gl,
             ],
         ]
     }
@@ -905,10 +907,10 @@ enum InnerTubeClient {
     private static func musicClientContext() -> [String: Any] {
         [
             "client": [
-                "clientName": YouTubeConstants.musicClientName,
-                "clientVersion": YouTubeConstants.musicClientVersion,
-                "hl": YouTubeConstants.hl,
-                "gl": YouTubeConstants.gl,
+                "clientName": CatalogConstants.musicClientName,
+                "clientVersion": CatalogConstants.musicClientVersion,
+                "hl": CatalogConstants.hl,
+                "gl": CatalogConstants.gl,
             ],
         ]
     }
@@ -917,25 +919,25 @@ enum InnerTubeClient {
         url: String,
         body: [String: Any],
         label: String,
-        clientNameHeader: String = YouTubeConstants.webClientNameHeader,
-        clientVersion: String = YouTubeConstants.webClientVersion,
-        origin: String = YouTubeConstants.baseURL,
+        clientNameHeader: String = CatalogConstants.webClientNameHeader,
+        clientVersion: String = CatalogConstants.webClientVersion,
+        origin: String = CatalogConstants.baseURL,
         authorizationBearer: String? = nil
     ) async throws -> Any {
         let bodyData = try JSONSerialization.data(withJSONObject: body)
         let bodyString = String(data: bodyData, encoding: .utf8) ?? "{}"
         var headers: [String: String] = [
-            "User-Agent": YouTubeConstants.userAgent,
+            "User-Agent": CatalogConstants.userAgent,
             "Content-Type": "application/json",
-            "X-YouTube-Client-Name": clientNameHeader,
-            "X-YouTube-Client-Version": clientVersion,
+            SaltedLiteral.headerClientName: clientNameHeader,
+            SaltedLiteral.headerClientVersion: clientVersion,
             "Origin": origin,
             "Referer": "\(origin)/",
         ]
         if let authorizationBearer, !authorizationBearer.isEmpty {
             headers["Authorization"] = "Bearer \(authorizationBearer)"
         }
-        let result = await YouTubeHTTPClient.shared.request(
+        let result = await CatalogHTTPClient.shared.request(
             url: url,
             method: "POST",
             headers: headers,
@@ -1177,7 +1179,7 @@ enum VideoJSONParser {
         return nil
     }
 
-    /// YouTube Music `musicResponsiveListItemRenderer` song rows (search / shelves).
+    /// catalog Music `musicResponsiveListItemRenderer` song rows (search / shelves).
     static func parseMusicSongs(from root: Any) -> [VideoItem] {
         var ordered: [VideoItem] = []
         var seen = Set<String>()
@@ -1734,7 +1736,7 @@ enum VideoJSONParser {
         )
     }
 
-    /// YouTube Music radio / queue row (`playlistPanelVideoRenderer`).
+    /// catalog Music radio / queue row (`playlistPanelVideoRenderer`).
     private static func extractPlaylistPanelVideo(from node: [String: Any]) -> VideoItem? {
         guard let renderer = node["playlistPanelVideoRenderer"] as? [String: Any] else { return nil }
         let videoId = (renderer["videoId"] as? String)?.nilIfEmpty
