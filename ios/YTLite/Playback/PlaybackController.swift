@@ -115,11 +115,16 @@ final class PlaybackController: ObservableObject {
     private var artworkGeneration: Int = 0
     private var interruptionObserver: NSObjectProtocol?
     private var routeChangeObserver: NSObjectProtocol?
+    private var secondaryAudioHintObserver: NSObjectProtocol?
     private var fullScreenAdDismissObserver: NSObjectProtocol?
     private var fullScreenAdPresentObserver: NSObjectProtocol?
     private var fullScreenAdKeepaliveCancellable: AnyCancellable?
+    /// True only while our muted full-screen ad hold is active (mixWithOthers).
+    private var isFullScreenAdAudioHold = false
     /// Resume after interruption only if we were playing when interrupted.
     private var resumeAfterInterruption = false
+    /// Resume after another app's audio ends (secondary-audio silence hint).
+    private var resumeAfterSecondaryAudioSilence = false
     /// Progressive stream eligible for local persistence after the watch threshold.
     private struct PlaybackStoreContext {
         let videoId: String
@@ -1784,6 +1789,9 @@ final class PlaybackController: ObservableObject {
         if let routeChangeObserver {
             center.removeObserver(routeChangeObserver)
         }
+        if let secondaryAudioHintObserver {
+            center.removeObserver(secondaryAudioHintObserver)
+        }
         interruptionObserver = center.addObserver(
             forName: AVAudioSession.interruptionNotification,
             object: AVAudioSession.sharedInstance(),
@@ -1800,6 +1808,16 @@ final class PlaybackController: ObservableObject {
         ) { [weak self] note in
             Task { @MainActor in
                 self?.handleRouteChange(note)
+            }
+        }
+        // With (or after) mixWithOthers, other apps may not send interruption — yield via this hint.
+        secondaryAudioHintObserver = center.addObserver(
+            forName: AVAudioSession.silenceSecondaryAudioHintNotification,
+            object: AVAudioSession.sharedInstance(),
+            queue: .main
+        ) { [weak self] note in
+            Task { @MainActor in
+                self?.handleSecondaryAudioHint(note)
             }
         }
     }
@@ -1836,6 +1854,7 @@ final class PlaybackController: ObservableObject {
     /// Video full-screen ads grab AVAudioSession; keep music playing underneath muted creatives.
     private func beginFullScreenAdPlaybackHold() {
         endFullScreenAdPlaybackHold()
+        isFullScreenAdAudioHold = true
         activatePlaybackAudioSession(allowMixWithOthers: true)
         guard isPlaying else { return }
         player?.playImmediately(atRate: playbackSpeed)
@@ -1843,7 +1862,8 @@ final class PlaybackController: ObservableObject {
             .autoconnect()
             .sink { [weak self] _ in
                 guard let self else { return }
-                guard AdSceneLifecycle.preservesPlaybackDuringFullScreenAd else {
+                // Only fight OUR muted ad session — never keep mixing after the ad is gone.
+                guard AdFullScreenCoordinator.isPresenting else {
                     self.endFullScreenAdPlaybackHold()
                     return
                 }
@@ -1858,6 +1878,7 @@ final class PlaybackController: ObservableObject {
     private func endFullScreenAdPlaybackHold() {
         fullScreenAdKeepaliveCancellable?.cancel()
         fullScreenAdKeepaliveCancellable = nil
+        isFullScreenAdAudioHold = false
         activatePlaybackAudioSession(allowMixWithOthers: false)
     }
 
@@ -1865,13 +1886,13 @@ final class PlaybackController: ObservableObject {
     private func resumeAfterExternalPresentationIfNeeded() {
         activatePlaybackAudioSession(allowMixWithOthers: false)
         guard nowPlaying != nil, let player else { return }
+        guard !AVAudioSession.sharedInstance().secondaryAudioShouldBeSilencedHint else { return }
         let shouldResume = resumeAfterInterruption || isPlaying
         resumeAfterInterruption = false
-        if shouldResume || player.timeControlStatus != .playing {
-            player.playImmediately(atRate: playbackSpeed)
-            isPlaying = true
-            updateNowPlayingInfo()
-        }
+        guard shouldResume else { return }
+        player.playImmediately(atRate: playbackSpeed)
+        isPlaying = true
+        updateNowPlayingInfo()
     }
 
     private func handleAudioInterruption(_ note: Notification) {
@@ -1881,7 +1902,9 @@ final class PlaybackController: ObservableObject {
         switch type {
         case .began:
             resumeAfterInterruption = isPlaying
-            if AdSceneLifecycle.preservesPlaybackDuringFullScreenAd {
+            // Only keep playing under our own muted full-screen ad. Yield to every other interrupter
+            // (YouTube / Safari / Podcasts / …) so two players never run at once.
+            if isFullScreenAdAudioHold, AdFullScreenCoordinator.isPresenting {
                 activatePlaybackAudioSession(allowMixWithOthers: true)
                 if isPlaying {
                     player?.playImmediately(atRate: playbackSpeed)
@@ -1889,12 +1912,14 @@ final class PlaybackController: ObservableObject {
                 updateNowPlayingInfo()
                 return
             }
+            if isFullScreenAdAudioHold {
+                endFullScreenAdPlaybackHold()
+            }
             pause()
             updateNowPlayingInfo()
         case .ended:
-            let mixing = AdSceneLifecycle.preservesPlaybackDuringFullScreenAd
-            activatePlaybackAudioSession(allowMixWithOthers: mixing)
-            if mixing {
+            if isFullScreenAdAudioHold, AdFullScreenCoordinator.isPresenting {
+                activatePlaybackAudioSession(allowMixWithOthers: true)
                 if resumeAfterInterruption || isPlaying {
                     player?.playImmediately(atRate: playbackSpeed)
                     isPlaying = true
@@ -1903,9 +1928,13 @@ final class PlaybackController: ObservableObject {
                 updateNowPlayingInfo()
                 return
             }
+            activatePlaybackAudioSession(allowMixWithOthers: false)
             let optionsValue = note.userInfo?[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0
             let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
-            if options.contains(.shouldResume), resumeAfterInterruption {
+            if options.contains(.shouldResume),
+               resumeAfterInterruption,
+               !AVAudioSession.sharedInstance().secondaryAudioShouldBeSilencedHint
+            {
                 resumeAfterInterruption = false
                 if player != nil, !isPlaying {
                     player?.playImmediately(atRate: playbackSpeed)
@@ -1914,6 +1943,32 @@ final class PlaybackController: ObservableObject {
             } else {
                 resumeAfterInterruption = false
             }
+            updateNowPlayingInfo()
+        @unknown default:
+            break
+        }
+    }
+
+    /// Other media apps often mix instead of interrupting; honor the secondary-audio silence hint.
+    private func handleSecondaryAudioHint(_ note: Notification) {
+        guard let typeValue = note.userInfo?[AVAudioSessionSilenceSecondaryAudioHintTypeKey] as? UInt,
+              let type = AVAudioSession.SilenceSecondaryAudioHintType(rawValue: typeValue)
+        else { return }
+        switch type {
+        case .begin:
+            // Never yield to secondary silence during our muted ad hold.
+            guard !isFullScreenAdAudioHold else { return }
+            resumeAfterSecondaryAudioSilence = isPlaying
+            pause()
+            updateNowPlayingInfo()
+        case .end:
+            guard resumeAfterSecondaryAudioSilence else { return }
+            resumeAfterSecondaryAudioSilence = false
+            guard nowPlaying != nil, player != nil else { return }
+            guard !AVAudioSession.sharedInstance().secondaryAudioShouldBeSilencedHint else { return }
+            activatePlaybackAudioSession(allowMixWithOthers: false)
+            player?.playImmediately(atRate: playbackSpeed)
+            isPlaying = true
             updateNowPlayingInfo()
         @unknown default:
             break
@@ -2132,7 +2187,16 @@ final class PlaybackController: ObservableObject {
     /// When Picture in Picture is off, playback continues as audio-only (no floating video).
     func prepareForBackgroundPlayback() {
         guard nowPlaying != nil else { return }
-        activatePlaybackAudioSession()
+        // Another app owns audible media — do not re-activate and steal the session back.
+        if AVAudioSession.sharedInstance().secondaryAudioShouldBeSilencedHint {
+            if isPlaying {
+                resumeAfterSecondaryAudioSilence = true
+                pause()
+            }
+            publishNowPlaying()
+            return
+        }
+        activatePlaybackAudioSession(allowMixWithOthers: isFullScreenAdAudioHold)
         publishNowPlaying()
         guard let player else { return }
         // Continues audio in background whether or not PiP is enabled.

@@ -63,15 +63,9 @@ enum AdSceneLifecycle {
     private static var playStartInterstitialsShownThisSession = 0
     private static var uiBlockers: Set<String> = []
     private static var isAppActive = true
-    private static var isPlayStartInterstitialArmed = false
 
     /// Ads must not present while backgrounded — it interrupts AVAudioSession and breaks review checks.
     static var isAppActiveForAds: Bool { isAppActive }
-
-    /// Muted full-screen ads (app open / interstitial / rewarded) must not pause background music.
-    static var preservesPlaybackDuringFullScreenAd: Bool {
-        isPlayStartInterstitialArmed || AdFullScreenCoordinator.isPresenting
-    }
 
     /// Ordinary ads wait until sheets / full-screen UX have closed.
     static func isAdUIBlocked(for reason: String? = nil) -> Bool {
@@ -215,12 +209,9 @@ enum AdSceneLifecycle {
             return
         }
         playStartInterstitialTask?.cancel()
-        isPlayStartInterstitialArmed = false
         let delay = AdMobConfig.playStartInterstitialDelay
         AdProbe.log("play_start.schedule", "id=\(videoId) delay=\(Int(delay))s")
-        isPlayStartInterstitialArmed = true
         playStartInterstitialTask = Task {
-            defer { isPlayStartInterstitialArmed = false }
             try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
             guard !Task.isCancelled else { return }
             guard isAppActive else {
@@ -237,7 +228,6 @@ enum AdSceneLifecycle {
     static func cancelPlayStartInterstitial() {
         playStartInterstitialTask?.cancel()
         playStartInterstitialTask = nil
-        isPlayStartInterstitialArmed = false
     }
 
     static func onPlayerDetailClosed() {
