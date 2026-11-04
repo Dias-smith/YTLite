@@ -1979,11 +1979,31 @@ final class PlaybackController: ObservableObject {
 
     private func handleRouteChange(_ note: Notification) {
         guard let reasonValue = note.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt,
-              let reason = AVAudioSession.RouteChangeReason(rawValue: reasonValue)
+              let reason = AVAudioSession.RouteChangeReason(rawValue: reasonValue),
+              reason == .oldDeviceUnavailable
         else { return }
-        if reason == .oldDeviceUnavailable {
-            pause()
-            updateNowPlayingInfo()
+        // Only pause when a headphone-class output was removed — not when leaving the
+        // built-in speaker for newly connected headphones / AirPods (also fires this reason).
+        let previous = note.userInfo?[AVAudioSessionRouteChangePreviousRouteKey]
+            as? AVAudioSessionRouteDescription
+        guard let previous, previous.outputs.contains(where: Self.isHeadphoneClassOutput) else {
+            return
+        }
+        pause()
+        updateNowPlayingInfo()
+    }
+
+    private static func isHeadphoneClassOutput(_ output: AVAudioSessionPortDescription) -> Bool {
+        switch output.portType {
+        case .headphones,
+             .bluetoothA2DP,
+             .bluetoothLE,
+             .bluetoothHFP,
+             .usbAudio,
+             .carAudio:
+            return true
+        default:
+            return false
         }
     }
 
