@@ -311,6 +311,18 @@ final class HomeViewModel: ObservableObject {
         refreshIfNeeded()
     }
 
+    /// Swipe between top chips: negative delta = previous, positive = next.
+    @discardableResult
+    func selectAdjacentCategory(delta: Int) -> Bool {
+        guard delta != 0 else { return false }
+        guard let index = orderedCategories.firstIndex(where: { $0.id == selectedCategoryId })
+        else { return false }
+        let next = index + delta
+        guard orderedCategories.indices.contains(next) else { return false }
+        selectCategory(orderedCategories[next])
+        return true
+    }
+
     func appear() {
         applyStoredFeed(for: selectedCategoryId)
         refreshIfNeeded()
@@ -746,7 +758,7 @@ struct HomeView: View {
         NavigationStack {
             VStack(spacing: 0) {
                 categoryChips
-                content
+                categoryPager
             }
             .ytLiteContentWidth(enabled: YTLiteAdaptive.isRegularWidth(horizontalSizeClass))
             .background(YTLiteColor.background)
@@ -831,8 +843,44 @@ struct HomeView: View {
         }
     }
 
+    /// Interactive page swipe between chips — content tracks the finger.
+    private var categoryPager: some View {
+        TabView(selection: categorySelection) {
+            ForEach(viewModel.orderedCategories) { category in
+                categoryPage(for: category)
+                    .tag(category.id)
+                    .allowsHitTesting(viewModel.selectedCategoryId == category.id)
+            }
+        }
+        .tabViewStyle(.page(indexDisplayMode: .never))
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(YTLiteColor.background)
+    }
+
+    private var categorySelection: Binding<String> {
+        Binding(
+            get: { viewModel.selectedCategoryId },
+            set: { newId in
+                guard newId != viewModel.selectedCategoryId,
+                      let category = viewModel.orderedCategories.first(where: { $0.id == newId })
+                else { return }
+                viewModel.selectCategory(category)
+            }
+        )
+    }
+
     @ViewBuilder
-    private var content: some View {
+    private func categoryPage(for category: HomeCategory) -> some View {
+        let selected = viewModel.selectedCategoryId == category.id
+        if selected {
+            selectedCategoryContent
+        } else {
+            cachedCategoryPreview(categoryId: category.id)
+        }
+    }
+
+    @ViewBuilder
+    private var selectedCategoryContent: some View {
         if viewModel.isRefreshing && viewModel.entries.isEmpty {
             ProgressView()
                 .tint(YTLiteColor.accent)
@@ -869,7 +917,7 @@ struct HomeView: View {
                             .id("home_feed_top")
                         // Isolate from PlaybackController publish storms while flinging the feed.
                         HomeFeedGridPane(
-                            token: homeFeedToken,
+                            token: homeFeedToken(for: viewModel.selectedCategoryId, entries: viewModel.entries),
                             entries: viewModel.entries,
                             columns: columns,
                             compact: compact,
@@ -916,15 +964,65 @@ struct HomeView: View {
         }
     }
 
+    /// Neighbor pages during an interactive swipe — show disk/memory cache so the transition isn’t blank.
+    @ViewBuilder
+    private func cachedCategoryPreview(categoryId: String) -> some View {
+        let entries = previewEntries(for: categoryId)
+        if entries.isEmpty {
+            YTLiteColor.background
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            GeometryReader { geo in
+                let columns = YTLiteAdaptive.feedColumns(
+                    for: geo.size.width,
+                    sizeClass: horizontalSizeClass
+                )
+                let compact = columns > 1
+                ScrollView {
+                    HomeFeedGridPane(
+                        token: homeFeedToken(for: categoryId, entries: entries),
+                        entries: entries,
+                        columns: columns,
+                        compact: compact,
+                        horizontalPadding: compact
+                            ? YTLiteAdaptive.screenPadding(for: geo.size.width, sizeClass: horizontalSizeClass) - 4
+                            : 0,
+                        errorMessage: nil,
+                        isLoadingMore: false,
+                        onPlayTrack: { _ in },
+                        onMore: { _ in },
+                        onNearEnd: { _ in }
+                    )
+                    .equatable()
+                }
+                .scrollDisabled(true)
+                .ytLiteMiniPlayerScrollInset()
+            }
+        }
+    }
+
+    private func previewEntries(for categoryId: String) -> [HomeFeedEntry] {
+        let raw = HomeFeedStore.loadFeed(categoryId: categoryId)?.entries ?? []
+        guard let libraryStore else { return raw }
+        return raw.compactMap { entry in
+            switch entry {
+            case .album:
+                return entry
+            case .track(let video):
+                return libraryStore.filterNotInterested([video]).isEmpty ? nil : entry
+            }
+        }
+    }
+
     /// Cheap identity for Equatable feed grid (avoids comparing full entry arrays each tick).
-    private var homeFeedToken: Int {
+    private func homeFeedToken(for categoryId: String, entries: [HomeFeedEntry]) -> Int {
         var hasher = Hasher()
-        hasher.combine(viewModel.entries.count)
-        hasher.combine(viewModel.entries.first?.id)
-        hasher.combine(viewModel.entries.last?.id)
-        hasher.combine(viewModel.isLoadingMore)
-        hasher.combine(viewModel.errorMessage)
-        hasher.combine(viewModel.selectedCategoryId)
+        hasher.combine(categoryId)
+        hasher.combine(entries.count)
+        hasher.combine(entries.first?.id)
+        hasher.combine(entries.last?.id)
+        hasher.combine(viewModel.isLoadingMore && categoryId == viewModel.selectedCategoryId)
+        hasher.combine(categoryId == viewModel.selectedCategoryId ? viewModel.errorMessage : nil)
         return hasher.finalize()
     }
 }
