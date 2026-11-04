@@ -201,9 +201,10 @@ private extension UIImage {
 struct RemoteImage: View {
     let url: URL?
     var contentMode: ContentMode = .fill
-    /// Longest edge in points; converted to pixels via screen scale for decode.
+    /// Longest edge in points; converted to pixels via display scale for decode.
     var maxPointSize: CGFloat? = nil
 
+    @Environment(\.displayScale) private var displayScale
     @State private var image: UIImage?
     @State private var loadFailed = false
 
@@ -223,13 +224,12 @@ struct RemoteImage: View {
     }
 
     private var taskId: String {
-        "\(url?.absoluteString ?? "")|\(maxPointSize.map { Int($0) } ?? 0)"
+        "\(url?.absoluteString ?? "")|\(maxPointSize.map { Int($0) } ?? 0)|\(Int(displayScale * 100))"
     }
 
     private var maxPixelSize: Int? {
         guard let maxPointSize else { return nil }
-        let scale = UIScreen.main.scale
-        return max(1, Int(maxPointSize * scale))
+        return max(1, Int(maxPointSize * displayScale))
     }
 
     private func load() async {

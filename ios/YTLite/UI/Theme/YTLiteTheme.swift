@@ -100,9 +100,14 @@ enum YTLiteLayout {
     static let miniMediaAspect: CGFloat = 16.0 / 9.0
     static let miniProgressHeight: CGFloat = 2
     static let miniControlSize: CGFloat = 48
+    /// 1pt hairline in the current display scale (avoid `UIScreen.main` for Duo).
+    static func hairlineHeight(displayScale: CGFloat) -> CGFloat {
+        1 / max(displayScale, 1)
+    }
+
     /// Mini player chrome above tab content (bar + progress + hairline divider).
-    static var miniPlayerChromeHeight: CGFloat {
-        miniBarHeight + miniProgressHeight + 1 / UIScreen.main.scale
+    static func miniPlayerChromeHeight(displayScale: CGFloat) -> CGFloat {
+        miniBarHeight + miniProgressHeight + hairlineHeight(displayScale: displayScale)
     }
     static let channelAvatar: CGFloat = 56
 }
@@ -312,6 +317,7 @@ struct FeedChannelAvatar: View {
     let channelName: String
     var size: CGFloat = YTLiteLayout.feedAvatar
 
+    @Environment(\.displayScale) private var displayScale
     @State private var image: UIImage?
 
     var body: some View {
@@ -331,7 +337,7 @@ struct FeedChannelAvatar: View {
         }
         .frame(width: size, height: size)
         .clipShape(Circle())
-        .task(id: url?.absoluteString) {
+        .task(id: "\(url?.absoluteString ?? "")|\(Int(displayScale * 100))") {
             await load()
         }
     }
@@ -339,7 +345,7 @@ struct FeedChannelAvatar: View {
     private func load() async {
         image = nil
         guard let url else { return }
-        let maxPx = max(1, Int(size * UIScreen.main.scale))
+        let maxPx = max(1, Int(size * displayScale))
         if let mem = ImageStore.shared.memoryHit(url, maxPixelSize: maxPx) {
             image = mem
             return

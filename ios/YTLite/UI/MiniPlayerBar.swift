@@ -7,6 +7,7 @@ struct MiniPlayerBar: View {
     @EnvironmentObject private var progressClock: PlaybackProgressModel
     @EnvironmentObject private var playerPresentation: PlayerPresentation
     @EnvironmentObject private var appModel: AppModel
+    @Environment(\.displayScale) private var displayScale
 
     private var progress: CGFloat {
         guard progressClock.durationSeconds > 0 else { return 0 }
@@ -18,7 +19,7 @@ struct MiniPlayerBar: View {
             VStack(spacing: 0) {
                 Rectangle()
                     .fill(YTLiteColor.chromeDivider)
-                    .frame(height: 1 / UIScreen.main.scale)
+                    .frame(height: YTLiteLayout.hairlineHeight(displayScale: displayScale))
                 progressBar
                 contentRow(item: item)
             }

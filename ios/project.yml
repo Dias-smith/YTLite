@@ -126,6 +126,7 @@ targets:
     sources:
       - path: YTLiteWatch
       - path: YTLiteWatchConnectivity
+      - path: YTLiteWatchWidgetShared
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.ytlite.player.watchkitapp
@@ -169,7 +170,46 @@ targets:
       properties:
         com.apple.security.application-groups:
           - group.com.ytlite.player
-    dependencies: []
+    dependencies:
+      - target: YTLite Watch Widget
+        embed: true
+        codeSign: true
+      - sdk: WidgetKit.framework
+
+  YTLite Watch Widget:
+    type: app-extension
+    platform: watchOS
+    sources:
+      - path: YTLiteWatchWidget
+      - path: YTLiteWatchWidgetShared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ytlite.player.watchkitapp.widget
+        PRODUCT_NAME: MixtubeWatchWidget
+        PRODUCT_MODULE_NAME: YTLiteWatchWidget
+        INFOPLIST_FILE: YTLiteWatchWidget/Info.plist
+        GENERATE_INFOPLIST_FILE: false
+        CODE_SIGN_ENTITLEMENTS: YTLiteWatchWidget/YTLiteWatchWidget.entitlements
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: "8S748AQ4H7"
+        TARGETED_DEVICE_FAMILY: "4"
+        SDKROOT: watchos
+        SUPPORTED_PLATFORMS: "watchos watchsimulator"
+        SUPPORTS_MACCATALYST: false
+        SKIP_INSTALL: true
+        MARKETING_VERSION: "1.0.0"
+        CURRENT_PROJECT_VERSION: "1"
+        WATCHOS_DEPLOYMENT_TARGET: "10.0"
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks"
+    entitlements:
+      path: YTLiteWatchWidget/YTLiteWatchWidget.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.com.ytlite.player
+    dependencies:
+      - sdk: WidgetKit.framework
+      - sdk: SwiftUI.framework
+      - sdk: AppIntents.framework
 
 schemes:
   YTLite:
@@ -177,6 +217,7 @@ schemes:
       targets:
         YTLite: all
         YTLite Watch App: [build]
+        YTLite Watch Widget: [build]
     run:
       config: Debug
       # Keep phone as the runnable; Watch embeds via the iOS target dependency.
@@ -185,6 +226,7 @@ schemes:
     build:
       targets:
         YTLite Watch App: all
+        YTLite Watch Widget: [build]
     run:
       config: Debug
       executable: YTLite Watch App

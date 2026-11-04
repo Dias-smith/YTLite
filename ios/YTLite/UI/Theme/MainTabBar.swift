@@ -1,9 +1,9 @@
 import SwiftUI
-import UIKit
 
 struct MainTabBar: View {
     @Binding var selected: AppTab
     var isAuthenticated: Bool = false
+    @Environment(\.displayScale) private var displayScale
 
     private var items: [(AppTab, String, String)] {
         [
@@ -57,7 +57,7 @@ struct MainTabBar: View {
         .overlay(alignment: .top) {
             Rectangle()
                 .fill(YTLiteColor.chromeDivider)
-                .frame(height: 1 / UIScreen.main.scale)
+                .frame(height: YTLiteLayout.hairlineHeight(displayScale: displayScale))
         }
     }
 }

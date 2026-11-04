@@ -1,7 +1,7 @@
 import SwiftUI
-import UIKit
 
-/// Root chrome: bottom tabs on compact width; sidebar + split on regular (iPad).
+/// Root chrome: bottom tabs on compact width; sidebar + split on regular width
+/// (iPad, iPhone Duo inner display, wide Split View).
 struct AppChrome<Content: View>: View {
     @Binding var selectedTab: AppTab
     var isAuthenticated: Bool
@@ -12,11 +12,11 @@ struct AppChrome<Content: View>: View {
     @EnvironmentObject private var playerPresentation: PlayerPresentation
     @EnvironmentObject private var review: ReviewPromptCoordinator
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.displayScale) private var displayScale
 
     private var isRegular: Bool {
-        // iPad portrait layout only — never treat phone landscape as regular width.
-        UIDevice.current.userInterfaceIdiom == .pad
-            && YTLiteAdaptive.isRegularWidth(horizontalSizeClass)
+        // Size class only — iPhone Duo inner display is regular width (not `.pad`).
+        YTLiteAdaptive.isRegularWidth(horizontalSizeClass)
     }
 
     var body: some View {
@@ -96,6 +96,6 @@ struct AppChrome<Content: View>: View {
 
     private var miniPlayerBottomInset: CGFloat {
         guard showsMiniPlayer, !isKeyboardVisible else { return 0 }
-        return YTLiteLayout.miniPlayerChromeHeight + (isRegular ? 8 : 0)
+        return YTLiteLayout.miniPlayerChromeHeight(displayScale: displayScale) + (isRegular ? 8 : 0)
     }
 }

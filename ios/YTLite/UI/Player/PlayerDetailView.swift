@@ -89,8 +89,10 @@ struct PlayerDetailView: View {
     @State private var playerTrackMenu: TrackActionContext?
     /// Channel uploads browser opened from the channel row.
     @State private var channelSheetItem: ChannelItem?
-    /// Interactive dismiss offset for iPad fullScreenCover (follows the finger).
+    /// Interactive dismiss offset for regular-width fullScreenCover (follows the finger).
     @State private var dismissDragOffset: CGFloat = 0
+    /// Latest player canvas height from GeometryReader (avoids `UIScreen.main` on Duo).
+    @State private var canvasHeight: CGFloat = 0
 
     private let overlayAutoHideSeconds: UInt64 = 5_000_000_000
     private let dismissDistanceThreshold: CGFloat = 140
@@ -272,6 +274,10 @@ struct PlayerDetailView: View {
                 dismissDragOffset == 0 ? .spring(response: 0.35, dampingFraction: 0.86) : nil,
                 value: dismissDragOffset
             )
+            .onChange(of: geo.size.height) { _, height in
+                canvasHeight = height
+            }
+            .onAppear { canvasHeight = geo.size.height }
         }
         .background(
             YTLiteColor.surface
@@ -595,7 +601,7 @@ struct PlayerDetailView: View {
                     || velocityY > dismissVelocityThreshold
                 if shouldDismiss {
                     withAnimation(.easeOut(duration: 0.2)) {
-                        dismissDragOffset = max(UIScreen.main.bounds.height, dy + 240)
+                        dismissDragOffset = max(canvasHeight, dy + 240)
                     }
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
                         dismiss()

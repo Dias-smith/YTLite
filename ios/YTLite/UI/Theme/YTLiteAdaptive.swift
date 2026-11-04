@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// Size-class + width breakpoints for iPad / Split View adaptive layout.
+/// Size-class + width breakpoints for iPad, Split View, and iPhone Duo adaptive layout.
+/// Prefer size classes / available width — never branch on `userInterfaceIdiom` or orientation.
 enum YTLiteAdaptive {
     /// Readable content cap on wide canvases.
     static let contentMaxWidth: CGFloat = 980
@@ -51,7 +52,7 @@ enum YTLiteAdaptive {
         return size.width > size.height && size.width >= 700
     }
 
-    /// Prefer a taller sheet on regular width so action sheets are usable on iPad.
+    /// Prefer a taller sheet on regular width (iPad / Duo inner / wide Split View).
     static func sheetDetents(
         compact: [PresentationDetent],
         regular: [PresentationDetent] = [.large],
@@ -104,9 +105,18 @@ extension View {
     }
 
     func ytLiteMiniPlayerScrollInset(showsMiniPlayer: Bool) -> some View {
-        contentMargins(
+        modifier(MiniPlayerScrollInsetShowsModifier(showsMiniPlayer: showsMiniPlayer))
+    }
+}
+
+private struct MiniPlayerScrollInsetShowsModifier: ViewModifier {
+    let showsMiniPlayer: Bool
+    @Environment(\.displayScale) private var displayScale
+
+    func body(content: Content) -> some View {
+        content.contentMargins(
             .bottom,
-            showsMiniPlayer ? YTLiteLayout.miniPlayerChromeHeight : 0,
+            showsMiniPlayer ? YTLiteLayout.miniPlayerChromeHeight(displayScale: displayScale) : 0,
             for: .scrollContent
         )
     }
