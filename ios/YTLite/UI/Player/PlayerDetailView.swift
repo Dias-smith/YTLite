@@ -169,52 +169,63 @@ struct PlayerDetailView: View {
                 .padding(.bottom, YTLiteLayout.stackDefault)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(YTLiteColor.surface)
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: YTLiteLayout.screenPadding) {
-                    channelRow
-                    if let error = playback.lastError,
-                       !playback.isPlaying,
-                       !shouldShowPlaybackLoginPrompt
-                    {
-                        Text(error)
-                            .font(YTLiteType.meta)
-                            .foregroundStyle(YTLiteColor.danger)
-                    }
-                    actionBar
-                    transportControls
-                    tabHeader
-                    if isSelectionMode {
-                        selectionToolbar
-                    } else {
-                        listToolbar
-                    }
-                    // Isolate queue/related rows from buffering-only playback publishes.
-                    PlayerQueueTabPane(
-                        token: playerQueueTabToken,
-                        tab: tab,
-                        queue: playback.queue,
-                        queueIndex: playback.queueIndex,
-                        related: related,
-                        relatedLoading: relatedLoading,
-                        relatedError: relatedError,
-                        isSelectionMode: isSelectionMode,
-                        selectedIds: selectedIds,
-                        onSelectQueueIndex: { playback.playQueueIndex($0) },
-                        onToggleSelection: { toggleSelection($0) },
-                        onPlayRelatedIndex: { index in
-                            playback.play(items: related, startAt: index, analyticsSource: "related")
-                            AppAnalytics.relatedTap()
-                        },
-                        onRetryRelated: { Task { await loadRelated() } },
-                        row: { item, isCurrent, action in
-                            AnyView(listRow(item: item, isCurrent: isCurrent, action: action))
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: YTLiteLayout.screenPadding) {
+                        Color.clear
+                            .frame(height: 0)
+                            .id("playerSecondaryTop")
+                        channelRow
+                        if let error = playback.lastError,
+                           !playback.isPlaying,
+                           !shouldShowPlaybackLoginPrompt
+                        {
+                            Text(error)
+                                .font(YTLiteType.meta)
+                                .foregroundStyle(YTLiteColor.danger)
                         }
-                    )
-                    .equatable()
+                        actionBar
+                        transportControls
+                        tabHeader
+                        if isSelectionMode {
+                            selectionToolbar
+                        } else {
+                            listToolbar
+                        }
+                        // Isolate queue/related rows from buffering-only playback publishes.
+                        PlayerQueueTabPane(
+                            token: playerQueueTabToken,
+                            tab: tab,
+                            queue: playback.queue,
+                            queueIndex: playback.queueIndex,
+                            related: related,
+                            relatedLoading: relatedLoading,
+                            relatedError: relatedError,
+                            isSelectionMode: isSelectionMode,
+                            selectedIds: selectedIds,
+                            onSelectQueueIndex: { playback.playQueueIndex($0) },
+                            onToggleSelection: { toggleSelection($0) },
+                            onPlayRelatedIndex: { index in
+                                playback.play(items: related, startAt: index, analyticsSource: "related")
+                                AppAnalytics.relatedTap()
+                            },
+                            onRetryRelated: { Task { await loadRelated() } },
+                            row: { item, isCurrent, action in
+                                AnyView(listRow(item: item, isCurrent: isCurrent, action: action))
+                            }
+                        )
+                        .equatable()
+                    }
+                    .padding(.horizontal, YTLiteLayout.screenPadding)
+                    .padding(.top, YTLiteLayout.stackDefault)
+                    .padding(.bottom, 32)
                 }
-                .padding(.horizontal, YTLiteLayout.screenPadding)
-                .padding(.top, YTLiteLayout.stackDefault)
-                .padding(.bottom, 32)
+                // Related taps shrink the list while keeping scroll offset → blank black area.
+                // Up Next stays put so the queue doesn't jump when skipping within it.
+                .onChange(of: playback.nowPlaying?.videoId) { _, _ in
+                    guard tab == .related else { return }
+                    proxy.scrollTo("playerSecondaryTop", anchor: .top)
+                }
             }
         }
     }
