@@ -546,13 +546,13 @@ struct PlayerDetailView: View {
         .frame(maxWidth: .infinity)
         .aspectRatio(16 / 9, contentMode: .fit)
         .clipped()
-        // fullScreenCover (regular width) has no system pull-down — interactive dismiss here.
-        // Only attach when supported; otherwise this high-priority drag steals progress scrub.
+        // System sheet grabber / interactive dismiss is disabled — close via chevron or this swipe.
+        // Only attach when no nested sheet is up; otherwise this high-priority drag steals scrub / sheet UI.
         .modifier(OptionalHighPriorityDrag(enabled: supportsInteractiveDismiss, gesture: interactiveDismissGesture))
     }
 
     private var supportsInteractiveDismiss: Bool {
-        YTLiteAdaptive.isRegularWidth(horizontalSizeClass)
+        !isPresentingAdBlockingSheet
     }
 
     private var dismissScale: CGFloat {

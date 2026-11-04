@@ -284,7 +284,8 @@ extension View {
     }
 
     /// Single entry for PlayerDetail presentation so leave_player covers swipe + button dismiss.
-    /// Always a sheet (not fullScreenCover) so pull-down returns to the mini player on iPhone and iPad.
+    /// Compact: sheet without system grabber / interactive dismiss (chevron + canvas swipe only).
+    /// Regular width: fullScreenCover with the same canvas swipe + chevron.
     func playerDetailPresentation(isPresented: Binding<Bool>) -> some View {
         modifier(PlayerDetailPresentationModifier(isPresented: isPresented))
     }
@@ -299,7 +300,7 @@ private struct PlayerDetailPresentationModifier: ViewModifier {
     @Binding var isPresented: Bool
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
-    /// iPhone: sheet (system pull-down dismiss). iPad regular width: immersive full screen.
+    /// Compact width: sheet. Regular width: immersive full screen.
     private var useFullScreen: Bool {
         YTLiteAdaptive.isRegularWidth(horizontalSizeClass)
     }
@@ -319,10 +320,13 @@ private struct PlayerDetailPresentationModifier: ViewModifier {
                     PlayerDetailView()
                 }
                 .presentationDetents([.large])
-                .presentationDragIndicator(.visible)
+                // Hide the grabber — it sits under nested sheets (sleep timer, etc.) and is easy
+                // to drag by mistake, dismissing the whole player. Close via chevron or canvas swipe.
+                .presentationDragIndicator(.hidden)
+                .interactiveDismissDisabled(true)
                 .presentationContentInteraction(.scrolls)
             }
-            // Regular width (iPad): immersive full screen; swipe down on the
+            // Regular width: immersive full screen; swipe down on the
             // canvas or the chevron dismisses back to the mini player.
             .fullScreenCover(
                 isPresented: Binding(
