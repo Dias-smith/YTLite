@@ -95,8 +95,8 @@ struct PlayerDetailView: View {
     @State private var canvasHeight: CGFloat = 0
 
     private let overlayAutoHideSeconds: UInt64 = 5_000_000_000
-    private let dismissDistanceThreshold: CGFloat = 140
-    private let dismissVelocityThreshold: CGFloat = 900
+    private let dismissDistanceThreshold: CGFloat = 96
+    private let dismissVelocityThreshold: CGFloat = 650
 
     private var isPresentingAdBlockingSheet: Bool {
         showPlaybackSignIn
@@ -546,13 +546,13 @@ struct PlayerDetailView: View {
         .frame(maxWidth: .infinity)
         .aspectRatio(16 / 9, contentMode: .fit)
         .clipped()
-        // System sheet grabber / interactive dismiss is disabled — close via chevron or this swipe.
-        // Only attach when no nested sheet is up; otherwise this high-priority drag steals scrub / sheet UI.
+        // fullScreenCover (regular width) has no system pull-down — canvas swipe dismisses.
+        // Compact sheets use system interactive dismiss (grabber stays hidden).
         .modifier(OptionalHighPriorityDrag(enabled: supportsInteractiveDismiss, gesture: interactiveDismissGesture))
     }
 
     private var supportsInteractiveDismiss: Bool {
-        !isPresentingAdBlockingSheet
+        YTLiteAdaptive.isRegularWidth(horizontalSizeClass) && !isPresentingAdBlockingSheet
     }
 
     private var dismissScale: CGFloat {
@@ -573,13 +573,13 @@ struct PlayerDetailView: View {
 
     /// Swipe down on the video canvas — page follows the finger, then dismisses or springs back.
     private var interactiveDismissGesture: some Gesture {
-        DragGesture(minimumDistance: 12, coordinateSpace: .local)
+        DragGesture(minimumDistance: 8, coordinateSpace: .local)
             .onChanged { value in
                 guard supportsInteractiveDismiss else { return }
                 let dy = value.translation.height
                 let dx = abs(value.translation.width)
-                // Only track clearly downward pulls so horizontal scrub / taps stay free.
-                guard dy > 0, dy > dx * 0.6 else {
+                // Prefer downward pulls; allow a wider angle so dismiss is easier to start.
+                guard dy > 0, dy > dx * 0.4 else {
                     if dismissDragOffset != 0 { dismissDragOffset = 0 }
                     return
                 }
@@ -597,7 +597,7 @@ struct PlayerDetailView: View {
                 let predicted = value.predictedEndTranslation.height
                 let velocityY = value.velocity.height
                 let shouldDismiss = dy > dismissDistanceThreshold
-                    || predicted > dismissDistanceThreshold * 1.6
+                    || predicted > dismissDistanceThreshold * 1.35
                     || velocityY > dismissVelocityThreshold
                 if shouldDismiss {
                     withAnimation(.easeOut(duration: 0.2)) {

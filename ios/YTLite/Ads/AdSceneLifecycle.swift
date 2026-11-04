@@ -284,8 +284,7 @@ extension View {
     }
 
     /// Single entry for PlayerDetail presentation so leave_player covers swipe + button dismiss.
-    /// Compact: sheet without system grabber / interactive dismiss (chevron + canvas swipe only).
-    /// Regular width: fullScreenCover with the same canvas swipe + chevron.
+    /// Compact: sheet with system pull-to-dismiss (grabber hidden). Regular: fullScreenCover + canvas swipe.
     func playerDetailPresentation(isPresented: Binding<Bool>) -> some View {
         modifier(PlayerDetailPresentationModifier(isPresented: isPresented))
     }
@@ -320,10 +319,9 @@ private struct PlayerDetailPresentationModifier: ViewModifier {
                     PlayerDetailView()
                 }
                 .presentationDetents([.large])
-                // Hide the grabber — it sits under nested sheets (sleep timer, etc.) and is easy
-                // to drag by mistake, dismissing the whole player. Close via chevron or canvas swipe.
+                // Hide the grabber (easy to hit under Sleep Timer / EQ sheets) but keep
+                // system pull-to-dismiss — custom canvas-only swipe was too hard to trigger.
                 .presentationDragIndicator(.hidden)
-                .interactiveDismissDisabled(true)
                 .presentationContentInteraction(.scrolls)
             }
             // Regular width: immersive full screen; swipe down on the
