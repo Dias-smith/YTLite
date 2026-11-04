@@ -45,6 +45,8 @@ struct YTLiteApp: App {
                     await Task.yield()
                     WatchConnectivityBridge.shared.activate()
                     WatchPlaybackHost.shared.start(playback: playback)
+                    PhoneWidgetCommandBridge.shared.start(playback: playback)
+                    playback.publishPhoneWidgetSnapshot(force: true)
 
                     // ATT / UMP only while foreground-active (deferred if launched into background).
                     await AdConsentManager.requestTrackingAuthorizationAtLaunch()
@@ -80,6 +82,8 @@ struct YTLiteApp: App {
                         AppAnalytics.appOpen(coldStart: false)
                         ReviewPromptCoordinator.shared.recordActiveDay()
                         playback.consumePendingDailyListenIfNeeded()
+                        PhoneWidgetCommandBridge.shared.consumePending()
+                        playback.publishPhoneWidgetSnapshot(force: true)
                         if playback.isPlaying {
                             playback.prepareForBackgroundPlayback()
                         }

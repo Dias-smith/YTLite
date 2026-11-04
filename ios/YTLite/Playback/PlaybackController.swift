@@ -125,6 +125,8 @@ final class PlaybackController: ObservableObject {
     private var resumeAfterInterruption = false
     /// Resume after another app's audio ends (secondary-audio silence hint).
     private var resumeAfterSecondaryAudioSilence = false
+    /// Avoid spamming WidgetKit reloads on every elapsed tick.
+    private var lastPhoneWidgetSignature: String?
     /// Progressive stream eligible for local persistence after the watch threshold.
     private struct PlaybackStoreContext {
         let videoId: String
@@ -2183,6 +2185,20 @@ final class PlaybackController: ObservableObject {
         updateNowPlayingInfo()
     }
 
+    /// Push Now Playing into the Home Screen / Lock Screen widget App Group.
+    func publishPhoneWidgetSnapshot(force: Bool = false) {
+        let signature = "\(nowPlaying?.videoId ?? "")|\(isPlaying)|\(nowPlaying?.title ?? "")|\(nowPlaying?.channelName ?? "")|\(nowPlaying?.thumbnailURL?.absoluteString ?? "")"
+        guard force || signature != lastPhoneWidgetSignature else { return }
+        lastPhoneWidgetSignature = signature
+        PhoneWidgetSnapshotBridge.publish(
+            videoId: nowPlaying?.videoId,
+            title: nowPlaying?.title,
+            artist: nowPlaying?.channelName,
+            thumbnailURL: nowPlaying?.thumbnailURL,
+            isPlaying: isPlaying
+        )
+    }
+
     /// Keep AVAudioSession + AVPlayer alive when the app backgrounds (App Review checks this).
     /// When Picture in Picture is off, playback continues as audio-only (no floating video).
     func prepareForBackgroundPlayback() {
@@ -2231,6 +2247,7 @@ final class PlaybackController: ObservableObject {
         guard let nowPlaying else {
             MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
             refreshRemoteCommandEnabled()
+            publishPhoneWidgetSnapshot()
             return
         }
         loadArtworkIfNeeded(for: nowPlaying)
@@ -2249,6 +2266,7 @@ final class PlaybackController: ObservableObject {
         }
         MPNowPlayingInfoCenter.default().nowPlayingInfo = info
         refreshRemoteCommandEnabled()
+        publishPhoneWidgetSnapshot()
     }
 
     /// Lightweight elapsed/rate refresh for the periodic time observer (avoids rebuilding artwork).

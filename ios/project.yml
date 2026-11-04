@@ -28,6 +28,7 @@ targets:
     sources:
       - path: YTLite
       - path: YTLiteWatchConnectivity
+      - path: YTLiteWidgetShared
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.ytlite.player
@@ -67,6 +68,10 @@ targets:
       - target: YTLite Watch App
         embed: true
         codeSign: true
+      - target: YTLite Widget
+        embed: true
+        codeSign: true
+      - sdk: WidgetKit.framework
     # Xcode 26 local device install sometimes looks under PlugIns/; App Store requires Watch/.
     # Debug: also mirror into PlugIns for local companion discovery.
     # Release/Archive: ensure only Watch/ remains (no PlugIns copy, no symlink).
@@ -211,11 +216,44 @@ targets:
       - sdk: SwiftUI.framework
       - sdk: AppIntents.framework
 
+  YTLite Widget:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: YTLiteWidget
+      - path: YTLiteWidgetShared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ytlite.player.widget
+        PRODUCT_NAME: MixtubeWidget
+        PRODUCT_MODULE_NAME: YTLiteWidget
+        INFOPLIST_FILE: YTLiteWidget/Info.plist
+        GENERATE_INFOPLIST_FILE: false
+        CODE_SIGN_ENTITLEMENTS: YTLiteWidget/YTLiteWidget.entitlements
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: "8S748AQ4H7"
+        TARGETED_DEVICE_FAMILY: "1,2"
+        IPHONEOS_DEPLOYMENT_TARGET: "17.0"
+        SKIP_INSTALL: true
+        MARKETING_VERSION: "1.0.0"
+        CURRENT_PROJECT_VERSION: "1"
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks"
+    entitlements:
+      path: YTLiteWidget/YTLiteWidget.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.com.ytlite.player
+    dependencies:
+      - sdk: WidgetKit.framework
+      - sdk: SwiftUI.framework
+      - sdk: AppIntents.framework
+
 schemes:
   YTLite:
     build:
       targets:
         YTLite: all
+        YTLite Widget: [build]
         YTLite Watch App: [build]
         YTLite Watch Widget: [build]
     run:
