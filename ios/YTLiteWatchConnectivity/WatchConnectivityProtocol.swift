@@ -45,6 +45,7 @@ enum WatchConnectivityProtocol {
         case transportCycleRepeat = "transport.cycleRepeat"
         case transportSetSpeed = "transport.setSpeed"
         case transportSetVolume = "transport.setVolume"
+        case transportSetSleepTimer = "transport.setSleepTimer"
         case queuePlayIndex = "queue.play"
         case queueRemove = "queue.remove"
         case queuePlayNext = "queue.playNext"
@@ -105,6 +106,11 @@ enum WatchConnectivityProtocol {
         var volume: Float
     }
 
+    struct SleepTimerBody: Codable, Sendable, Equatable {
+        /// Minutes until pause; `nil` / `0` clears the timer.
+        var minutes: Int?
+    }
+
     struct IndexBody: Codable, Sendable, Equatable {
         var index: Int
     }
@@ -138,11 +144,17 @@ enum WatchConnectivityProtocol {
         var errorMessage: String?
         /// App playback volume 0…1 (`AVPlayer.volume`), controlled from Watch.
         var outputVolume: Float?
+        /// Active sleep-timer preset in minutes; `nil` when off.
+        var sleepTimerMinutes: Int?
+        /// Wall-clock end (`timeIntervalSince1970`); `nil` when off.
+        var sleepTimerEndsAt: TimeInterval?
         /// Monotonic wall-clock stamp so receivers can drop stale queued transfers.
         var updatedAt: TimeInterval?
 
         /// Speeds accepted by iPhone `PlaybackController.speedOptions`.
         static let speedOptions: [Float] = [0.5, 0.75, 1, 1.25, 1.5, 2, 3, 5, 8]
+        /// Sleep timer presets matching iPhone `SleepTimerOptions.minutesOptions`.
+        static let sleepTimerMinutesOptions: [Int] = [15, 30, 45, 60]
     }
 
     struct QueueTrackDTO: Codable, Sendable, Equatable, Identifiable {

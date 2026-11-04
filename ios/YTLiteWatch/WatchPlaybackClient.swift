@@ -1,5 +1,6 @@
 import Combine
 import Foundation
+import WidgetKit
 
 /// Watch-side playback remote: transport + queue mirror (Phase 4).
 @MainActor
@@ -28,7 +29,9 @@ final class WatchPlaybackClient: ObservableObject {
         let bridge = WatchConnectivityBridge.shared
         bridge.activate()
         bindIfNeeded()
+        WatchWidgetCommandBridge.shared.start(client: self)
         syncWithPhone(bootstrap: true)
+        publishWidgetSnapshot()
     }
 
     /// Active pull: ingest cached context + ask iPhone for fresh playback/queue.
@@ -229,6 +232,26 @@ final class WatchPlaybackClient: ObservableObject {
         scheduleReconcile()
     }
 
+    func setSleepTimer(minutes: Int?) {
+        let normalized: Int? = {
+            guard let minutes, minutes > 0 else { return nil }
+            return minutes
+        }()
+        if var current = snapshot {
+            current.sleepTimerMinutes = normalized
+            current.sleepTimerEndsAt = normalized.map { Date().addingTimeInterval(TimeInterval($0 * 60)).timeIntervalSince1970 }
+            current.updatedAt = Date().timeIntervalSince1970
+            lastPlaybackUpdatedAt = max(lastPlaybackUpdatedAt, current.updatedAt ?? 0)
+            snapshot = current
+            publishWidgetSnapshot()
+        }
+        send(
+            kind: .transportSetSleepTimer,
+            body: WatchConnectivityProtocol.SleepTimerBody(minutes: normalized)
+        )
+        scheduleReconcile()
+    }
+
     func playQueueIndex(_ index: Int) {
         applyOptimisticQueueIndex(index)
         send(kind: .queuePlayIndex, body: WatchConnectivityProtocol.IndexBody(index: index))
@@ -281,6 +304,7 @@ final class WatchPlaybackClient: ObservableObject {
         current.updatedAt = Date().timeIntervalSince1970
         lastPlaybackUpdatedAt = max(lastPlaybackUpdatedAt, current.updatedAt ?? 0)
         snapshot = current
+        publishWidgetSnapshot()
         configurePlaySyncTimer(playing: current.isPlaying)
     }
 
@@ -335,6 +359,8 @@ final class WatchPlaybackClient: ObservableObject {
             isSeekable: false,
             errorMessage: nil,
             outputVolume: nil,
+            sleepTimerMinutes: nil,
+            sleepTimerEndsAt: nil,
             updatedAt: stamp
         )
         playback.videoId = item.videoId
@@ -350,6 +376,7 @@ final class WatchPlaybackClient: ObservableObject {
         playback.updatedAt = stamp
         lastPlaybackUpdatedAt = max(lastPlaybackUpdatedAt, stamp)
         snapshot = playback
+        publishWidgetSnapshot()
         configurePlaySyncTimer(playing: true)
     }
 
@@ -389,6 +416,7 @@ final class WatchPlaybackClient: ObservableObject {
         lastPlaybackUpdatedAt = body.updatedAt ?? lastPlaybackUpdatedAt
         snapshot = body
         lastCommandError = nil
+        publishWidgetSnapshot()
 
         if body.isPlaying != previousPlaying {
             configurePlaySyncTimer(playing: body.isPlaying)
@@ -398,6 +426,10 @@ final class WatchPlaybackClient: ObservableObject {
         if source == .envelope, body.videoId != nil, body.videoId != previousVideoId {
             requestSnapshot(force: true)
         }
+    }
+
+    private func publishWidgetSnapshot() {
+        WatchWidgetSnapshotBridge.publish(from: snapshot)
     }
 
     private func handle(_ envelope: WatchConnectivityProtocol.Envelope) {

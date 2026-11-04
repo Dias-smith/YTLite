@@ -7,6 +7,7 @@ struct WatchNowPlayingView: View {
 
     @State private var showMore = false
     @State private var showSpeedPicker = false
+    @State private var showSleepTimerPicker = false
     @State private var draftVolume: Float = 0.5
     @State private var isAdjustingVolume = false
     @State private var swipeOffset: CGFloat = 0
@@ -55,6 +56,9 @@ struct WatchNowPlayingView: View {
         }
         .sheet(isPresented: $showSpeedPicker) {
             speedPickerSheet
+        }
+        .sheet(isPresented: $showSleepTimerPicker) {
+            sleepTimerPickerSheet
         }
     }
 
@@ -367,6 +371,19 @@ struct WatchNowPlayingView: View {
                     .disabled(!canControl)
 
                     Button {
+                        showMore = false
+                        showSleepTimerPicker = true
+                    } label: {
+                        Label {
+                            Text(sleepTimerRowLabel(for: snapshot))
+                        } icon: {
+                            Image(systemName: "moon.zzz.fill")
+                                .foregroundStyle(snapshot.sleepTimerEndsAt != nil ? Self.accent : .primary)
+                        }
+                    }
+                    .disabled(!canControl)
+
+                    Button {
                         playback.playPrevious()
                         showMore = false
                     } label: {
@@ -423,7 +440,67 @@ struct WatchNowPlayingView: View {
         }
     }
 
+    private var sleepTimerPickerSheet: some View {
+        NavigationStack {
+            List {
+                Button {
+                    playback.setSleepTimer(minutes: nil)
+                    showSleepTimerPicker = false
+                } label: {
+                    HStack {
+                        Text(WL("watch.sleep_timer_off", "Off"))
+                        Spacer()
+                        if playback.snapshot?.sleepTimerMinutes == nil {
+                            Image(systemName: "checkmark")
+                        }
+                    }
+                }
+
+                ForEach(WatchConnectivityProtocol.PlaybackSnapshot.sleepTimerMinutesOptions, id: \.self) { minutes in
+                    Button {
+                        playback.setSleepTimer(minutes: minutes)
+                        showSleepTimerPicker = false
+                    } label: {
+                        HStack {
+                            Text(String(format: WL("watch.sleep_timer_minutes", "%d min"), minutes))
+                            Spacer()
+                            if playback.snapshot?.sleepTimerMinutes == minutes {
+                                Image(systemName: "checkmark")
+                            }
+                        }
+                    }
+                }
+            }
+            .navigationTitle(WL("watch.sleep_timer", "Sleep Timer"))
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(WL("watch.done", "Done")) { showSleepTimerPicker = false }
+                }
+            }
+        }
+    }
+
     // MARK: - Helpers
+
+    private func sleepTimerRowLabel(for snapshot: WatchConnectivityProtocol.PlaybackSnapshot) -> String {
+        let title = WL("watch.sleep_timer", "Sleep Timer")
+        if let endsAt = snapshot.sleepTimerEndsAt {
+            let remaining = max(0, endsAt - Date().timeIntervalSince1970)
+            return "\(title) · \(formatSleepRemaining(remaining))"
+        }
+        return "\(title) · \(WL("watch.sleep_timer_off", "Off"))"
+    }
+
+    private func formatSleepRemaining(_ remaining: TimeInterval) -> String {
+        let seconds = max(0, Int(remaining.rounded(.down)))
+        let m = seconds / 60
+        let s = seconds % 60
+        if m >= 10 {
+            return "\(m)m"
+        }
+        return String(format: "%d:%02d", m, s)
+    }
+
 
     private func remainingLabel(for snapshot: WatchConnectivityProtocol.PlaybackSnapshot) -> String {
         let remaining: Double

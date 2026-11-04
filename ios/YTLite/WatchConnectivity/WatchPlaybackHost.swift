@@ -80,6 +80,8 @@ final class WatchPlaybackHost {
             playback.$shuffleEnabled.map { _ in () }.eraseToAnyPublisher(),
             playback.$repeatMode.map { _ in () }.eraseToAnyPublisher(),
             playback.$playbackSpeed.map { _ in () }.eraseToAnyPublisher(),
+            playback.$sleepTimerEndsAt.map { _ in () }.eraseToAnyPublisher(),
+            playback.$sleepTimerMinutes.map { _ in () }.eraseToAnyPublisher(),
             playback.$queueIndex.map { _ in () }.eraseToAnyPublisher(),
             playback.$queue.map { _ in () }.eraseToAnyPublisher()
         )
@@ -158,6 +160,12 @@ final class WatchPlaybackHost {
                 // System MPVolumeView is best-effort only (often no-op in background).
                 playback?.setPlayerVolume(body.volume)
                 SystemOutputVolume.set(body.volume)
+                pushPlayback(force: true)
+                schedulePushRetry()
+            }
+        case .transportSetSleepTimer:
+            if let body = try? envelope.decodePayload(WatchConnectivityProtocol.SleepTimerBody.self) {
+                playback?.setSleepTimer(minutes: body.minutes)
                 pushPlayback(force: true)
                 schedulePushRetry()
             }
@@ -295,6 +303,8 @@ final class WatchPlaybackHost {
             isSeekable: hasDuration && !isLive,
             errorMessage: playback.lastError,
             outputVolume: playback.playerVolume,
+            sleepTimerMinutes: playback.sleepTimerMinutes,
+            sleepTimerEndsAt: playback.sleepTimerEndsAt?.timeIntervalSince1970,
             updatedAt: Date().timeIntervalSince1970
         )
     }

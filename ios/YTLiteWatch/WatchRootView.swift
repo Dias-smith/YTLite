@@ -22,11 +22,13 @@ struct WatchRootView: View {
         .onAppear {
             WatchPlaybackClient.shared.syncWithPhone(bootstrap: true)
             WatchLibraryClient.shared.requestSnapshot()
+            WatchWidgetCommandBridge.shared.consumePending()
         }
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active else { return }
             WatchPlaybackClient.shared.syncWithPhone(bootstrap: true)
             WatchLibraryClient.shared.requestSnapshot()
+            WatchWidgetCommandBridge.shared.consumePending()
         }
     }
 }
