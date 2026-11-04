@@ -17,8 +17,9 @@ final class ImageStore: @unchecked Sendable {
     private var leaders: Set<String> = []
 
     private init() {
-        memory.countLimit = 250
-        memory.totalCostLimit = 48 * 1024 * 1024
+        // Library / feeds keep many thumbnails on screen during fling.
+        memory.countLimit = 400
+        memory.totalCostLimit = 72 * 1024 * 1024
         let base = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first
             ?? FileManager.default.temporaryDirectory
         folder = base.appendingPathComponent("remote_images", isDirectory: true)

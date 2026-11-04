@@ -723,6 +723,7 @@ struct CatalogPlaylistItemsView: View {
     @EnvironmentObject private var appModel: AppModel
     @EnvironmentObject private var playback: PlaybackController
     @State private var items: [VideoItem] = []
+    @State private var itemsVersion: Int = 0
     @State private var isLoading = true
     @State private var errorMessage: String?
     @EnvironmentObject private var playerPresentation: PlayerPresentation
@@ -739,42 +740,19 @@ struct CatalogPlaylistItemsView: View {
                     systemImage: "exclamationmark.triangle",
                     description: Text(errorMessage)
                 )
-            } else if items.isEmpty {
-                ContentUnavailableView(
-                    L("library.empty_playlist"),
-                    systemImage: "play.rectangle",
-                    description: Text(L("you.playlist_empty"))
-                )
             } else {
-                List(Array(items.enumerated()), id: \.element.id) { index, item in
-                    Button {
+                MediaTracksListPane(
+                    tracks: items,
+                    tracksVersion: itemsVersion,
+                    emptyTitle: L("library.empty_playlist"),
+                    emptySystemImage: "play.rectangle",
+                    emptyDescription: L("you.playlist_empty"),
+                    onPlay: { index in
                         playback.play(items: items, startAt: index, sourcePlaylistId: playlistId)
                         playerPresentation.present()
-                    } label: {
-                        HStack(spacing: 12) {
-                            RemoteImage(url: item.thumbnailURL)
-                                .frame(width: 120, height: 68)
-                                .clipped()
-                                .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(item.title)
-                                    .font(YTLiteType.rowTitle)
-                                    .foregroundStyle(YTLiteColor.onSurface)
-                                    .lineLimit(2)
-                                    .multilineTextAlignment(.leading)
-                                Text(item.channelName)
-                                    .font(YTLiteType.meta)
-                                    .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                                    .lineLimit(1)
-                            }
-                            Spacer(minLength: 0)
-                        }
-                        .contentShape(Rectangle())
                     }
-                    .buttonStyle(.plain)
-                    .listRowBackground(YTLiteColor.background)
-                }
-                .scrollContentBackground(.hidden)
+                )
+                .equatable()
             }
         }
         .background(YTLiteColor.background)
@@ -793,24 +771,32 @@ struct CatalogPlaylistItemsView: View {
         defer { isLoading = false }
         guard let token = auth.googleAccessToken else {
             errorMessage = "Sign in again to grant catalog access"
-            items = []
+            replaceItems([])
             return
         }
         let key = appModel.config.catalogDataAPIKey
         guard !key.isEmpty else {
             errorMessage = "Catalog Data API key is not configured"
-            items = []
+            replaceItems([])
             return
         }
-        items = await CatalogDataApiClient.listPlaylistItems(
+        let next = await CatalogDataApiClient.listPlaylistItems(
             token: token,
             apiKey: key,
             playlistId: playlistId,
             maxResults: 50
         ) ?? []
+        replaceItems(next)
         if items.isEmpty {
             errorMessage = nil
         }
+    }
+
+    private func replaceItems(_ next: [VideoItem]) {
+        if next.map(\.videoId) != items.map(\.videoId) {
+            itemsVersion &+= 1
+        }
+        items = next
     }
 }
 
@@ -933,6 +919,7 @@ struct ChannelVideosView: View {
     @EnvironmentObject private var trackActions: TrackActionPresenter
     @Environment(\.libraryStore) private var store
     @State private var videos: [VideoItem] = []
+    @State private var videosVersion: Int = 0
     @State private var isLoading = true
     @State private var errorMessage: String?
     @State private var isSubscribed = false
@@ -946,29 +933,23 @@ struct ChannelVideosView: View {
         Group {
             if isLoading {
                 ProgressView().tint(YTLiteColor.accent)
-            } else if videos.isEmpty {
-                ContentUnavailableView(L("common.no_videos"), systemImage: "play.slash", description: Text(errorMessage ?? ""))
             } else {
-                ScrollView {
-                    LazyVStack(spacing: 0) {
-                        ForEach(Array(videos.enumerated()), id: \.element.id) { index, item in
-                            FeedVideoCard(
-                                item: item,
-                                onTap: {
-                                    playback.play(
-                                        items: videos,
-                                        startAt: index,
-                                        sourcePlaylistId: "yt_channel:\(channel.channelId)"
-                                    )
-                                    playerPresentation.present()
-                                },
-                                onMore: {
-                                    trackActions.present(item: item)
-                                }
-                            )
-                        }
-                    }
-                }
+                MediaTracksListPane(
+                    tracks: videos,
+                    tracksVersion: videosVersion,
+                    emptyTitle: L("common.no_videos"),
+                    emptyDescription: errorMessage ?? "",
+                    onPlay: { index in
+                        playback.play(
+                            items: videos,
+                            startAt: index,
+                            sourcePlaylistId: "yt_channel:\(channel.channelId)"
+                        )
+                        playerPresentation.present()
+                    },
+                    onMore: { trackActions.present(item: $0) }
+                )
+                .equatable()
             }
         }
         .background(YTLiteColor.background)
@@ -997,7 +978,7 @@ struct ChannelVideosView: View {
         }
         .onAppear { refreshSubscribeState() }
         .onChange(of: trackActions.listEpoch) { _, _ in
-            videos = store?.filterNotInterested(videos) ?? videos
+            replaceVideos(store?.filterNotInterested(videos) ?? videos)
             refreshSubscribeState()
         }
         .onChange(of: playback.isChannelSubscribed) { _, _ in
@@ -1007,6 +988,13 @@ struct ChannelVideosView: View {
             refreshSubscribeState()
             await loadVideos()
         }
+    }
+
+    private func replaceVideos(_ next: [VideoItem]) {
+        if next.map(\.videoId) != videos.map(\.videoId) {
+            videosVersion &+= 1
+        }
+        videos = next
     }
 
     private func refreshSubscribeState() {
@@ -1049,7 +1037,7 @@ struct ChannelVideosView: View {
                     publishedTimeText: item.publishedTimeText
                 )
             }
-            videos = store?.filterNotInterested(labeled) ?? labeled
+            replaceVideos(store?.filterNotInterested(labeled) ?? labeled)
             if videos.isEmpty {
                 errorMessage = "No uploads found for this channel"
             }
@@ -1068,6 +1056,7 @@ struct PlaylistVideosBrowserView: View {
     @EnvironmentObject private var trackActions: TrackActionPresenter
     @Environment(\.libraryStore) private var store
     @State private var videos: [VideoItem] = []
+    @State private var videosVersion: Int = 0
     @State private var isLoading = true
     @State private var errorMessage: String?
     @EnvironmentObject private var playerPresentation: PlayerPresentation
@@ -1076,46 +1065,48 @@ struct PlaylistVideosBrowserView: View {
         Group {
             if isLoading {
                 ProgressView().tint(YTLiteColor.accent)
-            } else if videos.isEmpty {
-                ContentUnavailableView(L("library.empty_playlist"), systemImage: "list.bullet", description: Text(errorMessage ?? ""))
             } else {
-                ScrollView {
-                    LazyVStack(spacing: 0) {
-                        ForEach(Array(videos.enumerated()), id: \.element.id) { index, item in
-                            FeedVideoCard(
-                                item: item,
-                                onTap: {
-                                    playback.play(
-                                        items: videos,
-                                        startAt: index,
-                                        sourcePlaylistId: "yt_playlist:\(playlist.playlistId)"
-                                    )
-                                    playerPresentation.present()
-                                },
-                                onMore: {
-                                    trackActions.present(item: item)
-                                }
-                            )
-                        }
-                    }
-                }
+                MediaTracksListPane(
+                    tracks: videos,
+                    tracksVersion: videosVersion,
+                    emptyTitle: L("library.empty_playlist"),
+                    emptySystemImage: "list.bullet",
+                    emptyDescription: errorMessage ?? "",
+                    onPlay: { index in
+                        playback.play(
+                            items: videos,
+                            startAt: index,
+                            sourcePlaylistId: "yt_playlist:\(playlist.playlistId)"
+                        )
+                        playerPresentation.present()
+                    },
+                    onMore: { trackActions.present(item: $0) }
+                )
+                .equatable()
             }
         }
         .background(YTLiteColor.background)
         .ytLiteMiniPlayerScrollInset()
         .navigationTitle(playlist.title)
         .onChange(of: trackActions.listEpoch) { _, _ in
-            videos = store?.filterNotInterested(videos) ?? videos
+            replaceVideos(store?.filterNotInterested(videos) ?? videos)
         }
         .task {
             isLoading = true
             defer { isLoading = false }
             do {
                 let fetched = try await InnerTubeClient.fetchPlaylistVideos(playlistId: playlist.playlistId)
-                videos = store?.filterNotInterested(fetched) ?? fetched
+                replaceVideos(store?.filterNotInterested(fetched) ?? fetched)
             } catch {
                 errorMessage = error.localizedDescription
             }
         }
+    }
+
+    private func replaceVideos(_ next: [VideoItem]) {
+        if next.map(\.videoId) != videos.map(\.videoId) {
+            videosVersion &+= 1
+        }
+        videos = next
     }
 }

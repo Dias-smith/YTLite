@@ -350,66 +350,36 @@ struct SearchView: View {
                 for: geo.size.width,
                 sizeClass: horizontalSizeClass
             )
-            ScrollView {
-                LazyVGrid(
-                    columns: YTLiteAdaptive.gridItems(count: columns, spacing: 12),
-                    spacing: columns > 1 ? 12 : 0
-                ) {
-                    ForEach(viewModel.hits) { hit in
-                        switch hit {
-                        case .video(let item):
-                            Button {
-                                let videos = viewModel.hits.compactMap(\.asVideoItem)
-                                let index = videos.firstIndex(of: item) ?? 0
-                                AppAnalytics.searchResultTap(type: "video")
-                                playback.play(
-                                    items: videos.isEmpty ? [item] : videos,
-                                    startAt: index,
-                                    analyticsSource: "search"
-                                )
-                                playerPresentation.present()
-                            } label: {
-                                SearchVideoResultRow(item: item) {
-                                    trackActions.present(item: item)
-                                }
-                            }
-                            .buttonStyle(.plain)
-                        case .channel(let channel):
-                            NavigationLink {
-                                ChannelVideosView(channel: channel)
-                            } label: {
-                                SearchChannelResultRow(channel: channel)
-                            }
-                            .buttonStyle(.plain)
-                            .simultaneousGesture(TapGesture().onEnded {
-                                AppAnalytics.searchResultTap(type: "channel")
-                            })
-                            .gridCellColumns(columns)
-                        case .playlist(let playlist):
-                            NavigationLink {
-                                PlaylistVideosBrowserView(playlist: playlist)
-                            } label: {
-                                SearchPlaylistResultRow(playlist: playlist)
-                            }
-                            .buttonStyle(.plain)
-                            .simultaneousGesture(TapGesture().onEnded {
-                                AppAnalytics.searchResultTap(type: "playlist")
-                            })
-                            .gridCellColumns(columns)
-                        }
-                    }
-                }
-                .padding(.horizontal, columns > 1 ? YTLiteLayout.screenPadding : 0)
-                .padding(.bottom, YTLiteLayout.screenPadding)
-            }
-            .ytLiteMiniPlayerScrollInset()
-            .overlay {
-                if viewModel.isLoading && !viewModel.hits.isEmpty {
-                    ProgressView()
-                        .tint(YTLiteColor.accent)
-                }
-            }
+            SearchResultsPane(
+                token: searchHitsToken,
+                hits: viewModel.hits,
+                columns: columns,
+                isLoadingOverlay: viewModel.isLoading && !viewModel.hits.isEmpty,
+                onPlayVideo: { item in
+                    let videos = viewModel.hits.compactMap(\.asVideoItem)
+                    let index = videos.firstIndex(where: { $0.videoId == item.videoId }) ?? 0
+                    AppAnalytics.searchResultTap(type: "video")
+                    playback.play(
+                        items: videos.isEmpty ? [item] : videos,
+                        startAt: index,
+                        analyticsSource: "search"
+                    )
+                    playerPresentation.present()
+                },
+                onMore: { trackActions.present(item: $0) }
+            )
+            .equatable()
         }
+    }
+
+    private var searchHitsToken: Int {
+        var hasher = Hasher()
+        hasher.combine(viewModel.hits.count)
+        hasher.combine(viewModel.hits.first?.id)
+        hasher.combine(viewModel.hits.last?.id)
+        hasher.combine(viewModel.selectedTab)
+        hasher.combine(viewModel.isLoading)
+        return hasher.finalize()
     }
 
     private var suggestionsList: some View {
@@ -757,6 +727,108 @@ private struct ChipFlowLayout: Layout {
             )
             rowHeight = max(rowHeight, size.height)
             x += size.width + spacing
+        }
+    }
+}
+
+/// Search hits grid/list — skips body when only playback publishes.
+private struct SearchResultsPane: View, Equatable {
+    let token: Int
+    let hits: [SearchHit]
+    let columns: Int
+    let isLoadingOverlay: Bool
+    let onPlayVideo: (VideoItem) -> Void
+    let onMore: (VideoItem) -> Void
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.token == rhs.token && lhs.columns == rhs.columns && lhs.isLoadingOverlay == rhs.isLoadingOverlay
+    }
+
+    var body: some View {
+        Group {
+            if columns <= 1 {
+                List {
+                    ForEach(hits) { hit in
+                        hitRow(hit, fullWidth: true)
+                            .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
+                            .listRowBackground(YTLiteColor.background)
+                            .listRowSeparator(.hidden)
+                    }
+                }
+                .listStyle(.plain)
+                .scrollContentBackground(.hidden)
+                .background(YTLiteColor.background)
+            } else {
+                ScrollView {
+                    LazyVGrid(
+                        columns: YTLiteAdaptive.gridItems(count: columns, spacing: 12),
+                        spacing: 12
+                    ) {
+                        ForEach(hits) { hit in
+                            hitRow(hit, fullWidth: false)
+                        }
+                    }
+                    .padding(.horizontal, YTLiteLayout.screenPadding)
+                    .padding(.bottom, YTLiteLayout.screenPadding)
+                }
+            }
+        }
+        .ytLiteMiniPlayerScrollInset()
+        .overlay {
+            if isLoadingOverlay {
+                ProgressView()
+                    .tint(YTLiteColor.accent)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func hitRow(_ hit: SearchHit, fullWidth: Bool) -> some View {
+        switch hit {
+        case .video(let item):
+            Button {
+                onPlayVideo(item)
+            } label: {
+                SearchVideoResultRow(item: item) {
+                    onMore(item)
+                }
+            }
+            .buttonStyle(.plain)
+        case .channel(let channel):
+            NavigationLink {
+                ChannelVideosView(channel: channel)
+            } label: {
+                SearchChannelResultRow(channel: channel)
+            }
+            .buttonStyle(.plain)
+            .simultaneousGesture(TapGesture().onEnded {
+                AppAnalytics.searchResultTap(type: "channel")
+            })
+            .modifier(SearchGridSpan(columns: columns, enabled: !fullWidth))
+        case .playlist(let playlist):
+            NavigationLink {
+                PlaylistVideosBrowserView(playlist: playlist)
+            } label: {
+                SearchPlaylistResultRow(playlist: playlist)
+            }
+            .buttonStyle(.plain)
+            .simultaneousGesture(TapGesture().onEnded {
+                AppAnalytics.searchResultTap(type: "playlist")
+            })
+            .modifier(SearchGridSpan(columns: columns, enabled: !fullWidth))
+        }
+    }
+}
+
+private struct SearchGridSpan: ViewModifier {
+    let columns: Int
+    let enabled: Bool
+
+    func body(content: Content) -> some View {
+        if enabled {
+            content.gridCellColumns(columns)
+        } else {
+            content
         }
     }
 }

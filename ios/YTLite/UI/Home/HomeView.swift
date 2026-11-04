@@ -867,64 +867,35 @@ struct HomeView: View {
                         Color.clear
                             .frame(height: 0)
                             .id("home_feed_top")
-                        LazyVGrid(
-                            columns: YTLiteAdaptive.gridItems(count: columns, spacing: compact ? 12 : 0),
-                            spacing: compact ? 16 : 0
-                        ) {
-                            if let err = viewModel.errorMessage {
-                                Text(err)
-                                    .font(YTLiteType.meta)
-                                    .foregroundStyle(YTLiteColor.danger)
-                                    .padding(.horizontal, YTLiteLayout.screenPadding)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .gridCellColumns(columns)
-                            }
-                            ForEach(Array(viewModel.entries.enumerated()), id: \.element.id) { index, entry in
-                                switch entry {
-                                case .track(let item):
-                                    FeedVideoCard(
-                                        item: item,
-                                        onTap: {
-                                            let queue = viewModel.playableVideos
-                                            let playIndex = viewModel.playIndex(for: item)
-                                            playback.play(items: queue.isEmpty ? [item] : queue, startAt: playIndex, analyticsSource: "home")
-                                            playerPresentation.present()
-                                        },
-                                        onMore: {
-                                            trackActions.present(item: item)
-                                        },
-                                        compact: compact
-                                    )
-                                    .onAppear {
-                                        if index >= max(0, viewModel.entries.count - 3) {
-                                            viewModel.loadMoreIfNeeded()
-                                        }
-                                    }
-                                case .album(let album):
-                                    NavigationLink {
-                                        AlbumTracksView(album: album)
-                                    } label: {
-                                        HomeAlbumCard(album: album)
-                                    }
-                                    .buttonStyle(.plain)
-                                    .gridCellColumns(columns)
-                                    .onAppear {
-                                        if index >= max(0, viewModel.entries.count - 3) {
-                                            viewModel.loadMoreIfNeeded()
-                                        }
-                                    }
+                        // Isolate from PlaybackController publish storms while flinging the feed.
+                        HomeFeedGridPane(
+                            token: homeFeedToken,
+                            entries: viewModel.entries,
+                            columns: columns,
+                            compact: compact,
+                            horizontalPadding: compact
+                                ? YTLiteAdaptive.screenPadding(for: geo.size.width, sizeClass: horizontalSizeClass) - 4
+                                : 0,
+                            errorMessage: viewModel.errorMessage,
+                            isLoadingMore: viewModel.isLoadingMore,
+                            onPlayTrack: { item in
+                                let queue = viewModel.playableVideos
+                                let playIndex = viewModel.playIndex(for: item)
+                                playback.play(
+                                    items: queue.isEmpty ? [item] : queue,
+                                    startAt: playIndex,
+                                    analyticsSource: "home"
+                                )
+                                playerPresentation.present()
+                            },
+                            onMore: { trackActions.present(item: $0) },
+                            onNearEnd: { index in
+                                if index >= max(0, viewModel.entries.count - 3) {
+                                    viewModel.loadMoreIfNeeded()
                                 }
                             }
-                            if viewModel.isLoadingMore {
-                                ProgressView()
-                                    .tint(YTLiteColor.accent)
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 16)
-                                    .gridCellColumns(columns)
-                            }
-                        }
-                        .padding(.horizontal, compact ? YTLiteAdaptive.screenPadding(for: geo.size.width, sizeClass: horizontalSizeClass) - 4 : 0)
-                        .padding(.bottom, YTLiteLayout.rowVertical)
+                        )
+                        .equatable()
                     }
                     .refreshable {
                         HomeFeedProbe.log(
@@ -943,6 +914,85 @@ struct HomeView: View {
                 }
             }
         }
+    }
+
+    /// Cheap identity for Equatable feed grid (avoids comparing full entry arrays each tick).
+    private var homeFeedToken: Int {
+        var hasher = Hasher()
+        hasher.combine(viewModel.entries.count)
+        hasher.combine(viewModel.entries.first?.id)
+        hasher.combine(viewModel.entries.last?.id)
+        hasher.combine(viewModel.isLoadingMore)
+        hasher.combine(viewModel.errorMessage)
+        hasher.combine(viewModel.selectedCategoryId)
+        return hasher.finalize()
+    }
+}
+
+/// Home feed cells — skips body when only playback publishes.
+private struct HomeFeedGridPane: View, Equatable {
+    let token: Int
+    let entries: [HomeFeedEntry]
+    let columns: Int
+    let compact: Bool
+    let horizontalPadding: CGFloat
+    let errorMessage: String?
+    let isLoadingMore: Bool
+    let onPlayTrack: (VideoItem) -> Void
+    let onMore: (VideoItem) -> Void
+    let onNearEnd: (Int) -> Void
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.token == rhs.token
+            && lhs.columns == rhs.columns
+            && lhs.compact == rhs.compact
+            && lhs.horizontalPadding == rhs.horizontalPadding
+    }
+
+    var body: some View {
+        LazyVGrid(
+            columns: YTLiteAdaptive.gridItems(count: columns, spacing: compact ? 12 : 0),
+            spacing: compact ? 16 : 0
+        ) {
+            if let err = errorMessage {
+                Text(err)
+                    .font(YTLiteType.meta)
+                    .foregroundStyle(YTLiteColor.danger)
+                    .padding(.horizontal, YTLiteLayout.screenPadding)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .gridCellColumns(columns)
+            }
+            ForEach(Array(entries.enumerated()), id: \.element.id) { index, entry in
+                switch entry {
+                case .track(let item):
+                    FeedVideoCard(
+                        item: item,
+                        onTap: { onPlayTrack(item) },
+                        onMore: { onMore(item) },
+                        compact: compact
+                    )
+                    .onAppear { onNearEnd(index) }
+                case .album(let album):
+                    NavigationLink {
+                        AlbumTracksView(album: album)
+                    } label: {
+                        HomeAlbumCard(album: album)
+                    }
+                    .buttonStyle(.plain)
+                    .gridCellColumns(columns)
+                    .onAppear { onNearEnd(index) }
+                }
+            }
+            if isLoadingMore {
+                ProgressView()
+                    .tint(YTLiteColor.accent)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .gridCellColumns(columns)
+            }
+        }
+        .padding(.horizontal, horizontalPadding)
+        .padding(.bottom, YTLiteLayout.rowVertical)
     }
 }
 
@@ -1053,6 +1103,7 @@ struct AlbumTracksView: View {
     @EnvironmentObject private var trackActions: TrackActionPresenter
     @Environment(\.libraryStore) private var libraryStore
     @State private var tracks: [VideoItem] = []
+    @State private var tracksVersion: Int = 0
     @State private var isLoading = true
     @State private var errorMessage: String?
     @EnvironmentObject private var playerPresentation: PlayerPresentation
@@ -1061,29 +1112,20 @@ struct AlbumTracksView: View {
         Group {
             if isLoading {
                 ProgressView().tint(YTLiteColor.accent)
-            } else if tracks.isEmpty {
-                ContentUnavailableView(
-                    L("common.no_tracks"),
-                    systemImage: "music.note.list",
-                    description: Text(errorMessage ?? "")
-                )
             } else {
-                ScrollView {
-                    LazyVStack(spacing: 0) {
-                        ForEach(Array(tracks.enumerated()), id: \.element.id) { index, item in
-                            FeedVideoCard(
-                                item: item,
-                                onTap: {
-                                    playback.play(items: tracks, startAt: index, analyticsSource: "home")
-                                    playerPresentation.present()
-                                },
-                                onMore: {
-                                    trackActions.present(item: item)
-                                }
-                            )
-                        }
-                    }
-                }
+                MediaTracksListPane(
+                    tracks: tracks,
+                    tracksVersion: tracksVersion,
+                    emptyTitle: L("common.no_tracks"),
+                    emptySystemImage: "music.note.list",
+                    emptyDescription: errorMessage ?? "",
+                    onPlay: { index in
+                        playback.play(items: tracks, startAt: index, analyticsSource: "home")
+                        playerPresentation.present()
+                    },
+                    onMore: { trackActions.present(item: $0) }
+                )
+                .equatable()
             }
         }
         .background(YTLiteColor.background)
@@ -1100,7 +1142,11 @@ struct AlbumTracksView: View {
                     artistFallback: album.artistName,
                     thumbnailFallback: album.thumbnailURL
                 )
-                tracks = libraryStore?.filterNotInterested(fetched) ?? fetched
+                let next = libraryStore?.filterNotInterested(fetched) ?? fetched
+                if next.map(\.videoId) != tracks.map(\.videoId) {
+                    tracksVersion &+= 1
+                }
+                tracks = next
                 if tracks.isEmpty {
                     errorMessage = "No tracks in album"
                 }

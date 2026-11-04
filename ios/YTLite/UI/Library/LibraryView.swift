@@ -60,6 +60,8 @@ struct LibraryView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     /// Deduped songs from all playlists (+ history-only), Library → Songs tab.
     @State private var songs: [VideoItem] = []
+    /// Bumped only when `songs` is replaced — cheap identity for Equatable list panes.
+    @State private var songsVersion: Int = 0
     @State private var channels: [UserSubscribedChannel] = []
     @State private var showNewPlaylist = false
     @State private var newPlaylistName = ""
@@ -115,8 +117,43 @@ struct LibraryView: View {
                             .padding(.bottom, YTLiteLayout.stackLoose)
                         reorderList
                     }
+                } else if filter == .songs, viewMode == .list {
+                    // `List` recycles cells; Equatable pane ignores playback publish storms.
+                    VStack(spacing: 0) {
+                        Group {
+                            if isSelectionMode {
+                                selectionHeader
+                            } else {
+                                VStack(alignment: .leading, spacing: YTLiteLayout.screenPadding) {
+                                    header
+                                    filterChips
+                                    listControls
+                                }
+                            }
+                        }
+                        LibrarySongsPane(
+                            songs: songs,
+                            songsVersion: songsVersion,
+                            viewMode: .list,
+                            isSelectionMode: isSelectionMode,
+                            selectedIds: selectedIds,
+                            usesUIKitList: true,
+                            onPlay: { index in
+                                playback.play(items: songs, startAt: index, analyticsSource: "library")
+                                playerPresentation.present()
+                            },
+                            onToggleSelection: { toggleSelection($0) },
+                            onMore: { trackActions.present(item: $0, canDeleteFromLibrary: true) }
+                        )
+                        .equatable()
+                        .safeAreaInset(edge: .bottom, spacing: 0) {
+                            Color.clear.frame(height: libraryListBottomPadding)
+                        }
+                    }
+                    .ytLiteMiniPlayerScrollInset()
                 } else {
                     ScrollView {
+                        // Single LazyVStack (no nested lazy stacks) so rows stay virtualized.
                         LazyVStack(alignment: .leading, spacing: YTLiteLayout.screenPadding) {
                             if isSelectionMode {
                                 selectionHeader
@@ -125,7 +162,7 @@ struct LibraryView: View {
                                 filterChips
                                 listControls
                             }
-                            contentList
+                            flattenedContent
                         }
                         .padding(.bottom, libraryListBottomPadding)
                     }
@@ -699,13 +736,29 @@ struct LibraryView: View {
         }
     }
 
+    /// Emits rows as siblings of the outer `LazyVStack` (avoids nested lazy stacks).
     @ViewBuilder
-    private var contentList: some View {
+    private var flattenedContent: some View {
         switch filter {
         case .playlists:
             playlistContent
         case .songs:
-            songsContent
+            // Isolated from PlaybackController `@Published` churn while audio is playing.
+            LibrarySongsPane(
+                songs: songs,
+                songsVersion: songsVersion,
+                viewMode: viewMode,
+                isSelectionMode: isSelectionMode,
+                selectedIds: selectedIds,
+                usesUIKitList: false,
+                onPlay: { index in
+                    playback.play(items: songs, startAt: index, analyticsSource: "library")
+                    playerPresentation.present()
+                },
+                onToggleSelection: { toggleSelection($0) },
+                onMore: { trackActions.present(item: $0, canDeleteFromLibrary: true) }
+            )
+            .equatable()
         case .channels:
             channelsContent
         }
@@ -741,10 +794,8 @@ struct LibraryView: View {
             }
             .padding(.horizontal, YTLiteLayout.screenPadding)
         } else {
-            LazyVStack(spacing: 0) {
-                ForEach(items, id: \.channelId) { channel in
-                    channelListRow(channel)
-                }
+            ForEach(items, id: \.channelId) { channel in
+                channelListRow(channel)
             }
         }
     }
@@ -900,10 +951,8 @@ struct LibraryView: View {
             }
             .padding(.horizontal, YTLiteLayout.screenPadding)
         } else {
-            LazyVStack(spacing: 0) {
-                ForEach(items) { item in
-                    playlistRow(item)
-                }
+            ForEach(items) { item in
+                playlistRow(item)
             }
         }
     }
@@ -936,32 +985,6 @@ struct LibraryView: View {
                 }
                 .buttonStyle(.plain)
                 .padding(.trailing, YTLiteLayout.screenPadding - 8)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var songsContent: some View {
-        let songs = displayedSongs
-        if songs.isEmpty {
-            Text(L("library.no_plays"))
-                .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                .padding()
-        } else if viewMode == .grid {
-            LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 160, maximum: 260), spacing: 12)],
-                spacing: 12
-            ) {
-                ForEach(songs) { item in
-                    songGridCell(item)
-                }
-            }
-            .padding(.horizontal, YTLiteLayout.screenPadding)
-        } else {
-            LazyVStack(spacing: 0) {
-                ForEach(songs) { item in
-                    songListRow(item)
-                }
             }
         }
     }
@@ -1113,78 +1136,6 @@ struct LibraryView: View {
                 .lineLimit(1)
         }
         .contentShape(Rectangle())
-    }
-
-    @ViewBuilder
-    private func songListRow(_ item: VideoItem) -> some View {
-        let selected = selectedIds.contains(item.videoId)
-        Button {
-            if isSelectionMode {
-                toggleSelection(item.videoId)
-            } else {
-                playback.play(items: displayedSongs, startAt: displayedSongs.firstIndex(of: item) ?? 0, analyticsSource: "library")
-                playerPresentation.present()
-            }
-        } label: {
-            HStack(spacing: YTLiteLayout.stackLoose) {
-                if isSelectionMode {
-                    Image(systemName: selected ? "checkmark.circle.fill" : "circle")
-                        .foregroundStyle(selected ? YTLiteColor.accent : YTLiteColor.onSurfaceVariant)
-                        .padding(.leading, YTLiteLayout.screenPadding)
-                }
-                LibrarySongRow(item: item, compactLeading: isSelectionMode) {
-                    if !isSelectionMode {
-                        trackActions.present(item: item, canDeleteFromLibrary: true)
-                    }
-                }
-            }
-        }
-        .buttonStyle(.plain)
-    }
-
-    @ViewBuilder
-    private func songGridCell(_ item: VideoItem) -> some View {
-        let selected = selectedIds.contains(item.videoId)
-        Button {
-            if isSelectionMode {
-                toggleSelection(item.videoId)
-            } else {
-                playback.play(items: displayedSongs, startAt: displayedSongs.firstIndex(of: item) ?? 0, analyticsSource: "library")
-                playerPresentation.present()
-            }
-        } label: {
-            VStack(alignment: .leading, spacing: 6) {
-                ZStack(alignment: .topLeading) {
-                    GeometryReader { geo in
-                        VideoThumbnail(
-                            url: item.thumbnailURL,
-                            durationText: item.durationText,
-                            width: geo.size.width,
-                            height: geo.size.width,
-                            cornerRadius: YTLiteLayout.thumbRadius,
-                            badgePadding: 4
-                        )
-                    }
-                    .aspectRatio(1, contentMode: .fit)
-                    if isSelectionMode {
-                        Image(systemName: selected ? "checkmark.circle.fill" : "circle")
-                            .foregroundStyle(selected ? YTLiteColor.accent : YTLiteColor.onSurface)
-                            .shadow(color: .black.opacity(0.35), radius: 1, y: 0.5)
-                            .padding(6)
-                    }
-                }
-                Text(item.title)
-                    .font(YTLiteType.rowTitleMedium)
-                    .foregroundStyle(YTLiteColor.onSurface)
-                    .lineLimit(2)
-                Text(item.channelName)
-                    .font(YTLiteType.meta)
-                    .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                    .lineLimit(1)
-            }
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
     }
 
     private func libraryRowLabel(
@@ -1387,7 +1338,11 @@ struct LibraryView: View {
         let items = store?.historyVideos() ?? []
         history = store?.filterNotInterested(items) ?? items
         let songItems = store?.librarySongs(sort: songSort) ?? []
-        songs = store?.filterNotInterested(songItems) ?? songItems
+        let nextSongs = store?.filterNotInterested(songItems) ?? songItems
+        if nextSongs.map(\.videoId) != songs.map(\.videoId) {
+            songsVersion &+= 1
+        }
+        songs = nextSongs
         channels = store?.allSubscribedChannels() ?? []
     }
 
@@ -1659,10 +1614,142 @@ private struct SystemCoverView: View {
     }
 }
 
-struct LibrarySongRow: View {
+/// Songs list pane that ignores `PlaybackController` publish storms (buffering / nowPlaying).
+private struct LibrarySongsPane: View, Equatable {
+    let songs: [VideoItem]
+    let songsVersion: Int
+    let viewMode: LibraryViewMode
+    let isSelectionMode: Bool
+    let selectedIds: Set<String>
+    /// When true, use `List` cell recycling (primary path for large song libraries).
+    let usesUIKitList: Bool
+    let onPlay: (Int) -> Void
+    let onToggleSelection: (String) -> Void
+    let onMore: (VideoItem) -> Void
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.songsVersion == rhs.songsVersion
+            && lhs.viewMode == rhs.viewMode
+            && lhs.isSelectionMode == rhs.isSelectionMode
+            && lhs.selectedIds == rhs.selectedIds
+            && lhs.usesUIKitList == rhs.usesUIKitList
+    }
+
+    var body: some View {
+        if songs.isEmpty {
+            Text(L("library.no_plays"))
+                .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                .padding()
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        } else if viewMode == .grid {
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 160, maximum: 260), spacing: 12)],
+                spacing: 12
+            ) {
+                ForEach(Array(songs.enumerated()), id: \.element.videoId) { index, item in
+                    songGridCell(item, index: index)
+                }
+            }
+            .padding(.horizontal, YTLiteLayout.screenPadding)
+        } else if usesUIKitList {
+            List {
+                ForEach(Array(songs.enumerated()), id: \.element.videoId) { index, item in
+                    songListRow(item, index: index)
+                        .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
+                        .listRowBackground(YTLiteColor.background)
+                        .listRowSeparator(.hidden)
+                }
+            }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .background(YTLiteColor.background)
+        } else {
+            ForEach(Array(songs.enumerated()), id: \.element.videoId) { index, item in
+                songListRow(item, index: index)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func songListRow(_ item: VideoItem, index: Int) -> some View {
+        let selected = selectedIds.contains(item.videoId)
+        Button {
+            if isSelectionMode {
+                onToggleSelection(item.videoId)
+            } else {
+                onPlay(index)
+            }
+        } label: {
+            HStack(spacing: YTLiteLayout.stackLoose) {
+                if isSelectionMode {
+                    Image(systemName: selected ? "checkmark.circle.fill" : "circle")
+                        .foregroundStyle(selected ? YTLiteColor.accent : YTLiteColor.onSurfaceVariant)
+                        .padding(.leading, YTLiteLayout.screenPadding)
+                }
+                LibrarySongRow(item: item, compactLeading: isSelectionMode) {
+                    if !isSelectionMode {
+                        onMore(item)
+                    }
+                }
+                .equatable()
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    @ViewBuilder
+    private func songGridCell(_ item: VideoItem, index: Int) -> some View {
+        let selected = selectedIds.contains(item.videoId)
+        Button {
+            if isSelectionMode {
+                onToggleSelection(item.videoId)
+            } else {
+                onPlay(index)
+            }
+        } label: {
+            VStack(alignment: .leading, spacing: 6) {
+                ZStack(alignment: .topLeading) {
+                    GeometryReader { geo in
+                        VideoThumbnail(
+                            url: item.thumbnailURL,
+                            durationText: item.durationText,
+                            width: geo.size.width,
+                            height: geo.size.width,
+                            cornerRadius: YTLiteLayout.thumbRadius,
+                            badgePadding: 4
+                        )
+                    }
+                    .aspectRatio(1, contentMode: .fit)
+                    if isSelectionMode {
+                        Image(systemName: selected ? "checkmark.circle.fill" : "circle")
+                            .foregroundStyle(selected ? YTLiteColor.accent : YTLiteColor.onSurface)
+                            .shadow(color: .black.opacity(0.35), radius: 1, y: 0.5)
+                            .padding(6)
+                    }
+                }
+                Text(item.title)
+                    .font(YTLiteType.rowTitleMedium)
+                    .foregroundStyle(YTLiteColor.onSurface)
+                    .lineLimit(2)
+                Text(item.channelName)
+                    .font(YTLiteType.meta)
+                    .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                    .lineLimit(1)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+struct LibrarySongRow: View, Equatable {
     let item: VideoItem
     var compactLeading: Bool = false
     var onMore: (() -> Void)? = nil
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.item == rhs.item && lhs.compactLeading == rhs.compactLeading
+    }
 
     var body: some View {
         HStack(spacing: YTLiteLayout.stackLoose) {
@@ -1708,30 +1795,21 @@ struct HistoryDetailView: View {
     @EnvironmentObject private var trackActions: TrackActionPresenter
     @Environment(\.libraryStore) private var store
     @State private var tracks: [VideoItem] = []
+    @State private var tracksVersion: Int = 0
     @EnvironmentObject private var playerPresentation: PlayerPresentation
 
     var body: some View {
-        ScrollView {
-            LazyVStack(spacing: 0) {
-                if tracks.isEmpty {
-                    Text(L("library.no_plays"))
-                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                        .padding()
-                } else {
-                    ForEach(Array(tracks.enumerated()), id: \.element.id) { index, item in
-                        Button {
-                            playback.play(items: tracks, startAt: index, analyticsSource: "library")
-                            playerPresentation.present()
-                        } label: {
-                            LibrarySongRow(item: item) {
-                                trackActions.present(item: item)
-                            }
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-            }
-        }
+        // Same pattern as Library Songs: List recycling + Equatable vs playback churn.
+        HistoryTracksPane(
+            tracks: tracks,
+            tracksVersion: tracksVersion,
+            onPlay: { index in
+                playback.play(items: tracks, startAt: index, analyticsSource: "library")
+                playerPresentation.present()
+            },
+            onMore: { trackActions.present(item: $0) }
+        )
+        .equatable()
         .background(YTLiteColor.background)
         .ytLiteMiniPlayerScrollInset()
         .navigationTitle(L("library.history"))
@@ -1746,7 +1824,51 @@ struct HistoryDetailView: View {
 
     private func reload() {
         let items = store?.historyVideos() ?? []
-        tracks = store?.filterNotInterested(items) ?? items
+        let next = store?.filterNotInterested(items) ?? items
+        if next.map(\.videoId) != tracks.map(\.videoId) {
+            tracksVersion &+= 1
+        }
+        tracks = next
+    }
+}
+
+private struct HistoryTracksPane: View, Equatable {
+    let tracks: [VideoItem]
+    let tracksVersion: Int
+    let onPlay: (Int) -> Void
+    let onMore: (VideoItem) -> Void
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.tracksVersion == rhs.tracksVersion
+    }
+
+    var body: some View {
+        if tracks.isEmpty {
+            Text(L("library.no_plays"))
+                .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                .padding()
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        } else {
+            List {
+                ForEach(Array(tracks.enumerated()), id: \.element.videoId) { index, item in
+                    Button {
+                        onPlay(index)
+                    } label: {
+                        LibrarySongRow(item: item) {
+                            onMore(item)
+                        }
+                        .equatable()
+                    }
+                    .buttonStyle(.plain)
+                    .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
+                    .listRowBackground(YTLiteColor.background)
+                    .listRowSeparator(.hidden)
+                }
+            }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .background(YTLiteColor.background)
+        }
     }
 }
 

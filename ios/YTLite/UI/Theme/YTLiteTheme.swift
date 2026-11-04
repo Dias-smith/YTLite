@@ -349,3 +349,48 @@ struct FeedChannelAvatar: View {
         image = loaded
     }
 }
+
+/// Recycled vertical track list that skips redraws when only `PlaybackController` publishes.
+/// Bump `tracksVersion` whenever `tracks` content changes.
+struct MediaTracksListPane: View, Equatable {
+    let tracks: [VideoItem]
+    let tracksVersion: Int
+    var emptyTitle: String = L("common.no_videos")
+    var emptySystemImage: String = "play.slash"
+    var emptyDescription: String = ""
+    let onPlay: (Int) -> Void
+    var onMore: ((VideoItem) -> Void)? = nil
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.tracksVersion == rhs.tracksVersion
+            && lhs.emptyTitle == rhs.emptyTitle
+            && lhs.emptyDescription == rhs.emptyDescription
+    }
+
+    var body: some View {
+        if tracks.isEmpty {
+            ContentUnavailableView(
+                emptyTitle,
+                systemImage: emptySystemImage,
+                description: emptyDescription.isEmpty ? nil : Text(emptyDescription)
+            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            List {
+                ForEach(Array(tracks.enumerated()), id: \.element.videoId) { index, item in
+                    FeedVideoCard(
+                        item: item,
+                        onTap: { onPlay(index) },
+                        onMore: onMore.map { handler in { handler(item) } }
+                    )
+                    .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
+                    .listRowBackground(YTLiteColor.background)
+                    .listRowSeparator(.hidden)
+                }
+            }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .background(YTLiteColor.background)
+        }
+    }
+}

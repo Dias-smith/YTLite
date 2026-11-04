@@ -75,6 +75,7 @@ struct PlayerDetailView: View {
     @State private var relatedSourceVideoId: String?
     @State private var relatedLoading = false
     @State private var relatedError: String?
+    @State private var relatedVersion: Int = 0
     /// In-player toast (root `TrackActionHost` toast sits behind this sheet).
     @State private var playerToast: String?
     @State private var showPlaybackSignIn = false
@@ -185,13 +186,50 @@ struct PlayerDetailView: View {
                     } else {
                         listToolbar
                     }
-                    tabContent
+                    // Isolate queue/related rows from buffering-only playback publishes.
+                    PlayerQueueTabPane(
+                        token: playerQueueTabToken,
+                        tab: tab,
+                        queue: playback.queue,
+                        queueIndex: playback.queueIndex,
+                        related: related,
+                        relatedLoading: relatedLoading,
+                        relatedError: relatedError,
+                        isSelectionMode: isSelectionMode,
+                        selectedIds: selectedIds,
+                        onSelectQueueIndex: { playback.playQueueIndex($0) },
+                        onToggleSelection: { toggleSelection($0) },
+                        onPlayRelatedIndex: { index in
+                            playback.play(items: related, startAt: index, analyticsSource: "related")
+                            AppAnalytics.relatedTap()
+                        },
+                        onRetryRelated: { Task { await loadRelated() } },
+                        row: { item, isCurrent, action in
+                            AnyView(listRow(item: item, isCurrent: isCurrent, action: action))
+                        }
+                    )
+                    .equatable()
                 }
                 .padding(.horizontal, YTLiteLayout.screenPadding)
                 .padding(.top, YTLiteLayout.stackDefault)
                 .padding(.bottom, 32)
             }
         }
+    }
+
+    private var playerQueueTabToken: Int {
+        var hasher = Hasher()
+        hasher.combine(tab)
+        hasher.combine(playback.queue.count)
+        hasher.combine(playback.queue.first?.videoId)
+        hasher.combine(playback.queue.last?.videoId)
+        hasher.combine(playback.queueIndex)
+        hasher.combine(relatedVersion)
+        hasher.combine(relatedLoading)
+        hasher.combine(relatedError)
+        hasher.combine(isSelectionMode)
+        hasher.combine(selectedIds)
+        return hasher.finalize()
     }
 
     private var playerDetailRoot: some View {
@@ -417,6 +455,7 @@ struct PlayerDetailView: View {
             // Related / radio queue is region-sensitive via InnerTube `gl`.
             related = []
             relatedOriginal = []
+            relatedVersion &+= 1
             relatedError = nil
             relatedSourceVideoId = nil
             if tab == .related {
@@ -1286,66 +1325,6 @@ struct PlayerDetailView: View {
         return items
     }
 
-    @ViewBuilder
-    private var tabContent: some View {
-        switch tab {
-        case .upNext:
-            ForEach(Array(playback.queue.enumerated()), id: \.element.id) { index, item in
-                listRow(item: item, isCurrent: index == playback.queueIndex) {
-                    if isSelectionMode {
-                        toggleSelection(item.videoId)
-                    } else {
-                        playback.playQueueIndex(index)
-                    }
-                }
-            }
-        case .related:
-            if relatedLoading && related.isEmpty {
-                ProgressView()
-                    .tint(YTLiteColor.accent)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, YTLiteLayout.sectionGap)
-            } else if let relatedError, related.isEmpty {
-                VStack(spacing: YTLiteLayout.stackLoose) {
-                    Text(relatedError)
-                        .font(YTLiteType.body)
-                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                        .multilineTextAlignment(.center)
-                        .frame(maxWidth: .infinity)
-                    Button {
-                        Task { await loadRelated() }
-                    } label: {
-                        Text(L("common.retry"))
-                            .font(YTLiteType.body.weight(.semibold))
-                            .foregroundStyle(YTLiteColor.accent)
-                            .padding(.horizontal, YTLiteLayout.stackLoose)
-                            .padding(.vertical, YTLiteLayout.rowVertical)
-                            .background(YTLiteColor.surfaceVariant, in: Capsule())
-                    }
-                    .buttonStyle(.plain)
-                }
-                .padding(.vertical, YTLiteLayout.screenPadding)
-                .padding(.horizontal, YTLiteLayout.screenPadding)
-            } else if related.isEmpty {
-                Text(L("player.no_related"))
-                    .font(YTLiteType.body)
-                    .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                    .padding(.vertical, YTLiteLayout.screenPadding)
-            } else {
-                ForEach(Array(related.enumerated()), id: \.element.id) { index, item in
-                    listRow(item: item, isCurrent: false) {
-                        if isSelectionMode {
-                            toggleSelection(item.videoId)
-                        } else {
-                            playback.play(items: related, startAt: index, analyticsSource: "related")
-                            AppAnalytics.relatedTap()
-                        }
-                    }
-                }
-            }
-        }
-    }
-
     private func listRow(item: VideoItem, isCurrent: Bool, action: @escaping () -> Void) -> some View {
         let selected = selectedIds.contains(item.videoId)
         return HStack(spacing: YTLiteLayout.stackLoose) {
@@ -1446,6 +1425,7 @@ struct PlayerDetailView: View {
             let items = store?.filterNotInterested(results) ?? results
             relatedOriginal = items
             related = sortedItems(items, by: listSort)
+            relatedVersion &+= 1
             relatedSourceVideoId = videoId
         } catch {
             guard playback.nowPlaying?.videoId == videoId else { return }
@@ -1464,6 +1444,7 @@ struct PlayerDetailView: View {
 
         related = []
         relatedOriginal = []
+        relatedVersion &+= 1
         relatedError = nil
         relatedSourceVideoId = nil
         Task { await loadRelated() }
@@ -1499,6 +1480,7 @@ struct PlayerDetailView: View {
             playback.reorderQueue { a, b in compare(a, b, sort: sort) }
         case .related:
             related = sortedItems(relatedOriginal, by: sort)
+            relatedVersion &+= 1
         }
     }
 
@@ -1599,6 +1581,83 @@ private struct OptionalHighPriorityDrag<G: Gesture>: ViewModifier {
             content.highPriorityGesture(gesture)
         } else {
             content
+        }
+    }
+}
+
+private struct PlayerQueueTabPane: View, Equatable {
+    let token: Int
+    let tab: PlayerTab
+    let queue: [VideoItem]
+    let queueIndex: Int
+    let related: [VideoItem]
+    let relatedLoading: Bool
+    let relatedError: String?
+    let isSelectionMode: Bool
+    let selectedIds: Set<String>
+    let onSelectQueueIndex: (Int) -> Void
+    let onToggleSelection: (String) -> Void
+    let onPlayRelatedIndex: (Int) -> Void
+    let onRetryRelated: () -> Void
+    let row: (VideoItem, Bool, @escaping () -> Void) -> AnyView
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.token == rhs.token
+    }
+
+    var body: some View {
+        switch tab {
+        case .upNext:
+            ForEach(Array(queue.enumerated()), id: \.element.videoId) { index, item in
+                row(item, index == queueIndex) {
+                    if isSelectionMode {
+                        onToggleSelection(item.videoId)
+                    } else {
+                        onSelectQueueIndex(index)
+                    }
+                }
+            }
+        case .related:
+            if relatedLoading && related.isEmpty {
+                ProgressView()
+                    .tint(YTLiteColor.accent)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, YTLiteLayout.sectionGap)
+            } else if let relatedError, related.isEmpty {
+                VStack(spacing: YTLiteLayout.stackLoose) {
+                    Text(relatedError)
+                        .font(YTLiteType.body)
+                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity)
+                    Button(action: onRetryRelated) {
+                        Text(L("common.retry"))
+                            .font(YTLiteType.body.weight(.semibold))
+                            .foregroundStyle(YTLiteColor.accent)
+                            .padding(.horizontal, YTLiteLayout.stackLoose)
+                            .padding(.vertical, YTLiteLayout.rowVertical)
+                            .background(YTLiteColor.surfaceVariant, in: Capsule())
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.vertical, YTLiteLayout.screenPadding)
+                .padding(.horizontal, YTLiteLayout.screenPadding)
+            } else if related.isEmpty {
+                Text(L("player.no_related"))
+                    .font(YTLiteType.body)
+                    .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                    .padding(.vertical, YTLiteLayout.screenPadding)
+            } else {
+                ForEach(Array(related.enumerated()), id: \.element.videoId) { index, item in
+                    row(item, false) {
+                        if isSelectionMode {
+                            onToggleSelection(item.videoId)
+                        } else {
+                            onPlayRelatedIndex(index)
+                        }
+                    }
+                }
+            }
         }
     }
 }
