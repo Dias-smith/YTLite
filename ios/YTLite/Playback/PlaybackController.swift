@@ -167,7 +167,12 @@ final class PlaybackController: ObservableObject {
         return max(0, sleepTimerEndsAt.timeIntervalSinceNow)
     }
 
-    weak var libraryStore: LibraryStore?
+    weak var libraryStore: LibraryStore? {
+        didSet {
+            // Session restore runs in init before the store is injected — enrich once it arrives.
+            enrichRestoredPlaybackFromLibrary()
+        }
+    }
     var onPlaybackStarted: ((NowPlayingItem) -> Void)?
 
     /// True when `nowPlaying` was restored but AVPlayer has not loaded a stream yet.
@@ -613,13 +618,22 @@ final class PlaybackController: ObservableObject {
         PlaybackPreparer.shared.retainOnly(videoId: item.videoId)
         isSeekInProgress = false
         seekGeneration += 1
-        let knownArtistId = libraryStore?.track(id: item.videoId)?.primaryArtistId
+        let catalogTrack = libraryStore?.track(id: item.videoId)
+        let knownArtistId = catalogTrack?.primaryArtistId
         let knownAvatar = item.channelAvatarURL
             ?? libraryStore?.subscribedChannel(id: knownArtistId ?? "")?.avatarUrl.flatMap(URL.init(string:))
         nowPlaying = NowPlayingItem(
             videoId: item.videoId,
-            title: item.title,
-            channelName: item.channelName,
+            title: TrackTitle.preferred(
+                item.title,
+                catalogTrack?.title ?? "",
+                videoId: item.videoId
+            ),
+            channelName: {
+                let fromItem = item.channelName.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !fromItem.isEmpty { return fromItem }
+                return catalogTrack?.primaryArtistName ?? ""
+            }(),
             thumbnailURL: item.thumbnailURL,
             durationText: item.durationText,
             channelId: knownArtistId,
@@ -732,9 +746,17 @@ final class PlaybackController: ObservableObject {
                 let channelId = playback.channelId ?? knownArtistId
                 let avatar = knownAvatar
                     ?? libraryStore?.subscribedChannel(id: channelId ?? "")?.avatarUrl.flatMap(URL.init(string:))
+                // Resolve / prepare often fall back to title == videoId once stream metadata decays.
+                // Prefer queue + library catalogue titles so cached library songs keep their names.
+                let libraryTitle = libraryStore?.track(id: expectedVideoId)?.title ?? ""
                 let playing = NowPlayingItem(
                     videoId: playback.videoId,
-                    title: playback.title == playback.videoId ? item.title : playback.title,
+                    title: TrackTitle.preferred(
+                        playback.title,
+                        item.title,
+                        libraryTitle,
+                        videoId: playback.videoId
+                    ),
                     channelName: playback.channelName.isEmpty ? item.channelName : playback.channelName,
                     thumbnailURL: playback.thumbnailURL ?? item.thumbnailURL,
                     durationText: durationText,
@@ -742,6 +764,8 @@ final class PlaybackController: ObservableObject {
                     channelAvatarURL: avatar
                 )
                 nowPlaying = playing
+                // Keep session/queue in sync so cold start does not revive videoId placeholders.
+                patchCurrentQueueItem(from: playing)
                 captionTracks = playback.captionTracks
                 refreshSubscribeState()
 
@@ -2359,16 +2383,24 @@ final class PlaybackController: ObservableObject {
         repeatMode = snapshot.repeatMode
         shuffleEnabled = snapshot.shuffleEnabled
         originalOrder = snapshot.originalOrder?.map { $0.toVideoItem() }
-        let item = items[queueIndex]
+        let item = queue[queueIndex]
+        let catalog = libraryStore?.track(id: item.videoId)
         nowPlaying = NowPlayingItem(
             videoId: item.videoId,
-            title: item.title,
-            channelName: item.channelName,
+            title: TrackTitle.preferred(item.title, catalog?.title ?? "", videoId: item.videoId),
+            channelName: {
+                let fromItem = item.channelName.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !fromItem.isEmpty { return fromItem }
+                return catalog?.primaryArtistName ?? ""
+            }(),
             thumbnailURL: item.thumbnailURL,
             durationText: item.durationText,
-            channelId: snapshot.channelId,
+            channelId: snapshot.channelId ?? catalog?.primaryArtistId,
             channelAvatarURL: snapshot.channelAvatarURL.flatMap(URL.init(string:))
         )
+        if let playing = nowPlaying {
+            patchCurrentQueueItem(from: playing)
+        }
         positionSeconds = max(0, snapshot.positionSeconds)
         durationSeconds = max(0, snapshot.durationSeconds)
         pendingSeekSeconds = positionSeconds
@@ -2377,6 +2409,77 @@ final class PlaybackController: ObservableObject {
         refreshFavoriteState()
         refreshSubscribeState()
         updateNowPlayingInfo()
+    }
+
+    /// When LibraryStore arrives after cold restore, replace videoId placeholders from the catalogue.
+    private func enrichRestoredPlaybackFromLibrary() {
+        guard let store = libraryStore, nowPlaying != nil, !queue.isEmpty else { return }
+        queue = queue.map { item in
+            guard let track = store.track(id: item.videoId) else { return item }
+            let title = TrackTitle.preferred(item.title, track.title, videoId: item.videoId)
+            let channel: String = {
+                let fromItem = item.channelName.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !fromItem.isEmpty { return fromItem }
+                return track.primaryArtistName ?? ""
+            }()
+            guard title != item.title || channel != item.channelName else { return item }
+            return VideoItem(
+                videoId: item.videoId,
+                title: title,
+                channelName: channel,
+                subtitle: item.subtitle,
+                thumbnailURL: item.thumbnailURL,
+                channelAvatarURL: item.channelAvatarURL,
+                durationText: item.durationText ?? track.durationText,
+                viewCountText: item.viewCountText,
+                publishedTimeText: item.publishedTimeText,
+                isLive: item.isLive
+            )
+        }
+        if let playing = nowPlaying, queue.indices.contains(queueIndex) {
+            let item = queue[queueIndex]
+            guard item.videoId == playing.videoId else { return }
+            let title = TrackTitle.preferred(playing.title, item.title, videoId: playing.videoId)
+            let channel = playing.channelName.isEmpty ? item.channelName : playing.channelName
+            if title != playing.title || channel != playing.channelName {
+                nowPlaying = NowPlayingItem(
+                    videoId: playing.videoId,
+                    title: title,
+                    channelName: channel,
+                    thumbnailURL: playing.thumbnailURL ?? item.thumbnailURL,
+                    durationText: playing.durationText ?? item.durationText,
+                    channelId: playing.channelId,
+                    channelAvatarURL: playing.channelAvatarURL
+                )
+                updateNowPlayingInfo()
+            }
+        }
+        persistSession(immediate: true)
+    }
+
+    private func patchCurrentQueueItem(from playing: NowPlayingItem) {
+        guard queue.indices.contains(queueIndex) else { return }
+        let old = queue[queueIndex]
+        guard old.videoId == playing.videoId else { return }
+        let title = TrackTitle.preferred(playing.title, old.title, videoId: playing.videoId)
+        let channel = playing.channelName.isEmpty ? old.channelName : playing.channelName
+        guard title != old.title
+            || channel != old.channelName
+            || playing.thumbnailURL != old.thumbnailURL
+            || playing.durationText != old.durationText
+        else { return }
+        queue[queueIndex] = VideoItem(
+            videoId: old.videoId,
+            title: title,
+            channelName: channel,
+            subtitle: old.subtitle,
+            thumbnailURL: playing.thumbnailURL ?? old.thumbnailURL,
+            channelAvatarURL: playing.channelAvatarURL ?? old.channelAvatarURL,
+            durationText: playing.durationText ?? old.durationText,
+            viewCountText: old.viewCountText,
+            publishedTimeText: old.publishedTimeText,
+            isLive: old.isLive
+        )
     }
 
     /// Flush session immediately (e.g. app backgrounding / kill).

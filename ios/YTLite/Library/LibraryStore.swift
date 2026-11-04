@@ -342,8 +342,14 @@ final class LibraryStore {
         descriptor.fetchLimit = 1
         let thumb = item.thumbnailURL?.absoluteString
         if let existing = try? modelContext.fetch(descriptor).first {
-            existing.title = item.title
-            existing.primaryArtistName = item.channelName
+            // Stream resolve / sync often falls back to title == videoId; never wipe a real title.
+            if TrackTitle.shouldReplace(existing: existing.title, with: item.title, videoId: trackId) {
+                existing.title = item.title.trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+            let artist = item.channelName.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !artist.isEmpty {
+                existing.primaryArtistName = artist
+            }
             if let thumb {
                 existing.thumbnailHigh = thumb
             }
@@ -358,11 +364,11 @@ final class LibraryStore {
         }
         let track = LibraryTrack(
             trackId: item.videoId,
-            title: item.title,
+            title: TrackTitle.preferred(item.title, videoId: item.videoId),
             durationSeconds: resolvedDuration,
             durationText: durationText,
             thumbnailHigh: thumb,
-            primaryArtistName: item.channelName
+            primaryArtistName: item.channelName.nilIfEmpty
         )
         modelContext.insert(track)
         return track
@@ -376,7 +382,9 @@ final class LibraryStore {
         )
         descriptor.fetchLimit = 1
         if let existing = try? modelContext.fetch(descriptor).first {
-            existing.title = track.title
+            if TrackTitle.shouldReplace(existing: existing.title, with: track.title, videoId: trackId) {
+                existing.title = track.title.trimmingCharacters(in: .whitespacesAndNewlines)
+            }
             if track.durationSeconds > 0 { existing.durationSeconds = track.durationSeconds }
             if let text = track.durationText { existing.durationText = text }
             if let v = track.thumbnailLow { existing.thumbnailLow = v }
@@ -386,7 +394,7 @@ final class LibraryStore {
             if let v = track.viewCountText { existing.viewCountText = v }
             if let v = track.publishedText { existing.publishedText = v }
             if let v = track.primaryArtistId { existing.primaryArtistId = v }
-            if let v = track.primaryArtistName { existing.primaryArtistName = v }
+            if let v = track.primaryArtistName?.nilIfEmpty { existing.primaryArtistName = v }
             existing.updatedAt = .now
             return existing
         }

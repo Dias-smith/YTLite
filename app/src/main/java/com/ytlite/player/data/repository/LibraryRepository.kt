@@ -1163,7 +1163,10 @@ class LibraryRepository(
         val remoteLastPlayed = remoteClient.pullUserTrackLastPlayed(userId)
         val trackIds = remoteLastPlayed.map { it.trackId }.distinct()
         val remoteTracks = remoteClient.pullTracksByIds(trackIds)
-        remoteTracks.forEach { trackDao.upsert(it) }
+        remoteTracks.forEach { remote ->
+            val existing = trackDao.getById(remote.trackId)
+            trackDao.upsert(com.ytlite.player.data.local.entity.TrackEntity.mergeFromRemote(existing, remote))
+        }
 
         remoteLastPlayed.forEach { remoteEntity ->
             val local = userTrackLastPlayedDao.getAllByOwner(userOwnerKey)
@@ -1418,7 +1421,10 @@ class LibraryRepository(
                 remoteClient.pullPlaylistTracks(playlistId)
             }
             val trackIds = remoteTracks.map { it.trackId }.distinct()
-            remoteClient.pullTracksByIds(trackIds).forEach { trackDao.upsert(it) }
+            remoteClient.pullTracksByIds(trackIds).forEach { remote ->
+                val existing = trackDao.getById(remote.trackId)
+                trackDao.upsert(com.ytlite.player.data.local.entity.TrackEntity.mergeFromRemote(existing, remote))
+            }
             remoteTracks.forEach { playlistTrackDao.upsert(it.copy(playlistId = playlistId, isSynced = true)) }
         } else {
             uploadPlaylistToRemote(remoteClient, userId, localPlaylist!!)

@@ -278,3 +278,32 @@ enum SystemPlaylistType {
 }
 
 typealias PlayHistoryItem = PlaybackHistoryItem
+
+/// Guards against resolve/sync fallbacks that use the YouTube video id as the title.
+enum TrackTitle {
+    /// True when `title` is blank or literally the video id (common stream-resolve fallback).
+    static func isPlaceholder(_ title: String, videoId: String) -> Bool {
+        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty || trimmed == videoId
+    }
+
+    /// First non-placeholder candidate, else first non-empty, else `videoId`.
+    static func preferred(_ candidates: String..., videoId: String) -> String {
+        let trimmed = candidates.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+        if let real = trimmed.first(where: { !isPlaceholder($0, videoId: videoId) }) {
+            return real
+        }
+        return trimmed.first(where: { !$0.isEmpty }) ?? videoId
+    }
+
+    /// Whether an incoming title should replace a stored one.
+    /// Never clobber a real title with a blank / video-id placeholder; always allow repair.
+    static func shouldReplace(existing: String, with incoming: String, videoId: String) -> Bool {
+        let next = incoming.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !next.isEmpty else { return false }
+        if isPlaceholder(next, videoId: videoId) {
+            return existing.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+        return next != existing
+    }
+}

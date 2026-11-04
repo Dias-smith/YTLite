@@ -122,7 +122,12 @@ class PlaybackHistoryRepository(
         channelName: String?,
     ): TrackEntity = TrackEntity(
         trackId = trackId,
-        title = title.takeIf { it.isNotBlank() } ?: existing?.title.orEmpty(),
+        // Resolve fallbacks often use the video id as title — never wipe a real catalogue title.
+        title = TrackEntity.mergeTitle(
+            incoming = title,
+            existing = existing?.title,
+            trackId = trackId,
+        ),
         durationSeconds = durationSeconds.takeIf { it > 0 } ?: existing?.durationSeconds ?: 0,
         durationText = existing?.durationText,
         thumbnailLow = existing?.thumbnailLow,
