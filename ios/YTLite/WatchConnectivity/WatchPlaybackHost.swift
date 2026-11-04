@@ -104,7 +104,8 @@ final class WatchPlaybackHost {
         positionTimer = Timer.publish(every: 2.0, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in
-                self?.pushPlayback(force: true)
+                // Progress-only: applicationContext / interactive — no transferUserInfo backlog.
+                self?.pushPlayback(force: true, allowBackgroundTransfer: false)
             }
     }
 
@@ -216,12 +217,17 @@ final class WatchPlaybackHost {
         pushQueue(force: force)
     }
 
-    private func pushPlayback(force: Bool = false) {
+    private func pushPlayback(force: Bool = false, allowBackgroundTransfer: Bool = true) {
         guard WatchConnectivityBridge.shared.isWatchDeliveryAvailable else { return }
         guard let playback else { return }
         let snapshot = makePlaybackSnapshot(from: playback)
         if !force, snapshot == lastPushedPlayback { return }
-        send(kind: .playbackSnapshot, body: snapshot, updateContext: true)
+        send(
+            kind: .playbackSnapshot,
+            body: snapshot,
+            updateContext: true,
+            allowBackgroundTransfer: allowBackgroundTransfer
+        )
         lastPushedPlayback = snapshot
     }
 
@@ -237,22 +243,26 @@ final class WatchPlaybackHost {
     private func send<T: Encodable>(
         kind: WatchConnectivityProtocol.Kind,
         body: T,
-        updateContext: Bool
+        updateContext: Bool,
+        allowBackgroundTransfer: Bool = true
     ) {
         do {
             let envelope = try WatchConnectivityProtocol.Envelope.make(kind: kind, body: body)
             let bridge = WatchConnectivityBridge.shared
             if updateContext {
-                // Latest-wins channel — do not also queue transferUserInfo for playback,
-                // or Watch will animate through every queued track when the phone reconnects.
+                // Latest-wins channel for progress ticks; track changes also get a coalesced
+                // transferUserInfo when unreachable (context alone often misses locked/offline phone).
                 _ = bridge.updateApplicationContext(envelope)
             }
             if bridge.isReachable {
                 _ = bridge.send(envelope)
             } else if updateContext {
-                // Stale isReachable is common while iPhone is backgrounded after a Watch
-                // command. Keep the latest playback envelope for the next reachability flush.
+                // Keep latest for the next reachability flush; coalesce background delivery for
+                // track-level changes so Watch updates while phone plays offline / locked.
                 bridge.enqueueLatest(envelope)
+                if allowBackgroundTransfer {
+                    bridge.transferUserInfo(envelope)
+                }
             } else {
                 bridge.transferUserInfo(envelope)
             }

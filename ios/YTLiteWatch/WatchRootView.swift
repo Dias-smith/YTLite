@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Phase 5 shell: Now Playing + Queue + Library.
 struct WatchRootView: View {
-    @EnvironmentObject private var bridge: WatchConnectivityBridge
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         TabView {
@@ -19,6 +19,15 @@ struct WatchRootView: View {
         }
         .tabViewStyle(.verticalPage)
         .scrollIndicators(.hidden)
+        .onAppear {
+            WatchPlaybackClient.shared.syncWithPhone(bootstrap: true)
+            WatchLibraryClient.shared.requestSnapshot()
+        }
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active else { return }
+            WatchPlaybackClient.shared.syncWithPhone(bootstrap: true)
+            WatchLibraryClient.shared.requestSnapshot()
+        }
     }
 }
 

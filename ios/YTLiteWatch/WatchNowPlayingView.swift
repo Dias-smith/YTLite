@@ -44,6 +44,9 @@ struct WatchNowPlayingView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .ignoresSafeArea()
         .gesture(trackSwipeGesture)
+        .onAppear {
+            playback.syncWithPhone(bootstrap: true)
+        }
         .sheet(isPresented: $showMore) {
             moreSheet
                 .onAppear {

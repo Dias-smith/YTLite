@@ -15,6 +15,9 @@ final class WatchPlaybackClient: ObservableObject {
     private var lastPlaybackUpdatedAt: TimeInterval = 0
     private var lastQueueUpdatedAt: TimeInterval = 0
     private var reconcileTask: Task<Void, Never>?
+    private var bootstrapTask: Task<Void, Never>?
+    private var playSyncTimer: AnyCancellable?
+    private var lastRequestedSyncAt: Date = .distantPast
 
     private init() {}
 
@@ -25,10 +28,23 @@ final class WatchPlaybackClient: ObservableObject {
         let bridge = WatchConnectivityBridge.shared
         bridge.activate()
         bindIfNeeded()
-        if bridge.activationState == .activated {
-            ingestCachedApplicationContext()
-            requestSnapshot()
+        syncWithPhone(bootstrap: true)
+    }
+
+    /// Active pull: ingest cached context + ask iPhone for fresh playback/queue.
+    /// - Parameter bootstrap: retry several times after launch / foreground.
+    func syncWithPhone(bootstrap: Bool = false) {
+        ingestCachedApplicationContext()
+        requestSnapshot(force: true)
+        configurePlaySyncTimer(playing: snapshot?.isPlaying == true)
+        if bootstrap {
+            scheduleBootstrapSync()
         }
+    }
+
+    /// Pull latest phone Now Playing from WC applicationContext (works without isReachable).
+    func refreshFromApplicationContext() {
+        ingestCachedApplicationContext()
     }
 
     private func bindIfNeeded() {
@@ -43,18 +59,58 @@ final class WatchPlaybackClient: ObservableObject {
             .removeDuplicates()
             .sink { [weak self] state in
                 guard state == .activated else { return }
-                self?.ingestCachedApplicationContext()
-                self?.requestSnapshot()
+                self?.syncWithPhone(bootstrap: true)
             }
             .store(in: &cancellables)
         bridge.$isReachable
             .removeDuplicates()
             .sink { [weak self] reachable in
                 if reachable {
-                    self?.requestSnapshot()
+                    self?.syncWithPhone(bootstrap: true)
+                } else {
+                    self?.ingestCachedApplicationContext()
                 }
             }
             .store(in: &cancellables)
+
+        // Context-only poll when not interactively reachable (phone locked / offline play).
+        Timer.publish(every: 2.5, on: .main, in: .common)
+            .autoconnect()
+            .sink { [weak self] _ in
+                guard let self else { return }
+                self.ingestCachedApplicationContext()
+                // Keep asking phone while the face is up — even if reachability flickers.
+                if WatchConnectivityBridge.shared.isReachable {
+                    self.requestSnapshot(force: false)
+                }
+            }
+            .store(in: &cancellables)
+    }
+
+    private func scheduleBootstrapSync() {
+        bootstrapTask?.cancel()
+        bootstrapTask = Task { @MainActor in
+            for delayNs in [200_000_000, 600_000_000, 1_500_000_000, 3_000_000_000] as [UInt64] {
+                try? await Task.sleep(nanoseconds: delayNs)
+                guard !Task.isCancelled else { return }
+                ingestCachedApplicationContext()
+                requestSnapshot(force: true)
+            }
+        }
+    }
+
+    /// While phone is playing, actively re-pull so position / track stay aligned.
+    private func configurePlaySyncTimer(playing: Bool) {
+        playSyncTimer?.cancel()
+        playSyncTimer = nil
+        guard playing else { return }
+        playSyncTimer = Timer.publish(every: 2.0, on: .main, in: .common)
+            .autoconnect()
+            .sink { [weak self] _ in
+                guard let self else { return }
+                self.ingestCachedApplicationContext()
+                self.requestSnapshot(force: false)
+            }
     }
 
     private func ingestCachedApplicationContext() {
@@ -64,14 +120,21 @@ final class WatchPlaybackClient: ObservableObject {
               let body = try? cached.decodePayload(WatchConnectivityProtocol.PlaybackSnapshot.self) else {
             return
         }
-        guard body.updatedAt ?? 0 >= lastPlaybackUpdatedAt else { return }
-        lastPlaybackUpdatedAt = body.updatedAt ?? lastPlaybackUpdatedAt
-        snapshot = body
+        applyPlaybackSnapshot(body, source: .context)
     }
 
     func requestSnapshot() {
+        requestSnapshot(force: true)
+    }
+
+    private func requestSnapshot(force: Bool) {
         let bridge = WatchConnectivityBridge.shared
         guard bridge.activationState == .activated else { return }
+        let now = Date()
+        if !force, now.timeIntervalSince(lastRequestedSyncAt) < 0.9 {
+            return
+        }
+        lastRequestedSyncAt = now
         do {
             let envelope = try WatchConnectivityProtocol.Envelope.make(
                 kind: .syncRequestSnapshot,
@@ -103,6 +166,7 @@ final class WatchPlaybackClient: ObservableObject {
 
     func seek(to position: Double) {
         send(kind: .transportSeek, body: WatchConnectivityProtocol.SeekBody(position: position))
+        scheduleReconcile()
     }
 
     func seekRelative(by delta: Double) {
@@ -162,6 +226,7 @@ final class WatchPlaybackClient: ObservableObject {
             snapshot = current
         }
         send(kind: .transportSetVolume, body: WatchConnectivityProtocol.VolumeBody(volume: clamped))
+        scheduleReconcile()
     }
 
     func playQueueIndex(_ index: Int) {
@@ -172,14 +237,17 @@ final class WatchPlaybackClient: ObservableObject {
 
     func removeFromQueue(videoIds: [String]) {
         send(kind: .queueRemove, body: WatchConnectivityProtocol.IdsBody(ids: videoIds))
+        scheduleReconcile()
     }
 
     func playNextInQueue(videoId: String) {
         send(kind: .queuePlayNext, body: WatchConnectivityProtocol.VideoIdBody(videoId: videoId))
+        scheduleReconcile()
     }
 
     func appendOrMoveToEnd(videoId: String) {
         send(kind: .queueAppend, body: WatchConnectivityProtocol.VideoIdBody(videoId: videoId))
+        scheduleReconcile()
     }
 
     private func send<T: Encodable>(kind: WatchConnectivityProtocol.Kind, body: T) {
@@ -213,6 +281,7 @@ final class WatchPlaybackClient: ObservableObject {
         current.updatedAt = Date().timeIntervalSince1970
         lastPlaybackUpdatedAt = max(lastPlaybackUpdatedAt, current.updatedAt ?? 0)
         snapshot = current
+        configurePlaySyncTimer(playing: current.isPlaying)
     }
 
     private func applyOptimisticSkip(forward: Bool) {
@@ -281,6 +350,7 @@ final class WatchPlaybackClient: ObservableObject {
         playback.updatedAt = stamp
         lastPlaybackUpdatedAt = max(lastPlaybackUpdatedAt, stamp)
         snapshot = playback
+        configurePlaySyncTimer(playing: true)
     }
 
     private func nextRepeatMode(_ raw: String) -> String {
@@ -295,11 +365,38 @@ final class WatchPlaybackClient: ObservableObject {
     private func scheduleReconcile() {
         reconcileTask?.cancel()
         reconcileTask = Task { @MainActor in
-            for delayNs in [250_000_000, 800_000_000, 1_800_000_000] as [UInt64] {
+            for delayNs in [150_000_000, 400_000_000, 1_000_000_000, 2_200_000_000] as [UInt64] {
                 try? await Task.sleep(nanoseconds: delayNs)
                 guard !Task.isCancelled else { return }
-                requestSnapshot()
+                ingestCachedApplicationContext()
+                requestSnapshot(force: true)
             }
+        }
+    }
+
+    private enum SnapshotSource {
+        case context
+        case envelope
+    }
+
+    private func applyPlaybackSnapshot(
+        _ body: WatchConnectivityProtocol.PlaybackSnapshot,
+        source: SnapshotSource
+    ) {
+        guard (body.updatedAt ?? 0) >= lastPlaybackUpdatedAt else { return }
+        let previousVideoId = snapshot?.videoId
+        let previousPlaying = snapshot?.isPlaying
+        lastPlaybackUpdatedAt = body.updatedAt ?? lastPlaybackUpdatedAt
+        snapshot = body
+        lastCommandError = nil
+
+        if body.isPlaying != previousPlaying {
+            configurePlaySyncTimer(playing: body.isPlaying)
+        }
+
+        // Phone-side track change: actively re-pull so queue index / metadata stay aligned.
+        if source == .envelope, body.videoId != nil, body.videoId != previousVideoId {
+            requestSnapshot(force: true)
         }
     }
 
@@ -307,11 +404,7 @@ final class WatchPlaybackClient: ObservableObject {
         switch envelope.kind {
         case .playbackSnapshot:
             if let body = try? envelope.decodePayload(WatchConnectivityProtocol.PlaybackSnapshot.self) {
-                // Drop stale queued transfers so Now Playing jumps straight to current track.
-                guard (body.updatedAt ?? 0) >= lastPlaybackUpdatedAt else { return }
-                lastPlaybackUpdatedAt = body.updatedAt ?? lastPlaybackUpdatedAt
-                snapshot = body
-                lastCommandError = nil
+                applyPlaybackSnapshot(body, source: .envelope)
             }
         case .queueSnapshot:
             if let body = try? envelope.decodePayload(WatchConnectivityProtocol.QueueSnapshot.self) {

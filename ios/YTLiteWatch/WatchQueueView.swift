@@ -83,9 +83,7 @@ struct WatchQueueView: View {
             }
             .navigationTitle(WL("watch.queue", "Queue"))
             .onAppear {
-                if canControl {
-                    playback.requestSnapshot()
-                }
+                playback.syncWithPhone(bootstrap: false)
             }
         }
     }

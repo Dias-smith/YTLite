@@ -165,8 +165,9 @@ final class WatchConnectivityBridge: NSObject, ObservableObject {
         }
     }
 
-    /// When interactive delivery fails, prefer latest-wins pending + applicationContext over
-    /// building a `transferUserInfo` backlog of every track change.
+    /// When interactive delivery fails, keep latest-wins pending + applicationContext, and for
+    /// playback also push one coalesced `transferUserInfo` (Watch often misses context-only
+    /// updates while the phone is backgrounded / offline-playing).
     private func handleInteractiveSendFailure(
         _ envelope: WatchConnectivityProtocol.Envelope,
         message: [String: Any],
@@ -177,6 +178,8 @@ final class WatchConnectivityBridge: NSObject, ObservableObject {
             enqueuePending(envelope)
             if envelope.kind == .playbackSnapshot {
                 _ = updateApplicationContext(envelope)
+                // Coalesced background delivery — cancel prior playback transfers first.
+                queueBackgroundTransfer(message, kind: envelope.kind.rawValue, coalesce: true)
             }
             if let reply {
                 let ack = WatchConnectivityProtocol.Envelope(
@@ -214,20 +217,47 @@ final class WatchConnectivityBridge: NSObject, ObservableObject {
         reply(.success(ack))
     }
 
-    private func queueBackgroundTransfer(_ message: [String: Any], kind: String) {
+    private func queueBackgroundTransfer(
+        _ message: [String: Any],
+        kind: String,
+        coalesce: Bool = false
+    ) {
         guard let session, session.activationState == .activated else { return }
-        // Playback uses applicationContext (latest-wins). Queuing transferUserInfo for every
-        // track change makes Watch animate through the backlog when the phone reconnects.
+        // Playback: allow a single coalesced transferUserInfo so Watch still receives track
+        // changes while interactive WC is down (common during offline / locked playback).
+        // Never queue a backlog — cancel prior outstanding playback transfers first.
         if kind == WatchConnectivityProtocol.Kind.playbackSnapshot.rawValue {
+            cancelOutstandingTransfers(kind: kind)
+            lastBackgroundTransferAt[kind] = Date()
+            session.transferUserInfo(message)
             return
+        }
+        if coalesce {
+            cancelOutstandingTransfers(kind: kind)
         }
         if session.outstandingUserInfoTransfers.count >= 8 { return }
         let now = Date()
-        if let last = lastBackgroundTransferAt[kind], now.timeIntervalSince(last) < 2.0 {
+        if !coalesce,
+           let last = lastBackgroundTransferAt[kind],
+           now.timeIntervalSince(last) < 2.0 {
             return
         }
         lastBackgroundTransferAt[kind] = now
         session.transferUserInfo(message)
+    }
+
+    private func cancelOutstandingTransfers(kind: String) {
+        guard let session else { return }
+        for transfer in session.outstandingUserInfoTransfers {
+            guard let data = transfer.userInfo["envelope"] as? Data,
+                  let envelope = try? JSONDecoder().decode(
+                    WatchConnectivityProtocol.Envelope.self,
+                    from: data
+                  ),
+                  envelope.kind.rawValue == kind
+            else { continue }
+            transfer.cancel()
+        }
     }
 
     private func enqueuePending(_ envelope: WatchConnectivityProtocol.Envelope) {
