@@ -2231,7 +2231,9 @@ final class PlaybackController: ObservableObject {
 
     /// Push Now Playing into the Home Screen / Lock Screen widget App Group.
     func publishPhoneWidgetSnapshot(force: Bool = false) {
-        let signature = "\(nowPlaying?.videoId ?? "")|\(isPlaying)|\(nowPlaying?.title ?? "")|\(nowPlaying?.channelName ?? "")|\(nowPlaying?.thumbnailURL?.absoluteString ?? "")"
+        // Include artwork presence so a later ImageStore hit reloads the widget cover.
+        let artworkToken = artworkImage == nil ? "0" : "1"
+        let signature = "\(nowPlaying?.videoId ?? "")|\(isPlaying)|\(nowPlaying?.title ?? "")|\(nowPlaying?.channelName ?? "")|\(nowPlaying?.thumbnailURL?.absoluteString ?? "")|\(artworkToken)"
         guard force || signature != lastPhoneWidgetSignature else { return }
         lastPhoneWidgetSignature = signature
         PhoneWidgetSnapshotBridge.publish(
@@ -2239,6 +2241,7 @@ final class PlaybackController: ObservableObject {
             title: nowPlaying?.title,
             artist: nowPlaying?.channelName,
             thumbnailURL: nowPlaying?.thumbnailURL,
+            artwork: artworkImage,
             isPlaying: isPlaying
         )
     }

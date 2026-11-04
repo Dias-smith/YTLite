@@ -19,6 +19,7 @@
 		11D42CD1F44B8C9E81D33FD7 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B70A93BD5CE828D414CF8BBE /* RootView.swift */; };
 		13CAE68A85E51773EF77BF60 /* WatchQueueMirrorStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14ABA3E911BDD8570E22A4D4 /* WatchQueueMirrorStore.swift */; };
 		1416F31DD3C8F32D5F655843 /* CaptionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E18CD28AA17FA185B077C5E2 /* CaptionService.swift */; };
+		1508D095C24ACA3BD3B8CB5D /* PhoneWidgetArtworkStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06130C31D2605D884A1AEAE0 /* PhoneWidgetArtworkStore.swift */; };
 		155523AA5ACE86E47C08C2AF /* TrackActionContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2636192842BC76B345106015 /* TrackActionContext.swift */; };
 		1650ADADA2A34FC0700C38C6 /* LibraryModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7A48A97E56F72E6C058051D /* LibraryModels.swift */; };
 		1A3505B77CF3305D06B94FE6 /* WatchRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 393F20A5B7AC6195756265CF /* WatchRootView.swift */; };
@@ -156,6 +157,7 @@
 		F32CAC193DB54AAEF185C300 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6E3AFB8E02823C45BB3A602 /* AppModel.swift */; };
 		F4341E40187FCDCE103AC570 /* View+Debug.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6DFACE34F5FB92D3387AC96 /* View+Debug.swift */; };
 		F482CAC66E4251A72104CB7A /* PhoneWidgetShared.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7F5E4FF1578B48FAE57CC11 /* PhoneWidgetShared.swift */; };
+		F622D979DD00D9EB3F7C2419 /* PhoneWidgetArtworkStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06130C31D2605D884A1AEAE0 /* PhoneWidgetArtworkStore.swift */; };
 		F62C2F8EE6BB1568C4C523CA /* WatchNowPlayingWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE6594E959FCACF2768AD771 /* WatchNowPlayingWidget.swift */; };
 		F8131DDA7BE5A7D8F96CFF4D /* PlaybackPreparer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 014EA0AB1CC882ADD438EA9B /* PlaybackPreparer.swift */; };
 		F9CFFBFCABAA60C51EB9B697 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 544D2CE3812330069EAA5F43 /* WidgetKit.framework */; };
@@ -225,6 +227,7 @@
 		014EA0AB1CC882ADD438EA9B /* PlaybackPreparer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackPreparer.swift; sourceTree = "<group>"; };
 		04071B92A578D66D2D5E7872 /* AppDebugServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDebugServer.swift; sourceTree = "<group>"; };
 		04B9DD7A53CD8AD757A58299 /* AdSceneLifecycle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdSceneLifecycle.swift; sourceTree = "<group>"; };
+		06130C31D2605D884A1AEAE0 /* PhoneWidgetArtworkStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneWidgetArtworkStore.swift; sourceTree = "<group>"; };
 		0655C2E16E330F3F5522D5F5 /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Release.xcconfig; sourceTree = "<group>"; };
 		0E5C2529DFCFF70006816FEF /* AccountMenuSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountMenuSheet.swift; sourceTree = "<group>"; };
 		10BFEB752B6874E008390EA9 /* WatchNowPlayingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchNowPlayingView.swift; sourceTree = "<group>"; };
@@ -421,6 +424,7 @@
 		019A3C98A194EEDC181CBAD4 /* YTLiteWidgetShared */ = {
 			isa = PBXGroup;
 			children = (
+				06130C31D2605D884A1AEAE0 /* PhoneWidgetArtworkStore.swift */,
 				A7F5E4FF1578B48FAE57CC11 /* PhoneWidgetShared.swift */,
 			);
 			path = YTLiteWidgetShared;
@@ -1168,6 +1172,7 @@
 				E9F5F27C89EC7FC8D12BCDE6 /* MusicAlbumRelease.swift in Sources */,
 				7F228C3FD30D4E6F5C647A3C /* NextTrackPrimer.swift in Sources */,
 				306A6B80DF8C915340C677FE /* OwnerKeyStore.swift in Sources */,
+				1508D095C24ACA3BD3B8CB5D /* PhoneWidgetArtworkStore.swift in Sources */,
 				E2456D093EEE7A53C0DA5DDE /* PhoneWidgetShared.swift in Sources */,
 				8BA7167CE09C9A37CA7EF3EC /* PhoneWidgetSnapshotBridge.swift in Sources */,
 				2E39CB7A265038BB757B2849 /* PipPlayerView.swift in Sources */,
@@ -1247,6 +1252,7 @@
 			files = (
 				4B2C617FA37FF13D7E5B62B0 /* MixtubeWidgetBundle.swift in Sources */,
 				348FEDCF342040DACB4B4922 /* PhoneNowPlayingWidget.swift in Sources */,
+				F622D979DD00D9EB3F7C2419 /* PhoneWidgetArtworkStore.swift in Sources */,
 				F482CAC66E4251A72104CB7A /* PhoneWidgetShared.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

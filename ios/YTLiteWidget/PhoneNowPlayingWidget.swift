@@ -1,5 +1,6 @@
 import AppIntents
 import SwiftUI
+import UIKit
 import WidgetKit
 
 struct PhoneNowPlayingWidget: Widget {
@@ -26,6 +27,7 @@ struct PhoneNowPlayingWidget: Widget {
 struct PhoneNowPlayingEntry: TimelineEntry {
     let date: Date
     let snapshot: PhoneWidgetPlaybackSnapshot
+    let artwork: UIImage?
 }
 
 struct PhoneNowPlayingTimelineProvider: TimelineProvider {
@@ -39,7 +41,8 @@ struct PhoneNowPlayingTimelineProvider: TimelineProvider {
                 thumbnailURL: nil,
                 isPlaying: false,
                 updatedAt: 0
-            )
+            ),
+            artwork: nil
         )
     }
 
@@ -54,7 +57,9 @@ struct PhoneNowPlayingTimelineProvider: TimelineProvider {
     }
 
     private func makeEntry() -> PhoneNowPlayingEntry {
-        PhoneNowPlayingEntry(date: Date(), snapshot: PhoneWidgetPlaybackSnapshotStore.load())
+        let snapshot = PhoneWidgetPlaybackSnapshotStore.load()
+        let artwork = snapshot.hasTrack ? PhoneWidgetArtworkStore.load(videoId: snapshot.videoId) : nil
+        return PhoneNowPlayingEntry(date: Date(), snapshot: snapshot, artwork: artwork)
     }
 }
 
@@ -211,17 +216,10 @@ struct PhoneNowPlayingWidgetEntryView: View {
 
     @ViewBuilder
     private var artwork: some View {
-        if let raw = entry.snapshot.thumbnailURL, let url = URL(string: raw) {
-            AsyncImage(url: url) { phase in
-                switch phase {
-                case .success(let image):
-                    image
-                        .resizable()
-                        .scaledToFill()
-                default:
-                    artworkPlaceholder
-                }
-            }
+        if let artwork = entry.artwork {
+            Image(uiImage: artwork)
+                .resizable()
+                .scaledToFill()
         } else {
             artworkPlaceholder
         }

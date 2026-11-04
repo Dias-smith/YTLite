@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 import WidgetKit
 
 /// Writes Now Playing into the App Group for the iPhone Home Screen / Lock Screen widget.
@@ -8,10 +9,16 @@ enum PhoneWidgetSnapshotBridge {
         title: String?,
         artist: String?,
         thumbnailURL: URL?,
+        artwork: UIImage?,
         isPlaying: Bool
     ) {
         let widgetSnapshot: PhoneWidgetPlaybackSnapshot = {
-            guard let videoId, !videoId.isEmpty else { return .empty }
+            guard let videoId, !videoId.isEmpty else {
+                return .empty
+            }
+            if let artwork {
+                PhoneWidgetArtworkStore.save(artwork, videoId: videoId)
+            }
             return PhoneWidgetPlaybackSnapshot(
                 videoId: videoId,
                 title: title?.isEmpty == false ? (title ?? "Mixtube") : "Mixtube",
@@ -21,6 +28,9 @@ enum PhoneWidgetSnapshotBridge {
                 updatedAt: Date().timeIntervalSince1970
             )
         }()
+        if widgetSnapshot.videoId.isEmpty {
+            // Cleared playback — leave last artwork file; timeline shows placeholder via empty snapshot.
+        }
         PhoneWidgetPlaybackSnapshotStore.save(widgetSnapshot)
         WidgetCenter.shared.reloadTimelines(ofKind: PhoneWidgetShared.widgetKind)
     }
