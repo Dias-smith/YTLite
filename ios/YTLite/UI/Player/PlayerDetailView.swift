@@ -434,7 +434,7 @@ struct PlayerDetailView: View {
         .onChange(of: playback.isBuffering) { _, buffering in
             if buffering {
                 hideTask?.cancel()
-                // Keep chrome out of the way so the canvas spinner is obvious during re-extract.
+                // ***
                 withAnimation(.easeInOut(duration: 0.15)) {
                     overlayVisible = false
                 }

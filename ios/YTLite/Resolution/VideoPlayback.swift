@@ -195,7 +195,7 @@ struct VideoPlayback: Sendable, Equatable {
     let videoId: String
     let title: String
     let channelName: String
-    /// catalog channel id (e.g. `UC…`) when extract provides it — Android `channelID`.
+    /// ***
     let channelId: String?
     let durationSeconds: Int
     let formats: [StreamFormat]
@@ -284,9 +284,9 @@ enum PlaybackFormatSelector {
 
 enum ResolveResultMapper {
     static func map(envelope: [String: Any], fallbackVideoId: String) throws -> VideoPlayback {
-        PlayProbe.log("extract.map.start", videoId: fallbackVideoId)
+        PlayProbe.log("res.map.start", videoId: fallbackVideoId)
         guard let data = envelope["data"] as? [String: Any] else {
-            PlayProbe.log("extract.map.fail", videoId: fallbackVideoId, "missing data")
+            PlayProbe.log("res.map.fail", videoId: fallbackVideoId, "missing data")
             throw StreamResolver.StreamResolverError.invalidResponse("missing data")
         }
         // Remote script `createExtractMsg` always sets success:true; real failures land in
@@ -296,7 +296,7 @@ enum ResolveResultMapper {
         let explicitFail = (data["success"] as? Bool) == false
         if explicitFail {
             PlayProbe.log(
-                "extract.map.fail",
+                "res.map.fail",
                 videoId: fallbackVideoId,
                 "explicitFail err=\(topError ?? "extract failed")"
             )
@@ -306,7 +306,7 @@ enum ResolveResultMapper {
         }
         guard let payload = data["data"] as? [String: Any] else {
             PlayProbe.log(
-                "extract.map.fail",
+                "res.map.fail",
                 videoId: fallbackVideoId,
                 "missing payload err=\(topError ?? "-")"
             )
@@ -322,7 +322,7 @@ enum ResolveResultMapper {
         guard let music else {
             let msg = (nestedError ?? "Unable to extract playable stream")
                 .replacingOccurrences(of: "__notRetry@", with: "")
-            PlayProbe.log("extract.map.fail", videoId: fallbackVideoId, "music=null err=\(msg)")
+            PlayProbe.log("res.map.fail", videoId: fallbackVideoId, "music=null err=\(msg)")
             throw StreamResolver.StreamResolverError.resolveFailed(msg)
         }
         let rawFormats = music["formats"] as? [[String: Any]] ?? []
@@ -361,7 +361,7 @@ enum ResolveResultMapper {
             let msg = (nestedError ?? "no formats with url")
                 .replacingOccurrences(of: "__notRetry@", with: "")
             PlayProbe.log(
-                "extract.map.fail",
+                "res.map.fail",
                 videoId: fallbackVideoId,
                 "no formats/hls (raw=\(rawFormats.count)) err=\(msg)"
             )
@@ -385,7 +385,7 @@ enum ResolveResultMapper {
         let captions = mapCaptions(music)
 
         PlayProbe.log(
-            "extract.map.ok",
+            "res.map.ok",
             videoId: videoId,
             "formats=\(formats.count) hls=\(hlsManifestURL != nil) duration=\(duration)s title=\(title.prefix(40))"
         )
@@ -537,12 +537,12 @@ enum WatchPagePlayerFallback {
         guard !id.isEmpty else { return nil }
         let cfg = ResolverRemoteConfigStore.current
         guard cfg.enableAndroidPlayerFallback else {
-            PlayProbe.log("extract.fast.skip", videoId: id, "androidFallbackDisabled")
+            PlayProbe.log("res.fast.skip", videoId: id, "androidFallbackDisabled")
             return nil
         }
         let t0 = PlayProbe.now()
         PlayProbe.log(
-            "extract.fast.begin",
+            "res.fast.begin",
             videoId: id,
             "deadlineSec=\(Int(fastPathDeadlineSeconds)) sts=\(cfg.signatureTimestamp)"
         )
@@ -556,7 +556,7 @@ enum WatchPagePlayerFallback {
                     requestTimeout: fastPathDeadlineSeconds
                 )
                 PlayProbe.log(
-                    "extract.fast.android.done",
+                    "res.fast.android.done",
                     videoId: id,
                     "ms=\(PlayProbe.ms(since: androidT0)) hit=\(result != nil)"
                 )
@@ -567,7 +567,7 @@ enum WatchPagePlayerFallback {
                     nanoseconds: UInt64(fastPathDeadlineSeconds * 1_000_000_000)
                 )
                 PlayProbe.log(
-                    "extract.fast.deadline.fire",
+                    "res.fast.deadline.fire",
                     videoId: id,
                     "limitMs=\(Int(fastPathDeadlineSeconds * 1000))"
                 )
@@ -577,13 +577,13 @@ enum WatchPagePlayerFallback {
             group.cancelAll()
             if let first {
                 PlayProbe.log(
-                    "extract.fast.hit",
+                    "res.fast.hit",
                     videoId: id,
                     "ms=\(PlayProbe.ms(since: t0)) formats=\(first.formats.count)"
                 )
             } else {
                 PlayProbe.log(
-                    "extract.fast.miss",
+                    "res.fast.miss",
                     videoId: id,
                     "ms=\(PlayProbe.ms(since: t0)) deadline_or_reject"
                 )
@@ -597,7 +597,7 @@ enum WatchPagePlayerFallback {
         guard !id.isEmpty else {
             throw StreamResolver.StreamResolverError.invalidResponse("empty videoId")
         }
-        PlayProbe.log("extract.fallback.start", videoId: id)
+        PlayProbe.log("res.fallback.start", videoId: id)
         let cfg = ResolverRemoteConfigStore.current
         // Normalize Shorts → watch before scraping (never hit /shorts/{id}).
         let pages = [
@@ -607,11 +607,11 @@ enum WatchPagePlayerFallback {
         var lastError: Error = StreamResolver.StreamResolverError.resolveFailed("unplayable")
         var signatureTimestamp = cfg.signatureTimestamp
         for pageURL in pages {
-            PlayProbe.log("extract.fallback.page", videoId: id, pageURL)
+            PlayProbe.log("res.fallback.page", videoId: id, pageURL)
             do {
                 let html = try await fetchHTML(pageURL)
                 PlayProbe.log(
-                    "extract.fallback.html",
+                    "res.fallback.html",
                     videoId: id,
                     "bytes=\(html.utf8.count)"
                 )
@@ -628,7 +628,7 @@ enum WatchPagePlayerFallback {
                    )
                 {
                     PlayProbe.log(
-                        "extract.fallback.android.ok",
+                        "res.fallback.android.ok",
                         videoId: id,
                         "formats=\(androidPlayback.formats.count) sts=\(signatureTimestamp)"
                     )
@@ -639,19 +639,19 @@ enum WatchPagePlayerFallback {
                     throw StreamResolver.StreamResolverError.resolveFailed("watch page fallback disabled")
                 }
                 guard let player = extractPlayerResponseJSON(from: html) else {
-                    PlayProbe.log("extract.fallback.fail", videoId: id, "no player json")
+                    PlayProbe.log("res.fallback.fail", videoId: id, "no player json")
                     continue
                 }
                 let mapped = try mapPlayerResponse(player, fallbackVideoId: id, source: "html")
                 PlayProbe.log(
-                    "extract.fallback.ok",
+                    "res.fallback.ok",
                     videoId: id,
                     "formats=\(mapped.formats.count) source=html"
                 )
                 return mapped
             } catch {
                 PlayProbe.log(
-                    "extract.fallback.fail",
+                    "res.fallback.fail",
                     videoId: id,
                     error.localizedDescription
                 )
@@ -668,14 +668,14 @@ enum WatchPagePlayerFallback {
            )
         {
             PlayProbe.log(
-                "extract.fallback.android.ok",
+                "res.fallback.android.ok",
                 videoId: id,
                 "formats=\(androidPlayback.formats.count) sts=\(signatureTimestamp) no-html"
             )
             return androidPlayback
         }
 
-        PlayProbe.log("extract.fallback.exhausted", videoId: id, lastError.localizedDescription)
+        PlayProbe.log("res.fallback.exhausted", videoId: id, lastError.localizedDescription)
         throw lastError
     }
 
@@ -689,7 +689,7 @@ enum WatchPagePlayerFallback {
         let androidUA =
             "\(SaltedLiteral.androidPackagePrefix)\(clientVersion) (Linux; U; Android 11) gzip"
         PlayProbe.log(
-            "extract.fallback.android.begin",
+            "res.fallback.android.begin",
             videoId: videoId,
             "sts=\(signatureTimestamp) ver=\(clientVersion) timeout=\(requestTimeout.map { String(Int($0)) } ?? "default")"
         )
@@ -721,7 +721,7 @@ enum WatchPagePlayerFallback {
         guard let data = try? JSONSerialization.data(withJSONObject: body),
               let bodyText = String(data: data, encoding: .utf8)
         else {
-            PlayProbe.log("extract.fallback.android.fail", videoId: videoId, "body encode")
+            PlayProbe.log("res.fallback.android.fail", videoId: videoId, "body encode")
             return nil
         }
         let result = await CatalogHTTPClient.shared.request(
@@ -739,7 +739,7 @@ enum WatchPagePlayerFallback {
             timeout: requestTimeout
         )
         PlayProbe.log(
-            "extract.android.http",
+            "res.android.http",
             videoId: videoId,
             "ok=\(result.success) code=\(result.errCode) bytes=\(result.body.utf8.count) ms=\(PlayProbe.ms(since: androidT0)) timeout=\(requestTimeout.map { String(Int($0)) } ?? "default") err=\(result.errMsg)"
         )
@@ -748,7 +748,7 @@ enum WatchPagePlayerFallback {
               let player = try? JSONSerialization.jsonObject(with: raw) as? [String: Any]
         else {
             PlayProbe.log(
-                "extract.fallback.android.fail",
+                "res.fallback.android.fail",
                 videoId: videoId,
                 "http code=\(result.errCode) ms=\(PlayProbe.ms(since: androidT0)) \(result.errMsg)"
             )
@@ -758,21 +758,21 @@ enum WatchPagePlayerFallback {
             let mapped = try mapPlayerResponse(player, fallbackVideoId: videoId, source: "android")
             guard mapped.formats.contains(where: \.isMuxed) || mapped.hlsManifestURL != nil else {
                 PlayProbe.log(
-                    "extract.fallback.android.fail",
+                    "res.fallback.android.fail",
                     videoId: videoId,
                     "no muxed/hls ms=\(PlayProbe.ms(since: androidT0))"
                 )
                 return nil
             }
             PlayProbe.log(
-                "extract.fallback.android.ok",
+                "res.fallback.android.ok",
                 videoId: videoId,
                 "formats=\(mapped.formats.count) ms=\(PlayProbe.ms(since: androidT0))"
             )
             return mapped
         } catch {
             PlayProbe.log(
-                "extract.fallback.android.fail",
+                "res.fallback.android.fail",
                 videoId: videoId,
                 "\(error.localizedDescription) ms=\(PlayProbe.ms(since: androidT0))"
             )
@@ -933,7 +933,7 @@ enum WatchPagePlayerFallback {
         }
         let muxedCount = formats.filter(\.isMuxed).count
         PlayProbe.log(
-            "extract.fallback.formats",
+            "res.fallback.formats",
             videoId: fallbackVideoId,
             "source=\(source) total=\(formats.count) muxed=\(muxedCount) hls=\(hlsManifestURL != nil) progressive=\(progressive.count) adaptive=\(adaptive.count)"
         )

@@ -34,7 +34,7 @@ final class WatchPlaybackClient: ObservableObject {
         publishWidgetSnapshot()
     }
 
-    /// Active pull: ingest cached context + ask iPhone for fresh playback/queue.
+    /// ***
     /// - Parameter bootstrap: retry several times after launch / foreground.
     func syncWithPhone(bootstrap: Bool = false) {
         ingestCachedApplicationContext()
@@ -76,7 +76,7 @@ final class WatchPlaybackClient: ObservableObject {
             }
             .store(in: &cancellables)
 
-        // Context-only poll when not interactively reachable (phone locked / offline play).
+        // ***
         Timer.publish(every: 2.5, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in

@@ -259,14 +259,14 @@ final class WatchPlaybackHost {
             let bridge = WatchConnectivityBridge.shared
             if updateContext {
                 // Latest-wins channel for progress ticks; track changes also get a coalesced
-                // transferUserInfo when unreachable (context alone often misses locked/offline phone).
+                // ***
                 _ = bridge.updateApplicationContext(envelope)
             }
             if bridge.isReachable {
                 _ = bridge.send(envelope)
             } else if updateContext {
                 // Keep latest for the next reachability flush; coalesce background delivery for
-                // track-level changes so Watch updates while phone plays offline / locked.
+                // ***
                 bridge.enqueueLatest(envelope)
                 if allowBackgroundTransfer {
                     bridge.transferUserInfo(envelope)

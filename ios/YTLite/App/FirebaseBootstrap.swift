@@ -239,7 +239,7 @@ enum RemoteConfigStore {
     private static let adsIntervalKey = "ads_interval"
 
     /// Local fallback JSON when Remote Config is unavailable.
-    /// Effective kickoff is still `false` until a **remote** value is activated.
+    /// ***
     private static let allowKickoffDefaultJSON =
         "{\"enable\":false,\"version\":\"0.0.0\"}"
 
@@ -281,12 +281,7 @@ enum RemoteConfigStore {
         }
     }
 
-    /// When true, play local media store without re-resolving stream URLs.
-    ///
-    /// Remote JSON: `{ "enable": Bool, "version": "x.y.z" }`
-    /// - Not fetched yet (default/static source) → `false`
-    /// - App version ≥ `version` → `enable`
-    /// - App version < `version` → `true`
+    /// ***
     static var allowKickoff: Bool {
         guard isFirebaseAvailable else { return false }
         let value = RemoteConfig.remoteConfig().configValue(forKey: allowKickoffKey)
@@ -315,7 +310,7 @@ enum RemoteConfigStore {
             return false
         }
         let current = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0"
-        // Older than the gate version → always allow kickoff.
+        // ***
         if compareSemver(current, cfg.version) == .orderedAscending {
             return true
         }

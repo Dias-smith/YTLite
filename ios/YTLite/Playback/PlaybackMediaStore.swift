@@ -10,7 +10,7 @@ private struct PlaybackStoreEntry: Codable, Equatable {
     var lastPlayedAt: Date
 }
 
-/// On-disk store for progressive streams watched past the progress threshold.
+/// ***
 actor PlaybackMediaStore {
     static let shared = PlaybackMediaStore()
 
@@ -82,7 +82,7 @@ actor PlaybackMediaStore {
         inflightVideoIds.remove(videoId)
     }
 
-    /// Wipes the entire progressive media cache (index + files).
+    /// ***
     func clearAll() {
         loadIndexIfNeeded()
         for videoId in Array(persistTasks.keys) {
@@ -96,7 +96,7 @@ actor PlaybackMediaStore {
         loadedIndex = false
     }
 
-    /// Deletes cached progressive media for a video (index + on-disk files).
+    /// ***
     func remove(videoId: String) {
         loadIndexIfNeeded()
         cancelPersist(videoId: videoId)
@@ -195,7 +195,7 @@ actor PlaybackMediaStore {
             }
         }
 
-        let (tempURL, response) = try await URLSession.shared.download(for: request)
+        let (data, response) = try await URLSession.shared.data(for: request)
         try Task.checkCancellation()
 
         let http = response as? HTTPURLResponse
@@ -205,12 +205,13 @@ actor PlaybackMediaStore {
         }
 
         if startByte > 0, status == 206 {
+            if !fileManager.fileExists(atPath: partial.path) {
+                fileManager.createFile(atPath: partial.path, contents: nil)
+            }
             let handle = try FileHandle(forWritingTo: partial)
             defer { try? handle.close() }
             try handle.seekToEnd()
-            let chunk = try Data(contentsOf: tempURL)
-            try handle.write(contentsOf: chunk)
-            try fileManager.removeItem(at: tempURL)
+            try handle.write(contentsOf: data)
         } else {
             if fileManager.fileExists(atPath: partial.path) {
                 try fileManager.removeItem(at: partial)
@@ -218,7 +219,7 @@ actor PlaybackMediaStore {
             if fileManager.fileExists(atPath: destination.path) {
                 try fileManager.removeItem(at: destination)
             }
-            try fileManager.moveItem(at: tempURL, to: destination)
+            try data.write(to: destination, options: .atomic)
             registerEntry(
                 videoId: videoId,
                 itag: itag,

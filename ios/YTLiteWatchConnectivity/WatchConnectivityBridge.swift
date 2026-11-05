@@ -165,9 +165,7 @@ final class WatchConnectivityBridge: NSObject, ObservableObject {
         }
     }
 
-    /// When interactive delivery fails, keep latest-wins pending + applicationContext, and for
-    /// playback also push one coalesced `transferUserInfo` (Watch often misses context-only
-    /// updates while the phone is backgrounded / offline-playing).
+    /// ***
     private func handleInteractiveSendFailure(
         _ envelope: WatchConnectivityProtocol.Envelope,
         message: [String: Any],
@@ -223,9 +221,7 @@ final class WatchConnectivityBridge: NSObject, ObservableObject {
         coalesce: Bool = false
     ) {
         guard let session, session.activationState == .activated else { return }
-        // Playback: allow a single coalesced transferUserInfo so Watch still receives track
-        // changes while interactive WC is down (common during offline / locked playback).
-        // Never queue a backlog — cancel prior outstanding playback transfers first.
+        // ***
         if kind == WatchConnectivityProtocol.Kind.playbackSnapshot.rawValue {
             cancelOutstandingTransfers(kind: kind)
             lastBackgroundTransferAt[kind] = Date()

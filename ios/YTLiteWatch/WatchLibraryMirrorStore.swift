@@ -15,7 +15,7 @@ enum WatchLibraryMirrorStore {
             let data = try JSONEncoder().encode(snapshot)
             try data.write(to: fileURL, options: [.atomic])
         } catch {
-            // Best-effort cache.
+            // ***
         }
     }
 

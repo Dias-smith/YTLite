@@ -14,7 +14,7 @@ struct TrackActionContext: Identifiable, Equatable, Sendable {
     let canRemoveFromPlaylist: Bool
     /// When true, show Remove from Up next / queue.
     let canRemoveFromQueue: Bool
-    /// When true, show Delete (remove from all playlists + clear local cache).
+    /// ***
     let canDeleteFromLibrary: Bool
 
     init(

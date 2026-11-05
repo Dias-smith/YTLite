@@ -24,7 +24,7 @@ enum HomeFeedStore {
         "\(dynamicChipsKeyPrefix)_\(localeKey())"
     }
 
-    /// Drop in-memory snapshots after `hl` / `gl` changes (disk cache stays locale-scoped).
+    /// ***
     static func invalidateMemoryCache() {
         lock.lock()
         memory.removeAll()
@@ -204,7 +204,7 @@ enum HomeFeedStore {
         loadFeed(categoryId: categoryId)?.entries
     }
 
-    /// Real titles still sitting in home-chip caches — used to repair library rows wiped to videoId.
+    /// ***
     static func titleHintsByVideoId() -> [String: (title: String, channelName: String)] {
         var hints: [String: (title: String, channelName: String)] = [:]
         func ingest(_ entries: [Entry]) {

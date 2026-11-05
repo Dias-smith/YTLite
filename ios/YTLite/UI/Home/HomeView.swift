@@ -875,7 +875,7 @@ struct HomeView: View {
         if selected {
             selectedCategoryContent
         } else {
-            cachedCategoryPreview(categoryId: category.id)
+            previewCategoryPage(categoryId: category.id)
         }
     }
 
@@ -964,9 +964,9 @@ struct HomeView: View {
         }
     }
 
-    /// Neighbor pages during an interactive swipe — show disk/memory cache so the transition isn’t blank.
+    /// ***
     @ViewBuilder
-    private func cachedCategoryPreview(categoryId: String) -> some View {
+    private func previewCategoryPage(categoryId: String) -> some View {
         let entries = previewEntries(for: categoryId)
         if entries.isEmpty {
             YTLiteColor.background

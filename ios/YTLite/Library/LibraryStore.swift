@@ -1213,7 +1213,7 @@ final class LibraryStore {
         return all.filter { TrackTitle.isPlaceholder($0.title, videoId: $0.trackId) }
     }
 
-    /// Restore from local caches: user metadata, playback session, home feed snapshots.
+    /// ***
     /// - Returns: number of rows repaired.
     @discardableResult
     func repairPlaceholderTitlesLocally() -> Int {

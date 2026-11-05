@@ -747,7 +747,7 @@ final class PlaybackController: ObservableObject {
                 let avatar = knownAvatar
                     ?? libraryStore?.subscribedChannel(id: channelId ?? "")?.avatarUrl.flatMap(URL.init(string:))
                 // Resolve / prepare often fall back to title == videoId once stream metadata decays.
-                // Prefer queue + library catalogue titles so cached library songs keep their names.
+                // ***
                 let libraryTitle = libraryStore?.track(id: expectedVideoId)?.title ?? ""
                 let playing = NowPlayingItem(
                     videoId: playback.videoId,
@@ -769,7 +769,7 @@ final class PlaybackController: ObservableObject {
                 captionTracks = playback.captionTracks
                 refreshSubscribeState()
 
-                // After resolve: reuse on-disk cache when present (do not re-download / re-persist).
+                // ***
                 if !preferLiveHLS,
                    let localFileURL = await PlaybackMediaStore.shared.localFileURL(videoId: expectedVideoId)
                 {
@@ -1323,8 +1323,7 @@ final class PlaybackController: ObservableObject {
         }
     }
 
-    /// After 10% watch progress, persist progressive streams only when local kickoff is allowed
-    /// (`allowKickoff && !VPN`) — same gate as direct local playback.
+    /// ***
     private func checkPlaybackStoreThreshold(position: Double, duration: Double?) {
         guard PlaybackStorePolicy.allowsDirectKickoffPlayback,
               !playbackStoreThresholdMet,

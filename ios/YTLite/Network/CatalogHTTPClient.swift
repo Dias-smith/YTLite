@@ -1,6 +1,6 @@
 import Foundation
 
-/// Normalize watch / Shorts / short-link URLs before extract.
+/// ***
 enum CatalogURL {
     /// `https://www.catalog.com/watch?v={id}`
     static func watchURL(videoId: String) -> String {
@@ -129,7 +129,7 @@ struct HttpStringResult: Sendable {
 }
 
 enum ChannelAvatarFetcher {
-    /// catalog Data API `channels.list` — used when extract/queue has no avatar.
+    /// ***
     static func fetch(channelId: String, apiKey: String) async -> URL? {
         guard ChannelID.isBrowsable(channelId), !apiKey.isEmpty else { return nil }
         var comps = URLComponents(string: SaltedLiteral.dataApiChannels)
