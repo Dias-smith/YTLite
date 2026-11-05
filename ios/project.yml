@@ -72,6 +72,8 @@ targets:
         embed: true
         codeSign: true
       - sdk: WidgetKit.framework
+      # AudioPlaybackIntent for Home Screen widget controls (runs in app process).
+      - sdk: AppIntents.framework
     # Xcode 26 local device install sometimes looks under PlugIns/; App Store requires Watch/.
     # Debug: also mirror into PlugIns for local companion discovery.
     # Release/Archive: ensure only Watch/ remains (no PlugIns copy, no symlink).

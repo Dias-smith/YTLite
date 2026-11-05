@@ -242,36 +242,3 @@ struct PhoneNowPlayingWidgetEntryView: View {
             .background(Circle().fill(Color.white.opacity(0.12)))
     }
 }
-
-struct PhoneWidgetTogglePlayIntent: AppIntent {
-    static var title: LocalizedStringResource = "Play/Pause"
-    static var description = IntentDescription("Play or pause Mixtube")
-    static var openAppWhenRun: Bool = false
-
-    func perform() async throws -> some IntentResult {
-        PhoneWidgetCommandQueue.enqueue(.togglePlayPause)
-        return .result()
-    }
-}
-
-struct PhoneWidgetPlayNextIntent: AppIntent {
-    static var title: LocalizedStringResource = "Next"
-    static var description = IntentDescription("Skip to the next track")
-    static var openAppWhenRun: Bool = false
-
-    func perform() async throws -> some IntentResult {
-        PhoneWidgetCommandQueue.enqueue(.next)
-        return .result()
-    }
-}
-
-struct PhoneWidgetPlayPreviousIntent: AppIntent {
-    static var title: LocalizedStringResource = "Previous"
-    static var description = IntentDescription("Go to the previous track")
-    static var openAppWhenRun: Bool = false
-
-    func perform() async throws -> some IntentResult {
-        PhoneWidgetCommandQueue.enqueue(.previous)
-        return .result()
-    }
-}

@@ -5,7 +5,7 @@ import FirebaseAnalytics
 @main
 struct YTLiteApp: App {
     @UIApplicationDelegateAdaptor(YTLiteAppDelegate.self) private var appDelegate
-    @StateObject private var playback = PlaybackController()
+    @StateObject private var playback: PlaybackController
     @StateObject private var appModel = AppModel()
     @StateObject private var authService: AuthService
     @Environment(\.scenePhase) private var scenePhase
@@ -18,6 +18,11 @@ struct YTLiteApp: App {
         let config = AppConfig.fromBundle()
         _authService = StateObject(wrappedValue: AuthService(config: config))
         modelContainer = Self.makeModelContainer()
+        // Create playback + bind widget intents before SwiftUI `.task`.
+        // `AudioPlaybackIntent` can wake a killed app and run `perform()` immediately.
+        let playbackController = PlaybackController()
+        _playback = StateObject(wrappedValue: playbackController)
+        PhoneWidgetCommandBridge.shared.start(playback: playbackController)
         #if DEBUG
         print("[AppDebugKit] YTLiteApp.init → starting debug server")
         NSLog("[AppDebugKit] YTLiteApp.init → starting debug server")
@@ -45,6 +50,7 @@ struct YTLiteApp: App {
                     await Task.yield()
                     WatchConnectivityBridge.shared.activate()
                     WatchPlaybackHost.shared.start(playback: playback)
+                    // Re-bind in case init raced; also drains any command still queued.
                     PhoneWidgetCommandBridge.shared.start(playback: playback)
                     playback.publishPhoneWidgetSnapshot(force: true)
 

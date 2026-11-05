@@ -1,3 +1,4 @@
+import AppIntents
 import Foundation
 
 /// App Group keys shared by the iPhone app and Home Screen / Lock Screen widget.
@@ -92,5 +93,74 @@ enum PhoneWidgetDarwin {
             nil,
             true
         )
+    }
+}
+
+// MARK: - Intent dispatch (main app registers a handler; widget falls back to App Group queue)
+
+/// Bridges widget `AudioPlaybackIntent`s into the main app process.
+/// `AudioPlaybackIntent` wakes / runs inside the host app (even when previously killed).
+enum PhoneWidgetIntentDispatcher {
+    /// Set from the main app as early as `PlaybackController` exists.
+    @MainActor
+    static var handler: ((PhoneWidgetCommand) -> Void)?
+
+    @MainActor
+    static func dispatch(_ command: PhoneWidgetCommand) async {
+        if let handler {
+            handler(command)
+            return
+        }
+        // Cold start race: intent can run before SwiftUI `.task` binds the handler.
+        PhoneWidgetCommandQueue.enqueue(command)
+        for _ in 0..<40 {
+            try? await Task.sleep(nanoseconds: 50_000_000)
+            if let handler {
+                // Bridge.start may already have consumed the queue — apply once more if still pending.
+                if let pending = PhoneWidgetCommandQueue.consume() {
+                    handler(pending)
+                }
+                return
+            }
+        }
+    }
+}
+
+// MARK: - Widget control intents (must live in app + widget targets)
+
+/// Play/pause — runs in the **app** process via `AudioPlaybackIntent` so a killed app can resume.
+struct PhoneWidgetTogglePlayIntent: AudioPlaybackIntent {
+    static var title: LocalizedStringResource = "Play/Pause"
+    static var description = IntentDescription("Play or pause Mixtube")
+    static var openAppWhenRun: Bool = false
+
+    @MainActor
+    func perform() async throws -> some IntentResult {
+        await PhoneWidgetIntentDispatcher.dispatch(.togglePlayPause)
+        return .result()
+    }
+}
+
+struct PhoneWidgetPlayNextIntent: AudioPlaybackIntent {
+    static var title: LocalizedStringResource = "Next"
+    static var description = IntentDescription("Skip to the next track")
+    static var openAppWhenRun: Bool = false
+
+    @MainActor
+    func perform() async throws -> some IntentResult {
+        await PhoneWidgetIntentDispatcher.dispatch(.next)
+        return .result()
+    }
+}
+
+struct PhoneWidgetPlayPreviousIntent: AudioPlaybackIntent {
+    static var title: LocalizedStringResource = "Previous"
+    static var description = IntentDescription("Go to the previous track")
+    static var openAppWhenRun: Bool = false
+
+    @MainActor
+    func perform() async throws -> some IntentResult {
+        await PhoneWidgetIntentDispatcher.dispatch(.previous)
+        return .result()
     }
 }

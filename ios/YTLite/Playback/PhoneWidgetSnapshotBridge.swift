@@ -48,13 +48,24 @@ final class PhoneWidgetCommandBridge {
 
     func start(playback: PlaybackController) {
         self.playback = playback
+        PhoneWidgetIntentDispatcher.handler = { [weak self] command in
+            self?.apply(command)
+        }
         installDarwinObserverIfNeeded()
         consumePending()
     }
 
     func consumePending() {
         guard let command = PhoneWidgetCommandQueue.consume() else { return }
-        guard let playback else { return }
+        apply(command)
+    }
+
+    private func apply(_ command: PhoneWidgetCommand) {
+        guard let playback else {
+            // Not bound yet — stash for the next start/active cycle.
+            PhoneWidgetCommandQueue.enqueue(command)
+            return
+        }
         switch command {
         case .togglePlayPause:
             playback.togglePlayPause()
@@ -63,7 +74,7 @@ final class PhoneWidgetCommandBridge {
         case .previous:
             playback.playPrevious()
         }
-        playback.publishPhoneWidgetSnapshot()
+        playback.publishPhoneWidgetSnapshot(force: true)
     }
 
     private func installDarwinObserverIfNeeded() {

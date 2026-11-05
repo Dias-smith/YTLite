@@ -41,6 +41,7 @@
 		306A6B80DF8C915340C677FE /* OwnerKeyStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6943365592158962C9CD7C2 /* OwnerKeyStore.swift */; };
 		348FEDCF342040DACB4B4922 /* PhoneNowPlayingWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A11CDF83668D8A9A2C3E19C /* PhoneNowPlayingWidget.swift */; };
 		34B99FEFD0F3DAFF6451F086 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 544D2CE3812330069EAA5F43 /* WidgetKit.framework */; };
+		35E886CC354CF2DF0B1D5028 /* AppIntents.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C3205950DD065037BA8B8A4E /* AppIntents.framework */; };
 		371F548991BEDBBB85259E8C /* PlaylistActionSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8CE7E52ECFFEE4E9D9F3BBD /* PlaylistActionSheet.swift */; };
 		389EB55F09939331D5C94906 /* AppOrientation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62C485D587E09BF45EE29C1A /* AppOrientation.swift */; };
 		38CCA30E1B96C6962B53B5F3 /* AdFullScreenCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6E4DFA44B888FA73E63078C /* AdFullScreenCoordinator.swift */; };
@@ -387,6 +388,7 @@
 				8D3A04971FECCC512120D242 /* FirebaseRemoteConfig in Frameworks */,
 				C29750763FAF4774A24F6C45 /* GoogleMobileAds in Frameworks */,
 				F9CFFBFCABAA60C51EB9B697 /* WidgetKit.framework in Frameworks */,
+				35E886CC354CF2DF0B1D5028 /* AppIntents.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
