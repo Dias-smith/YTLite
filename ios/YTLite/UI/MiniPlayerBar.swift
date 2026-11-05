@@ -8,6 +8,7 @@ struct MiniPlayerBar: View {
     @EnvironmentObject private var playerPresentation: PlayerPresentation
     @EnvironmentObject private var appModel: AppModel
     @Environment(\.displayScale) private var displayScale
+    @State private var swipeOffset: CGFloat = 0
 
     private var progress: CGFloat {
         guard progressClock.durationSeconds > 0 else { return 0 }
@@ -24,6 +25,9 @@ struct MiniPlayerBar: View {
                 contentRow(item: item)
             }
             .background(YTLiteColor.miniPlayer)
+            .onChange(of: item.videoId) { _, _ in
+                swipeOffset = 0
+            }
         }
     }
 
@@ -43,8 +47,7 @@ struct MiniPlayerBar: View {
 
     private func contentRow(item: NowPlayingItem) -> some View {
         HStack(spacing: 0) {
-            // Thumbnail + title: opens player. Tap is on the SwiftUI container
-            // so the UIKit player surface cannot swallow the hit.
+            // Thumbnail + title: tap opens player; horizontal swipe skips tracks.
             HStack(spacing: 0) {
                 mediaSlot(item: item)
                 VStack(alignment: .leading, spacing: 2) {
@@ -63,9 +66,15 @@ struct MiniPlayerBar: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .contentShape(Rectangle())
-            .onTapGesture {
-                playerPresentation.present()
-            }
+            .offset(x: swipeOffset)
+            .gesture(trackSwipeGesture)
+            .simultaneousGesture(
+                TapGesture().onEnded {
+                    guard abs(swipeOffset) < 8 else { return }
+                    playerPresentation.present()
+                }
+            )
+            .clipped()
             .accessibilityAddTraits(.isButton)
             .accessibilityLabel(item.title)
 
@@ -99,6 +108,49 @@ struct MiniPlayerBar: View {
         .frame(height: YTLiteLayout.miniBarHeight)
         .padding(.trailing, 4)
         .contentShape(Rectangle())
+    }
+
+    /// Left → next, right → previous. Vertical pans ignored so parent scroll still works.
+    private var trackSwipeGesture: some Gesture {
+        DragGesture(minimumDistance: 16, coordinateSpace: .local)
+            .onChanged { value in
+                let dx = value.translation.width
+                let dy = value.translation.height
+                guard abs(dx) > abs(dy) * 1.1 else {
+                    if abs(swipeOffset) > 0 {
+                        swipeOffset = 0
+                    }
+                    return
+                }
+                var x = dx
+                // Soft rubber-band when there is no neighbor track.
+                if dx > 0 && !playback.hasPreviousInQueue {
+                    x = dx * 0.22
+                } else if dx < 0 && !playback.hasNextInQueue {
+                    x = dx * 0.22
+                } else {
+                    x = max(-120, min(120, dx))
+                }
+                swipeOffset = x
+            }
+            .onEnded { value in
+                let dx = value.translation.width
+                let dy = value.translation.height
+                let predicted = value.predictedEndTranslation.width
+                let primary = abs(predicted) > abs(dx) ? predicted : dx
+                let shouldSkip = abs(dx) > abs(dy) * 1.1 && abs(primary) > 52
+
+                withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
+                    swipeOffset = 0
+                }
+
+                guard shouldSkip else { return }
+                if primary < 0, playback.hasNextInQueue {
+                    playback.playNext()
+                } else if primary > 0, playback.hasPreviousInQueue {
+                    playback.playPrevious()
+                }
+            }
     }
 
     @ViewBuilder
