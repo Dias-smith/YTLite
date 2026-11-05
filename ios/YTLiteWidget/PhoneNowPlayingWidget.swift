@@ -7,9 +7,6 @@ struct PhoneNowPlayingWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: PhoneWidgetShared.widgetKind, provider: PhoneNowPlayingTimelineProvider()) { entry in
             PhoneNowPlayingWidgetEntryView(entry: entry)
-                .containerBackground(for: .widget) {
-                    PhoneWidgetPalette.background
-                }
         }
         .configurationDisplayName("Mixtube")
         .description("Now Playing controls for Mixtube")
@@ -20,7 +17,8 @@ struct PhoneNowPlayingWidget: Widget {
             .accessoryRectangular,
             .accessoryInline,
         ])
-        .contentMarginsDisabled()
+        // Keep system content margins so controls stay inside the Home Screen corner radius.
+        // Full-bleed artwork goes in `containerBackground`, which draws under those margins.
     }
 }
 
@@ -70,104 +68,112 @@ private enum PhoneWidgetPalette {
     static let onSurfaceVariant = Color.white.opacity(0.72)
 }
 
+/// Avoid system / Liquid Glass chrome morphing a custom `Circle` fill into a warped blob.
+private struct WidgetControlButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .opacity(configuration.isPressed ? 0.82 : 1)
+    }
+}
+
 struct PhoneNowPlayingWidgetEntryView: View {
     var entry: PhoneNowPlayingEntry
     @Environment(\.widgetFamily) private var family
 
+    private var playerURL: URL { URL(string: "ytlite://player")! }
+
     var body: some View {
-        switch family {
-        case .systemSmall:
-            smallBody
-        case .systemMedium:
-            mediumBody
-        case .accessoryCircular:
-            circularBody
-        case .accessoryRectangular:
-            rectangularBody
-        case .accessoryInline:
-            inlineBody
-        default:
-            mediumBody
+        Group {
+            switch family {
+            case .systemSmall:
+                smallBody
+            case .systemMedium:
+                mediumBody
+            case .accessoryCircular:
+                circularBody
+            case .accessoryRectangular:
+                rectangularBody
+            case .accessoryInline:
+                inlineBody
+            default:
+                mediumBody
+            }
         }
     }
 
     private var smallBody: some View {
-        ZStack(alignment: .bottomLeading) {
-            artwork
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .clipped()
-            LinearGradient(
-                colors: [.clear, .black.opacity(0.72)],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            VStack(alignment: .leading, spacing: 8) {
-                Spacer(minLength: 0)
-                Text(entry.snapshot.hasTrack ? entry.snapshot.title : "Mixtube")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(PhoneWidgetPalette.onSurface)
-                    .lineLimit(2)
-                HStack {
-                    Spacer(minLength: 0)
-                    Button(intent: PhoneWidgetTogglePlayIntent()) {
-                        Image(systemName: entry.snapshot.isPlaying ? "pause.fill" : "play.fill")
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundStyle(.black)
-                            .frame(width: 32, height: 32)
-                            .background(Circle().fill(PhoneWidgetPalette.accent))
-                    }
-                    .buttonStyle(.plain)
+        VStack(alignment: .leading, spacing: 0) {
+            Spacer(minLength: 0)
+            HStack(alignment: .bottom, spacing: 10) {
+                Link(destination: playerURL) {
+                    Text(entry.snapshot.hasTrack ? entry.snapshot.title : "Mixtube")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(PhoneWidgetPalette.onSurface)
+                        .lineLimit(2)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
+                .buttonStyle(WidgetControlButtonStyle())
+
+                playPauseControl(diameter: 30)
             }
-            .padding(12)
         }
-        .widgetURL(URL(string: "ytlite://player"))
+        .containerBackground(for: .widget) {
+            smallArtworkBackground
+        }
     }
 
     private var mediumBody: some View {
         HStack(spacing: 14) {
-            artwork
-                .frame(width: 96, height: 96)
-                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            Link(destination: playerURL) {
+                artwork
+                    .frame(width: 96, height: 96)
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            }
+            .buttonStyle(WidgetControlButtonStyle())
+
             VStack(alignment: .leading, spacing: 6) {
-                Text(entry.snapshot.hasTrack ? entry.snapshot.title : "Mixtube")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(PhoneWidgetPalette.onSurface)
-                    .lineLimit(2)
-                Text(
-                    entry.snapshot.hasTrack
-                        ? (entry.snapshot.artist.isEmpty ? "Now Playing" : entry.snapshot.artist)
-                        : "Open to play"
-                )
-                .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(PhoneWidgetPalette.onSurfaceVariant)
-                .lineLimit(1)
+                Link(destination: playerURL) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(entry.snapshot.hasTrack ? entry.snapshot.title : "Mixtube")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(PhoneWidgetPalette.onSurface)
+                            .lineLimit(2)
+                        Text(
+                            entry.snapshot.hasTrack
+                                ? (entry.snapshot.artist.isEmpty ? "Now Playing" : entry.snapshot.artist)
+                                : "Open to play"
+                        )
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(PhoneWidgetPalette.onSurfaceVariant)
+                        .lineLimit(1)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .buttonStyle(WidgetControlButtonStyle())
+
                 Spacer(minLength: 0)
+
                 HStack(spacing: 10) {
                     Button(intent: PhoneWidgetPlayPreviousIntent()) {
-                        controlIcon("backward.fill")
+                        sideControlIcon("backward.fill")
                     }
-                    .buttonStyle(.plain)
-                    Button(intent: PhoneWidgetTogglePlayIntent()) {
-                        Image(systemName: entry.snapshot.isPlaying ? "pause.fill" : "play.fill")
-                            .font(.system(size: 15, weight: .bold))
-                            .foregroundStyle(.black)
-                            .frame(width: 36, height: 36)
-                            .background(Circle().fill(PhoneWidgetPalette.accent))
-                    }
-                    .buttonStyle(.plain)
+                    .buttonStyle(WidgetControlButtonStyle())
+
+                    playPauseControl(diameter: 34)
+
                     Button(intent: PhoneWidgetPlayNextIntent()) {
-                        controlIcon("forward.fill")
+                        sideControlIcon("forward.fill")
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(WidgetControlButtonStyle())
+
                     Spacer(minLength: 0)
                 }
             }
-            .padding(.vertical, 4)
             Spacer(minLength: 0)
         }
-        .padding(14)
-        .widgetURL(URL(string: "ytlite://player"))
+        .containerBackground(for: .widget) {
+            PhoneWidgetPalette.background
+        }
     }
 
     private var circularBody: some View {
@@ -177,41 +183,58 @@ struct PhoneNowPlayingWidgetEntryView: View {
                 Image(systemName: entry.snapshot.isPlaying ? "pause.fill" : "play.fill")
                     .font(.system(size: 18, weight: .semibold))
                     .foregroundStyle(PhoneWidgetPalette.accent)
+                    .offset(x: entry.snapshot.isPlaying ? 0 : 1)
             }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(WidgetControlButtonStyle())
+        .containerBackground(for: .widget) {
+            PhoneWidgetPalette.background
+        }
     }
 
     private var rectangularBody: some View {
         HStack(spacing: 8) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(entry.snapshot.hasTrack ? entry.snapshot.title : "Mixtube")
-                    .font(.headline)
+            Link(destination: playerURL) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(entry.snapshot.hasTrack ? entry.snapshot.title : "Mixtube")
+                        .font(.headline)
+                        .lineLimit(1)
+                    Text(
+                        entry.snapshot.hasTrack
+                            ? (entry.snapshot.artist.isEmpty ? "Now Playing" : entry.snapshot.artist)
+                            : "Open to play"
+                    )
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
                     .lineLimit(1)
-                Text(
-                    entry.snapshot.hasTrack
-                        ? (entry.snapshot.artist.isEmpty ? "Now Playing" : entry.snapshot.artist)
-                        : "Open to play"
-                )
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            Spacer(minLength: 0)
-            Button(intent: PhoneWidgetTogglePlayIntent()) {
-                Image(systemName: entry.snapshot.isPlaying ? "pause.fill" : "play.fill")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(.black)
-                    .frame(width: 28, height: 28)
-                    .background(Circle().fill(PhoneWidgetPalette.accent))
-            }
-            .buttonStyle(.plain)
+            .buttonStyle(WidgetControlButtonStyle())
+
+            playPauseControl(diameter: 28)
+        }
+        .containerBackground(for: .widget) {
+            PhoneWidgetPalette.background
         }
     }
 
     private var inlineBody: some View {
         Text(entry.snapshot.hasTrack ? entry.snapshot.title : "Mixtube")
             .lineLimit(1)
+    }
+
+    private var smallArtworkBackground: some View {
+        ZStack {
+            artwork
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .clipped()
+            LinearGradient(
+                colors: [.clear, .black.opacity(0.72)],
+                startPoint: .center,
+                endPoint: .bottom
+            )
+        }
     }
 
     @ViewBuilder
@@ -234,11 +257,31 @@ struct PhoneNowPlayingWidgetEntryView: View {
         }
     }
 
-    private func controlIcon(_ name: String) -> some View {
+    private func playPauseControl(diameter: CGFloat) -> some View {
+        Button(intent: PhoneWidgetTogglePlayIntent()) {
+            ZStack {
+                Circle()
+                    .fill(PhoneWidgetPalette.accent)
+                Image(systemName: entry.snapshot.isPlaying ? "pause.fill" : "play.fill")
+                    .font(.system(size: diameter * 0.42, weight: .bold))
+                    .foregroundStyle(.black)
+                    .offset(x: entry.snapshot.isPlaying ? 0 : diameter * 0.03)
+            }
+            .frame(width: diameter, height: diameter)
+            .clipShape(Circle())
+            .contentShape(Circle())
+        }
+        .buttonStyle(WidgetControlButtonStyle())
+        .tint(.clear)
+        .buttonBorderShape(.circle)
+    }
+
+    private func sideControlIcon(_ name: String) -> some View {
         Image(systemName: name)
             .font(.system(size: 14, weight: .semibold))
             .foregroundStyle(PhoneWidgetPalette.onSurface)
             .frame(width: 32, height: 32)
             .background(Circle().fill(Color.white.opacity(0.12)))
+            .contentShape(Circle())
     }
 }
