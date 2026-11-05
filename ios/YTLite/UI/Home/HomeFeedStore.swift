@@ -259,6 +259,14 @@ enum HomeFeedStore {
         )
     }
 
+    /// Drop memory + disk snapshot for one chip (e.g. after source type changes).
+    static func clearCategory(_ categoryId: String) {
+        lock.lock()
+        memory.removeValue(forKey: memoryKey(for: categoryId))
+        lock.unlock()
+        try? FileManager.default.removeItem(at: fileURL(for: categoryId))
+    }
+
     static func save(
         categoryId: String,
         entries: [HomeFeedEntry],

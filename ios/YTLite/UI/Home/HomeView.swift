@@ -160,7 +160,7 @@ struct HomeCategory: Identifiable, Hashable {
             HomeCategory(id: "live", source: .live),
             HomeCategory(id: "charts", source: .search(HomeLocalizedQuery.resolve("charts", region: gl))),
             HomeCategory(id: "mixes", source: .search(HomeLocalizedQuery.resolve("mixes", region: gl))),
-            HomeCategory(id: "albums", source: .search(HomeLocalizedQuery.resolve("albums", region: gl))),
+            HomeCategory(id: "albums", source: .musicNewReleaseAlbums),
             HomeCategory(id: "rnb", source: .search(HomeLocalizedQuery.resolve("rnb", region: gl))),
             HomeCategory(id: "mandopop", source: .search(HomeLocalizedQuery.resolve("mandopop", region: gl))),
             HomeCategory(id: "electropop", source: .search(HomeLocalizedQuery.resolve("electropop", region: gl))),
@@ -324,9 +324,18 @@ final class HomeViewModel: ObservableObject {
     }
 
     func appear() {
+        Self.migrateAlbumsChipSourceIfNeeded()
         applyStoredFeed(for: selectedCategoryId)
         refreshIfNeeded()
         refreshDynamicChipsIfNeeded()
+    }
+
+    /// Albums chip used to search a keyword; wipe stale video rows once after switching to album browse.
+    private static func migrateAlbumsChipSourceIfNeeded() {
+        let key = "home.albums.source.music_new_release.v1"
+        guard !UserDefaults.standard.bool(forKey: key) else { return }
+        HomeFeedStore.clearCategory("albums")
+        UserDefaults.standard.set(true, forKey: key)
     }
 
     func handleContentLocaleChange() {
