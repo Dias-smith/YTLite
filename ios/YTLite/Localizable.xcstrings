@@ -10760,19 +10760,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Dim"
+            "value": "Violet"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "柔和深色"
+            "value": "暮紫"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "柔和深色"
+            "value": "暮紫"
           }
         }
       }
@@ -11082,19 +11082,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Cool Mist"
+            "value": "Ice Cyan"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "冷灰蓝"
+            "value": "冰青"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "冷灰蓝"
+            "value": "冰青"
           }
         }
       }
@@ -11105,19 +11105,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sand"
+            "value": "Meadow"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "沙色"
+            "value": "青草"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "沙色"
+            "value": "青草"
           }
         }
       }
@@ -11128,19 +11128,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Soft Paper"
+            "value": "Blush"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "柔和纸感"
+            "value": "蔷薇"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "柔和纸感"
+            "value": "蔷薇"
           }
         }
       }
