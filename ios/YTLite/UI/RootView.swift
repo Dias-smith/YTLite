@@ -110,6 +110,17 @@ struct RootView: View {
                     store.onUnsubscribeChannel = { channelId in
                         Task { await sync.deleteSubscribedChannel(channelId: channelId) }
                     }
+                    // Restore catalogue titles that were overwritten with videoId.
+                    if store.repairPlaceholderTitlesLocally() > 0 {
+                        playback.reenrichTitlesFromLibrary()
+                        appModel.bumpLibraryRevision()
+                    }
+                    Task {
+                        if await store.repairPlaceholderTitlesFromNetwork() > 0 {
+                            playback.reenrichTitlesFromLibrary()
+                            appModel.bumpLibraryRevision()
+                        }
+                    }
                     if auth.isAuthenticated {
                         Task {
                             let t0 = SyncProbe.now()
@@ -125,6 +136,13 @@ struct RootView: View {
                                 appModel.endLibrarySync()
                             }
                             await sync.syncBidirectional(store: store)
+                            // Cloud may still hold real titles for rows we couldn't fix locally.
+                            if store.repairPlaceholderTitlesLocally() > 0 {
+                                playback.reenrichTitlesFromLibrary()
+                            }
+                            if await store.repairPlaceholderTitlesFromNetwork() > 0 {
+                                playback.reenrichTitlesFromLibrary()
+                            }
                             AdEligibility.refreshInventoryIfEligible()
                             await DailyListenNotificationScheduler.refresh(using: store)
                         }

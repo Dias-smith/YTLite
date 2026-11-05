@@ -1204,6 +1204,153 @@ final class LibraryStore {
             try? modelContext.save()
         }
     }
+
+    // MARK: - Placeholder title repair (title was overwritten with videoId)
+
+    /// Tracks whose catalogue title collapsed to the video id (or blank).
+    func tracksWithPlaceholderTitles() -> [LibraryTrack] {
+        let all = (try? modelContext.fetch(FetchDescriptor<LibraryTrack>())) ?? []
+        return all.filter { TrackTitle.isPlaceholder($0.title, videoId: $0.trackId) }
+    }
+
+    /// Restore from local caches: user metadata, playback session, home feed snapshots.
+    /// - Returns: number of rows repaired.
+    @discardableResult
+    func repairPlaceholderTitlesLocally() -> Int {
+        let broken = tracksWithPlaceholderTitles()
+        guard !broken.isEmpty else { return 0 }
+
+        var hints: [String: (title: String, channelName: String)] = [:]
+
+        let metadata = (try? modelContext.fetch(FetchDescriptor<UserTrackMetadata>())) ?? []
+        for meta in metadata {
+            guard let custom = meta.customTitle,
+                  !TrackTitle.isPlaceholder(custom, videoId: meta.trackId)
+            else { continue }
+            if hints[meta.trackId] == nil {
+                hints[meta.trackId] = (custom, meta.customArtistName ?? "")
+            }
+        }
+
+        if let session = PlaybackSessionStore.load() {
+            for item in session.items + (session.originalOrder ?? []) {
+                guard !TrackTitle.isPlaceholder(item.title, videoId: item.videoId) else { continue }
+                if hints[item.videoId] == nil {
+                    hints[item.videoId] = (item.title, item.channelName)
+                }
+            }
+        }
+
+        for (videoId, hint) in HomeFeedStore.titleHintsByVideoId() {
+            if hints[videoId] == nil {
+                hints[videoId] = hint
+            }
+        }
+
+        var repaired = 0
+        for track in broken {
+            guard let hint = hints[track.trackId] else { continue }
+            if applyPlaceholderTitleRepair(
+                track: track,
+                title: hint.title,
+                channelName: hint.channelName
+            ) {
+                repaired += 1
+            }
+        }
+        if repaired > 0 {
+            repairPlaybackSessionTitles()
+            save()
+        }
+        return repaired
+    }
+
+    /// Fetch remaining placeholders from the Data API and write real titles back.
+    /// - Returns: number of rows repaired.
+    @discardableResult
+    func repairPlaceholderTitlesFromNetwork() async -> Int {
+        let broken = tracksWithPlaceholderTitles()
+        guard !broken.isEmpty else { return 0 }
+        let ids = broken.map(\.trackId)
+        let fetched = await InnerTubeClient.fetchVideoSnippets(ids: ids)
+        guard !fetched.isEmpty else { return 0 }
+
+        let byId = Dictionary(uniqueKeysWithValues: fetched.map { ($0.videoId, $0) })
+        var repaired = 0
+        for track in broken {
+            guard let item = byId[track.trackId] else { continue }
+            if applyPlaceholderTitleRepair(
+                track: track,
+                title: item.title,
+                channelName: item.channelName,
+                thumbnailURL: item.thumbnailURL?.absoluteString,
+                durationText: item.durationText
+            ) {
+                repaired += 1
+            }
+        }
+        if repaired > 0 {
+            repairPlaybackSessionTitles()
+            save()
+        }
+        return repaired
+    }
+
+    @discardableResult
+    private func applyPlaceholderTitleRepair(
+        track: LibraryTrack,
+        title: String,
+        channelName: String,
+        thumbnailURL: String? = nil,
+        durationText: String? = nil
+    ) -> Bool {
+        let trackId = track.trackId
+        guard TrackTitle.isPlaceholder(track.title, videoId: trackId) else { return false }
+        guard !TrackTitle.isPlaceholder(title, videoId: trackId) else { return false }
+        track.title = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let artist = channelName.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !artist.isEmpty {
+            track.primaryArtistName = artist
+        }
+        if let thumbnailURL, !thumbnailURL.isEmpty, track.thumbnailHigh == nil {
+            track.thumbnailHigh = thumbnailURL
+        }
+        if let durationText, !durationText.isEmpty {
+            track.durationText = durationText
+            let seconds = DurationFormat.seconds(from: durationText)
+            if seconds > 0 { track.durationSeconds = seconds }
+        }
+        track.updatedAt = .now
+        return true
+    }
+
+    /// Patch persisted queue so cold start does not revive videoId titles.
+    private func repairPlaybackSessionTitles() {
+        guard var snapshot = PlaybackSessionStore.load() else { return }
+        var changed = false
+        func patch(_ items: inout [PersistedQueueItem]) {
+            for index in items.indices {
+                let videoId = items[index].videoId
+                guard TrackTitle.isPlaceholder(items[index].title, videoId: videoId),
+                      let track = track(id: videoId),
+                      !TrackTitle.isPlaceholder(track.title, videoId: videoId)
+                else { continue }
+                items[index].title = track.title
+                if items[index].channelName.isEmpty, let artist = track.primaryArtistName {
+                    items[index].channelName = artist
+                }
+                changed = true
+            }
+        }
+        patch(&snapshot.items)
+        if var original = snapshot.originalOrder {
+            patch(&original)
+            snapshot.originalOrder = original
+        }
+        if changed {
+            PlaybackSessionStore.save(snapshot)
+        }
+    }
 }
 
 /// Local playlist cover files under Application Support.

@@ -204,6 +204,37 @@ enum HomeFeedStore {
         loadFeed(categoryId: categoryId)?.entries
     }
 
+    /// Real titles still sitting in home-chip caches — used to repair library rows wiped to videoId.
+    static func titleHintsByVideoId() -> [String: (title: String, channelName: String)] {
+        var hints: [String: (title: String, channelName: String)] = [:]
+        func ingest(_ entries: [Entry]) {
+            for entry in entries where entry.kind == .track {
+                guard let videoId = entry.videoId, !videoId.isEmpty else { continue }
+                guard !TrackTitle.isPlaceholder(entry.title, videoId: videoId) else { continue }
+                if hints[videoId] != nil { continue }
+                hints[videoId] = (entry.title, entry.channelName ?? "")
+            }
+        }
+        lock.lock()
+        let memorySnapshots = Array(memory.values)
+        lock.unlock()
+        for snapshot in memorySnapshots {
+            ingest(snapshot.items)
+        }
+        let dir = directoryURL()
+        guard let files = try? FileManager.default.contentsOfDirectory(
+            at: dir,
+            includingPropertiesForKeys: nil
+        ) else { return hints }
+        for url in files where url.pathExtension == "json" {
+            guard let data = try? Data(contentsOf: url),
+                  let snapshot = decodeSnapshot(data)
+            else { continue }
+            ingest(snapshot.items)
+        }
+        return hints
+    }
+
     static func loadFeed(categoryId: String) -> LoadedFeed? {
         lock.lock()
         defer { lock.unlock() }

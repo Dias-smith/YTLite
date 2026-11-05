@@ -2414,6 +2414,11 @@ final class PlaybackController: ObservableObject {
         updateNowPlayingInfo()
     }
 
+    /// Re-apply catalogue titles after a library repair pass.
+    func reenrichTitlesFromLibrary() {
+        enrichRestoredPlaybackFromLibrary()
+    }
+
     /// When LibraryStore arrives after cold restore, replace videoId placeholders from the catalogue.
     private func enrichRestoredPlaybackFromLibrary() {
         guard let store = libraryStore, nowPlaying != nil, !queue.isEmpty else { return }

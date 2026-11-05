@@ -701,6 +701,56 @@ enum InnerTubeClient {
         return json
     }
 
+    /// Batch `videos.list` snippets — restores catalogue titles wiped to videoId.
+    static func fetchVideoSnippets(ids: [String]) async -> [VideoItem] {
+        let key = CatalogConstants.hotKeywordsApiKey
+        guard !key.isEmpty, !ids.isEmpty else { return [] }
+        var collected: [VideoItem] = []
+        collected.reserveCapacity(ids.count)
+        for chunk in ids.chunked(into: 50) {
+            let idParam = chunk.joined(separator: ",")
+                .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? chunk.joined(separator: ",")
+            let url =
+                "\(SaltedLiteral.dataApiVideos)?part=snippet,contentDetails"
+                + "&id=\(idParam)"
+                + "&key=\(key)"
+            let result = await CatalogHTTPClient.shared.request(
+                url: url,
+                method: "GET",
+                headers: ["Accept": "application/json"],
+                body: nil
+            )
+            guard result.success,
+                  let data = result.body.data(using: .utf8),
+                  let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let items = root["items"] as? [[String: Any]]
+            else { continue }
+            for item in items {
+                guard let id = item["id"] as? String,
+                      let snippet = item["snippet"] as? [String: Any],
+                      let title = snippet["title"] as? String,
+                      !TrackTitle.isPlaceholder(title, videoId: id)
+                else { continue }
+                let channel = snippet["channelTitle"] as? String ?? ""
+                let thumbs = snippet["thumbnails"] as? [String: Any]
+                let high = (thumbs?["high"] as? [String: Any])?["url"] as? String
+                    ?? (thumbs?["medium"] as? [String: Any])?["url"] as? String
+                let iso = (item["contentDetails"] as? [String: Any])?["duration"] as? String
+                collected.append(
+                    VideoItem(
+                        videoId: id,
+                        title: title,
+                        channelName: channel,
+                        thumbnailURL: high.flatMap(URL.init(string:)),
+                        durationText: DurationFormat.text(fromISO8601: iso),
+                        publishedTimeText: snippet["publishedAt"] as? String
+                    )
+                )
+            }
+        }
+        return collected
+    }
+
     static func fetchTrendingMusic(apiKey: String) async throws -> [VideoItem] {
         guard !apiKey.isEmpty else {
             return try await searchVideos(query: "music")
@@ -2100,6 +2150,21 @@ private extension Dictionary where Key == String, Value == Any {
 
 private extension String {
     var nilIfEmpty: String? { isEmpty ? nil : self }
+}
+
+private extension Array {
+    func chunked(into size: Int) -> [[Element]] {
+        guard size > 0, !isEmpty else { return isEmpty ? [] : [self] }
+        var result: [[Element]] = []
+        result.reserveCapacity((count + size - 1) / size)
+        var index = startIndex
+        while index < endIndex {
+            let next = self.index(index, offsetBy: size, limitedBy: endIndex) ?? endIndex
+            result.append(Array(self[index..<next]))
+            index = next
+        }
+        return result
+    }
 }
 
 struct ChannelItem: Identifiable, Hashable, Sendable {
