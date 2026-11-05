@@ -27,7 +27,7 @@ struct YouView: View {
                 }
             }
             .ytLiteContentWidth(enabled: YTLiteAdaptive.isRegularWidth(horizontalSizeClass))
-            .background(YTLiteColor.background)
+            .ytLiteAppBackground()
             .navigationBarHidden(true)
             .task(id: "\(auth.userId ?? "nil")-\(auth.googleAccessToken != nil)") {
                 guard auth.isAuthenticated, auth.googleAccessToken != nil else {
@@ -653,7 +653,7 @@ struct SubscriptionChannelsListView: View {
                 .scrollContentBackground(.hidden)
             }
         }
-        .background(YTLiteColor.background)
+        .ytLiteAppBackground()
         .ytLiteMiniPlayerScrollInset()
         .navigationTitle(L("you.subscriptions"))
         .navigationBarTitleDisplayMode(.inline)
@@ -706,7 +706,7 @@ struct YouPlaylistsListView: View {
                 .scrollContentBackground(.hidden)
             }
         }
-        .background(YTLiteColor.background)
+        .ytLiteAppBackground()
         .ytLiteMiniPlayerScrollInset()
         .navigationTitle(L("you.playlists"))
         .navigationBarTitleDisplayMode(.inline)
@@ -755,7 +755,7 @@ struct CatalogPlaylistItemsView: View {
                 .equatable()
             }
         }
-        .background(YTLiteColor.background)
+        .ytLiteAppBackground()
         .ytLiteMiniPlayerScrollInset()
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
@@ -856,7 +856,7 @@ struct ChannelSearchView: View {
             }
         }
         .scrollContentBackground(.hidden)
-        .background(YTLiteColor.background)
+        .ytLiteAppBackground()
         .ytLiteMiniPlayerScrollInset()
         .navigationTitle(L("you.channels"))
         .searchable(text: $query, prompt: "Search channels")
@@ -898,7 +898,7 @@ struct PlaylistSearchView: View {
             }
         }
         .scrollContentBackground(.hidden)
-        .background(YTLiteColor.background)
+        .ytLiteAppBackground()
         .ytLiteMiniPlayerScrollInset()
         .navigationTitle(L("you.playlists"))
         .searchable(text: $query, prompt: "Search playlists")
@@ -952,7 +952,7 @@ struct ChannelVideosView: View {
                 .equatable()
             }
         }
-        .background(YTLiteColor.background)
+        .ytLiteAppBackground()
         .ytLiteMiniPlayerScrollInset()
         .navigationTitle(channel.title)
         .navigationBarTitleDisplayMode(.inline)
@@ -1085,7 +1085,7 @@ struct PlaylistVideosBrowserView: View {
                 .equatable()
             }
         }
-        .background(YTLiteColor.background)
+        .ytLiteAppBackground()
         .ytLiteMiniPlayerScrollInset()
         .navigationTitle(playlist.title)
         .onChange(of: trackActions.listEpoch) { _, _ in

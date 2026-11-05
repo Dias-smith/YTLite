@@ -267,7 +267,7 @@ struct SearchView: View {
                 }
             }
             .ytLiteContentWidth(enabled: YTLiteAdaptive.isRegularWidth(horizontalSizeClass))
-            .background(YTLiteColor.background)
+            .ytLiteAppBackground()
             .navigationBarHidden(true)
             .onAppear {
                 viewModel.bind(memory: memory)
@@ -408,6 +408,7 @@ struct SearchView: View {
                     }
                 }
             }
+            .scrollDismissesKeyboard(.immediately)
 
             if viewModel.isSuggestionsLoading && viewModel.suggestions.isEmpty {
                 ProgressView()
@@ -504,6 +505,7 @@ struct SearchView: View {
             }
             .padding(.bottom, 16)
         }
+        .scrollDismissesKeyboard(.immediately)
         .ytLiteMiniPlayerScrollInset()
     }
 }
@@ -747,17 +749,14 @@ private struct SearchResultsPane: View, Equatable {
     var body: some View {
         Group {
             if columns <= 1 {
-                List {
-                    ForEach(hits) { hit in
-                        hitRow(hit, fullWidth: true)
-                            .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
-                            .listRowBackground(YTLiteColor.background)
-                            .listRowSeparator(.hidden)
+                ScrollView {
+                    LazyVStack(spacing: 0) {
+                        ForEach(hits) { hit in
+                            hitRow(hit, fullWidth: true)
+                        }
                     }
                 }
-                .listStyle(.plain)
-                .scrollContentBackground(.hidden)
-                .background(YTLiteColor.background)
+                .scrollDismissesKeyboard(.immediately)
             } else {
                 ScrollView {
                     LazyVGrid(
@@ -771,6 +770,7 @@ private struct SearchResultsPane: View, Equatable {
                     .padding(.horizontal, YTLiteLayout.screenPadding)
                     .padding(.bottom, YTLiteLayout.screenPadding)
                 }
+                .scrollDismissesKeyboard(.immediately)
             }
         }
         .ytLiteMiniPlayerScrollInset()

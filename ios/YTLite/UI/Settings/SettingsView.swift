@@ -6,6 +6,7 @@ struct SettingsView: View {
     @EnvironmentObject private var playback: PlaybackController
     @ObservedObject private var vip = VipStore.shared
     @ObservedObject private var adConsentStatus = AdConsentStatus.shared
+    @ObservedObject private var appBackground = AppBackgroundStore.shared
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var rateUnavailableAlert = false
     @State private var showVip = false
@@ -13,6 +14,7 @@ struct SettingsView: View {
     var body: some View {
         let _ = adConsentStatus.revision
         let _ = vip.revision
+        let _ = appBackground.revision
         let _ = appModel.languageCode
         Form {
             Section {
@@ -58,6 +60,22 @@ struct SettingsView: View {
                         Spacer(minLength: 0)
                         Text(appModel.themeDisplayName)
                             .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                    }
+                }
+                NavigationLink {
+                    AppBackgroundSettingsView()
+                } label: {
+                    HStack(spacing: 12) {
+                        SettingsLeadingIcon(systemName: "photo.on.rectangle.angled")
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(L("settings.app_background"))
+                                .font(YTLiteType.rowTitle)
+                                .foregroundStyle(YTLiteColor.onSurface)
+                            Text(appBackground.summaryLabel)
+                                .font(YTLiteType.meta)
+                                .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                        }
+                        Spacer(minLength: 0)
                     }
                 }
                 Picker(selection: $appModel.languageCode) {
@@ -195,7 +213,7 @@ struct SettingsView: View {
         )
         .scrollContentBackground(.hidden)
         .ytLiteMiniPlayerScrollInset()
-        .background(YTLiteColor.background)
+        .ytLiteAppBackground()
         .navigationTitle(L("settings.title"))
         .alert(L("settings.support_us"), isPresented: $rateUnavailableAlert) {
             Button(L("common.ok"), role: .cancel) {}

@@ -209,7 +209,7 @@ struct LibraryView: View {
                 }
             }
             .ytLiteContentWidth(enabled: YTLiteAdaptive.isRegularWidth(horizontalSizeClass))
-            .background(YTLiteColor.background)
+            .ytLiteAppBackground()
             .toolbar(.hidden, for: .navigationBar)
             .navigationDestination(for: String.self) { destinationId in
                 if destinationId == LibraryRoute.history {
@@ -457,7 +457,7 @@ struct LibraryView: View {
                         Spacer()
                     }
                     .frame(maxWidth: .infinity)
-                    .background(YTLiteColor.background)
+                    .ytLiteAppBackground()
                     .navigationTitle(L("common.sign_in"))
                     .navigationBarTitleDisplayMode(.inline)
                     .toolbar {
@@ -1662,7 +1662,7 @@ private struct LibrarySongsPane: View, Equatable {
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
-            .background(YTLiteColor.background)
+            .ytLiteAppBackground()
         } else {
             ForEach(Array(songs.enumerated()), id: \.element.videoId) { index, item in
                 songListRow(item, index: index)
@@ -1810,7 +1810,7 @@ struct HistoryDetailView: View {
             onMore: { trackActions.present(item: $0) }
         )
         .equatable()
-        .background(YTLiteColor.background)
+        .ytLiteAppBackground()
         .ytLiteMiniPlayerScrollInset()
         .navigationTitle(L("library.history"))
         .toolbar(.visible, for: .navigationBar)
@@ -1867,7 +1867,7 @@ private struct HistoryTracksPane: View, Equatable {
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
-            .background(YTLiteColor.background)
+            .ytLiteAppBackground()
         }
     }
 }

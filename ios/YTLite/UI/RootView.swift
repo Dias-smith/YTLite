@@ -81,7 +81,7 @@ struct RootView: View {
                 }
                 #endif
             }
-            .background(YTLiteColor.background.ignoresSafeArea())
+            .ytLiteAppBackground()
             .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
                 isKeyboardVisible = true
             }

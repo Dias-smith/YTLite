@@ -41,7 +41,7 @@ struct AppChrome<Content: View>: View {
         VStack(spacing: 0) {
             content()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(YTLiteColor.background)
+                .ytLiteAppBackground()
                 .environment(\.miniPlayerBottomInset, miniPlayerBottomInset)
                 .safeAreaInset(edge: .bottom, spacing: 0) {
                     miniPlayerSlot(docked: false)
@@ -64,7 +64,7 @@ struct AppChrome<Content: View>: View {
             // player (also in this column) reliably drive presentation on iPad.
             content()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(YTLiteColor.background)
+                .ytLiteAppBackground()
                 .environment(\.miniPlayerBottomInset, miniPlayerBottomInset)
                 .safeAreaInset(edge: .bottom, spacing: 0) {
                     miniPlayerSlot(docked: true)

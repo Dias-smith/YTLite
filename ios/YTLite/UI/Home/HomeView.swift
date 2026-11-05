@@ -770,7 +770,7 @@ struct HomeView: View {
                 categoryPager
             }
             .ytLiteContentWidth(enabled: YTLiteAdaptive.isRegularWidth(horizontalSizeClass))
-            .background(YTLiteColor.background)
+            .ytLiteAppBackground()
             .toolbar(.hidden, for: .navigationBar)
             .task {
                 viewModel.libraryStore = libraryStore
@@ -863,7 +863,7 @@ struct HomeView: View {
         }
         .tabViewStyle(.page(indexDisplayMode: .never))
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(YTLiteColor.background)
+        .ytLiteAppBackground()
     }
 
     private var categorySelection: Binding<String> {
@@ -1235,7 +1235,7 @@ struct AlbumTracksView: View {
                 .equatable()
             }
         }
-        .background(YTLiteColor.background)
+        .ytLiteAppBackground()
         .ytLiteMiniPlayerScrollInset()
         .navigationTitle(album.title)
         .navigationBarTitleDisplayMode(.inline)
