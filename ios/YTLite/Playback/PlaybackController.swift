@@ -1323,9 +1323,10 @@ final class PlaybackController: ObservableObject {
         }
     }
 
-    /// After 10% watch progress, persist progressive streams when remote policy allows.
+    /// After 10% watch progress, persist progressive streams only when local kickoff is allowed
+    /// (`allowKickoff && !VPN`) — same gate as direct local playback.
     private func checkPlaybackStoreThreshold(position: Double, duration: Double?) {
-        guard RemoteConfigStore.allowKickoff,
+        guard PlaybackStorePolicy.allowsDirectKickoffPlayback,
               !playbackStoreThresholdMet,
               !isPlayingHLS,
               let duration,

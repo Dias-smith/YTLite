@@ -39,7 +39,7 @@ enum PlaybackStorePolicy {
         return "bin"
     }
 
-    /// Skip resolve and play local cache only when kickoff is allowed and VPN is off.
+    /// Persist / play from local cache only when kickoff is allowed and VPN is off.
     static var allowsDirectKickoffPlayback: Bool {
         RemoteConfigStore.allowKickoff && !NetworkVpnStatus.isActive
     }
