@@ -258,6 +258,7 @@ final class HomeViewModel: ObservableObject {
     @Published private(set) var scrollToTopToken = 0
     /// Playable tracks for queue play — updated with `entries`, not recomputed per row.
     @Published private(set) var playableVideos: [VideoItem] = []
+    @Published private(set) var feedFilter: HomeFeedFilter
 
     private var loadGeneration = 0
     private var rawEntries: [HomeFeedEntry] = []
@@ -273,6 +274,7 @@ final class HomeViewModel: ObservableObject {
     weak var libraryStore: LibraryStore?
 
     init() {
+        feedFilter = HomeFeedFilterStore.load()
         dynamicChips = HomeFeedStore.loadDynamicChips()
         orderedCategories = HomeCategory.applyingSavedOrder(
             to: HomeCategory.merged(with: dynamicChips)
@@ -366,8 +368,14 @@ final class HomeViewModel: ObservableObject {
     }
 
     func refilter() {
-        entries = applyLibraryFilter(rawEntries)
+        entries = applyDisplayFilters(rawEntries)
         rebuildPlayableIndex(from: entries)
+    }
+
+    func applyFeedFilter(_ filter: HomeFeedFilter) {
+        feedFilter = filter
+        HomeFeedFilterStore.save(filter)
+        refilter()
     }
 
     /// Infinite scroll — append the next InnerTube page when near the list bottom.
@@ -401,7 +409,7 @@ final class HomeViewModel: ObservableObject {
             }
             let merged = mergeEntries(rawEntries, page.entries)
             rawEntries = merged
-            entries = applyLibraryFilter(merged)
+            entries = applyDisplayFilters(merged)
             rebuildPlayableIndex(from: entries)
             if page.entries.isEmpty, page.continuation == token {
                 continuation = nil
@@ -561,7 +569,7 @@ final class HomeViewModel: ObservableObject {
                 "count=\(page.entries.count) overlap=\(overlap)/\(previousIds.count) sameOrder=\(sameOrder) newCont=\(!(page.continuation ?? "").isEmpty) contPrefix=\(continuationPrefix(page.continuation)) first=\(newIds.prefix(3).joined(separator: ","))"
             )
             rawEntries = page.entries
-            entries = applyLibraryFilter(page.entries)
+            entries = applyDisplayFilters(page.entries)
             rebuildPlayableIndex(from: entries)
             continuation = page.continuation
             if requestId == "all" {
@@ -735,19 +743,21 @@ final class HomeViewModel: ObservableObject {
             allFeedUsesSearchPagination = false
             HomeFeedProbe.log("store.miss", "category=\(categoryId)")
         }
-        entries = applyLibraryFilter(rawEntries)
+        entries = applyDisplayFilters(rawEntries)
         rebuildPlayableIndex(from: entries)
     }
 
-    private func applyLibraryFilter(_ items: [HomeFeedEntry]) -> [HomeFeedEntry] {
-        guard let libraryStore else { return items }
-        return items.compactMap { entry in
+    private func applyDisplayFilters(_ items: [HomeFeedEntry]) -> [HomeFeedEntry] {
+        items.compactMap { entry in
             switch entry {
             case .album:
-                return entry
+                return feedFilter.matches(entry) ? entry : nil
             case .track(let video):
-                let kept = libraryStore.filterNotInterested([video])
-                return kept.isEmpty ? nil : .track(video)
+                if let libraryStore {
+                    let kept = libraryStore.filterNotInterested([video])
+                    guard !kept.isEmpty else { return nil }
+                }
+                return feedFilter.matches(video) ? .track(video) : nil
             }
         }
     }
@@ -761,6 +771,7 @@ struct HomeView: View {
     @Environment(\.libraryStore) private var libraryStore
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var showCategoryReorder = false
+    @State private var showFeedFilter = false
     @EnvironmentObject private var playerPresentation: PlayerPresentation
 
     var body: some View {
@@ -803,6 +814,18 @@ struct HomeView: View {
                     }
                 )
             }
+            .sheet(isPresented: $showFeedFilter) {
+                HomeFeedFilterSheet(
+                    filter: viewModel.feedFilter,
+                    onApply: { next in
+                        viewModel.applyFeedFilter(next)
+                        showFeedFilter = false
+                    },
+                    onCancel: {
+                        showFeedFilter = false
+                    }
+                )
+            }
         }
     }
 
@@ -826,18 +849,38 @@ struct HomeView: View {
                     .padding(.vertical, YTLiteLayout.stackLoose)
                 }
 
-                Button {
-                    showCategoryReorder = true
-                } label: {
-                    Image(systemName: "arrow.left.arrow.right")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(YTLiteColor.onSurface)
-                        // Match YTLiteChip height (subheadline + chipVertical×2 ≈ 32–34).
-                        .frame(width: 32, height: 32)
-                        .background(YTLiteColor.surfaceChip, in: Circle())
+                HStack(spacing: YTLiteLayout.stackLoose) {
+                    Button {
+                        showFeedFilter = true
+                    } label: {
+                        Image(systemName: viewModel.feedFilter.isActive
+                              ? "line.3.horizontal.decrease.circle.fill"
+                              : "line.3.horizontal.decrease.circle")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(
+                                viewModel.feedFilter.isActive
+                                    ? YTLiteColor.accent
+                                    : YTLiteColor.onSurface
+                            )
+                            .frame(width: 32, height: 32)
+                            .background(YTLiteColor.surfaceChip, in: Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(L("home.filter.title"))
+
+                    Button {
+                        showCategoryReorder = true
+                    } label: {
+                        Image(systemName: "arrow.left.arrow.right")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(YTLiteColor.onSurface)
+                            // Match YTLiteChip height (subheadline + chipVertical×2 ≈ 32–34).
+                            .frame(width: 32, height: 32)
+                            .background(YTLiteColor.surfaceChip, in: Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(L("home.category.reorder"))
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel(L("home.category.reorder"))
                 .padding(.leading, YTLiteLayout.stackLoose)
                 .padding(.trailing, YTLiteLayout.screenPadding)
             }
@@ -1012,13 +1055,17 @@ struct HomeView: View {
 
     private func previewEntries(for categoryId: String) -> [HomeFeedEntry] {
         let raw = HomeFeedStore.loadFeed(categoryId: categoryId)?.entries ?? []
-        guard let libraryStore else { return raw }
         return raw.compactMap { entry in
             switch entry {
             case .album:
-                return entry
+                return viewModel.feedFilter.matches(entry) ? entry : nil
             case .track(let video):
-                return libraryStore.filterNotInterested([video]).isEmpty ? nil : entry
+                if let libraryStore,
+                   libraryStore.filterNotInterested([video]).isEmpty
+                {
+                    return nil
+                }
+                return viewModel.feedFilter.matches(video) ? entry : nil
             }
         }
     }
@@ -1032,6 +1079,8 @@ struct HomeView: View {
         hasher.combine(entries.last?.id)
         hasher.combine(viewModel.isLoadingMore && categoryId == viewModel.selectedCategoryId)
         hasher.combine(categoryId == viewModel.selectedCategoryId ? viewModel.errorMessage : nil)
+        hasher.combine(viewModel.feedFilter.durations.map(\.rawValue).sorted())
+        hasher.combine(viewModel.feedFilter.viewCounts.map(\.rawValue).sorted())
         return hasher.finalize()
     }
 }
@@ -1100,6 +1149,190 @@ private struct HomeFeedGridPane: View, Equatable {
         }
         .padding(.horizontal, horizontalPadding)
         .padding(.bottom, YTLiteLayout.rowVertical)
+    }
+}
+
+/// Duration / view-count filter sheet for Home feed.
+private struct HomeFeedFilterSheet: View {
+    @State private var draft: HomeFeedFilter
+    let onApply: (HomeFeedFilter) -> Void
+    let onCancel: () -> Void
+
+    init(
+        filter: HomeFeedFilter,
+        onApply: @escaping (HomeFeedFilter) -> Void,
+        onCancel: @escaping () -> Void
+    ) {
+        _draft = State(initialValue: filter)
+        self.onApply = onApply
+        self.onCancel = onCancel
+    }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: YTLiteLayout.sectionGap) {
+                    filterSection(title: L("home.filter.duration")) {
+                        durationOptions
+                    }
+                    filterSection(title: L("home.filter.views")) {
+                        viewCountOptions
+                    }
+                }
+                .padding(.horizontal, YTLiteLayout.screenPadding)
+                .padding(.top, YTLiteLayout.stackLoose)
+                .padding(.bottom, YTLiteLayout.sectionGap)
+            }
+            .ytLiteAppBackground()
+            .navigationTitle(L("home.filter.title"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(L("common.cancel"), action: onCancel)
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(L("home.filter.reset")) {
+                        draft = .default
+                    }
+                    .disabled(!draft.isActive)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(L("common.done")) {
+                        onApply(draft)
+                    }
+                    .font(YTLiteType.labelEmphasized)
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
+    }
+
+    private func filterSection<Content: View>(
+        title: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: YTLiteLayout.stackLoose) {
+            Text(title)
+                .font(YTLiteType.sectionTitle)
+                .foregroundStyle(YTLiteColor.onSurface)
+            content()
+        }
+    }
+
+    private var durationOptions: some View {
+        HomeFilterFlowLayout(spacing: YTLiteLayout.stackDefault) {
+            filterChip(
+                title: L("home.filter.duration.any"),
+                selected: draft.durations.isEmpty
+            ) {
+                draft.durations = []
+            }
+            ForEach(HomeDurationFilter.allCases) { option in
+                filterChip(
+                    title: option.title,
+                    selected: draft.durations.contains(option)
+                ) {
+                    toggleDuration(option)
+                }
+            }
+        }
+    }
+
+    private var viewCountOptions: some View {
+        HomeFilterFlowLayout(spacing: YTLiteLayout.stackDefault) {
+            ForEach(HomeViewCountFilter.allCases) { option in
+                filterChip(
+                    title: option.title,
+                    selected: draft.viewCounts.contains(option)
+                ) {
+                    toggleViewCount(option)
+                }
+            }
+        }
+    }
+
+    private func filterChip(
+        title: String,
+        selected: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(selected ? YTLiteType.labelEmphasized : YTLiteType.label)
+                .foregroundStyle(selected ? YTLiteColor.onAccent : YTLiteColor.onSurface)
+                .padding(.horizontal, YTLiteLayout.chipHorizontal)
+                .padding(.vertical, YTLiteLayout.chipVertical)
+                .background(
+                    selected ? YTLiteColor.accent : YTLiteColor.surfaceChip,
+                    in: Capsule()
+                )
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func toggleDuration(_ option: HomeDurationFilter) {
+        if draft.durations.contains(option) {
+            draft.durations.remove(option)
+        } else {
+            draft.durations.insert(option)
+        }
+    }
+
+    private func toggleViewCount(_ option: HomeViewCountFilter) {
+        if draft.viewCounts.contains(option) {
+            draft.viewCounts.remove(option)
+        } else {
+            draft.viewCounts.insert(option)
+        }
+    }
+}
+
+/// Simple wrapping chip row (Home filter only).
+private struct HomeFilterFlowLayout: Layout {
+    var spacing: CGFloat = 8
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let maxWidth = proposal.width ?? .infinity
+        var x: CGFloat = 0
+        var y: CGFloat = 0
+        var rowHeight: CGFloat = 0
+        var widthUsed: CGFloat = 0
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if x > 0, x + size.width > maxWidth {
+                x = 0
+                y += rowHeight + spacing
+                rowHeight = 0
+            }
+            rowHeight = max(rowHeight, size.height)
+            x += size.width + spacing
+            widthUsed = max(widthUsed, x - spacing)
+        }
+        return CGSize(
+            width: maxWidth.isFinite ? maxWidth : widthUsed,
+            height: y + rowHeight
+        )
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var x = bounds.minX
+        var y = bounds.minY
+        var rowHeight: CGFloat = 0
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if x > bounds.minX, x + size.width > bounds.maxX {
+                x = bounds.minX
+                y += rowHeight + spacing
+                rowHeight = 0
+            }
+            subview.place(
+                at: CGPoint(x: x, y: y),
+                proposal: ProposedViewSize(width: size.width, height: size.height)
+            )
+            rowHeight = max(rowHeight, size.height)
+            x += size.width + spacing
+        }
     }
 }
 

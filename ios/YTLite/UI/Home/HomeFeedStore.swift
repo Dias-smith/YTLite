@@ -359,3 +359,194 @@ enum HomeFeedStore {
         return directoryURL().appendingPathComponent("\(safe).json")
     }
 }
+
+// MARK: - Duration buckets (multi-select; empty = any)
+
+enum HomeDurationFilter: String, CaseIterable, Identifiable, Codable, Hashable, Sendable {
+    case overOneHour
+    case from30To60Minutes
+    case from10To30Minutes
+    case from3To10Minutes
+    case under3Minutes
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .overOneHour: return L("home.filter.duration.over_1h")
+        case .from30To60Minutes: return L("home.filter.duration.30m_1h")
+        case .from10To30Minutes: return L("home.filter.duration.10m_30m")
+        case .from3To10Minutes: return L("home.filter.duration.3m_10m")
+        case .under3Minutes: return L("home.filter.duration.under_3m")
+        }
+    }
+
+    func matches(seconds: Int) -> Bool {
+        guard seconds > 0 else { return false }
+        switch self {
+        case .overOneHour: return seconds > 3600
+        case .from30To60Minutes: return seconds >= 1800 && seconds <= 3600
+        case .from10To30Minutes: return seconds >= 600 && seconds < 1800
+        case .from3To10Minutes: return seconds >= 180 && seconds < 600
+        case .under3Minutes: return seconds > 0 && seconds < 180
+        }
+    }
+}
+
+// MARK: - View-count buckets (multi-select; empty = any)
+
+enum HomeViewCountFilter: String, CaseIterable, Identifiable, Codable, Hashable, Sendable {
+    case over1M
+    case from10KTo1M
+    case under10K
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .over1M: return L("home.filter.views.over_1m")
+        case .from10KTo1M: return L("home.filter.views.10k_1m")
+        case .under10K: return L("home.filter.views.under_10k")
+        }
+    }
+
+    func matches(count: Int64) -> Bool {
+        guard count >= 0 else { return false }
+        switch self {
+        case .over1M: return count > 1_000_000
+        case .from10KTo1M: return count >= 10_000 && count <= 1_000_000
+        case .under10K: return count < 10_000
+        }
+    }
+}
+
+// MARK: - Selection state
+
+struct HomeFeedFilter: Equatable, Codable, Sendable {
+    var durations: Set<HomeDurationFilter>
+    var viewCounts: Set<HomeViewCountFilter>
+
+    static let `default` = HomeFeedFilter(durations: [], viewCounts: [])
+
+    var isActive: Bool {
+        !durations.isEmpty || !viewCounts.isEmpty
+    }
+
+    func matches(_ video: VideoItem) -> Bool {
+        if !durations.isEmpty {
+            // Live / missing duration cannot satisfy a duration bucket.
+            let seconds = DurationFormat.seconds(from: video.durationText)
+            guard durations.contains(where: { $0.matches(seconds: seconds) }) else { return false }
+        }
+        if !viewCounts.isEmpty {
+            guard let count = ViewCountFormat.count(from: video.viewCountText),
+                  viewCounts.contains(where: { $0.matches(count: count) })
+            else { return false }
+        }
+        return true
+    }
+
+    func matches(_ entry: HomeFeedEntry) -> Bool {
+        switch entry {
+        case .album:
+            // Album rows have no duration/views — keep them when filtering tracks.
+            return true
+        case .track(let video):
+            return matches(video)
+        }
+    }
+}
+
+// MARK: - Persistence
+
+enum HomeFeedFilterStore {
+    private static let defaultsKey = "home.feed.filter.v1"
+
+    static func load() -> HomeFeedFilter {
+        guard let data = UserDefaults.standard.data(forKey: defaultsKey),
+              let decoded = try? JSONDecoder().decode(HomeFeedFilter.self, from: data)
+        else {
+            return .default
+        }
+        return decoded
+    }
+
+    static func save(_ filter: HomeFeedFilter) {
+        guard let data = try? JSONEncoder().encode(filter) else { return }
+        UserDefaults.standard.set(data, forKey: defaultsKey)
+    }
+}
+
+// MARK: - View count parsing ("1.2M views", "15K", "120万次观看", …)
+
+enum ViewCountFormat {
+    /// Best-effort parse of InnerTube short / localized view strings. `nil` if unknown.
+    static func count(from text: String?) -> Int64? {
+        guard var raw = text?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty
+        else { return nil }
+
+        // Drop common suffixes / noise.
+        let lowered = raw.lowercased()
+        if lowered.contains("watching") || lowered.contains("正在观看") { return nil }
+
+        raw = raw
+            .replacingOccurrences(of: ",", with: "")
+            .replacingOccurrences(of: " ", with: "")
+            .replacingOccurrences(of: "\u{00a0}", with: "")
+
+        // Chinese units first (万 / 亿).
+        if let yi = raw.range(of: "亿") {
+            let head = String(raw[..<yi.lowerBound])
+            if let n = parseLeadingNumber(head) {
+                return Int64((n * 100_000_000).rounded())
+            }
+        }
+        if let wan = raw.range(of: "万") {
+            let head = String(raw[..<wan.lowerBound])
+            if let n = parseLeadingNumber(head) {
+                return Int64((n * 10_000).rounded())
+            }
+        }
+
+        let compact = raw.lowercased()
+        if let range = compact.range(of: #"([0-9]*\.?[0-9]+)\s*([kmb])"#, options: .regularExpression) {
+            let token = String(compact[range])
+            if let n = parseLeadingNumber(token),
+               let unit = token.last
+            {
+                let mult: Double
+                switch unit {
+                case "k": mult = 1_000
+                case "m": mult = 1_000_000
+                case "b": mult = 1_000_000_000
+                default: mult = 1
+                }
+                return Int64((n * mult).rounded())
+            }
+        }
+
+        if let n = parseLeadingNumber(compact) {
+            return Int64(n.rounded())
+        }
+        return nil
+    }
+
+    private static func parseLeadingNumber(_ text: String) -> Double? {
+        var digits = ""
+        var seenDot = false
+        for ch in text {
+            if ch.isNumber {
+                digits.append(ch)
+            } else if ch == ".", !seenDot {
+                digits.append(ch)
+                seenDot = true
+            } else if digits.isEmpty {
+                continue
+            } else {
+                break
+            }
+        }
+        guard !digits.isEmpty, digits != "." else { return nil }
+        return Double(digits)
+    }
+}
