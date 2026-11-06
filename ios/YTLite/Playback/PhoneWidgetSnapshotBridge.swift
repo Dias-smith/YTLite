@@ -68,13 +68,22 @@ final class PhoneWidgetCommandBridge {
         }
         switch command {
         case .togglePlayPause:
+            // `togglePlayPause` may call `playCurrentQueueItem()` (async resolve) and return
+            // without flipping `isPlaying`. A forced publish here would write the *old*
+            // play/pause bit; WidgetKit often coalesces the later correct reload, so the
+            // home-screen button stays wrong intermittently.
+            let playingBefore = playback.isPlaying
             playback.togglePlayPause()
+            if playback.isPlaying != playingBefore {
+                playback.publishPhoneWidgetSnapshot(force: true)
+            }
         case .next:
             playback.playNext()
+            playback.publishPhoneWidgetSnapshot(force: true)
         case .previous:
             playback.playPrevious()
+            playback.publishPhoneWidgetSnapshot(force: true)
         }
-        playback.publishPhoneWidgetSnapshot(force: true)
     }
 
     private func installDarwinObserverIfNeeded() {

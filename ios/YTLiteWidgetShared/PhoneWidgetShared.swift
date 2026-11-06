@@ -41,7 +41,11 @@ struct PhoneWidgetPlaybackSnapshot: Codable, Equatable, Sendable {
 
 enum PhoneWidgetPlaybackSnapshotStore {
     static func load() -> PhoneWidgetPlaybackSnapshot {
-        guard let data = PhoneWidgetShared.defaults?.data(forKey: PhoneWidgetShared.DefaultsKey.snapshot),
+        guard let defaults = PhoneWidgetShared.defaults else { return .empty }
+        // Widget extension keeps an in-memory App Group cache; flush before read so
+        // Intent / app writes are visible (otherwise play/pause icon is intermittently stale).
+        defaults.synchronize()
+        guard let data = defaults.data(forKey: PhoneWidgetShared.DefaultsKey.snapshot),
               let decoded = try? JSONDecoder().decode(PhoneWidgetPlaybackSnapshot.self, from: data)
         else {
             return .empty
@@ -50,9 +54,11 @@ enum PhoneWidgetPlaybackSnapshotStore {
     }
 
     static func save(_ snapshot: PhoneWidgetPlaybackSnapshot) {
-        guard let data = try? JSONEncoder().encode(snapshot) else { return }
-        PhoneWidgetShared.defaults?.set(data, forKey: PhoneWidgetShared.DefaultsKey.snapshot)
-        PhoneWidgetShared.defaults?.synchronize()
+        guard let defaults = PhoneWidgetShared.defaults,
+              let data = try? JSONEncoder().encode(snapshot)
+        else { return }
+        defaults.set(data, forKey: PhoneWidgetShared.DefaultsKey.snapshot)
+        defaults.synchronize()
     }
 }
 
@@ -137,6 +143,8 @@ struct PhoneWidgetTogglePlayIntent: AudioPlaybackIntent {
     @MainActor
     func perform() async throws -> some IntentResult {
         await PhoneWidgetIntentDispatcher.dispatch(.togglePlayPause)
+        // WidgetKit reloads the timeline after `perform` returns — flush App Group first.
+        PhoneWidgetShared.defaults?.synchronize()
         return .result()
     }
 }
@@ -149,6 +157,7 @@ struct PhoneWidgetPlayNextIntent: AudioPlaybackIntent {
     @MainActor
     func perform() async throws -> some IntentResult {
         await PhoneWidgetIntentDispatcher.dispatch(.next)
+        PhoneWidgetShared.defaults?.synchronize()
         return .result()
     }
 }
@@ -161,6 +170,7 @@ struct PhoneWidgetPlayPreviousIntent: AudioPlaybackIntent {
     @MainActor
     func perform() async throws -> some IntentResult {
         await PhoneWidgetIntentDispatcher.dispatch(.previous)
+        PhoneWidgetShared.defaults?.synchronize()
         return .result()
     }
 }
