@@ -102,19 +102,41 @@ struct PhoneNowPlayingWidgetEntryView: View {
     }
 
     private var smallBody: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Spacer(minLength: 0)
-            HStack(alignment: .bottom, spacing: 10) {
-                Link(destination: playerURL) {
-                    Text(entry.snapshot.hasTrack ? entry.snapshot.title : "Mixtube")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(PhoneWidgetPalette.onSurface)
-                        .lineLimit(2)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+        // WidgetKit only allows Button/Toggle — no DragGesture swipe.
+        // Left / right artwork hit zones approximate “swipe to skip”.
+        ZStack {
+            HStack(spacing: 0) {
+                Button(intent: PhoneWidgetPlayPreviousIntent()) {
+                    Color.clear
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(WidgetControlButtonStyle())
+                .accessibilityLabel("Previous")
 
-                playPauseControl(diameter: 30)
+                Button(intent: PhoneWidgetPlayNextIntent()) {
+                    Color.clear
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(WidgetControlButtonStyle())
+                .accessibilityLabel("Next")
+            }
+
+            VStack(alignment: .leading, spacing: 0) {
+                Spacer(minLength: 0)
+                HStack(alignment: .bottom, spacing: 10) {
+                    Link(destination: playerURL) {
+                        Text(entry.snapshot.hasTrack ? entry.snapshot.title : "Mixtube")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(PhoneWidgetPalette.onSurface)
+                            .lineLimit(2)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .buttonStyle(WidgetControlButtonStyle())
+
+                    playPauseControl(diameter: 30)
+                }
             }
         }
         .containerBackground(for: .widget) {
