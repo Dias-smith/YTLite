@@ -66,7 +66,11 @@ struct TrackActionSheet: View {
                         title: isNotInterested ? "Undo not interested" : "Not interested"
                     ) { toggleNotInterested() }
 
-                    if context.canRemoveFromQueue || context.canRemoveFromPlaylist || context.canDeleteFromLibrary {
+                    if context.canRemoveFromQueue
+                        || context.canRemoveFromPlaylist
+                        || context.canDeleteFromLibrary
+                        || context.canRemoveFromHistory
+                    {
                         Divider().overlay(YTLiteColor.surfaceVariant)
                             .padding(.vertical, 4)
                     }
@@ -86,6 +90,19 @@ struct TrackActionSheet: View {
                                 trackActions.notifyListsChanged()
                                 trackActions.showToast(L("toast.removed_from_playlist"))
                             }
+                            dismiss()
+                        }
+                    }
+
+                    if context.canRemoveFromHistory {
+                        actionRow(
+                            systemImage: "clock.arrow.circlepath",
+                            title: L("action.remove_from_history"),
+                            destructive: true
+                        ) {
+                            store?.removeLastPlayed(trackIds: [context.videoId])
+                            trackActions.notifyListsChanged()
+                            trackActions.showToast(L("toast.removed_from_history"))
                             dismiss()
                         }
                     }

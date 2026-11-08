@@ -1807,7 +1807,13 @@ struct HistoryDetailView: View {
                 playback.play(items: tracks, startAt: index, analyticsSource: "library")
                 playerPresentation.present()
             },
-            onMore: { trackActions.present(item: $0) }
+            onMore: { trackActions.present(item: $0, canRemoveFromHistory: true) },
+            onDelete: { ids in
+                store?.removeLastPlayed(trackIds: ids)
+                reload()
+                onChange()
+                trackActions.notifyListsChanged()
+            }
         )
         .equatable()
         .ytLiteAppBackground()
@@ -1837,6 +1843,7 @@ private struct HistoryTracksPane: View, Equatable {
     let tracksVersion: Int
     let onPlay: (Int) -> Void
     let onMore: (VideoItem) -> Void
+    let onDelete: ([String]) -> Void
 
     static func == (lhs: Self, rhs: Self) -> Bool {
         lhs.tracksVersion == rhs.tracksVersion
@@ -1863,6 +1870,10 @@ private struct HistoryTracksPane: View, Equatable {
                     .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
                     .listRowBackground(YTLiteColor.background)
                     .listRowSeparator(.hidden)
+                }
+                .onDelete { offsets in
+                    let ids = offsets.map { tracks[$0].videoId }
+                    onDelete(ids)
                 }
             }
             .listStyle(.plain)

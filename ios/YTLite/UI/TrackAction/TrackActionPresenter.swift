@@ -28,7 +28,8 @@ final class TrackActionPresenter: ObservableObject {
         playlistId: String? = nil,
         canRemoveFromPlaylist: Bool = false,
         canRemoveFromQueue: Bool = false,
-        canDeleteFromLibrary: Bool = false
+        canDeleteFromLibrary: Bool = false,
+        canRemoveFromHistory: Bool = false
     ) {
         present(
             TrackActionContext(
@@ -36,7 +37,8 @@ final class TrackActionPresenter: ObservableObject {
                 playlistId: playlistId,
                 canRemoveFromPlaylist: canRemoveFromPlaylist,
                 canRemoveFromQueue: canRemoveFromQueue,
-                canDeleteFromLibrary: canDeleteFromLibrary
+                canDeleteFromLibrary: canDeleteFromLibrary,
+                canRemoveFromHistory: canRemoveFromHistory
             )
         )
     }

@@ -14,8 +14,10 @@ struct TrackActionContext: Identifiable, Equatable, Sendable {
     let canRemoveFromPlaylist: Bool
     /// When true, show Remove from Up next / queue.
     let canRemoveFromQueue: Bool
-    /// ***
+    /// When true (Library Songs), show Delete from library.
     let canDeleteFromLibrary: Bool
+    /// When true (History detail), show Remove from history.
+    let canRemoveFromHistory: Bool
 
     init(
         videoId: String,
@@ -26,7 +28,8 @@ struct TrackActionContext: Identifiable, Equatable, Sendable {
         playlistId: String? = nil,
         canRemoveFromPlaylist: Bool = false,
         canRemoveFromQueue: Bool = false,
-        canDeleteFromLibrary: Bool = false
+        canDeleteFromLibrary: Bool = false,
+        canRemoveFromHistory: Bool = false
     ) {
         self.videoId = videoId
         self.title = title
@@ -37,6 +40,7 @@ struct TrackActionContext: Identifiable, Equatable, Sendable {
         self.canRemoveFromPlaylist = canRemoveFromPlaylist
         self.canRemoveFromQueue = canRemoveFromQueue
         self.canDeleteFromLibrary = canDeleteFromLibrary
+        self.canRemoveFromHistory = canRemoveFromHistory
     }
 
     init(
@@ -44,7 +48,8 @@ struct TrackActionContext: Identifiable, Equatable, Sendable {
         playlistId: String? = nil,
         canRemoveFromPlaylist: Bool = false,
         canRemoveFromQueue: Bool = false,
-        canDeleteFromLibrary: Bool = false
+        canDeleteFromLibrary: Bool = false,
+        canRemoveFromHistory: Bool = false
     ) {
         self.init(
             videoId: item.videoId,
@@ -55,7 +60,8 @@ struct TrackActionContext: Identifiable, Equatable, Sendable {
             playlistId: playlistId,
             canRemoveFromPlaylist: canRemoveFromPlaylist,
             canRemoveFromQueue: canRemoveFromQueue,
-            canDeleteFromLibrary: canDeleteFromLibrary
+            canDeleteFromLibrary: canDeleteFromLibrary,
+            canRemoveFromHistory: canRemoveFromHistory
         )
     }
 

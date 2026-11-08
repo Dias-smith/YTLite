@@ -983,12 +983,21 @@ final class LibraryStore {
     func removeLastPlayed(trackIds: [String]) {
         guard !trackIds.isEmpty else { return }
         let key = ownerKey
+        let wanted = Set(trackIds)
         for id in trackIds {
             var descriptor = FetchDescriptor<UserTrackLastPlayed>(
                 predicate: #Predicate { $0.ownerKey == key && $0.trackId == id }
             )
             descriptor.fetchLimit = 1
             if let row = try? modelContext.fetch(descriptor).first {
+                modelContext.delete(row)
+            }
+        }
+        // Drop matching event rows so History stays consistent with last-played.
+        if let events = try? modelContext.fetch(
+            FetchDescriptor<PlaybackHistoryItem>(predicate: #Predicate { $0.ownerKey == key })
+        ) {
+            for row in events where wanted.contains(row.trackId) {
                 modelContext.delete(row)
             }
         }
