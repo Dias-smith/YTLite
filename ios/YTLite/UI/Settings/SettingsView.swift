@@ -149,6 +149,22 @@ struct SettingsView: View {
                     }
                 }
                 .tint(YTLiteColor.accent)
+
+                Toggle(isOn: $playback.autoSkipOnFailure) {
+                    HStack(spacing: 12) {
+                        SettingsLeadingIcon(systemName: "forward.end.alt")
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(L("settings.auto_skip_on_failure"))
+                                .font(YTLiteType.rowTitle)
+                                .foregroundStyle(YTLiteColor.onSurface)
+                            Text(L("settings.auto_skip_on_failure_subtitle"))
+                                .font(YTLiteType.meta)
+                                .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                        }
+                    }
+                }
+                .tint(YTLiteColor.accent)
             } header: {
                 Text(L("settings.playback"))
             } footer: {

@@ -153,7 +153,7 @@ class JsExtractorEngine private constructor(
 
     companion object {
         private const val TAG = "JsExtractorEngine"
-        private const val INVOKE_TIMEOUT_MS = 45_000L
+        private const val INVOKE_TIMEOUT_MS = 20_000L
 
         private val preloadScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 

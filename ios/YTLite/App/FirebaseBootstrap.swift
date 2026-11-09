@@ -237,6 +237,7 @@ enum FirebaseBootstrap {
 enum RemoteConfigStore {
     private static var allowKickoffKey: String { SaltedLiteral.rcAllowKickoff }
     private static let adsIntervalKey = "ads_interval"
+    private static let kickoffIntervalKey = "kickoff_interval"
 
     /// Local fallback JSON when Remote Config is unavailable.
     /// ***
@@ -245,6 +246,9 @@ enum RemoteConfigStore {
 
     /// Local fallback when Remote Config is unavailable or misconfigured.
     private static let adsIntervalDefaultSeconds: TimeInterval = AdMobConfig.interstitialCooldown
+
+    /// Local fallback: `0` keeps the legacy progress-fraction gate in `PlaybackStorePolicy`.
+    private static let kickoffIntervalDefaultSeconds: TimeInterval = 0
 
     private struct AllowKickoffConfig: Decodable {
         var enable: Bool
@@ -264,6 +268,7 @@ enum RemoteConfigStore {
         remoteConfig.setDefaults([
             allowKickoffKey: allowKickoffDefaultJSON as NSString,
             adsIntervalKey: NSNumber(value: adsIntervalDefaultSeconds),
+            kickoffIntervalKey: NSNumber(value: kickoffIntervalDefaultSeconds),
         ])
     }
 
@@ -274,6 +279,7 @@ enum RemoteConfigStore {
         do {
             let status = try await RemoteConfig.remoteConfig().fetchAndActivate()
             AdProbe.log("remote_config.ads_interval", "\(Int(adsInterval))s")
+            AdProbe.log("remote_config.kickoff_interval", "\(Int(kickoffInterval))s")
             AdProbe.log("remote_config.media_policy", "\(allowKickoff)")
             return status != .error
         } catch {
@@ -298,6 +304,18 @@ enum RemoteConfigStore {
             .doubleValue
         // Negative / NaN → default. Zero means no cooldown.
         guard raw.isFinite, raw >= 0 else { return adsIntervalDefaultSeconds }
+        return raw
+    }
+
+    /// Seconds of playback before local media caching may start.
+    /// `≤ 0` → fall back to `PlaybackStorePolicy.progressThreshold`.
+    static var kickoffInterval: TimeInterval {
+        guard isFirebaseAvailable else { return kickoffIntervalDefaultSeconds }
+        let raw = RemoteConfig.remoteConfig()
+            .configValue(forKey: kickoffIntervalKey)
+            .numberValue
+            .doubleValue
+        guard raw.isFinite, raw >= 0 else { return kickoffIntervalDefaultSeconds }
         return raw
     }
 

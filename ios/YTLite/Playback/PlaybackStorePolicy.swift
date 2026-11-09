@@ -2,7 +2,7 @@ import Foundation
 
 /// Rules for automatic local playback media persistence.
 enum PlaybackStorePolicy {
-    /// Start persisting after the user watches this fraction of the track.
+    /// Legacy fraction gate when Remote Config `kickoff_interval` is `≤ 0`.
     static let progressThreshold = 0.1
 
     static let maxStoreBytes: Int64 = 512 * 1024 * 1024

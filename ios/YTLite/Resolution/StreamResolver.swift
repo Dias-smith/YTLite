@@ -31,7 +31,7 @@ final class StreamResolver: NSObject, WKScriptMessageHandler {
     private var isReady = false
     private var isPreparing = false
     private var pendingResults: [String: CheckedContinuation<[String: Any], Error>] = [:]
-    private let invokeTimeoutSeconds: TimeInterval = 45
+    private let invokeTimeoutSeconds: TimeInterval = 20
     private let visitorTTL: TimeInterval = 30 * 60
     private let visitorRefreshDeadlineSeconds: TimeInterval = 5
     private var visitorData: String?

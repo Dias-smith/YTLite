@@ -21,6 +21,12 @@ final class PlaybackController: ObservableObject {
             updateNowPlayingInfo()
         }
     }
+    /// When true, advance to the next queue item after resolve / stream failure.
+    @Published var autoSkipOnFailure: Bool = false {
+        didSet {
+            UserDefaults.standard.set(autoSkipOnFailure, forKey: Self.autoSkipOnFailureKey)
+        }
+    }
     /// Progress clock lives here so list tabs observing `PlaybackController` are not
     /// invalidated every 0.5s. Inject `progress` as its own `environmentObject`.
     let progress = PlaybackProgressModel()
@@ -51,6 +57,7 @@ final class PlaybackController: ObservableObject {
     static let speedOptions: [Float] = [0.5, 0.75, 1, 1.25, 1.5, 2, 3, 5, 8]
     private static let speedKey = "playback_speed"
     private static let playerVolumeKey = "playback_player_volume"
+    private static let autoSkipOnFailureKey = "playback_auto_skip_on_failure"
 
     /// App-relative AVPlayer volume 0…1 (Watch remote + local). Multiplies with system output volume.
     @Published private(set) var playerVolume: Float = 1.0
@@ -136,6 +143,8 @@ final class PlaybackController: ObservableObject {
     }
     private var playbackStoreContext: PlaybackStoreContext?
     private var playbackStoreThresholdMet = false
+    /// Caps auto-skip loops when every track in the queue fails.
+    private var consecutiveAutoSkipFailures = 0
 
     var hasNextInQueue: Bool {
         if queueIndex + 1 < queue.count { return true }
@@ -211,6 +220,9 @@ final class PlaybackController: ObservableObject {
         }
         if let storedVolume = UserDefaults.standard.object(forKey: Self.playerVolumeKey) as? Float {
             playerVolume = min(max(storedVolume, 0), 1)
+        }
+        if UserDefaults.standard.object(forKey: Self.autoSkipOnFailureKey) != nil {
+            autoSkipOnFailure = UserDefaults.standard.bool(forKey: Self.autoSkipOnFailureKey)
         }
         activatePlaybackAudioSession()
         configureAudioInterruptions()
@@ -322,6 +334,46 @@ final class PlaybackController: ObservableObject {
             analyticsPlaySource = "queue"
             playCurrentQueueItem()
         }
+    }
+
+    /// Auto-advance after a terminal play failure. Cancels any in-flight resolve first.
+    @discardableResult
+    private func tryAutoSkipOnFailure(failedVideoId: String?) -> Bool {
+        guard autoSkipOnFailure else { return false }
+        guard !needsLoginForPlayback else { return false }
+        guard hasNextInQueue else { return false }
+
+        consecutiveAutoSkipFailures += 1
+        if consecutiveAutoSkipFailures > max(queue.count, 1) {
+            PlayProbe.log(
+                "play.auto_skip_on_fail.halt",
+                videoId: failedVideoId,
+                "streak=\(consecutiveAutoSkipFailures) queue=\(queue.count)"
+            )
+            return false
+        }
+
+        // Drop the failed track's resolve / prepare work before starting the next item.
+        resolveTask?.cancel()
+        resolveTask = nil
+        hlsVariantsTask?.cancel()
+        hlsVariantsTask = nil
+        cancelScheduledNextPrepare()
+        if let failedVideoId, !failedVideoId.isEmpty {
+            PlaybackPreparer.shared.invalidate(videoId: failedVideoId)
+            NextTrackPrimer.shared.invalidate(videoId: failedVideoId)
+        }
+
+        PlayProbe.log(
+            "play.auto_skip_on_fail",
+            videoId: failedVideoId,
+            "streak=\(consecutiveAutoSkipFailures)"
+        )
+        lastError = nil
+        needsLoginForPlayback = false
+        analyticsPlaySource = "auto_skip_on_fail"
+        playNext()
+        return true
     }
 
     /// Manual skip to the previous queue item (does not restart the current track).
@@ -921,6 +973,9 @@ final class PlaybackController: ObservableObject {
                     videoId: expectedVideoId,
                     "raw=\(error.localizedDescription) ui=\(lastError ?? "-") needsLogin=\(needsLoginForPlayback) \(PlayProbe.concurrencySnapshot())"
                 )
+                if tryAutoSkipOnFailure(failedVideoId: expectedVideoId) {
+                    return
+                }
                 updateNowPlayingInfo()
                 refreshRemoteCommandEnabled()
             }
@@ -946,7 +1001,7 @@ final class PlaybackController: ObservableObject {
             throw CancellationError()
         } catch {
             if Task.isCancelled { throw CancellationError() }
-            // Timeout already spent ~45s+; a full retry roughly doubles user-visible failures.
+            // Timeout already spent ~20s+; a full retry roughly doubles user-visible failures.
             if case StreamResolver.StreamResolverError.timeout = error {
                 PlayProbe.log(
                     "play.resolve.timeout.no_retry",
@@ -1332,7 +1387,7 @@ final class PlaybackController: ObservableObject {
               duration.isFinite,
               duration > 0,
               position.isFinite,
-              position / duration >= PlaybackStorePolicy.progressThreshold,
+              Self.hasMetKickoffCacheGate(position: position, duration: duration),
               let ctx = playbackStoreContext,
               ctx.videoId == nowPlaying?.videoId,
               PlaybackStorePolicy.isStorableDuration(seconds: duration)
@@ -1346,7 +1401,7 @@ final class PlaybackController: ObservableObject {
         PlayProbe.log(
             SaltedLiteral.probeSchedule,
             videoId: videoId,
-            "itag=\(itag) progress=\(Int((position / duration * 100).rounded()))%"
+            "itag=\(itag) progress=\(Int((position / duration * 100).rounded()))% pos=\(Int(position.rounded()))s"
         )
         Task {
             await PlaybackMediaStore.shared.schedulePersist(
@@ -1356,6 +1411,15 @@ final class PlaybackController: ObservableObject {
                 mimeType: mimeType
             )
         }
+    }
+
+    /// Remote `kickoff_interval` (seconds) gates caching; `≤ 0` keeps the legacy fraction gate.
+    private static func hasMetKickoffCacheGate(position: Double, duration: Double) -> Bool {
+        let interval = RemoteConfigStore.kickoffInterval
+        if interval > 0 {
+            return position >= interval
+        }
+        return position / duration >= PlaybackStorePolicy.progressThreshold
     }
 
     /// During the final minute, ensure next resolve is fresh and its AVPlayerItem is primed.
@@ -1583,6 +1647,9 @@ final class PlaybackController: ObservableObject {
                         error: err,
                         retried: self.streamOpenReresolveUsed || self.streamTimeoutReresolveUsed || self.preparePlaybackRetryUsed
                     )
+                    if self.tryAutoSkipOnFailure(failedVideoId: videoId) {
+                        return
+                    }
                     self.updateNowPlayingInfo()
                     self.refreshRemoteCommandEnabled()
                 @unknown default:
@@ -1608,11 +1675,15 @@ final class PlaybackController: ObservableObject {
                     videoId: videoId,
                     "\(flags) err=\(err) \(self?.probeStreamDetailSuffix() ?? "")"
                 )
-                self?.isBuffering = false
-                self?.isPlaying = false
-                self?.lastError = err
-                self?.updateNowPlayingInfo()
-                self?.refreshRemoteCommandEnabled()
+                guard let self else { return }
+                self.isBuffering = false
+                self.isPlaying = false
+                self.lastError = err
+                if self.tryAutoSkipOnFailure(failedVideoId: videoId) {
+                    return
+                }
+                self.updateNowPlayingInfo()
+                self.refreshRemoteCommandEnabled()
             }
         }
     }
@@ -2087,6 +2158,7 @@ final class PlaybackController: ObservableObject {
         guard videoId == nowPlaying?.videoId else { return }
         guard successfulPlaybackRecordedVideoId != videoId else { return }
         successfulPlaybackRecordedVideoId = videoId
+        consecutiveAutoSkipFailures = 0
         guard let playing = nowPlaying else { return }
 
         let openMs = probeStreamElapsedMs()
