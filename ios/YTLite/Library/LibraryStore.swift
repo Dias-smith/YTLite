@@ -12,6 +12,8 @@ final class LibraryStore {
     var onMutate: (() -> Void)?
     /// Fired after a channel is removed locally so sync can delete the remote row.
     var onUnsubscribeChannel: ((String) -> Void)?
+    /// Fired after tracks leave a playlist so an active queue from that playlist can prune itself.
+    var onTracksRemovedFromPlaylist: ((String, [String]) -> Void)?
 
     init(
         modelContext: ModelContext,
@@ -548,12 +550,14 @@ final class LibraryStore {
         let ids = Set(trackIds)
         guard !ids.isEmpty else { return }
         let key = ownerKey
+        var removedByPlaylist: [String: [String]] = [:]
         for playlist in allPlaylists() {
             let doomed = playlist.entries.filter { entry in
                 guard let tid = entry.track?.trackId else { return false }
                 return ids.contains(tid)
             }
             guard !doomed.isEmpty else { continue }
+            let removedIds = doomed.compactMap(\.track?.trackId)
             for entry in doomed {
                 modelContext.delete(entry)
             }
@@ -562,6 +566,9 @@ final class LibraryStore {
             }
             playlist.updatedAt = .now
             playlist.isSynced = false
+            if !removedIds.isEmpty {
+                removedByPlaylist[playlist.playlistId] = removedIds
+            }
         }
         for id in ids {
             var lastPlayedDescriptor = FetchDescriptor<UserTrackLastPlayed>(
@@ -596,6 +603,9 @@ final class LibraryStore {
             }
         }
         save()
+        for (playlistId, removedIds) in removedByPlaylist {
+            onTracksRemovedFromPlaylist?(playlistId, removedIds)
+        }
         let purgeIds = Array(ids)
         Task {
             for videoId in purgeIds {
@@ -1006,6 +1016,7 @@ final class LibraryStore {
 
     func remove(trackId: String, from playlist: LibraryPlaylist) {
         guard let entry = playlist.entries.first(where: { $0.track?.trackId == trackId }) else { return }
+        let playlistId = playlist.playlistId
         modelContext.delete(entry)
         for (index, remaining) in playlist.entries.sorted(by: { $0.position < $1.position }).enumerated() {
             remaining.position = index
@@ -1014,6 +1025,7 @@ final class LibraryStore {
         playlist.isSynced = false
         save()
         AppAnalytics.libraryRemove(action: "save")
+        onTracksRemovedFromPlaylist?(playlistId, [trackId])
     }
 
     func playlist(id playlistId: String) -> LibraryPlaylist? {

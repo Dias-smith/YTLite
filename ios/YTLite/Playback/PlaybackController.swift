@@ -180,6 +180,7 @@ final class PlaybackController: ObservableObject {
         didSet {
             // Session restore runs in init before the store is injected — enrich once it arrives.
             enrichRestoredPlaybackFromLibrary()
+            bindLibraryPlaylistRemovalSync()
         }
     }
     var onPlaybackStarted: ((NowPlayingItem) -> Void)?
@@ -563,6 +564,10 @@ final class PlaybackController: ObservableObject {
         let wasPlayingCurrent = currentId.map { videoIds.contains($0) } ?? false
         queue.removeAll { videoIds.contains($0.videoId) }
         originalOrder?.removeAll { videoIds.contains($0.videoId) }
+        for videoId in videoIds {
+            PlaybackPreparer.shared.invalidate(videoId: videoId)
+            NextTrackPrimer.shared.invalidate(videoId: videoId)
+        }
         if queue.isEmpty {
             stop()
             return
@@ -572,10 +577,28 @@ final class PlaybackController: ObservableObject {
             playCurrentQueueItem()
         } else if let currentId, let idx = queue.firstIndex(where: { $0.videoId == currentId }) {
             queueIndex = idx
+            refreshNextPrepareIfNeeded()
         } else {
             queueIndex = min(queueIndex, queue.count - 1)
+            refreshNextPrepareIfNeeded()
         }
         persistSession(immediate: true)
+        refreshRemoteCommandEnabled()
+    }
+
+    /// When Library removes tracks from the playlist that sourced the current queue, prune immediately.
+    func syncQueueAfterPlaylistTracksRemoved(playlistId: String, removedTrackIds: [String]) {
+        guard sourcePlaylistId == playlistId, !removedTrackIds.isEmpty else { return }
+        removeFromQueue(videoIds: Set(removedTrackIds))
+    }
+
+    private func bindLibraryPlaylistRemovalSync() {
+        libraryStore?.onTracksRemovedFromPlaylist = { [weak self] playlistId, trackIds in
+            self?.syncQueueAfterPlaylistTracksRemoved(
+                playlistId: playlistId,
+                removedTrackIds: trackIds
+            )
+        }
     }
 
     private func syncOriginalOrderInsert(_ item: VideoItem, near insertAt: Int) {
