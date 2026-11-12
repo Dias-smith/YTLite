@@ -1436,13 +1436,10 @@ final class PlaybackController: ObservableObject {
         }
     }
 
-    /// Remote `kickoff_interval` (seconds) gates caching; `≤ 0` keeps the legacy fraction gate.
+    /// Remote `kickoff_interval` is a percent of duration (default 100%).
     private static func hasMetKickoffCacheGate(position: Double, duration: Double) -> Bool {
-        let interval = RemoteConfigStore.kickoffInterval
-        if interval > 0 {
-            return position >= interval
-        }
-        return position / duration >= PlaybackStorePolicy.progressThreshold
+        let percent = RemoteConfigStore.kickoffIntervalPercent
+        return position / duration >= percent / 100.0
     }
 
     /// During the final minute, ensure next resolve is fresh and its AVPlayerItem is primed.

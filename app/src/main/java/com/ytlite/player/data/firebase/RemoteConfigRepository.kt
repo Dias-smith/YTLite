@@ -25,8 +25,8 @@ object RemoteConfigRepository {
 
     private const val ADS_INTERVAL_DEFAULT_SECONDS = 120L
 
-    /** Local fallback: `0` keeps legacy progress-fraction gating where applicable. */
-    private const val KICKOFF_INTERVAL_DEFAULT_SECONDS = 0L
+    /** Local fallback: percent of duration before local media caching may start. */
+    private const val KICKOFF_INTERVAL_DEFAULT_PERCENT = 100L
 
     @Volatile
     private var initialized = false
@@ -78,7 +78,7 @@ object RemoteConfigRepository {
     private fun defaultValues(): Map<String, Any> = mapOf(
         Keys.ALLOW_KICKOFF to ALLOW_KICKOFF_DEFAULT_JSON,
         Keys.ADS_INTERVAL to ADS_INTERVAL_DEFAULT_SECONDS,
-        Keys.KICKOFF_INTERVAL to KICKOFF_INTERVAL_DEFAULT_SECONDS,
+        Keys.KICKOFF_INTERVAL to KICKOFF_INTERVAL_DEFAULT_PERCENT,
     )
 
     object Keys {
@@ -91,7 +91,7 @@ object RemoteConfigRepository {
         /** Seconds between two ordinary full-screen ads (app open / interstitial). */
         const val ADS_INTERVAL = "ads_interval"
 
-        /** Seconds of playback before local media caching may start. */
+        /** Percent of track duration (0…100) before local media caching may start. */
         const val KICKOFF_INTERVAL = "kickoff_interval"
     }
 
@@ -119,12 +119,13 @@ object RemoteConfigRepository {
     }
 
     /**
-     * Seconds of playback before local media caching may start.
-     * Negative → default `0`. Zero keeps legacy progress-fraction gating.
+     * Percent of track duration (0…100) before local media caching may start.
+     * Negative → default `100`. Values above 100 are clamped to 100.
      */
-    fun kickoffIntervalSeconds(): Long {
+    fun kickoffIntervalPercent(): Long {
         val raw = getLong(Keys.KICKOFF_INTERVAL)
-        return if (raw < 0L) KICKOFF_INTERVAL_DEFAULT_SECONDS else raw
+        if (raw < 0L) return KICKOFF_INTERVAL_DEFAULT_PERCENT
+        return raw.coerceAtMost(100L)
     }
 
     private fun resolveAllowKickoff(raw: String): Boolean {

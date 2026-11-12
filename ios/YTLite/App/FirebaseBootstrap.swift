@@ -247,8 +247,8 @@ enum RemoteConfigStore {
     /// Local fallback when Remote Config is unavailable or misconfigured.
     private static let adsIntervalDefaultSeconds: TimeInterval = AdMobConfig.interstitialCooldown
 
-    /// Local fallback: `0` keeps the legacy progress-fraction gate in `PlaybackStorePolicy`.
-    private static let kickoffIntervalDefaultSeconds: TimeInterval = 0
+    /// Local fallback: percent of duration before local media caching may start.
+    private static let kickoffIntervalDefaultPercent: Double = 100
 
     private struct AllowKickoffConfig: Decodable {
         var enable: Bool
@@ -268,7 +268,7 @@ enum RemoteConfigStore {
         remoteConfig.setDefaults([
             allowKickoffKey: allowKickoffDefaultJSON as NSString,
             adsIntervalKey: NSNumber(value: adsIntervalDefaultSeconds),
-            kickoffIntervalKey: NSNumber(value: kickoffIntervalDefaultSeconds),
+            kickoffIntervalKey: NSNumber(value: kickoffIntervalDefaultPercent),
         ])
     }
 
@@ -279,7 +279,7 @@ enum RemoteConfigStore {
         do {
             let status = try await RemoteConfig.remoteConfig().fetchAndActivate()
             AdProbe.log("remote_config.ads_interval", "\(Int(adsInterval))s")
-            AdProbe.log("remote_config.kickoff_interval", "\(Int(kickoffInterval))s")
+            AdProbe.log("remote_config.kickoff_interval", "\(Int(kickoffIntervalPercent))%")
             AdProbe.log("remote_config.media_policy", "\(allowKickoff)")
             return status != .error
         } catch {
@@ -307,16 +307,16 @@ enum RemoteConfigStore {
         return raw
     }
 
-    /// Seconds of playback before local media caching may start.
-    /// `≤ 0` → fall back to `PlaybackStorePolicy.progressThreshold`.
-    static var kickoffInterval: TimeInterval {
-        guard isFirebaseAvailable else { return kickoffIntervalDefaultSeconds }
+    /// Percent of track duration (0…100) before local media caching may start.
+    /// Default / invalid → `100` (only after the track has fully played).
+    static var kickoffIntervalPercent: Double {
+        guard isFirebaseAvailable else { return kickoffIntervalDefaultPercent }
         let raw = RemoteConfig.remoteConfig()
             .configValue(forKey: kickoffIntervalKey)
             .numberValue
             .doubleValue
-        guard raw.isFinite, raw >= 0 else { return kickoffIntervalDefaultSeconds }
-        return raw
+        guard raw.isFinite, raw >= 0 else { return kickoffIntervalDefaultPercent }
+        return min(raw, 100)
     }
 
     private static func resolveAllowKickoff(from raw: String) -> Bool {
