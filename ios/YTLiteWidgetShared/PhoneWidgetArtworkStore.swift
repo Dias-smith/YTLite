@@ -33,6 +33,11 @@ enum PhoneWidgetArtworkStore {
         }
     }
 
+    static func hasFile(videoId: String) -> Bool {
+        guard let fileURL = fileURL(videoId: videoId) else { return false }
+        return FileManager.default.fileExists(atPath: fileURL.path)
+    }
+
     static func load(videoId: String) -> UIImage? {
         guard let fileURL = fileURL(videoId: videoId),
               FileManager.default.fileExists(atPath: fileURL.path),

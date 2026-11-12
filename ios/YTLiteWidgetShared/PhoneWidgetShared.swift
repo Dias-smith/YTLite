@@ -11,9 +11,20 @@ enum PhoneWidgetShared {
         UserDefaults(suiteName: appGroupId)
     }
 
+    static var containerURL: URL? {
+        FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupId)
+    }
+
     enum DefaultsKey {
         static let snapshot = "phone.widget.playbackSnapshot.v1"
         static let pendingCommand = "phone.widget.pendingCommand.v1"
+    }
+
+    /// Atomic snapshot file — more reliable across app ↔ widget than UserDefaults alone.
+    static var snapshotFileURL: URL? {
+        containerURL?
+            .appendingPathComponent("WidgetState", isDirectory: true)
+            .appendingPathComponent("playbackSnapshot.v1.json", isDirectory: false)
     }
 }
 
@@ -24,10 +35,14 @@ struct PhoneWidgetPlaybackSnapshot: Codable, Equatable, Sendable {
     var thumbnailURL: String?
     var isPlaying: Bool
     var updatedAt: TimeInterval
+    /// Bumped whenever cover bytes are written for `videoId` (0 = no cover yet).
+    var artworkRevision: Int
 
     var hasTrack: Bool {
         !videoId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
+
+    var hasArtwork: Bool { artworkRevision > 0 }
 
     static let empty = PhoneWidgetPlaybackSnapshot(
         videoId: "",
@@ -35,15 +50,54 @@ struct PhoneWidgetPlaybackSnapshot: Codable, Equatable, Sendable {
         artist: "",
         thumbnailURL: nil,
         isPlaying: false,
-        updatedAt: 0
+        updatedAt: 0,
+        artworkRevision: 0
     )
+
+    enum CodingKeys: String, CodingKey {
+        case videoId, title, artist, thumbnailURL, isPlaying, updatedAt, artworkRevision
+    }
+
+    init(
+        videoId: String,
+        title: String,
+        artist: String,
+        thumbnailURL: String?,
+        isPlaying: Bool,
+        updatedAt: TimeInterval,
+        artworkRevision: Int = 0
+    ) {
+        self.videoId = videoId
+        self.title = title
+        self.artist = artist
+        self.thumbnailURL = thumbnailURL
+        self.isPlaying = isPlaying
+        self.updatedAt = updatedAt
+        self.artworkRevision = artworkRevision
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        videoId = try c.decode(String.self, forKey: .videoId)
+        title = try c.decode(String.self, forKey: .title)
+        artist = try c.decode(String.self, forKey: .artist)
+        thumbnailURL = try c.decodeIfPresent(String.self, forKey: .thumbnailURL)
+        isPlaying = try c.decode(Bool.self, forKey: .isPlaying)
+        updatedAt = try c.decode(TimeInterval.self, forKey: .updatedAt)
+        artworkRevision = try c.decodeIfPresent(Int.self, forKey: .artworkRevision) ?? 0
+    }
 }
 
 enum PhoneWidgetPlaybackSnapshotStore {
     static func load() -> PhoneWidgetPlaybackSnapshot {
+        // Prefer the atomic file (cross-process); fall back to App Group defaults.
+        if let fileURL = PhoneWidgetShared.snapshotFileURL,
+           let data = try? Data(contentsOf: fileURL),
+           let decoded = try? JSONDecoder().decode(PhoneWidgetPlaybackSnapshot.self, from: data)
+        {
+            return decoded
+        }
         guard let defaults = PhoneWidgetShared.defaults else { return .empty }
-        // Widget extension keeps an in-memory App Group cache; flush before read so
-        // Intent / app writes are visible (otherwise play/pause icon is intermittently stale).
         defaults.synchronize()
         guard let data = defaults.data(forKey: PhoneWidgetShared.DefaultsKey.snapshot),
               let decoded = try? JSONDecoder().decode(PhoneWidgetPlaybackSnapshot.self, from: data)
@@ -54,11 +108,23 @@ enum PhoneWidgetPlaybackSnapshotStore {
     }
 
     static func save(_ snapshot: PhoneWidgetPlaybackSnapshot) {
-        guard let defaults = PhoneWidgetShared.defaults,
-              let data = try? JSONEncoder().encode(snapshot)
-        else { return }
-        defaults.set(data, forKey: PhoneWidgetShared.DefaultsKey.snapshot)
-        defaults.synchronize()
+        guard let data = try? JSONEncoder().encode(snapshot) else { return }
+        if let fileURL = PhoneWidgetShared.snapshotFileURL {
+            let dir = fileURL.deletingLastPathComponent()
+            try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            let tmp = dir.appendingPathComponent("playbackSnapshot.v1.json.tmp")
+            do {
+                try data.write(to: tmp, options: .atomic)
+                _ = try FileManager.default.replaceItemAt(fileURL, withItemAt: tmp)
+            } catch {
+                try? data.write(to: fileURL, options: .atomic)
+                try? FileManager.default.removeItem(at: tmp)
+            }
+        }
+        if let defaults = PhoneWidgetShared.defaults {
+            defaults.set(data, forKey: PhoneWidgetShared.DefaultsKey.snapshot)
+            defaults.synchronize()
+        }
     }
 }
 

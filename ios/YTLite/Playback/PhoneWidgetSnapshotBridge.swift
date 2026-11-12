@@ -4,6 +4,9 @@ import WidgetKit
 
 /// Writes Now Playing into the App Group for the iPhone Home Screen / Lock Screen widget.
 enum PhoneWidgetSnapshotBridge {
+    private static var pendingReload: DispatchWorkItem?
+    private static let reloadLock = NSLock()
+
     static func publish(
         videoId: String?,
         title: String?,
@@ -16,23 +19,49 @@ enum PhoneWidgetSnapshotBridge {
             guard let videoId, !videoId.isEmpty else {
                 return .empty
             }
-            if let artwork {
-                PhoneWidgetArtworkStore.save(artwork, videoId: videoId)
-            }
+            let revision = resolveArtworkRevision(videoId: videoId, artwork: artwork)
             return PhoneWidgetPlaybackSnapshot(
                 videoId: videoId,
                 title: title?.isEmpty == false ? (title ?? "Mixtube") : "Mixtube",
                 artist: artist ?? "",
                 thumbnailURL: thumbnailURL?.absoluteString,
                 isPlaying: isPlaying,
-                updatedAt: Date().timeIntervalSince1970
+                updatedAt: Date().timeIntervalSince1970,
+                artworkRevision: revision
             )
         }()
-        if widgetSnapshot.videoId.isEmpty {
-            // Cleared playback — leave last artwork file; timeline shows placeholder via empty snapshot.
-        }
         PhoneWidgetPlaybackSnapshotStore.save(widgetSnapshot)
-        WidgetCenter.shared.reloadTimelines(ofKind: PhoneWidgetShared.widgetKind)
+        scheduleTimelineReload()
+    }
+
+    /// Prefer freshly written cover bytes; otherwise reuse an on-disk cover for this videoId
+    /// so title/cover stay paired while a network fetch is still in flight.
+    private static func resolveArtworkRevision(videoId: String, artwork: UIImage?) -> Int {
+        if let artwork, PhoneWidgetArtworkStore.save(artwork, videoId: videoId) {
+            return artworkStamp()
+        }
+        guard PhoneWidgetArtworkStore.hasFile(videoId: videoId) else { return 0 }
+        let prior = PhoneWidgetPlaybackSnapshotStore.load()
+        if prior.videoId == videoId, prior.artworkRevision > 0 {
+            return prior.artworkRevision
+        }
+        return artworkStamp()
+    }
+
+    private static func artworkStamp() -> Int {
+        max(1, Int(Date().timeIntervalSince1970 * 1000) % Int.max)
+    }
+
+    /// Coalesce rapid title → cover publishes into one WidgetKit reload.
+    private static func scheduleTimelineReload() {
+        reloadLock.lock()
+        pendingReload?.cancel()
+        let work = DispatchWorkItem {
+            WidgetCenter.shared.reloadTimelines(ofKind: PhoneWidgetShared.widgetKind)
+        }
+        pendingReload = work
+        reloadLock.unlock()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15, execute: work)
     }
 }
 
@@ -78,12 +107,18 @@ final class PhoneWidgetCommandBridge {
                 playback.publishPhoneWidgetSnapshot(force: true)
             }
         case .next:
-            // `playNext` → `playCurrentQueueItem` already publishes; a forced
-            // nil-artwork reload here races WidgetKit coalescing and can leave
-            // the Home Screen cover stuck until the next unrelated update.
             playback.playNext()
+            // Let sync artwork + nowPlaying settle, then force a consistent snapshot.
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 80_000_000)
+                playback.publishPhoneWidgetSnapshot(force: true)
+            }
         case .previous:
             playback.playPrevious()
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 80_000_000)
+                playback.publishPhoneWidgetSnapshot(force: true)
+            }
         }
     }
 

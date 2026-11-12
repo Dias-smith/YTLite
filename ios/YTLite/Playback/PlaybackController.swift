@@ -118,6 +118,8 @@ final class PlaybackController: ObservableObject {
     private var resolveGeneration: Int = 0
     private var artworkImage: UIImage?
     private var artworkVideoId: String?
+    /// Thumbnail URL that produced `artworkImage` — reload when resolve swaps the URL.
+    private var artworkSourceURL: URL?
     private var artworkTask: Task<Void, Never>?
     private var artworkGeneration: Int = 0
     private var interruptionObserver: NSObjectProtocol?
@@ -1787,6 +1789,7 @@ final class PlaybackController: ObservableObject {
         artworkTask?.cancel()
         artworkImage = nil
         artworkVideoId = nil
+        artworkSourceURL = nil
         cancelSleepTimer()
         player?.pause()
         player?.replaceCurrentItem(with: nil)
@@ -1828,6 +1831,7 @@ final class PlaybackController: ObservableObject {
         artworkTask?.cancel()
         artworkImage = nil
         artworkVideoId = nil
+        artworkSourceURL = nil
         cancelSleepTimer()
         player?.pause()
         player?.replaceCurrentItem(with: nil)
@@ -2323,9 +2327,10 @@ final class PlaybackController: ObservableObject {
 
     /// Push Now Playing into the Home Screen / Lock Screen widget App Group.
     func publishPhoneWidgetSnapshot(force: Bool = false) {
-        // Include artwork presence so a later ImageStore hit reloads the widget cover.
+        // Include artwork presence + source URL so resolve/metadata swaps refresh the widget.
         let artworkToken = artworkImage == nil ? "0" : "1"
-        let signature = "\(nowPlaying?.videoId ?? "")|\(isPlaying)|\(nowPlaying?.title ?? "")|\(nowPlaying?.channelName ?? "")|\(nowPlaying?.thumbnailURL?.absoluteString ?? "")|\(artworkToken)"
+        let artURL = artworkSourceURL?.absoluteString ?? nowPlaying?.thumbnailURL?.absoluteString ?? ""
+        let signature = "\(nowPlaying?.videoId ?? "")|\(isPlaying)|\(nowPlaying?.title ?? "")|\(nowPlaying?.channelName ?? "")|\(artURL)|\(artworkToken)"
         guard force || signature != lastPhoneWidgetSignature else { return }
         lastPhoneWidgetSignature = signature
         PhoneWidgetSnapshotBridge.publish(
@@ -2428,16 +2433,19 @@ final class PlaybackController: ObservableObject {
 
     private func loadArtworkIfNeeded(for item: NowPlayingItem) {
         guard let url = item.thumbnailURL else {
-            if artworkVideoId != item.videoId {
+            if artworkVideoId != item.videoId || artworkSourceURL != nil {
                 artworkGeneration += 1
                 artworkTask?.cancel()
                 artworkTask = nil
                 artworkImage = nil
+                artworkSourceURL = nil
                 artworkVideoId = item.videoId
             }
             return
         }
-        if artworkVideoId == item.videoId {
+        let sameTrack = artworkVideoId == item.videoId
+        let sameURL = artworkSourceURL == url
+        if sameTrack, sameURL {
             if artworkImage != nil { return }
             if artworkTask != nil { return }
         } else {
@@ -2445,6 +2453,7 @@ final class PlaybackController: ObservableObject {
             artworkTask?.cancel()
             artworkTask = nil
             artworkVideoId = item.videoId
+            artworkSourceURL = url
             // Sync path so the same `updateNowPlayingInfo` publish that writes
             // the new videoId also writes cover bytes for the Home Screen widget.
             if let ready = Self.syncArtworkCandidate(videoId: item.videoId, url: url) {
@@ -2466,6 +2475,7 @@ final class PlaybackController: ObservableObject {
                 else { return }
                 self.artworkImage = image
                 self.artworkVideoId = videoId
+                self.artworkSourceURL = url
                 self.artworkTask = nil
                 if image != nil {
                     // Force widget reload after cover lands — WidgetKit often
@@ -2479,10 +2489,12 @@ final class PlaybackController: ObservableObject {
 
     /// Prefer an already-decoded cover so skip-to-next can update the widget immediately.
     private static func syncArtworkCandidate(videoId: String, url: URL) -> UIImage? {
-        if let cached = PhoneWidgetArtworkStore.load(videoId: videoId) {
-            return cached
+        // Prefer bytes for this exact thumbnail URL (memory/disk) over a possibly
+        // stale per-videoId widget cache from an older artwork URL.
+        if let fresh = ImageStore.shared.syncImage(for: url, maxPixelSize: 640) {
+            return fresh
         }
-        return ImageStore.shared.syncImage(for: url, maxPixelSize: 640)
+        return PhoneWidgetArtworkStore.load(videoId: videoId)
     }
 
     // MARK: - Session persistence (Android PlaybackSessionStore)

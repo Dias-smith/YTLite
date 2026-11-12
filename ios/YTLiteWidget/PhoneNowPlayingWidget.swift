@@ -38,7 +38,8 @@ struct PhoneNowPlayingTimelineProvider: TimelineProvider {
                 artist: "Now Playing",
                 thumbnailURL: nil,
                 isPlaying: false,
-                updatedAt: 0
+                updatedAt: 0,
+                artworkRevision: 0
             ),
             artwork: nil
         )
@@ -56,7 +57,12 @@ struct PhoneNowPlayingTimelineProvider: TimelineProvider {
 
     private func makeEntry() -> PhoneNowPlayingEntry {
         let snapshot = PhoneWidgetPlaybackSnapshotStore.load()
-        let artwork = snapshot.hasTrack ? PhoneWidgetArtworkStore.load(videoId: snapshot.videoId) : nil
+        // Only attach cover when the snapshot says art was published for this video —
+        // avoids showing a leftover file against a title that already moved on.
+        let artwork: UIImage? = {
+            guard snapshot.hasTrack, snapshot.hasArtwork else { return nil }
+            return PhoneWidgetArtworkStore.load(videoId: snapshot.videoId)
+        }()
         return PhoneNowPlayingEntry(date: Date(), snapshot: snapshot, artwork: artwork)
     }
 }
