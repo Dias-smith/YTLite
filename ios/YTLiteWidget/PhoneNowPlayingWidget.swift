@@ -102,19 +102,9 @@ struct PhoneNowPlayingWidgetEntryView: View {
     }
 
     private var smallBody: some View {
-        // Three equal columns: previous | open app | next.
-        // Title is decorative only — taps are owned by the column hit targets.
+        // WidgetKit only allows Button/Toggle — no DragGesture swipe.
+        // Left / right artwork hit zones approximate “swipe to skip”.
         ZStack {
-            VStack(alignment: .leading, spacing: 0) {
-                Spacer(minLength: 0)
-                Text(entry.snapshot.hasTrack ? entry.snapshot.title : "Mixtube")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(PhoneWidgetPalette.onSurface)
-                    .lineLimit(2)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .allowsHitTesting(false)
-            }
-
             HStack(spacing: 0) {
                 Button(intent: PhoneWidgetPlayPreviousIntent()) {
                     Color.clear
@@ -124,14 +114,6 @@ struct PhoneNowPlayingWidgetEntryView: View {
                 .buttonStyle(WidgetControlButtonStyle())
                 .accessibilityLabel("Previous")
 
-                Link(destination: playerURL) {
-                    Color.clear
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(WidgetControlButtonStyle())
-                .accessibilityLabel("Open Mixtube")
-
                 Button(intent: PhoneWidgetPlayNextIntent()) {
                     Color.clear
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -139,6 +121,22 @@ struct PhoneNowPlayingWidgetEntryView: View {
                 }
                 .buttonStyle(WidgetControlButtonStyle())
                 .accessibilityLabel("Next")
+            }
+
+            VStack(alignment: .leading, spacing: 0) {
+                Spacer(minLength: 0)
+                HStack(alignment: .bottom, spacing: 10) {
+                    Link(destination: playerURL) {
+                        Text(entry.snapshot.hasTrack ? entry.snapshot.title : "Mixtube")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(PhoneWidgetPalette.onSurface)
+                            .lineLimit(2)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .buttonStyle(WidgetControlButtonStyle())
+
+                    playPauseControl(diameter: 30)
+                }
             }
         }
         .containerBackground(for: .widget) {

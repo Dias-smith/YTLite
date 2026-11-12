@@ -495,7 +495,11 @@ struct SearchView: View {
         GeometryReader { geo in
             let columns = YTLiteAdaptive.searchColumns(
                 for: geo.size.width,
-                sizeClass: horizontalSizeClass
+                sizeClass: horizontalSizeClass,
+                preferEvenColumns: YTLiteAdaptive.prefersEvenColumns(
+                    in: geo,
+                    sizeClass: horizontalSizeClass
+                )
             )
             let displayHits = viewModel.filteredHits
             SearchResultsPane(

@@ -78,11 +78,12 @@ final class PhoneWidgetCommandBridge {
                 playback.publishPhoneWidgetSnapshot(force: true)
             }
         case .next:
+            // `playNext` → `playCurrentQueueItem` already publishes; a forced
+            // nil-artwork reload here races WidgetKit coalescing and can leave
+            // the Home Screen cover stuck until the next unrelated update.
             playback.playNext()
-            playback.publishPhoneWidgetSnapshot(force: true)
         case .previous:
             playback.playPrevious()
-            playback.publishPhoneWidgetSnapshot(force: true)
         }
     }
 

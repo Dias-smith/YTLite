@@ -6,6 +6,8 @@
 	<string>$(APP_STORE_ID)</string>
 	<key>AVInitialRouteSharingPolicy</key>
 	<string>LongFormAudio</string>
+	<key>CATALOG_DATA_API_KEY</key>
+	<string>$(CATALOG_DATA_API_KEY)</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
@@ -292,8 +294,6 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-	<key>CATALOG_DATA_API_KEY</key>
-	<string>$(CATALOG_DATA_API_KEY)</string>
 	<key>YTLiteAdMobAppOpenAdUnitID</key>
 	<string>$(ADMOB_APP_OPEN_ID)</string>
 	<key>YTLiteAdMobHotInterstitialAdUnitID</key>

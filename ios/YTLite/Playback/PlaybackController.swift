@@ -2446,8 +2446,15 @@ final class PlaybackController: ObservableObject {
         } else {
             artworkGeneration += 1
             artworkTask?.cancel()
-            artworkImage = nil
+            artworkTask = nil
             artworkVideoId = item.videoId
+            // Sync path so the same `updateNowPlayingInfo` publish that writes
+            // the new videoId also writes cover bytes for the Home Screen widget.
+            if let ready = Self.syncArtworkCandidate(videoId: item.videoId, url: url) {
+                artworkImage = ready
+                return
+            }
+            artworkImage = nil
         }
         artworkGeneration += 1
         let generation = artworkGeneration
@@ -2464,10 +2471,21 @@ final class PlaybackController: ObservableObject {
                 self.artworkVideoId = videoId
                 self.artworkTask = nil
                 if image != nil {
+                    // Force widget reload after cover lands — WidgetKit often
+                    // coalesces the earlier nil-artwork timeline refresh.
                     self.updateNowPlayingInfo()
+                    self.publishPhoneWidgetSnapshot(force: true)
                 }
             }
         }
+    }
+
+    /// Prefer an already-decoded cover so skip-to-next can update the widget immediately.
+    private static func syncArtworkCandidate(videoId: String, url: URL) -> UIImage? {
+        if let cached = PhoneWidgetArtworkStore.load(videoId: videoId) {
+            return cached
+        }
+        return ImageStore.shared.syncImage(for: url, maxPixelSize: 640)
     }
 
     // MARK: - Session persistence (Android PlaybackSessionStore)

@@ -253,4 +253,38 @@ extension ImageStore {
     func memoryHit(_ url: URL, maxPixelSize: Int? = nil) -> UIImage? {
         memory.object(forKey: storeKey(url: url, maxPixelSize: maxPixelSize) as NSString)
     }
+
+    /// Best-effort sync decode for Now Playing / widget covers (memory, then disk).
+    /// Avoids a blank widget frame while the async loader catches up after a skip.
+    func syncImage(for url: URL, maxPixelSize: Int? = nil) -> UIImage? {
+        if let hit = memoryHit(url, maxPixelSize: maxPixelSize) {
+            return hit
+        }
+        // Feed / list cells often cache under a different pixel budget.
+        let candidates: [Int?] = [
+            maxPixelSize,
+            nil,
+            256, 420, 512, 640, 880, 1260,
+        ]
+        var seen = Set<String>()
+        for px in candidates {
+            let key = storeKey(url: url, maxPixelSize: px)
+            guard seen.insert(key).inserted else { continue }
+            if let hit = memory.object(forKey: key as NSString) {
+                return hit
+            }
+        }
+        let file = diskFile(for: url)
+        guard let data = try? Data(contentsOf: file),
+              let image = Self.decodeImage(data: data, maxPixelSize: maxPixelSize)
+        else {
+            return nil
+        }
+        memory.setObject(
+            image,
+            forKey: storeKey(url: url, maxPixelSize: maxPixelSize) as NSString,
+            cost: image.approximateCost
+        )
+        return image
+    }
 }

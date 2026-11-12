@@ -2,6 +2,9 @@ import SwiftUI
 
 /// Root chrome: bottom tabs on compact width; sidebar + split on regular width
 /// (iPad, iPhone Duo inner display, wide Split View).
+///
+/// Uses one `NavigationSplitView` for both size classes so fold / unfold keeps the
+/// detail tab tree (and its `@StateObject`s / scroll position) alive.
 struct AppChrome<Content: View>: View {
     @Binding var selectedTab: AppTab
     var isAuthenticated: Bool
@@ -13,6 +16,7 @@ struct AppChrome<Content: View>: View {
     @EnvironmentObject private var review: ReviewPromptCoordinator
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.displayScale) private var displayScale
+    @State private var columnVisibility: NavigationSplitViewVisibility = .automatic
 
     private var isRegular: Bool {
         // Size class only — iPhone Duo inner display is regular width (not `.pad`).
@@ -20,13 +24,20 @@ struct AppChrome<Content: View>: View {
     }
 
     var body: some View {
-        Group {
-            if isRegular {
-                regularChrome
-            } else {
-                compactChrome
-                    .playerDetailPresentation(isPresented: $playerPresentation.isPresented)
+        NavigationSplitView(columnVisibility: $columnVisibility) {
+            NavigationStack {
+                AppSidebar(selected: $selectedTab, isAuthenticated: isAuthenticated)
             }
+            .navigationSplitViewColumnWidth(min: 200, ideal: 240, max: 300)
+        } detail: {
+            detailColumn
+        }
+        .navigationSplitViewStyle(.balanced)
+        .onAppear {
+            columnVisibility = isRegular ? .all : .detailOnly
+        }
+        .onChange(of: isRegular) { _, regular in
+            columnVisibility = regular ? .all : .detailOnly
         }
         .onChange(of: playerPresentation.isPresented) { _, presented in
             review.setBusy("player", presented)
@@ -37,41 +48,38 @@ struct AppChrome<Content: View>: View {
         }
     }
 
-    private var compactChrome: some View {
-        VStack(spacing: 0) {
-            content()
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .ytLiteAppBackground()
-                .environment(\.miniPlayerBottomInset, miniPlayerBottomInset)
-                .safeAreaInset(edge: .bottom, spacing: 0) {
-                    miniPlayerSlot(docked: false)
-                }
-
-            if !isKeyboardVisible {
-                MainTabBar(selected: $selectedTab, isAuthenticated: isAuthenticated)
+    private var detailColumn: some View {
+        // Tabs paint their own wallpaper — avoid a second AppBackgroundCanvas that
+        // rebuilds (and blurs) on every Duo fold frame.
+        content()
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(YTLiteColor.background)
+            .environment(\.miniPlayerBottomInset, miniPlayerBottomInset)
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                bottomChrome
             }
-        }
+            .modifier(CompactVerticalTabInset(
+                selectedTab: $selectedTab,
+                isAuthenticated: isAuthenticated,
+                isKeyboardVisible: isKeyboardVisible,
+                enabled: !isRegular
+            ))
+            .playerDetailPresentation(isPresented: $playerPresentation.isPresented)
     }
 
-    private var regularChrome: some View {
-        NavigationSplitView {
-            NavigationStack {
-                AppSidebar(selected: $selectedTab, isAuthenticated: isAuthenticated)
+    @ViewBuilder
+    private var bottomChrome: some View {
+        VStack(spacing: 0) {
+            miniPlayerSlot(docked: isRegular)
+            if !isRegular, !isKeyboardVisible {
+                // Hidden when iOS 27.1 places a vertical system bar — side inset hosts tabs instead.
+                MainTabBarHost(
+                    selected: $selectedTab,
+                    isAuthenticated: isAuthenticated,
+                    isKeyboardVisible: isKeyboardVisible
+                )
             }
-            .navigationSplitViewColumnWidth(min: 200, ideal: 240, max: 300)
-        } detail: {
-            // Present the player sheet from the detail column so taps on the mini
-            // player (also in this column) reliably drive presentation on iPad.
-            content()
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .ytLiteAppBackground()
-                .environment(\.miniPlayerBottomInset, miniPlayerBottomInset)
-                .safeAreaInset(edge: .bottom, spacing: 0) {
-                    miniPlayerSlot(docked: true)
-                }
-                .playerDetailPresentation(isPresented: $playerPresentation.isPresented)
         }
-        .navigationSplitViewStyle(.balanced)
     }
 
     @ViewBuilder
@@ -97,6 +105,95 @@ struct AppChrome<Content: View>: View {
     private var miniPlayerBottomInset: CGFloat {
         guard showsMiniPlayer, !isKeyboardVisible else { return 0 }
         return YTLiteLayout.miniPlayerChromeHeight(displayScale: displayScale) + (isRegular ? 8 : 0)
+    }
+}
+
+/// Bottom tab bar that hides itself when the system reports a vertical toolbar edge.
+private struct MainTabBarHost: View {
+    @Binding var selected: AppTab
+    var isAuthenticated: Bool
+    var isKeyboardVisible: Bool
+
+    var body: some View {
+        if #available(iOS 27.1, *) {
+            MainTabBarHostVerticalAware(
+                selected: $selected,
+                isAuthenticated: isAuthenticated,
+                isKeyboardVisible: isKeyboardVisible
+            )
+        } else if !isKeyboardVisible {
+            MainTabBar(selected: $selected, isAuthenticated: isAuthenticated)
+        }
+    }
+}
+
+@available(iOS 27.1, *)
+private struct MainTabBarHostVerticalAware: View {
+    @Binding var selected: AppTab
+    var isAuthenticated: Bool
+    var isKeyboardVisible: Bool
+    @Environment(\.toolbarVerticalEdge) private var toolbarVerticalEdge
+
+    var body: some View {
+        if toolbarVerticalEdge == nil, !isKeyboardVisible {
+            MainTabBar(selected: $selected, isAuthenticated: isAuthenticated)
+        }
+    }
+}
+
+/// Side tab bar for compact width when the system vertical chrome edge is active.
+private struct CompactVerticalTabInset: ViewModifier {
+    @Binding var selectedTab: AppTab
+    var isAuthenticated: Bool
+    var isKeyboardVisible: Bool
+    var enabled: Bool
+
+    func body(content: Content) -> some View {
+        if #available(iOS 27.1, *), enabled {
+            CompactVerticalTabInsetAware(
+                selectedTab: $selectedTab,
+                isAuthenticated: isAuthenticated,
+                isKeyboardVisible: isKeyboardVisible,
+                content: { content }
+            )
+        } else {
+            content
+        }
+    }
+}
+
+@available(iOS 27.1, *)
+private struct CompactVerticalTabInsetAware<Content: View>: View {
+    @Binding var selectedTab: AppTab
+    var isAuthenticated: Bool
+    var isKeyboardVisible: Bool
+    @ViewBuilder var content: () -> Content
+    @Environment(\.toolbarVerticalEdge) private var toolbarVerticalEdge
+
+    var body: some View {
+        content()
+            .safeAreaInset(edge: .leading, spacing: 0) {
+                if toolbarVerticalEdge == .leading, !isKeyboardVisible {
+                    MainTabBar(
+                        selected: $selectedTab,
+                        isAuthenticated: isAuthenticated,
+                        axis: .vertical,
+                        separatorAlignment: .trailing
+                    )
+                    .frame(width: 72)
+                }
+            }
+            .safeAreaInset(edge: .trailing, spacing: 0) {
+                if toolbarVerticalEdge == .trailing, !isKeyboardVisible {
+                    MainTabBar(
+                        selected: $selectedTab,
+                        isAuthenticated: isAuthenticated,
+                        axis: .vertical,
+                        separatorAlignment: .leading
+                    )
+                    .frame(width: 72)
+                }
+            }
     }
 }
 

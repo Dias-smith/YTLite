@@ -983,9 +983,14 @@ struct HomeView: View {
         } else {
             ScrollViewReader { proxy in
                 GeometryReader { geo in
+                    let preferEven = YTLiteAdaptive.prefersEvenColumns(
+                        in: geo,
+                        sizeClass: horizontalSizeClass
+                    )
                     let columns = YTLiteAdaptive.feedColumns(
                         for: geo.size.width,
-                        sizeClass: horizontalSizeClass
+                        sizeClass: horizontalSizeClass,
+                        preferEvenColumns: preferEven
                     )
                     let compact = columns > 1
                     ScrollView {
@@ -1055,7 +1060,11 @@ struct HomeView: View {
             GeometryReader { geo in
                 let columns = YTLiteAdaptive.feedColumns(
                     for: geo.size.width,
-                    sizeClass: horizontalSizeClass
+                    sizeClass: horizontalSizeClass,
+                    preferEvenColumns: YTLiteAdaptive.prefersEvenColumns(
+                        in: geo,
+                        sizeClass: horizontalSizeClass
+                    )
                 )
                 let compact = columns > 1
                 ScrollView {

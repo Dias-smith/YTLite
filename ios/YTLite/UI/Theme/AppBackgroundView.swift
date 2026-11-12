@@ -68,10 +68,16 @@ private struct FitImageWithBlurredMirror: View {
 
     var body: some View {
         GeometryReader { geo in
-            let size = geo.size
+            // Quantize during Duo fold resize so blur layers aren't rebuilt every frame.
+            let step: CGFloat = 32
+            let size = CGSize(
+                width: (geo.size.width / step).rounded() * step,
+                height: (geo.size.height / step).rounded() * step
+            )
             content(in: size)
-                .frame(width: size.width, height: size.height)
+                .frame(width: geo.size.width, height: geo.size.height)
                 .clipped()
+                .drawingGroup(opaque: true, colorMode: .nonLinear)
         }
     }
 

@@ -14,32 +14,81 @@ enum YTLiteAdaptive {
 
     static func screenPadding(for width: CGFloat, sizeClass: UserInterfaceSizeClass?) -> CGFloat {
         if isRegularWidth(sizeClass) {
-            return width >= 1000 ? 28 : 24
+            return stableWidth(width) >= 1000 ? 28 : 24
         }
         return YTLiteLayout.screenPadding
     }
 
     /// Home / You feed columns.
-    static func feedColumns(for width: CGFloat, sizeClass: UserInterfaceSizeClass?) -> Int {
+    /// - Parameter preferEvenColumns: When a Duo fold / division region is present,
+    ///   prefer an even column count so cards don't straddle the hinge.
+    static func feedColumns(
+        for width: CGFloat,
+        sizeClass: UserInterfaceSizeClass?,
+        preferEvenColumns: Bool = false
+    ) -> Int {
         guard isRegularWidth(sizeClass) else { return 1 }
-        if width >= 1100 { return 3 }
-        if width >= 700 { return 2 }
-        return 1
+        let width = stableWidth(width)
+        var columns = 1
+        if width >= 1100 {
+            columns = 3
+        } else if width >= 700 {
+            columns = 2
+        }
+        return preferEvenColumns ? evenColumnCount(columns) : columns
     }
 
     /// Library playlist / channel grid columns.
-    static func playlistColumns(for width: CGFloat, sizeClass: UserInterfaceSizeClass?) -> Int {
+    static func playlistColumns(
+        for width: CGFloat,
+        sizeClass: UserInterfaceSizeClass?,
+        preferEvenColumns: Bool = false
+    ) -> Int {
         guard isRegularWidth(sizeClass) else { return 2 }
-        if width >= 1100 { return 5 }
-        if width >= 900 { return 4 }
-        if width >= 700 { return 3 }
-        return 2
+        let width = stableWidth(width)
+        var columns = 2
+        if width >= 1100 {
+            columns = 5
+        } else if width >= 900 {
+            columns = 4
+        } else if width >= 700 {
+            columns = 3
+        }
+        return preferEvenColumns ? evenColumnCount(columns) : columns
     }
 
     /// Search results columns on wide layouts.
-    static func searchColumns(for width: CGFloat, sizeClass: UserInterfaceSizeClass?) -> Int {
+    static func searchColumns(
+        for width: CGFloat,
+        sizeClass: UserInterfaceSizeClass?,
+        preferEvenColumns: Bool = false
+    ) -> Int {
         guard isRegularWidth(sizeClass) else { return 1 }
-        return width >= 800 ? 2 : 1
+        let columns = stableWidth(width) >= 800 ? 2 : 1
+        return preferEvenColumns ? evenColumnCount(columns) : columns
+    }
+
+    /// Drop an odd column count by one so a Duo hinge sits between columns.
+    private static func evenColumnCount(_ columns: Int) -> Int {
+        guard columns > 1, columns % 2 == 1 else { return columns }
+        return columns - 1
+    }
+
+    /// Quantize width so mid-fold resize frames don't thrash LazyVGrid column counts.
+    private static func stableWidth(_ width: CGFloat) -> CGFloat {
+        guard width.isFinite, width > 0 else { return 0 }
+        let step: CGFloat = 64
+        return (width / step).rounded() * step
+    }
+
+    /// True when GeometryProxy reports a Duo fold / division (active or inactive).
+    /// Skip the query on compact width — columns are already 1.
+    static func prefersEvenColumns(in proxy: GeometryProxy, sizeClass: UserInterfaceSizeClass?) -> Bool {
+        guard isRegularWidth(sizeClass) else { return false }
+        if #available(iOS 27.1, *) {
+            return !proxy.reservedRegions(kind: .division, options: .includeInactive).isEmpty
+        }
+        return false
     }
 
     static func gridItems(count: Int, spacing: CGFloat = 16) -> [GridItem] {
