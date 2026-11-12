@@ -92,14 +92,14 @@ struct WatchNowPlayingWidgetEntryView: View {
         HStack(spacing: 8) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(entry.snapshot.hasTrack ? entry.snapshot.title : "Mixtube")
-                    .font(.headline)
+                    .font(.system(size: 12, weight: .semibold))
                     .lineLimit(1)
                 Text(
                     entry.snapshot.hasTrack
                         ? (entry.snapshot.artist.isEmpty ? "Now Playing" : entry.snapshot.artist)
                         : "Open to play"
                 )
-                .font(.caption2)
+                .font(.system(size: 10, weight: .regular))
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
             }

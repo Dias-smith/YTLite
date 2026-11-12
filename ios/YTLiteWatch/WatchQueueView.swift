@@ -19,10 +19,10 @@ struct WatchQueueView: View {
                             } else {
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text(WL("watch.phone_required", "Open Mixtube on iPhone"))
-                                        .font(.caption2.weight(.semibold))
+                                        .font(WatchType.metaSemibold)
                                         .foregroundStyle(.orange)
                                     Text(WL("watch.queue_readonly_hint", "Connect iPhone to control the queue"))
-                                        .font(.caption2)
+                                        .font(WatchType.meta)
                                         .foregroundStyle(.secondary)
                                 }
                                 .listRowBackground(Color.clear)
@@ -100,13 +100,13 @@ struct WatchQueueView: View {
         } label: {
             HStack(alignment: .top, spacing: 6) {
                 Image(systemName: isCurrent ? "speaker.wave.2.fill" : "music.note")
-                    .font(.caption2)
+                    .font(WatchType.meta)
                     .foregroundStyle(isCurrent ? Color.accentColor : Color.secondary)
                     .frame(width: 14)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(item.title)
-                        .font(.caption.weight(isCurrent ? .semibold : .regular))
+                        .font(isCurrent ? WatchType.titleSemibold : WatchType.title)
                         .foregroundStyle(isCurrent ? Color.accentColor : Color.primary)
                         .lineLimit(2)
                     HStack(spacing: 4) {
@@ -121,7 +121,7 @@ struct WatchQueueView: View {
                                 .fontWeight(.semibold)
                         }
                     }
-                    .font(.caption2)
+                    .font(WatchType.meta)
                     .foregroundStyle(.secondary)
                 }
             }

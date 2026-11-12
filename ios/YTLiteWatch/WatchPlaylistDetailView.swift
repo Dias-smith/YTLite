@@ -16,7 +16,7 @@ struct WatchPlaylistDetailView: View {
                 List {
                     if !bridge.isReachable {
                         Text(String(localized: "watch.phone_disconnected_readonly", defaultValue: "Phone disconnected · Read only"))
-                            .font(.caption2.weight(.semibold))
+                            .font(WatchType.metaSemibold)
                             .foregroundStyle(.orange)
                             .listRowBackground(Color.clear)
                     }
@@ -29,13 +29,13 @@ struct WatchPlaylistDetailView: View {
                                 String(localized: "watch.shuffle_play", defaultValue: "Shuffle play"),
                                 systemImage: "shuffle"
                             )
-                            .font(.caption)
+                            .font(WatchType.title)
                         }
                     }
 
                     if playlist.tracks.isEmpty {
                         Text(String(localized: "watch.playlist_empty", defaultValue: "No tracks"))
-                            .font(.caption)
+                            .font(WatchType.title)
                             .foregroundStyle(.secondary)
                     } else {
                         ForEach(Array(playlist.tracks.enumerated()), id: \.offset) { index, track in
@@ -53,7 +53,7 @@ struct WatchPlaylistDetailView: View {
 
                     if playlist.trackCount > playlist.tracks.count {
                         Text("Showing \(playlist.tracks.count) of \(playlist.trackCount)")
-                            .font(.caption2)
+                            .font(WatchType.meta)
                             .foregroundStyle(.secondary)
                     }
                 }

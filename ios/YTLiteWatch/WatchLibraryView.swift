@@ -29,7 +29,7 @@ struct WatchLibraryView: View {
                                     String(localized: "watch.create_playlist", defaultValue: "New playlist"),
                                     systemImage: "plus"
                                 )
-                                .font(.caption)
+                                .font(WatchType.title)
                             }
                         }
 
@@ -60,7 +60,7 @@ struct WatchLibraryView: View {
 
                         if snapshot.playlists.isEmpty && snapshot.history.isEmpty {
                             Text(String(localized: "watch.library_empty", defaultValue: "Library empty"))
-                                .font(.caption)
+                                .font(WatchType.title)
                                 .foregroundStyle(.secondary)
                         }
                     }
@@ -131,19 +131,19 @@ struct WatchLibraryView: View {
     private var disconnectedBanner: some View {
         if !bridge.isReachable {
             Text(WL("watch.phone_disconnected_readonly", "Phone disconnected · Read only"))
-                .font(.caption2.weight(.semibold))
+                .font(WatchType.metaSemibold)
                 .foregroundStyle(.orange)
                 .listRowBackground(Color.clear)
         }
         if let share = library.lastShareMessage {
             Text(share)
-                .font(.caption2)
+                .font(WatchType.meta)
                 .foregroundStyle(.secondary)
                 .listRowBackground(Color.clear)
         }
         if let error = library.lastCommandError {
             Text(error)
-                .font(.caption2)
+                .font(WatchType.meta)
                 .foregroundStyle(.orange)
                 .listRowBackground(Color.clear)
         }
@@ -152,13 +152,13 @@ struct WatchLibraryView: View {
     private func accountRow(_ snapshot: WatchConnectivityProtocol.LibrarySnapshot) -> some View {
         HStack {
             Image(systemName: snapshot.authIsGuest ? "person" : "person.fill")
-                .font(.caption)
+                .font(WatchType.title)
             Text(
                 snapshot.authIsGuest
                     ? String(localized: "watch.guest", defaultValue: "Guest")
                     : (snapshot.authDisplayName ?? String(localized: "watch.signed_in", defaultValue: "Signed in"))
             )
-            .font(.caption)
+            .font(WatchType.title)
             .foregroundStyle(.secondary)
             Spacer()
         }
@@ -169,16 +169,16 @@ struct WatchLibraryView: View {
         VStack(alignment: .leading, spacing: 2) {
             HStack(spacing: 4) {
                 Text(playlist.name)
-                    .font(.caption.weight(.semibold))
+                    .font(WatchType.titleSemibold)
                     .lineLimit(2)
                 if playlist.isPinned {
                     Image(systemName: "pin.fill")
-                        .font(.caption2)
+                        .font(WatchType.meta)
                         .foregroundStyle(.secondary)
                 }
             }
             Text("\(playlist.trackCount) \(String(localized: "watch.tracks", defaultValue: "tracks"))")
-                .font(.caption2)
+                .font(WatchType.meta)
                 .foregroundStyle(.secondary)
         }
     }

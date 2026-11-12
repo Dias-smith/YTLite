@@ -17,7 +17,7 @@ struct WatchTrackRow: View {
         Button(action: onPlay) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(track.title)
-                    .font(.caption)
+                    .font(WatchType.title)
                     .lineLimit(2)
                 HStack(spacing: 4) {
                     Text(track.artist)
@@ -27,7 +27,7 @@ struct WatchTrackRow: View {
                         Text(duration)
                     }
                 }
-                .font(.caption2)
+                .font(WatchType.meta)
                 .foregroundStyle(.secondary)
             }
         }

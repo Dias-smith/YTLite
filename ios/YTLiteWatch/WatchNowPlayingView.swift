@@ -115,7 +115,7 @@ struct WatchNowPlayingView: View {
                 .shadow(color: .black.opacity(0.35), radius: 6, y: 3)
 
             Text(snapshot.title ?? "—")
-                .font(.caption.weight(.semibold))
+                .font(WatchType.titleSemibold)
                 .foregroundStyle(.white)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
@@ -125,7 +125,7 @@ struct WatchNowPlayingView: View {
                 .padding(.horizontal, 10)
 
             Text(remainingLabel(for: snapshot))
-                .font(.caption2.weight(.medium))
+                .font(WatchType.metaMedium)
                 .foregroundStyle(Self.accent)
                 .lineLimit(1)
                 .multilineTextAlignment(.center)
@@ -134,7 +134,7 @@ struct WatchNowPlayingView: View {
 
             if !canControl {
                 Text(WL("watch.phone_required", "Open Mixtube on iPhone"))
-                    .font(.caption2)
+                    .font(WatchType.meta)
                     .foregroundStyle(.orange)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
@@ -148,7 +148,7 @@ struct WatchNowPlayingView: View {
 
             if let error = playback.lastCommandError {
                 Text(error)
-                    .font(.caption2)
+                    .font(WatchType.meta)
                     .foregroundStyle(.red)
                     .lineLimit(1)
                     .multilineTextAlignment(.center)
@@ -167,7 +167,7 @@ struct WatchNowPlayingView: View {
             showMore = true
         } label: {
             Image(systemName: "ellipsis")
-                .font(.caption.weight(.bold))
+                .font(WatchType.titleBold)
                 .foregroundStyle(.white)
                 .frame(width: 28, height: 28)
                 .background(Color.white.opacity(0.18), in: Circle())
@@ -182,7 +182,7 @@ struct WatchNowPlayingView: View {
                 playback.seekRelative(by: -15)
             } label: {
                 Image(systemName: "gobackward.15")
-                    .font(.title3)
+                    .font(WatchType.transport)
                     .foregroundStyle(.white)
                     .frame(width: 36, height: 36)
             }
@@ -195,7 +195,7 @@ struct WatchNowPlayingView: View {
                 playback.seekRelative(by: 15)
             } label: {
                 Image(systemName: "goforward.15")
-                    .font(.title3)
+                    .font(WatchType.transport)
                     .foregroundStyle(.white)
                     .frame(width: 36, height: 36)
             }
@@ -221,7 +221,7 @@ struct WatchNowPlayingView: View {
                     )
                     .rotationEffect(.degrees(-90))
                 Image(systemName: snapshot.isPlaying ? "pause.fill" : "play.fill")
-                    .font(.title3)
+                    .font(WatchType.playPause)
                     .foregroundStyle(.white)
                     .offset(x: snapshot.isPlaying ? 0 : 0.5)
             }
@@ -238,20 +238,20 @@ struct WatchNowPlayingView: View {
         VStack(spacing: 8) {
             Spacer(minLength: 0)
             Image(systemName: canControl ? "music.note" : "iphone.slash")
-                .font(.largeTitle)
+                .font(WatchType.emptyIcon)
                 .foregroundStyle(.white.opacity(0.7))
             if canControl {
                 Text(WL("watch.nothing_playing", "Nothing playing"))
-                    .font(.headline)
+                    .font(WatchType.emptyTitle)
                     .foregroundStyle(.white)
                     .multilineTextAlignment(.center)
                 Text(WL("watch.play_on_iphone_hint", "Start playback on iPhone"))
-                    .font(.caption2)
+                    .font(WatchType.meta)
                     .foregroundStyle(.white.opacity(0.7))
                     .multilineTextAlignment(.center)
             } else {
                 Text(WL("watch.phone_required", "Open Mixtube on iPhone"))
-                    .font(.headline)
+                    .font(WatchType.emptyTitle)
                     .foregroundStyle(.white)
                     .multilineTextAlignment(.center)
             }
@@ -305,12 +305,12 @@ struct WatchNowPlayingView: View {
                                 Text(WL("watch.volume", "Volume"))
                                 Spacer()
                                 Text("\(Int((draftVolume * 100).rounded()))%")
-                                    .font(.caption2.monospacedDigit())
+                                    .font(WatchType.metaMono)
                                     .foregroundStyle(.secondary)
                             }
                             HStack(spacing: 8) {
                                 Image(systemName: "speaker.fill")
-                                    .font(.caption2)
+                                    .font(WatchType.meta)
                                     .foregroundStyle(.secondary)
                                 Slider(
                                     value: Binding(
@@ -327,7 +327,7 @@ struct WatchNowPlayingView: View {
                                 )
                                 .disabled(!canControl)
                                 Image(systemName: "speaker.wave.3.fill")
-                                    .font(.caption2)
+                                    .font(WatchType.meta)
                                     .foregroundStyle(.secondary)
                             }
                         }
