@@ -9,8 +9,9 @@ options:
 settings:
   base:
     SWIFT_VERSION: "5.0"
-    MARKETING_VERSION: "1.0.0"
-    CURRENT_PROJECT_VERSION: "1"
+    # Must match across app + Watch + Widget or App Store returns “Invalid Binary”.
+    MARKETING_VERSION: "1.3.0"
+    CURRENT_PROJECT_VERSION: "3"
 packages:
   supabase-swift:
     url: https://github.com/supabase/supabase-swift
@@ -140,8 +141,6 @@ targets:
         # Must be a strict prefix child of com.ytlite.player.
         PRODUCT_NAME: MixtubeWatch
         PRODUCT_MODULE_NAME: YTLiteWatch
-        MARKETING_VERSION: "1.0.0"
-        CURRENT_PROJECT_VERSION: "1"
         GENERATE_INFOPLIST_FILE: true
         INFOPLIST_FILE: YTLiteWatch/Info.plist
         INFOPLIST_KEY_CFBundleDisplayName: Mixtube
@@ -204,8 +203,6 @@ targets:
         SUPPORTED_PLATFORMS: "watchos watchsimulator"
         SUPPORTS_MACCATALYST: false
         SKIP_INSTALL: true
-        MARKETING_VERSION: "1.0.0"
-        CURRENT_PROJECT_VERSION: "1"
         WATCHOS_DEPLOYMENT_TARGET: "10.0"
         LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks"
     entitlements:
@@ -237,8 +234,6 @@ targets:
         TARGETED_DEVICE_FAMILY: "1,2"
         IPHONEOS_DEPLOYMENT_TARGET: "17.0"
         SKIP_INSTALL: true
-        MARKETING_VERSION: "1.0.0"
-        CURRENT_PROJECT_VERSION: "1"
         LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks"
     entitlements:
       path: YTLiteWidget/YTLiteWidget.entitlements
