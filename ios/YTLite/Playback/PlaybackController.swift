@@ -108,6 +108,11 @@ final class PlaybackController: ObservableObject {
     private var sleepTimerCancellable: AnyCancellable?
     /// Pre-shuffle queue snapshot (Android `originalOrder`).
     private var originalOrder: [VideoItem]?
+    /// Cached `PersistedQueueItem` maps — position-only session writes skip remapping 1000+ rows.
+    private var cachedPersistedQueueIds: [String] = []
+    private var cachedPersistedItems: [PersistedQueueItem] = []
+    private var cachedPersistedOriginalIds: [String] = []
+    private var cachedPersistedOriginal: [PersistedQueueItem]?
     /// Seek target after cold-start restore + resolve.
     private var pendingSeekSeconds: Double = 0
     /// While true, time-observer must not overwrite `positionSeconds` with stale `currentTime`.
@@ -253,9 +258,11 @@ final class PlaybackController: ObservableObject {
         PlaybackPreparer.shared.clear()
         cancelScheduledNextPrepare()
         if shuffleEnabled {
-            let current = items[start]
-            let tail = items.enumerated().filter { $0.offset != start }.map(\.element).shuffled()
-            queue = [current] + tail
+            // In-place remove + shuffle — avoids `enumerated().filter` temp arrays on 1000+ queues.
+            var rest = items
+            let current = rest.remove(at: start)
+            rest.shuffle()
+            queue = [current] + rest
             queueIndex = 0
         } else {
             queue = items
@@ -2634,11 +2641,15 @@ final class PlaybackController: ObservableObject {
 
     private func writeSessionSnapshot() {
         guard nowPlaying != nil, !queue.isEmpty else {
+            cachedPersistedQueueIds = []
+            cachedPersistedItems = []
+            cachedPersistedOriginalIds = []
+            cachedPersistedOriginal = nil
             PlaybackSessionStore.clear()
             return
         }
         let snapshot = PlaybackSessionSnapshot(
-            items: queue.map(PersistedQueueItem.from),
+            items: persistedItems(for: queue),
             currentIndex: queueIndex.clamped(to: 0...(queue.count - 1)),
             sourcePlaylistId: sourcePlaylistId,
             positionSeconds: positionSeconds,
@@ -2647,9 +2658,36 @@ final class PlaybackController: ObservableObject {
             channelAvatarURL: nowPlaying?.channelAvatarURL?.absoluteString,
             repeatMode: repeatMode,
             shuffleEnabled: shuffleEnabled,
-            originalOrder: originalOrder?.map(PersistedQueueItem.from)
+            originalOrder: persistedOriginalOrder()
         )
         PlaybackSessionStore.save(snapshot)
+    }
+
+    private func persistedItems(for items: [VideoItem]) -> [PersistedQueueItem] {
+        let ids = items.map(\.videoId)
+        if ids == cachedPersistedQueueIds {
+            return cachedPersistedItems
+        }
+        let mapped = items.map(PersistedQueueItem.from)
+        cachedPersistedQueueIds = ids
+        cachedPersistedItems = mapped
+        return mapped
+    }
+
+    private func persistedOriginalOrder() -> [PersistedQueueItem]? {
+        guard let originalOrder else {
+            cachedPersistedOriginalIds = []
+            cachedPersistedOriginal = nil
+            return nil
+        }
+        let ids = originalOrder.map(\.videoId)
+        if ids == cachedPersistedOriginalIds, let cached = cachedPersistedOriginal {
+            return cached
+        }
+        let mapped = originalOrder.map(PersistedQueueItem.from)
+        cachedPersistedOriginalIds = ids
+        cachedPersistedOriginal = mapped
+        return mapped
     }
 }
 

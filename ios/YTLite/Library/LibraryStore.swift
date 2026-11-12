@@ -494,6 +494,10 @@ final class LibraryStore {
             var saved: Date
         }
 
+        // One metadata fetch for the whole library — avoids N+1 SwiftData hits at 1000+ tracks.
+        let metaById = Dictionary(
+            uniqueKeysWithValues: allMetadata().map { ($0.trackId, $0) }
+        )
         var byId: [String: Acc] = [:]
         let playedAtById = Dictionary(
             lastPlayed(limit: 500).map { ($0.trackId, $0.lastPlayedAt) },
@@ -504,7 +508,7 @@ final class LibraryStore {
             for entry in playlist.entries {
                 guard let track = entry.track else { continue }
                 let id = track.trackId
-                let item = displayItem(for: track.asVideoItem)
+                let item = displayItem(for: track.asVideoItem, metaById: metaById)
                 let saved = entry.createdAt
                 let activity = max(playedAtById[id] ?? .distantPast, saved)
                 if let prev = byId[id] {
@@ -523,7 +527,11 @@ final class LibraryStore {
             let id = video.videoId
             guard byId[id] == nil else { continue }
             let at = playedAtById[id] ?? .distantPast
-            byId[id] = Acc(item: displayItem(for: video), activity: at, saved: at)
+            byId[id] = Acc(
+                item: displayItem(for: video, metaById: metaById),
+                activity: at,
+                saved: at
+            )
         }
 
         let values = Array(byId.values)
@@ -537,13 +545,24 @@ final class LibraryStore {
                 $0.item.title.localizedCaseInsensitiveCompare($1.item.title) == .orderedAscending
             }.map(\.item)
         case .duration:
-            return values.sorted {
-                let da = DurationFormat.seconds(from: $0.item.durationText)
-                let db = DurationFormat.seconds(from: $1.item.durationText)
-                if da != db { return da > db }
-                return $0.item.title.localizedCaseInsensitiveCompare($1.item.title) == .orderedAscending
-            }.map(\.item)
+            // Precompute seconds once — avoid O(n log n) repeated string parses.
+            return values
+                .map { ($0, DurationFormat.seconds(from: $0.item.durationText)) }
+                .sorted {
+                    if $0.1 != $1.1 { return $0.1 > $1.1 }
+                    return $0.0.item.title.localizedCaseInsensitiveCompare($1.0.item.title) == .orderedAscending
+                }
+                .map(\.0.item)
         }
+    }
+
+    /// Video IDs marked not-interested for the current owner (single fetch).
+    func notInterestedVideoIds() -> Set<String> {
+        let key = ownerKey
+        let rows = (try? modelContext.fetch(
+            FetchDescriptor<NotInterestedItem>(predicate: #Predicate { $0.ownerKey == key })
+        )) ?? []
+        return Set(rows.map(\.videoId))
     }
 
     func removeTracksFromLocalLibrary(trackIds: [String]) {
@@ -1117,6 +1136,12 @@ final class LibraryStore {
         return applyMetadata(meta, to: item)
     }
 
+    /// Batch path — pass a preloaded `metaById` from `allMetadata()` to avoid N+1 fetches.
+    func displayItem(for item: VideoItem, metaById: [String: UserTrackMetadata]) -> VideoItem {
+        guard let meta = metaById[item.videoId] else { return item }
+        return applyMetadata(meta, to: item)
+    }
+
     private func applyMetadata(_ meta: UserTrackMetadata, to item: VideoItem) -> VideoItem {
         VideoItem(
             videoId: item.videoId,
@@ -1133,22 +1158,22 @@ final class LibraryStore {
 
     func filterNotInterested(_ items: [VideoItem]) -> [VideoItem] {
         guard !items.isEmpty else { return [] }
-        let key = ownerKey
-        let blocked = Set(
-            ((try? modelContext.fetch(
-                FetchDescriptor<NotInterestedItem>(predicate: #Predicate { $0.ownerKey == key })
-            )) ?? []).map(\.videoId)
-        )
+        let blocked = notInterestedVideoIds()
         let metaById = Dictionary(
             uniqueKeysWithValues: allMetadata().map { ($0.trackId, $0) }
         )
         return items.compactMap { item in
             guard !blocked.contains(item.videoId) else { return nil }
-            if let meta = metaById[item.videoId] {
-                return applyMetadata(meta, to: item)
-            }
-            return item
+            return displayItem(for: item, metaById: metaById)
         }
+    }
+
+    /// Drop not-interested ids without re-applying metadata (items already enriched).
+    func excludingNotInterested(_ items: [VideoItem]) -> [VideoItem] {
+        guard !items.isEmpty else { return [] }
+        let blocked = notInterestedVideoIds()
+        guard !blocked.isEmpty else { return items }
+        return items.filter { !blocked.contains($0.videoId) }
     }
 
     func save() {

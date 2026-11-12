@@ -17,71 +17,23 @@ struct PlaylistDetailView: View {
     @State private var showSortSheet = false
     @State private var showPhotoPicker = false
     @State private var photoItem: PhotosPickerItem?
-    @State private var refreshTick = 0
     @State private var orderedTrackIds: [String] = []
 
-    private var livePlaylist: LibraryPlaylist {
-        store?.playlist(id: playlist.playlistId) ?? playlist
-    }
+    /// Cached snapshot — rebuilt only on appear / library epochs / sort / reorder.
+    @State private var cachedTracks: [PlaylistDetailTrack] = []
+    @State private var tracksVersion = 0
+    @State private var coverURLs: [URL] = []
+    @State private var totalDurationSeconds = 0
+    @State private var trackCount = 0
+    @State private var cachedPlaylistId = ""
+    @State private var cachedName = ""
+    @State private var cachedSystemType: String?
 
-    private var canEdit: Bool { livePlaylist.systemType == nil }
+    private var canEdit: Bool { cachedSystemType == nil }
     private var canReorder: Bool { sort == .manual }
 
-    private var entryRows: [PlaylistDetailTrack] {
-        _ = refreshTick
-        return livePlaylist.entries.compactMap { entry in
-            guard let track = entry.track else { return nil }
-            let item = store?.displayItem(for: track.asVideoItem) ?? track.asVideoItem
-            return PlaylistDetailTrack(
-                trackId: track.trackId,
-                item: item,
-                position: entry.position,
-                addedAt: entry.createdAt
-            )
-        }
-    }
-
-    private var displayedTracks: [PlaylistDetailTrack] {
-        let rows = entryRows
-        switch sort {
-        case .manual:
-            if orderedTrackIds.isEmpty {
-                return rows.sorted { $0.position < $1.position }
-            }
-            let byId = Dictionary(uniqueKeysWithValues: rows.map { ($0.trackId, $0) })
-            let ordered = orderedTrackIds.compactMap { byId[$0] }
-            let missing = rows.filter { !orderedTrackIds.contains($0.trackId) }
-                .sorted { $0.position < $1.position }
-            return ordered + missing
-        case .recentlyAdded:
-            return rows.sorted { $0.addedAt > $1.addedAt }
-        case .title:
-            return rows.sorted {
-                $0.item.title.localizedCaseInsensitiveCompare($1.item.title) == .orderedAscending
-            }
-        }
-    }
-
-    private var coverURLs: [URL] {
-        if let url = PlaylistCoverStorage.resolveURL(livePlaylist.coverUrlOrPath) {
-            return [url]
-        }
-        return entryRows
-            .sorted { $0.position < $1.position }
-            .compactMap(\.item.thumbnailURL)
-            .prefix(4)
-            .map { $0 }
-    }
-
-    private var totalDurationSeconds: Int {
-        entryRows.compactMap { row in
-            let seconds = DurationFormat.seconds(from: row.item.durationText)
-            return seconds > 0 ? seconds : nil
-        }.reduce(0, +)
-    }
-
     private var isThisPlaylistActive: Bool {
-        playback.sourcePlaylistId == livePlaylist.playlistId && !playback.queue.isEmpty
+        playback.sourcePlaylistId == cachedPlaylistId && !playback.queue.isEmpty
     }
 
     private var showPause: Bool { isThisPlaylistActive && playback.isPlaying }
@@ -101,7 +53,7 @@ struct PlaylistDetailView: View {
             }
 
             Section {
-                if displayedTracks.isEmpty {
+                if cachedTracks.isEmpty {
                     Text(L("library.empty_playlist"))
                         .font(YTLiteType.body)
                         .foregroundStyle(YTLiteColor.onSurfaceVariant)
@@ -110,10 +62,24 @@ struct PlaylistDetailView: View {
                         .listRowBackground(YTLiteColor.background)
                         .listRowSeparator(.hidden)
                 } else {
-                    ForEach(Array(displayedTracks.enumerated()), id: \.element.trackId) { index, row in
-                        trackRow(row, index: index)
-                            .listRowInsets(EdgeInsets(top: 6, leading: 8, bottom: 6, trailing: 8))
-                            .listRowBackground(YTLiteColor.background)
+                    // `tracksVersion` + row Equatable keep List cells stable across playback publishes.
+                    ForEach(Array(cachedTracks.enumerated()), id: \.element.trackId) { index, row in
+                        PlaylistDetailTrackRow(
+                            row: row,
+                            onPlay: { play(at: index) },
+                            onMore: {
+                                trackActions.present(
+                                    item: row.item,
+                                    playlistId: cachedPlaylistId,
+                                    canRemoveFromPlaylist: true,
+                                    canDeleteFromLibrary: true
+                                )
+                            }
+                        )
+                        .equatable()
+                        .listRowInsets(EdgeInsets(top: 6, leading: 8, bottom: 6, trailing: 8))
+                        .listRowBackground(YTLiteColor.background)
+                        .id("\(tracksVersion)-\(row.trackId)")
                     }
                     .onMove(perform: canReorder ? moveTracks : nil)
                 }
@@ -123,22 +89,24 @@ struct PlaylistDetailView: View {
         .scrollContentBackground(.hidden)
         .background(YTLiteColor.background)
         .ytLiteMiniPlayerScrollInset()
-        .environment(\.editMode, .constant(canReorder && !displayedTracks.isEmpty ? .active : .inactive))
+        .environment(\.editMode, .constant(canReorder && !cachedTracks.isEmpty ? .active : .inactive))
         .navigationBarTitleDisplayMode(.inline)
         .navigationTitle("")
         .toolbar(.visible, for: .navigationBar)
         .toolbarBackground(YTLiteColor.background, for: .navigationBar)
-        .onAppear { syncOrderedIds() }
-        .onChange(of: refreshTick) { _, _ in syncOrderedIds() }
+        .onAppear { reloadTracks(resetOrder: orderedTrackIds.isEmpty) }
+        .onChange(of: sort) { _, selected in
+            reloadTracks(resetOrder: selected == .manual && orderedTrackIds.isEmpty)
+        }
         .onChange(of: trackActions.listEpoch) { _, _ in
-            refreshTick += 1
+            reloadTracks(resetOrder: false)
             onChange()
             if store?.playlist(id: playlist.playlistId) == nil {
                 dismiss()
             }
         }
         .onChange(of: playlistActions.listEpoch) { _, _ in
-            refreshTick += 1
+            reloadTracks(resetOrder: false)
             onChange()
             if store?.playlist(id: playlist.playlistId) == nil {
                 dismiss()
@@ -148,7 +116,6 @@ struct PlaylistDetailView: View {
             PlaylistSortSheet(current: sort, onSelect: { selected in
                 sort = selected
                 showSortSheet = false
-                if selected == .manual { syncOrderedIds() }
             })
             .presentationDetents([.height(320)])
             .presentationDragIndicator(.hidden)
@@ -168,7 +135,7 @@ struct PlaylistDetailView: View {
             ZStack(alignment: .bottomTrailing) {
                 PlaylistDetailCoverArt(
                     coverURLs: coverURLs,
-                    systemType: livePlaylist.systemType
+                    systemType: cachedSystemType
                 )
                 .aspectRatio(1, contentMode: .fit)
                 .frame(maxWidth: 220)
@@ -218,7 +185,7 @@ struct PlaylistDetailView: View {
                         .background(YTLiteColor.accent, in: Circle())
                 }
                 .buttonStyle(.plain)
-                .disabled(displayedTracks.isEmpty && !isThisPlaylistActive)
+                .disabled(cachedTracks.isEmpty && !isThisPlaylistActive)
 
                 circleIconButton(systemName: "ellipsis") {
                     presentPlaylistMore()
@@ -248,55 +215,6 @@ struct PlaylistDetailView: View {
         .buttonStyle(.plain)
     }
 
-    private func trackRow(_ row: PlaylistDetailTrack, index: Int) -> some View {
-        HStack(spacing: 12) {
-            Button {
-                play(at: index)
-            } label: {
-                HStack(spacing: 12) {
-                    VideoThumbnail(
-                        url: row.item.thumbnailURL,
-                        durationText: nil,
-                        width: 48,
-                        height: 48,
-                        cornerRadius: 4,
-                        badgePadding: 0
-                    )
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(row.item.title)
-                            .font(YTLiteType.rowTitleMedium)
-                            .foregroundStyle(YTLiteColor.onSurface)
-                            .lineLimit(1)
-                        Text(subtitle(for: row.item))
-                            .font(YTLiteType.meta)
-                            .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                            .lineLimit(1)
-                    }
-                    Spacer(minLength: 0)
-                }
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-
-            Button {
-                trackActions.present(
-                    item: row.item,
-                    playlistId: livePlaylist.playlistId,
-                    canRemoveFromPlaylist: true,
-                    canDeleteFromLibrary: true
-                )
-            } label: {
-                Image(systemName: "ellipsis")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                    .frame(width: 36, height: 36)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.borderless)
-        }
-        .padding(.vertical, 2)
-    }
-
     private func circleIconButton(systemName: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: systemName)
@@ -309,16 +227,15 @@ struct PlaylistDetailView: View {
     }
 
     private var displayTitle: String {
-        switch livePlaylist.systemType {
+        switch cachedSystemType {
         case SystemPlaylistType.favorites: return L("library.liked")
         case SystemPlaylistType.watchLater: return L("library.watch_later")
-        default: return livePlaylist.name
+        default: return cachedName
         }
     }
 
     private var statsText: String {
-        let count = entryRows.count
-        let tracksLabel = count == 1 ? "1 track" : "\(count) tracks"
+        let tracksLabel = trackCount == 1 ? "1 track" : "\(trackCount) tracks"
         guard totalDurationSeconds > 0 else { return tracksLabel }
         let minutes = totalDurationSeconds / 60
         let seconds = totalDurationSeconds % 60
@@ -326,34 +243,98 @@ struct PlaylistDetailView: View {
     }
 
     private var coverKind: PlaylistActionContext.CoverKind {
-        switch livePlaylist.systemType {
+        switch cachedSystemType {
         case SystemPlaylistType.favorites: return .liked
         case SystemPlaylistType.watchLater: return .watchLater
         default: return .custom
         }
     }
 
-    private func subtitle(for item: VideoItem) -> String {
-        let artist = item.channelName.trimmingCharacters(in: .whitespacesAndNewlines)
-        let duration = item.durationText?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        if !artist.isEmpty, !duration.isEmpty { return "\(artist) • \(duration)" }
-        if !artist.isEmpty { return artist }
-        return duration
+    /// Rebuild track snapshot once — batch metadata, no per-row SwiftData hits.
+    private func reloadTracks(resetOrder: Bool) {
+        let live = store?.playlist(id: playlist.playlistId) ?? playlist
+        cachedPlaylistId = live.playlistId
+        cachedName = live.name
+        cachedSystemType = live.systemType
+
+        let metaById: [String: UserTrackMetadata] = {
+            guard let store else { return [:] }
+            return Dictionary(uniqueKeysWithValues: store.allMetadata().map { ($0.trackId, $0) })
+        }()
+
+        let rows: [PlaylistDetailTrack] = live.entries.compactMap { entry in
+            guard let track = entry.track else { return nil }
+            let raw = track.asVideoItem
+            let item = store?.displayItem(for: raw, metaById: metaById) ?? raw
+            return PlaylistDetailTrack(
+                trackId: track.trackId,
+                item: item,
+                position: entry.position,
+                addedAt: entry.createdAt
+            )
+        }
+
+        trackCount = rows.count
+        totalDurationSeconds = rows.reduce(0) { partial, row in
+            let seconds = DurationFormat.seconds(from: row.item.durationText)
+            return partial + (seconds > 0 ? seconds : 0)
+        }
+
+        if let url = PlaylistCoverStorage.resolveURL(live.coverUrlOrPath) {
+            coverURLs = [url]
+        } else {
+            coverURLs = Array(
+                rows.sorted { $0.position < $1.position }
+                    .compactMap(\.item.thumbnailURL)
+                    .prefix(4)
+            )
+        }
+
+        if resetOrder || orderedTrackIds.isEmpty {
+            orderedTrackIds = rows.sorted { $0.position < $1.position }.map(\.trackId)
+        }
+
+        let displayed = sortedTracks(from: rows)
+        if displayed.map(\.trackId) != cachedTracks.map(\.trackId)
+            || displayed.map(\.item.title) != cachedTracks.map(\.item.title)
+            || displayed.map(\.item.channelName) != cachedTracks.map(\.item.channelName)
+        {
+            tracksVersion &+= 1
+        }
+        cachedTracks = displayed
     }
 
-    private func syncOrderedIds() {
-        orderedTrackIds = entryRows
-            .sorted { $0.position < $1.position }
-            .map(\.trackId)
+    private func sortedTracks(from rows: [PlaylistDetailTrack]) -> [PlaylistDetailTrack] {
+        switch sort {
+        case .manual:
+            if orderedTrackIds.isEmpty {
+                return rows.sorted { $0.position < $1.position }
+            }
+            let byId = Dictionary(uniqueKeysWithValues: rows.map { ($0.trackId, $0) })
+            let ordered = orderedTrackIds.compactMap { byId[$0] }
+            let missing = rows.filter { !orderedTrackIds.contains($0.trackId) }
+                .sorted { $0.position < $1.position }
+            return ordered + missing
+        case .recentlyAdded:
+            return rows.sorted { $0.addedAt > $1.addedAt }
+        case .title:
+            return rows.sorted {
+                $0.item.title.localizedCaseInsensitiveCompare($1.item.title) == .orderedAscending
+            }
+        }
     }
 
     private func moveTracks(from source: IndexSet, to destination: Int) {
         guard canReorder else { return }
-        var ids = displayedTracks.map(\.trackId)
+        var ids = cachedTracks.map(\.trackId)
         ids.move(fromOffsets: source, toOffset: destination)
         orderedTrackIds = ids
-        store?.reorderPlaylistTracks(livePlaylist, orderedTrackIds: ids)
-        refreshTick += 1
+        let live = store?.playlist(id: playlist.playlistId) ?? playlist
+        store?.reorderPlaylistTracks(live, orderedTrackIds: ids)
+        // Local reorder without a full store round-trip.
+        let byId = Dictionary(uniqueKeysWithValues: cachedTracks.map { ($0.trackId, $0) })
+        cachedTracks = ids.compactMap { byId[$0] }
+        tracksVersion &+= 1
         onChange()
     }
 
@@ -366,24 +347,26 @@ struct PlaylistDetailView: View {
     }
 
     private func play(at index: Int) {
-        let items = displayedTracks.map(\.item)
+        let items = cachedTracks.map(\.item)
         guard !items.isEmpty else { return }
         playback.play(
             items: items,
             startAt: index,
-            sourcePlaylistId: livePlaylist.playlistId
+            sourcePlaylistId: cachedPlaylistId
         )
     }
 
     private func presentRename() {
+        let live = store?.playlist(id: playlist.playlistId) ?? playlist
         playlistActions.presentRename(
-            .from(playlist: livePlaylist, title: displayTitle, coverKind: coverKind)
+            .from(playlist: live, title: displayTitle, coverKind: coverKind)
         )
     }
 
     private func presentPlaylistMore() {
+        let live = store?.playlist(id: playlist.playlistId) ?? playlist
         playlistActions.present(
-            .from(playlist: livePlaylist, title: displayTitle, coverKind: coverKind)
+            .from(playlist: live, title: displayTitle, coverKind: coverKind)
         )
     }
 
@@ -398,8 +381,9 @@ struct PlaylistDetailView: View {
                 return
             }
             await MainActor.run {
-                store?.setPlaylistCoverImage(livePlaylist, image: image)
-                refreshTick += 1
+                let live = store?.playlist(id: playlist.playlistId) ?? playlist
+                store?.setPlaylistCoverImage(live, image: image)
+                reloadTracks(resetOrder: false)
                 onChange()
                 playlistActions.showToast(L("toast.cover_updated"))
             }
@@ -408,6 +392,70 @@ struct PlaylistDetailView: View {
                 playlistActions.showToast(L("error.cover_update"))
             }
         }
+    }
+}
+
+// MARK: - Track row (Equatable — skips body on playback publish storms)
+
+private struct PlaylistDetailTrackRow: View, Equatable {
+    let row: PlaylistDetailTrack
+    let onPlay: () -> Void
+    let onMore: () -> Void
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.row.trackId == rhs.row.trackId
+            && lhs.row.item.title == rhs.row.item.title
+            && lhs.row.item.channelName == rhs.row.item.channelName
+            && lhs.row.item.durationText == rhs.row.item.durationText
+            && lhs.row.item.thumbnailURL == rhs.row.item.thumbnailURL
+    }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Button(action: onPlay) {
+                HStack(spacing: 12) {
+                    VideoThumbnail(
+                        url: row.item.thumbnailURL,
+                        durationText: nil,
+                        width: 48,
+                        height: 48,
+                        cornerRadius: 4,
+                        badgePadding: 0
+                    )
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(row.item.title)
+                            .font(YTLiteType.rowTitleMedium)
+                            .foregroundStyle(YTLiteColor.onSurface)
+                            .lineLimit(1)
+                        Text(subtitle)
+                            .font(YTLiteType.meta)
+                            .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                            .lineLimit(1)
+                    }
+                    Spacer(minLength: 0)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            Button(action: onMore) {
+                Image(systemName: "ellipsis")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                    .frame(width: 36, height: 36)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.borderless)
+        }
+        .padding(.vertical, 2)
+    }
+
+    private var subtitle: String {
+        let artist = row.item.channelName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let duration = row.item.durationText?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if !artist.isEmpty, !duration.isEmpty { return "\(artist) • \(duration)" }
+        if !artist.isEmpty { return artist }
+        return duration
     }
 }
 

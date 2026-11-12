@@ -62,6 +62,9 @@ struct LibraryView: View {
     @State private var songs: [VideoItem] = []
     /// Bumped only when `songs` is replaced — cheap identity for Equatable list panes.
     @State private var songsVersion: Int = 0
+    /// Progressive window for Songs List — grows as the user scrolls near the end.
+    @State private var songsDisplayLimit: Int = 200
+    private static let songsPageSize = 200
     @State private var channels: [UserSubscribedChannel] = []
     @State private var showNewPlaylist = false
     @State private var newPlaylistName = ""
@@ -132,8 +135,9 @@ struct LibraryView: View {
                             }
                         }
                         LibrarySongsPane(
-                            songs: songs,
+                            songs: Array(songs.prefix(songsDisplayLimit)),
                             songsVersion: songsVersion,
+                            totalCount: songs.count,
                             viewMode: .list,
                             isSelectionMode: isSelectionMode,
                             selectedIds: selectedIds,
@@ -143,7 +147,8 @@ struct LibraryView: View {
                                 playerPresentation.present()
                             },
                             onToggleSelection: { toggleSelection($0) },
-                            onMore: { trackActions.present(item: $0, canDeleteFromLibrary: true) }
+                            onMore: { trackActions.present(item: $0, canDeleteFromLibrary: true) },
+                            onLoadMore: { growSongsWindow() }
                         )
                         .equatable()
                         .safeAreaInset(edge: .bottom, spacing: 0) {
@@ -760,8 +765,9 @@ struct LibraryView: View {
         case .songs:
             // Isolated from PlaybackController `@Published` churn while audio is playing.
             LibrarySongsPane(
-                songs: songs,
+                songs: Array(songs.prefix(songsDisplayLimit)),
                 songsVersion: songsVersion,
+                totalCount: songs.count,
                 viewMode: viewMode,
                 isSelectionMode: isSelectionMode,
                 selectedIds: selectedIds,
@@ -771,7 +777,8 @@ struct LibraryView: View {
                     playerPresentation.present()
                 },
                 onToggleSelection: { toggleSelection($0) },
-                onMore: { trackActions.present(item: $0, canDeleteFromLibrary: true) }
+                onMore: { trackActions.present(item: $0, canDeleteFromLibrary: true) },
+                onLoadMore: { growSongsWindow() }
             )
             .equatable()
         case .channels:
@@ -1356,13 +1363,23 @@ struct LibraryView: View {
         playlists = store?.allPlaylists() ?? []
         let items = store?.historyVideos() ?? []
         history = store?.filterNotInterested(items) ?? items
+        // `librarySongs` already applies metadata in one pass — only strip not-interested.
         let songItems = store?.librarySongs(sort: songSort) ?? []
-        let nextSongs = store?.filterNotInterested(songItems) ?? songItems
-        if nextSongs.map(\.videoId) != songs.map(\.videoId) {
+        let nextSongs = store?.excludingNotInterested(songItems) ?? songItems
+        if nextSongs.map(\.videoId) != songs.map(\.videoId)
+            || nextSongs.map(\.title) != songs.map(\.title)
+        {
             songsVersion &+= 1
+            songsDisplayLimit = Self.songsPageSize
         }
         songs = nextSongs
         channels = store?.allSubscribedChannels() ?? []
+    }
+
+    private func growSongsWindow() {
+        guard songsDisplayLimit < songs.count else { return }
+        songsDisplayLimit = min(songs.count, songsDisplayLimit + Self.songsPageSize)
+        songsVersion &+= 1
     }
 
     private func orderedPlaylistItems() -> [PlaylistDisplayItem] {
@@ -1637,6 +1654,7 @@ private struct SystemCoverView: View {
 private struct LibrarySongsPane: View, Equatable {
     let songs: [VideoItem]
     let songsVersion: Int
+    let totalCount: Int
     let viewMode: LibraryViewMode
     let isSelectionMode: Bool
     let selectedIds: Set<String>
@@ -1645,9 +1663,11 @@ private struct LibrarySongsPane: View, Equatable {
     let onPlay: (Int) -> Void
     let onToggleSelection: (String) -> Void
     let onMore: (VideoItem) -> Void
+    let onLoadMore: () -> Void
 
     static func == (lhs: Self, rhs: Self) -> Bool {
         lhs.songsVersion == rhs.songsVersion
+            && lhs.totalCount == rhs.totalCount
             && lhs.viewMode == rhs.viewMode
             && lhs.isSelectionMode == rhs.isSelectionMode
             && lhs.selectedIds == rhs.selectedIds
@@ -1667,6 +1687,7 @@ private struct LibrarySongsPane: View, Equatable {
             ) {
                 ForEach(Array(songs.enumerated()), id: \.element.videoId) { index, item in
                     songGridCell(item, index: index)
+                        .onAppear { maybeLoadMore(index: index) }
                 }
             }
             .padding(.horizontal, YTLiteLayout.screenPadding)
@@ -1679,6 +1700,7 @@ private struct LibrarySongsPane: View, Equatable {
                         .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
                         .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
+                        .onAppear { maybeLoadMore(index: index) }
                 }
             }
             .listStyle(.plain)
@@ -1686,7 +1708,16 @@ private struct LibrarySongsPane: View, Equatable {
         } else {
             ForEach(Array(songs.enumerated()), id: \.element.videoId) { index, item in
                 songListRow(item, index: index)
+                    .onAppear { maybeLoadMore(index: index) }
             }
+        }
+    }
+
+    private func maybeLoadMore(index: Int) {
+        guard songs.count < totalCount else { return }
+        // Prefetch when within one page of the end of the visible window.
+        if index >= songs.count - 40 {
+            onLoadMore()
         }
     }
 

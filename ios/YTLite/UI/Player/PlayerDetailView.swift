@@ -193,6 +193,7 @@ struct PlayerDetailView: View {
                             listToolbar
                         }
                         // Isolate queue/related rows from buffering-only playback publishes.
+                        // Row-level Equatable keeps isCurrent updates from rebuilding every cell.
                         PlayerQueueTabPane(
                             token: playerQueueTabToken,
                             tab: tab,
@@ -210,9 +211,7 @@ struct PlayerDetailView: View {
                                 AppAnalytics.relatedTap()
                             },
                             onRetryRelated: { Task { await loadRelated() } },
-                            row: { item, isCurrent, action in
-                                AnyView(listRow(item: item, isCurrent: isCurrent, action: action))
-                            }
+                            onOpenTrackMenu: { openTrackMenu($0) }
                         )
                         .equatable()
                     }
@@ -1348,45 +1347,6 @@ struct PlayerDetailView: View {
         return items
     }
 
-    private func listRow(item: VideoItem, isCurrent: Bool, action: @escaping () -> Void) -> some View {
-        let selected = selectedIds.contains(item.videoId)
-        return HStack(spacing: YTLiteLayout.stackLoose) {
-            if isSelectionMode {
-                Button(action: action) {
-                    Image(systemName: selected ? "checkmark.circle.fill" : "circle")
-                        .font(.system(size: 20))
-                        .foregroundStyle(selected ? YTLiteColor.accent : YTLiteColor.onSurfaceVariant)
-                        .frame(width: 28, height: 56)
-                }
-                .buttonStyle(.plain)
-            }
-            Button(action: action) {
-                UpNextRowContent(item: item, isCurrent: isCurrent)
-            }
-            .buttonStyle(.plain)
-            if !isSelectionMode {
-                Button {
-                    openTrackMenu(item)
-                } label: {
-                    Image(systemName: "ellipsis")
-                        .font(.system(size: 17, weight: .semibold))
-                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                        .frame(width: 36, height: 56)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.borderless)
-            }
-        }
-        .padding(.horizontal, YTLiteLayout.stackDefault)
-        .padding(.vertical, YTLiteLayout.rowVertical)
-        .background(
-            isCurrent
-                ? YTLiteColor.accent.opacity(0.14)
-                : Color.clear,
-            in: RoundedRectangle(cornerRadius: YTLiteLayout.thumbRadius)
-        )
-    }
-
     private var playbackSignInCanvasPrompt: some View {
         let showsRetry = hasCatalogGoogleAccess && playback.needsLoginForPlayback
         return VStack(spacing: 10) {
@@ -1622,7 +1582,7 @@ private struct PlayerQueueTabPane: View, Equatable {
     let onToggleSelection: (String) -> Void
     let onPlayRelatedIndex: (Int) -> Void
     let onRetryRelated: () -> Void
-    let row: (VideoItem, Bool, @escaping () -> Void) -> AnyView
+    let onOpenTrackMenu: (VideoItem) -> Void
 
     static func == (lhs: Self, rhs: Self) -> Bool {
         lhs.token == rhs.token
@@ -1631,14 +1591,23 @@ private struct PlayerQueueTabPane: View, Equatable {
     var body: some View {
         switch tab {
         case .upNext:
+            // LazyVStack parent already virtualizes; Equatable rows skip non-current rebuilds.
             ForEach(Array(queue.enumerated()), id: \.element.videoId) { index, item in
-                row(item, index == queueIndex) {
-                    if isSelectionMode {
-                        onToggleSelection(item.videoId)
-                    } else {
-                        onSelectQueueIndex(index)
-                    }
-                }
+                PlayerQueueRowView(
+                    item: item,
+                    isCurrent: index == queueIndex,
+                    isSelectionMode: isSelectionMode,
+                    isSelected: selectedIds.contains(item.videoId),
+                    onSelect: {
+                        if isSelectionMode {
+                            onToggleSelection(item.videoId)
+                        } else {
+                            onSelectQueueIndex(index)
+                        }
+                    },
+                    onMore: { onOpenTrackMenu(item) }
+                )
+                .equatable()
             }
         case .related:
             if relatedLoading && related.isEmpty {
@@ -1672,62 +1641,88 @@ private struct PlayerQueueTabPane: View, Equatable {
                     .padding(.vertical, YTLiteLayout.screenPadding)
             } else {
                 ForEach(Array(related.enumerated()), id: \.element.videoId) { index, item in
-                    row(item, false) {
-                        if isSelectionMode {
-                            onToggleSelection(item.videoId)
-                        } else {
-                            onPlayRelatedIndex(index)
-                        }
-                    }
+                    PlayerQueueRowView(
+                        item: item,
+                        isCurrent: false,
+                        isSelectionMode: isSelectionMode,
+                        isSelected: selectedIds.contains(item.videoId),
+                        onSelect: {
+                            if isSelectionMode {
+                                onToggleSelection(item.videoId)
+                            } else {
+                                onPlayRelatedIndex(index)
+                            }
+                        },
+                        onMore: { onOpenTrackMenu(item) }
+                    )
+                    .equatable()
                 }
             }
         }
     }
 }
 
-private struct UpNextRowContent: View {
+/// Equatable Up Next / Related row — only the current + previous current rows rebuild on skip.
+private struct PlayerQueueRowView: View, Equatable {
     let item: VideoItem
     let isCurrent: Bool
+    let isSelectionMode: Bool
+    let isSelected: Bool
+    let onSelect: () -> Void
+    let onMore: () -> Void
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.item.videoId == rhs.item.videoId
+            && lhs.item.title == rhs.item.title
+            && lhs.item.channelName == rhs.item.channelName
+            && lhs.item.durationText == rhs.item.durationText
+            && lhs.item.thumbnailURL == rhs.item.thumbnailURL
+            && lhs.isCurrent == rhs.isCurrent
+            && lhs.isSelectionMode == rhs.isSelectionMode
+            && lhs.isSelected == rhs.isSelected
+    }
 
     var body: some View {
         HStack(spacing: YTLiteLayout.stackLoose) {
-            VideoThumbnail(
-                url: item.thumbnailURL,
-                durationText: item.durationText,
-                width: 56,
-                height: 56,
-                cornerRadius: 6,
-                badgePadding: 2
-            )
-
-            VStack(alignment: .leading, spacing: YTLiteLayout.stackTight) {
-                Text(item.title)
-                    .font(YTLiteType.rowTitle)
-                    .foregroundStyle(isCurrent ? YTLiteColor.accent : YTLiteColor.onSurface)
-                    .lineLimit(1)
-                Text(item.channelName)
-                    .font(YTLiteType.meta)
-                    .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                    .lineLimit(1)
+            if isSelectionMode {
+                Button(action: onSelect) {
+                    Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                        .font(.system(size: 20))
+                        .foregroundStyle(isSelected ? YTLiteColor.accent : YTLiteColor.onSurfaceVariant)
+                        .frame(width: 28, height: 56)
+                }
+                .buttonStyle(.plain)
             }
-            Spacer(minLength: 0)
-        }
-        .contentShape(Rectangle())
-    }
-}
+            Button(action: onSelect) {
+                HStack(spacing: YTLiteLayout.stackLoose) {
+                    VideoThumbnail(
+                        url: item.thumbnailURL,
+                        durationText: item.durationText,
+                        width: 56,
+                        height: 56,
+                        cornerRadius: 6,
+                        badgePadding: 2
+                    )
 
-private struct UpNextRow: View {
-    let item: VideoItem
-    let isCurrent: Bool
-    var onMore: (() -> Void)? = nil
-
-    var body: some View {
-        HStack(spacing: 0) {
-            UpNextRowContent(item: item, isCurrent: isCurrent)
-            if let onMore {
+                    VStack(alignment: .leading, spacing: YTLiteLayout.stackTight) {
+                        Text(item.title)
+                            .font(YTLiteType.rowTitle)
+                            .foregroundStyle(isCurrent ? YTLiteColor.accent : YTLiteColor.onSurface)
+                            .lineLimit(1)
+                        Text(item.channelName)
+                            .font(YTLiteType.meta)
+                            .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                            .lineLimit(1)
+                    }
+                    Spacer(minLength: 0)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            if !isSelectionMode {
                 Button(action: onMore) {
                     Image(systemName: "ellipsis")
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(.system(size: 17, weight: .semibold))
                         .foregroundStyle(YTLiteColor.onSurfaceVariant)
                         .frame(width: 36, height: 56)
                         .contentShape(Rectangle())
