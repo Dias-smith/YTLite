@@ -9,7 +9,7 @@ struct RootView: View {
     @EnvironmentObject private var review: ReviewPromptCoordinator
     @Environment(\.modelContext) private var modelContext
     @StateObject private var playerPresentation = PlayerPresentation()
-    @State private var selectedTab: AppTab = .home
+    @State private var selectedTab: AppTab = .restored
     @State private var libraryStore: LibraryStore?
     @State private var syncService: LibrarySyncService?
     @State private var isKeyboardVisible = false
@@ -39,6 +39,7 @@ struct RootView: View {
                 AdSceneLifecycle.recordFirstInteraction(source: "tab")
             }
             .onChange(of: selectedTab) { _, tab in
+                tab.persist()
                 AdSceneLifecycle.recordFirstInteraction(source: "tab")
                 #if DEBUG
                 AppDebugSessionState.shared.setTab(Self.debugTabName(tab), viewID: "tab.\(Self.debugTabName(tab))")
@@ -235,8 +236,21 @@ struct RootView: View {
     }
 }
 
-enum AppTab: Hashable {
+enum AppTab: String, Hashable {
     case home, search, you, library
+
+    private static let storageKey = "selected_app_tab"
+
+    static var restored: AppTab {
+        guard let raw = UserDefaults.standard.string(forKey: storageKey),
+              let tab = AppTab(rawValue: raw)
+        else { return .home }
+        return tab
+    }
+
+    func persist() {
+        UserDefaults.standard.set(rawValue, forKey: Self.storageKey)
+    }
 }
 
 extension RootView {
