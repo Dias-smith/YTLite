@@ -52,7 +52,7 @@ struct TrackLyricsSheet: View {
                     .padding(YTLiteLayout.screenPadding)
                 }
             }
-            .background(YTLiteColor.background)
+            .background(YTLiteColor.surfaceElevated)
             .navigationTitle(L("player.lyrics"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

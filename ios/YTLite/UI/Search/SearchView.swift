@@ -349,6 +349,8 @@ struct SearchView: View {
                     }
                 }
             }
+            .coordinateSpace(name: BubbleGuideStore.coordinateSpaceName)
+            .bubbleGuideLayer(.searchFilter, text: L("guide.search_filter"))
             .ytLiteContentWidth(enabled: YTLiteAdaptive.isRegularWidth(horizontalSizeClass))
             .ytLiteAppBackground()
             .navigationBarHidden(true)
@@ -464,6 +466,7 @@ struct SearchView: View {
             }
 
             Button {
+                BubbleGuideStore.shared.dismiss(.searchFilter)
                 showResultsFilter = true
             } label: {
                 Image(systemName: viewModel.resultsFilter.isActive
@@ -481,6 +484,7 @@ struct SearchView: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel(L("home.filter.title"))
+            .bubbleGuideTarget(.searchFilter)
             .padding(.leading, YTLiteLayout.stackLoose)
             .padding(.trailing, YTLiteLayout.screenPadding)
         }

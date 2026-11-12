@@ -85,7 +85,7 @@ struct EqualizerSheet: View {
                 }
             }
             .scrollContentBackground(.hidden)
-            .background(YTLiteColor.background)
+            .background(YTLiteColor.surfaceElevated)
             .navigationTitle(L("equalizer.title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -102,7 +102,7 @@ struct EqualizerSheet: View {
                         .padding(.trailing, 6)
                 }
             }
-            .toolbarBackground(YTLiteColor.background, for: .navigationBar)
+            .toolbarBackground(YTLiteColor.surfaceElevated, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
             .onChange(of: equalizerStore.isEnabled) { _, _ in
                 playback.refreshEqualizer()

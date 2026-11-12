@@ -35,6 +35,7 @@ struct TrackActionHost<Content: View>: View {
                         )
                         .presentationDragIndicator(.hidden)
                         .presentationContentInteraction(.scrolls)
+                        .presentationBackground(YTLiteColor.surfaceElevated)
                 }
             }
             .sheet(isPresented: $playlistPresenter.showActions) {
@@ -50,6 +51,7 @@ struct TrackActionHost<Content: View>: View {
                         )
                         .presentationDragIndicator(.hidden)
                         .presentationContentInteraction(.scrolls)
+                        .presentationBackground(YTLiteColor.surfaceElevated)
                 }
             }
             .sheet(isPresented: $playlistPresenter.showRename) {
@@ -83,6 +85,7 @@ struct TrackActionHost<Content: View>: View {
                             sizeClass: horizontalSizeClass
                         )
                     )
+                    .presentationBackground(YTLiteColor.surfaceElevated)
             }
             .onChange(of: isPresentingAdBlockingSheet) { _, blocked in
                 AdSceneLifecycle.setUIBlocked("track_action_host", blocked: blocked)
@@ -185,7 +188,7 @@ private struct PlaylistDeleteConfirmSheet: View {
                 .buttonStyle(.bordered)
             }
             .padding(YTLiteLayout.screenPadding)
-            .background(YTLiteColor.background)
+            .background(YTLiteColor.surfaceElevated)
             .navigationTitle(L("library.delete_playlist_q"))
             .navigationBarTitleDisplayMode(.inline)
         }

@@ -935,6 +935,8 @@ struct PlaylistSearchView: View {
 
 struct ChannelVideosView: View {
     let channel: ChannelItem
+    /// Sheets must stay solid; push destinations may keep the app wallpaper.
+    var usesAppWallpaper: Bool = true
     @EnvironmentObject private var playback: PlaybackController
     @EnvironmentObject private var trackActions: TrackActionPresenter
     @Environment(\.libraryStore) private var store
@@ -972,7 +974,7 @@ struct ChannelVideosView: View {
                 .equatable()
             }
         }
-        .ytLiteAppBackground()
+        .modifier(ChannelVideosSurfaceModifier(usesAppWallpaper: usesAppWallpaper))
         .ytLiteMiniPlayerScrollInset()
         .navigationTitle(channel.title)
         .navigationBarTitleDisplayMode(.inline)
@@ -1066,6 +1068,20 @@ struct ChannelVideosView: View {
         } catch {
             guard !Task.isCancelled else { return }
             errorMessage = error.localizedDescription
+        }
+    }
+}
+
+/// Wallpaper for push destinations; solid fill when presented as a sheet.
+private struct ChannelVideosSurfaceModifier: ViewModifier {
+    let usesAppWallpaper: Bool
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if usesAppWallpaper {
+            content.ytLiteAppBackground()
+        } else {
+            content.background(YTLiteColor.surfaceElevated)
         }
     }
 }

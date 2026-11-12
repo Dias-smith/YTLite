@@ -96,7 +96,8 @@ struct LyricsSheet: View {
                         Button(L("common.close")) { dismiss() }
                     }
                 }
-                .background(YTLiteColor.background)
+                .background(YTLiteColor.surfaceElevated)
         }
+        .presentationBackground(YTLiteColor.surfaceElevated)
     }
 }

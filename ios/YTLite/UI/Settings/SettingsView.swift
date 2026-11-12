@@ -683,7 +683,7 @@ struct LocaleSetupSheet: View {
                 }
                 .scrollContentBackground(.hidden)
             }
-            .background(YTLiteColor.background)
+            .background(YTLiteColor.surfaceElevated)
             .navigationTitle(L("locale_setup.title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -701,5 +701,6 @@ struct LocaleSetupSheet: View {
         .interactiveDismissDisabled(true)
         .presentationDetents([.large])
         .presentationDragIndicator(.hidden)
+        .presentationBackground(YTLiteColor.surfaceElevated)
     }
 }

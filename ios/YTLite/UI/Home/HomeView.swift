@@ -782,6 +782,14 @@ struct HomeView: View {
                 categoryChips
                 categoryPager
             }
+            .coordinateSpace(name: BubbleGuideStore.coordinateSpaceName)
+            // Floating tip under the filter chip — does not take chips-row space.
+            // tipXFromLeading: chip leading padding (6) + half filter-icon width (15).
+            .bubbleGuideLayer(
+                .homeFilter,
+                text: L("guide.home_filter"),
+                tipXFromLeading: 6 + 15
+            )
             .ytLiteContentWidth(enabled: YTLiteAdaptive.isRegularWidth(horizontalSizeClass))
             .ytLiteAppBackground()
             .toolbar(.hidden, for: .navigationBar)
@@ -838,7 +846,7 @@ struct HomeView: View {
 
     private var categoryChips: some View {
         ScrollViewReader { proxy in
-            HStack(spacing: 0) {
+            HStack(alignment: .center, spacing: 0) {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: YTLiteLayout.stackDefault) {
                         ForEach(viewModel.orderedCategories) { cat in
@@ -893,7 +901,9 @@ struct HomeView: View {
                 .padding(.horizontal, 6)
                 .padding(.vertical, 2)
                 .background(YTLiteColor.surfaceChip, in: Capsule())
-                .bubbleGuide(.homeFilter, text: L("guide.home_filter"))
+                // Report the chip capsule frame; caret tip uses tipXFromLeading on the layer.
+                .bubbleGuideTarget(.homeFilter)
+                .padding(.vertical, YTLiteLayout.stackLoose)
                 .padding(.leading, YTLiteLayout.stackLoose)
                 .padding(.trailing, YTLiteLayout.screenPadding)
             }
@@ -1201,7 +1211,7 @@ struct HomeFeedFilterSheet: View {
                 .padding(.top, YTLiteLayout.stackLoose)
                 .padding(.bottom, YTLiteLayout.sectionGap)
             }
-            .ytLiteAppBackground()
+            .background(YTLiteColor.surfaceElevated)
             .navigationTitle(L("home.filter.title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -1224,6 +1234,7 @@ struct HomeFeedFilterSheet: View {
         }
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
+        .presentationBackground(YTLiteColor.surfaceElevated)
     }
 
     private func filterSection<Content: View>(
@@ -1397,7 +1408,7 @@ private struct CategoryReorderSheet: View {
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
-            .background(YTLiteColor.surface)
+            .background(YTLiteColor.surfaceElevated)
             .environment(\.editMode, .constant(.active))
             .navigationTitle(L("home.category.reorder"))
             .navigationBarTitleDisplayMode(.inline)
@@ -1415,6 +1426,7 @@ private struct CategoryReorderSheet: View {
         }
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
+        .presentationBackground(YTLiteColor.surfaceElevated)
     }
 }
 

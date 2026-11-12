@@ -169,7 +169,7 @@ struct LibraryView: View {
                     .ytLiteMiniPlayerScrollInset()
                 }
 
-                if !isSelectionMode && !isReorderMode {
+                if filter == .playlists, !isSelectionMode, !isReorderMode {
                     Button {
                         showNewPlaylist = true
                     } label: {
@@ -223,6 +223,12 @@ struct LibraryView: View {
                 if appModel.isLibrarySyncing {
                     handleLibrarySyncingChange(true)
                 }
+            }
+            // Store is created asynchronously in RootView.onAppear — refresh once it arrives
+            // so Liked / Watch later (from SwiftData) are not stuck missing behind synthetic History.
+            .onChange(of: store != nil) { _, hasStore in
+                guard hasStore else { return }
+                reload()
             }
             .onChange(of: trackActions.listEpoch) { _, _ in reload() }
             .onChange(of: playlistActions.listEpoch) { _, _ in reload() }
@@ -457,7 +463,7 @@ struct LibraryView: View {
                         Spacer()
                     }
                     .frame(maxWidth: .infinity)
-                    .ytLiteAppBackground()
+                    .background(YTLiteColor.surfaceElevated)
                     .navigationTitle(L("common.sign_in"))
                     .navigationBarTitleDisplayMode(.inline)
                     .toolbar {
@@ -468,7 +474,7 @@ struct LibraryView: View {
                 }
                 .presentationDetents([.medium])
                 .presentationDragIndicator(.visible)
-                .preferredColorScheme(.dark)
+                .presentationBackground(YTLiteColor.surfaceElevated)
             }
             .alert(
                 "Delete account?",
@@ -500,11 +506,11 @@ struct LibraryView: View {
     // MARK: - Headers
 
     private var header: some View {
-        HStack(alignment: .center) {
+        HStack(alignment: .center, spacing: YTLiteLayout.stackLoose) {
             Text(L("library.title"))
                 .font(YTLiteType.pageTitle)
                 .foregroundStyle(YTLiteColor.onSurface)
-            Spacer()
+            Spacer(minLength: 0)
             if auth.isAuthenticated {
                 Button {
                     showAccountMenu = true
@@ -535,12 +541,6 @@ struct LibraryView: View {
                     .font(.system(size: 20))
                     .foregroundStyle(YTLiteColor.onSurfaceVariant)
             }
-            .simultaneousGesture(
-                TapGesture().onEnded {
-                    BubbleGuideStore.shared.dismiss(.librarySettings)
-                }
-            )
-            .bubbleGuide(.librarySettings, text: L("guide.library_settings"))
         }
         .padding(.horizontal, YTLiteLayout.screenPadding)
         .padding(.top, YTLiteLayout.rowVertical)
@@ -668,7 +668,7 @@ struct LibraryView: View {
             }
             .buttonStyle(.plain)
 
-            if supportsMultiSelect {
+            if showsMultiSelectControl {
                 Button {
                     enterSelectionMode()
                 } label: {
@@ -703,8 +703,17 @@ struct LibraryView: View {
         }
     }
 
-    private var supportsMultiSelect: Bool {
-        filter == .playlists || filter == .songs || filter == .channels
+    /// Edit/select control — playlists only when at least one user-created playlist exists
+    /// (system rows Liked / Watch later / History are not multi-selectable).
+    private var showsMultiSelectControl: Bool {
+        switch filter {
+        case .playlists:
+            return displayedPlaylists.contains(where: \.isSelectable)
+        case .songs:
+            return !displayedSongs.isEmpty
+        case .channels:
+            return !displayedChannels.isEmpty
+        }
     }
 
     private var displayedPlaylists: [PlaylistDisplayItem] {
@@ -1180,7 +1189,7 @@ struct LibraryView: View {
     }
 
     private func enterSelectionMode() {
-        guard supportsMultiSelect else { return }
+        guard showsMultiSelectControl else { return }
         exitReorderMode(save: false)
         isSelectionMode = true
         selectedIds = []
@@ -1294,6 +1303,8 @@ struct LibraryView: View {
         } else {
             promoteCompactSyncTask?.cancel()
             promoteCompactSyncTask = nil
+            // Sync / owner switch may have rewritten playlists — refresh Liked / Watch later / customs.
+            reload()
             if suppressSyncCompletionToast {
                 suppressSyncCompletionToast = false
             } else if auth.isAuthenticated {
@@ -1340,6 +1351,8 @@ struct LibraryView: View {
     }
 
     private func reload() {
+        // Liked / Watch later are persisted system playlists; ensure they exist for this owner.
+        store?.ensureSystemPlaylists()
         playlists = store?.allPlaylists() ?? []
         let items = store?.historyVideos() ?? []
         history = store?.filterNotInterested(items) ?? items

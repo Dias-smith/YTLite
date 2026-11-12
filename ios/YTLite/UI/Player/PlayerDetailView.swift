@@ -339,7 +339,7 @@ struct PlayerDetailView: View {
                     }
                     Spacer(minLength: 0)
                 }
-                .background(YTLiteColor.surface)
+                .background(YTLiteColor.surfaceElevated)
                 .navigationTitle(L("common.sign_in"))
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
@@ -350,10 +350,12 @@ struct PlayerDetailView: View {
             }
             .presentationDetents([.medium])
             .presentationDragIndicator(.visible)
+            .presentationBackground(YTLiteColor.surfaceElevated)
         }
         .sheet(isPresented: $showSpeedSheet) {
             SpeedPickerSheet(selected: $playback.playbackSpeed)
                 .presentationDetents([.medium])
+                .presentationBackground(YTLiteColor.surfaceElevated)
         }
         .sheet(isPresented: $showEqualizerSheet) {
             EqualizerSheet()
@@ -361,16 +363,19 @@ struct PlayerDetailView: View {
                 .environmentObject(playback.equalizerStore)
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
+                .presentationBackground(YTLiteColor.surfaceElevated)
         }
         .sheet(isPresented: $showHLSQualitySheet) {
             HLSQualityPickerSheet()
                 .environmentObject(playback)
                 .presentationDetents([.medium])
+                .presentationBackground(YTLiteColor.surfaceElevated)
         }
         .sheet(isPresented: $showSleepTimerSheet) {
             SleepTimerSheet()
                 .environmentObject(playback)
                 .presentationDetents([.medium])
+                .presentationBackground(YTLiteColor.surfaceElevated)
         }
         .sheet(isPresented: $showShareSheet, onDismiss: { shareURL = nil }) {
             if let shareURL {
@@ -410,10 +415,11 @@ struct PlayerDetailView: View {
                 .presentationDetents([.fraction(0.72), .large])
                 .presentationDragIndicator(.hidden)
                 .presentationContentInteraction(.scrolls)
+                .presentationBackground(YTLiteColor.surfaceElevated)
         }
         .sheet(item: $channelSheetItem) { channel in
             NavigationStack {
-                ChannelVideosView(channel: channel)
+                ChannelVideosView(channel: channel, usesAppWallpaper: false)
                     .environmentObject(playback)
                     .environmentObject(trackActions)
                     .environmentObject(playerPresentation)
@@ -426,7 +432,7 @@ struct PlayerDetailView: View {
             }
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)
-            .presentationBackground(YTLiteColor.background)
+            .presentationBackground(YTLiteColor.surfaceElevated)
         }
         .onChange(of: playback.isPlaying) { _, playing in
             if playing, !playback.isBuffering { bumpOverlayAutoHide() }
@@ -1805,7 +1811,7 @@ struct SpeedPickerSheet: View {
                 .listRowBackground(YTLiteColor.surfaceElevated)
             }
             .scrollContentBackground(.hidden)
-            .background(YTLiteColor.background)
+            .background(YTLiteColor.surfaceElevated)
             .navigationTitle(L("player.playback_speed"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -1836,7 +1842,7 @@ struct HLSQualityPickerSheet: View {
                 }
             }
             .scrollContentBackground(.hidden)
-            .background(YTLiteColor.background)
+            .background(YTLiteColor.surfaceElevated)
             .navigationTitle(L("player.quality"))
             .navigationBarTitleDisplayMode(.inline)
             .overlay {
@@ -1898,7 +1904,7 @@ struct SleepTimerSheet: View {
                 .listRowBackground(YTLiteColor.surfaceElevated)
             }
             .scrollContentBackground(.hidden)
-            .background(YTLiteColor.background)
+            .background(YTLiteColor.surfaceElevated)
             .navigationTitle(L("player.sleep_timer"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

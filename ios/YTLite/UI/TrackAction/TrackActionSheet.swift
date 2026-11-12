@@ -143,6 +143,7 @@ struct TrackActionSheet: View {
         }
         .sheet(isPresented: $trackActions.showLyrics) {
             TrackLyricsSheet(videoId: context.videoId)
+                .presentationBackground(YTLiteColor.surfaceElevated)
         }
     }
 

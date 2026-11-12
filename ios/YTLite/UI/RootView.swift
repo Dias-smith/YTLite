@@ -96,6 +96,8 @@ struct RootView: View {
                     libraryStore = store
                     playback.libraryStore = store
                     AdEligibility.bind(libraryStore: store)
+                    // Notify Library / other tabs that waited on a nil store during first appear.
+                    appModel.bumpLibraryRevision()
                     Task { await DailyListenNotificationScheduler.refresh(using: store) }
                     playback.consumePendingDailyListenIfNeeded()
                     let sync = LibrarySyncService(auth: auth)
