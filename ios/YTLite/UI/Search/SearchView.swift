@@ -9,14 +9,18 @@ final class SearchViewModel: ObservableObject {
     @Published var suggestions: [SearchSuggestionItem] = []
     @Published var selectedTab: SearchResultTab = .all
     @Published var isLoading = false
+    @Published private(set) var isLoadingMore = false
     @Published var isSuggestionsLoading = false
     @Published var errorMessage: String?
     @Published private(set) var phase: SearchPhase = .hub
     @Published private(set) var activeResultsQuery: String = ""
+    /// Same duration / views buckets as Home (`HomeFeedFilter`).
+    @Published private(set) var resultsFilter: HomeFeedFilter
     /// Data API mostPopular Music titles — Android `SearchUiState.hotKeywords`.
     @Published private(set) var hotKeywords: [String] = []
 
     private var searchTask: Task<Void, Never>?
+    private var searchGeneration = 0
     private var suggestTask: Task<Void, Never>?
     private var debounceTask: Task<Void, Never>?
     private var hotKeywordsTask: Task<Void, Never>?
@@ -24,9 +28,33 @@ final class SearchViewModel: ObservableObject {
     private var suppressQuerySideEffects = false
     /// One in-app interstitial per submitted query (not per tab reload).
     private var interstitialArmedQuery: String?
+    /// Next-page token for the active results query / tab.
+    private var resultsContinuation: String?
+
+    init() {
+        resultsFilter = SearchResultsFilterStore.load()
+    }
+
+    /// Hits after applying the local duration / views filter (channels & playlists always pass).
+    var filteredHits: [SearchHit] {
+        guard resultsFilter.isActive else { return hits }
+        return hits.filter { hit in
+            switch hit {
+            case .video(let video):
+                return resultsFilter.matches(video)
+            case .channel, .playlist:
+                return true
+            }
+        }
+    }
 
     func bind(memory: SearchMemoryStore) {
         self.memory = memory
+    }
+
+    func applyResultsFilter(_ filter: HomeFeedFilter) {
+        resultsFilter = filter
+        SearchResultsFilterStore.save(filter)
     }
 
     func loadHotKeywordsIfNeeded() {
@@ -46,6 +74,8 @@ final class SearchViewModel: ObservableObject {
         suggestions = []
         errorMessage = nil
         interstitialArmedQuery = nil
+        resultsContinuation = nil
+        isLoadingMore = false
 
         let activeQuery = activeResultsQuery
         if phase == .results, !activeQuery.isEmpty, let memory {
@@ -120,8 +150,24 @@ final class SearchViewModel: ObservableObject {
         activeResultsQuery = ""
         selectedTab = .all
         isLoading = false
+        isLoadingMore = false
         isSuggestionsLoading = false
         interstitialArmedQuery = nil
+        resultsContinuation = nil
+    }
+
+    /// Append the next results page when the user nears the list end.
+    func loadMoreIfNeeded() {
+        guard phase == .results,
+              memory != nil,
+              let continuation = resultsContinuation,
+              !continuation.isEmpty,
+              !isLoading,
+              !isLoadingMore,
+              !activeResultsQuery.isEmpty
+        else { return }
+        guard let memory else { return }
+        loadResults(memory: memory, reset: false)
     }
 
     func applySuggestion(_ item: SearchSuggestionItem, memory: SearchMemoryStore) {
@@ -139,29 +185,65 @@ final class SearchViewModel: ObservableObject {
         let q = activeResultsQuery
         let tab = selectedTab
         guard !q.isEmpty else { return }
+        let continuation = reset ? nil : resultsContinuation
+        if !reset {
+            guard let continuation, !continuation.isEmpty else { return }
+        }
         searchTask?.cancel()
+        searchGeneration += 1
+        let generation = searchGeneration
         searchTask = Task {
-            isLoading = true
-            errorMessage = nil
-            if reset { hits = [] }
-            defer { isLoading = false }
+            if reset {
+                isLoading = true
+                isLoadingMore = false
+                errorMessage = nil
+                hits = []
+                resultsContinuation = nil
+            } else {
+                isLoadingMore = true
+            }
+            defer {
+                if generation == searchGeneration {
+                    isLoading = false
+                    isLoadingMore = false
+                }
+            }
             do {
-                let page = try await InnerTubeClient.search(query: q, tab: tab)
-                guard !Task.isCancelled else { return }
-                hits = page
-                if tab == .all || tab == .videos {
-                    memory.record(query: q, results: page.compactMap(\.asVideoItem))
+                let page = try await InnerTubeClient.search(
+                    query: q,
+                    tab: tab,
+                    continuation: continuation
+                )
+                guard !Task.isCancelled, generation == searchGeneration else { return }
+                if reset {
+                    hits = page.hits
                 } else {
+                    var seen = Set(hits.map(\.id))
+                    for hit in page.hits where seen.insert(hit.id).inserted {
+                        hits.append(hit)
+                    }
+                }
+                resultsContinuation = page.continuation
+                if tab == .all || tab == .videos {
+                    memory.record(query: q, results: hits.compactMap(\.asVideoItem))
+                } else if reset {
                     memory.record(query: q, results: [])
                 }
-                if page.isEmpty {
+                if reset, page.hits.isEmpty {
                     errorMessage = "No results for \"\(q)\""
                 }
-                presentSearchResultsAdIfNeeded(query: q)
+                if reset {
+                    presentSearchResultsAdIfNeeded(query: q)
+                }
             } catch {
-                errorMessage = error.localizedDescription
-                hits = []
-                presentSearchResultsAdIfNeeded(query: q)
+                guard generation == searchGeneration else { return }
+                if reset {
+                    errorMessage = error.localizedDescription
+                    hits = []
+                    resultsContinuation = nil
+                    presentSearchResultsAdIfNeeded(query: q)
+                }
+                // Keep existing hits when a "load more" request fails.
             }
         }
     }
@@ -246,6 +328,7 @@ struct SearchView: View {
     @EnvironmentObject private var playerPresentation: PlayerPresentation
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @FocusState private var searchFocused: Bool
+    @State private var showResultsFilter = false
 
     var body: some View {
         NavigationStack {
@@ -276,11 +359,23 @@ struct SearchView: View {
             .onChange(of: appModel.contentLocaleRevision) { _, _ in
                 viewModel.handleContentLocaleChange()
             }
+            .sheet(isPresented: $showResultsFilter) {
+                HomeFeedFilterSheet(
+                    filter: viewModel.resultsFilter,
+                    onApply: { next in
+                        viewModel.applyResultsFilter(next)
+                        showResultsFilter = false
+                    },
+                    onCancel: {
+                        showResultsFilter = false
+                    }
+                )
+            }
             .debugAction("search.run_yudie") {
                 viewModel.submit(memory: memory, query: "雨蝶", tab: .videos)
             }
             .debugAction("search.play_first") {
-                let videos = viewModel.hits.compactMap(\.asVideoItem)
+                let videos = viewModel.filteredHits.compactMap(\.asVideoItem)
                 guard let first = videos.first else { return }
                 playback.play(items: videos, startAt: 0, analyticsSource: "search")
                 playerPresentation.isPresented = true
@@ -324,6 +419,30 @@ struct SearchView: View {
                     .font(YTLiteType.body)
                     .foregroundStyle(YTLiteColor.onSurfaceVariant)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if viewModel.filteredHits.isEmpty {
+                VStack(spacing: YTLiteLayout.stackLoose) {
+                    if viewModel.isLoadingMore {
+                        ProgressView()
+                            .tint(YTLiteColor.accent)
+                    }
+                    Text(
+                        viewModel.resultsFilter.isActive
+                            ? L("home.filter.empty")
+                            : (viewModel.errorMessage ?? L("search.no_results"))
+                    )
+                    .font(YTLiteType.body)
+                    .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, YTLiteLayout.screenPadding)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .onAppear {
+                    // Keep paging while the active filter hides the current page.
+                    viewModel.loadMoreIfNeeded()
+                }
+                .onChange(of: viewModel.hits.count) { _, _ in
+                    viewModel.loadMoreIfNeeded()
+                }
             } else {
                 resultsList
             }
@@ -331,15 +450,39 @@ struct SearchView: View {
     }
 
     private var resultTabs: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: YTLiteLayout.stackDefault) {
-                ForEach(SearchResultTab.allCases) { tab in
-                    YTLiteChip(title: tab.title, selected: viewModel.selectedTab == tab) {
-                        viewModel.selectTab(tab, memory: memory)
+        HStack(spacing: 0) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: YTLiteLayout.stackDefault) {
+                    ForEach(SearchResultTab.allCases) { tab in
+                        YTLiteChip(title: tab.title, selected: viewModel.selectedTab == tab) {
+                            viewModel.selectTab(tab, memory: memory)
+                        }
                     }
                 }
+                .padding(.leading, YTLiteLayout.screenPadding)
+                .padding(.trailing, YTLiteLayout.stackTight)
             }
-            .padding(.horizontal, YTLiteLayout.screenPadding)
+
+            Button {
+                showResultsFilter = true
+            } label: {
+                Image(systemName: viewModel.resultsFilter.isActive
+                      ? "line.3.horizontal.decrease.circle.fill"
+                      : "line.3.horizontal.decrease.circle")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(
+                        viewModel.resultsFilter.isActive
+                            ? YTLiteColor.accent
+                            : YTLiteColor.onSurface
+                    )
+                    .frame(width: 32, height: 32)
+                    .background(YTLiteColor.surfaceChip, in: Capsule())
+                    .contentShape(Capsule())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(L("home.filter.title"))
+            .padding(.leading, YTLiteLayout.stackLoose)
+            .padding(.trailing, YTLiteLayout.screenPadding)
         }
         .padding(.bottom, YTLiteLayout.stackTight)
     }
@@ -350,13 +493,15 @@ struct SearchView: View {
                 for: geo.size.width,
                 sizeClass: horizontalSizeClass
             )
+            let displayHits = viewModel.filteredHits
             SearchResultsPane(
                 token: searchHitsToken,
-                hits: viewModel.hits,
+                hits: displayHits,
                 columns: columns,
                 isLoadingOverlay: viewModel.isLoading && !viewModel.hits.isEmpty,
+                isLoadingMore: viewModel.isLoadingMore,
                 onPlayVideo: { item in
-                    let videos = viewModel.hits.compactMap(\.asVideoItem)
+                    let videos = displayHits.compactMap(\.asVideoItem)
                     let index = videos.firstIndex(where: { $0.videoId == item.videoId }) ?? 0
                     AppAnalytics.searchResultTap(type: "video")
                     playback.play(
@@ -366,19 +511,25 @@ struct SearchView: View {
                     )
                     playerPresentation.present()
                 },
-                onMore: { trackActions.present(item: $0) }
+                onMore: { trackActions.present(item: $0) },
+                onNearEnd: { viewModel.loadMoreIfNeeded() }
             )
             .equatable()
         }
     }
 
     private var searchHitsToken: Int {
+        let display = viewModel.filteredHits
         var hasher = Hasher()
+        hasher.combine(display.count)
+        hasher.combine(display.first?.id)
+        hasher.combine(display.last?.id)
         hasher.combine(viewModel.hits.count)
-        hasher.combine(viewModel.hits.first?.id)
-        hasher.combine(viewModel.hits.last?.id)
         hasher.combine(viewModel.selectedTab)
         hasher.combine(viewModel.isLoading)
+        hasher.combine(viewModel.isLoadingMore)
+        hasher.combine(viewModel.resultsFilter.durations.map(\.rawValue).sorted())
+        hasher.combine(viewModel.resultsFilter.viewCounts.map(\.rawValue).sorted())
         return hasher.finalize()
     }
 
@@ -739,11 +890,16 @@ private struct SearchResultsPane: View, Equatable {
     let hits: [SearchHit]
     let columns: Int
     let isLoadingOverlay: Bool
+    let isLoadingMore: Bool
     let onPlayVideo: (VideoItem) -> Void
     let onMore: (VideoItem) -> Void
+    let onNearEnd: () -> Void
 
     static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.token == rhs.token && lhs.columns == rhs.columns && lhs.isLoadingOverlay == rhs.isLoadingOverlay
+        lhs.token == rhs.token
+            && lhs.columns == rhs.columns
+            && lhs.isLoadingOverlay == rhs.isLoadingOverlay
+            && lhs.isLoadingMore == rhs.isLoadingMore
     }
 
     var body: some View {
@@ -751,8 +907,19 @@ private struct SearchResultsPane: View, Equatable {
             if columns <= 1 {
                 ScrollView {
                     LazyVStack(spacing: 0) {
-                        ForEach(hits) { hit in
+                        ForEach(Array(hits.enumerated()), id: \.element.id) { index, hit in
                             hitRow(hit, fullWidth: true)
+                                .onAppear {
+                                    if index >= max(0, hits.count - 4) {
+                                        onNearEnd()
+                                    }
+                                }
+                        }
+                        if isLoadingMore {
+                            ProgressView()
+                                .tint(YTLiteColor.accent)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 16)
                         }
                     }
                 }
@@ -763,8 +930,20 @@ private struct SearchResultsPane: View, Equatable {
                         columns: YTLiteAdaptive.gridItems(count: columns, spacing: 12),
                         spacing: 12
                     ) {
-                        ForEach(hits) { hit in
+                        ForEach(Array(hits.enumerated()), id: \.element.id) { index, hit in
                             hitRow(hit, fullWidth: false)
+                                .onAppear {
+                                    if index >= max(0, hits.count - 4) {
+                                        onNearEnd()
+                                    }
+                                }
+                        }
+                        if isLoadingMore {
+                            ProgressView()
+                                .tint(YTLiteColor.accent)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 16)
+                                .gridCellColumns(columns)
                         }
                     }
                     .padding(.horizontal, YTLiteLayout.screenPadding)

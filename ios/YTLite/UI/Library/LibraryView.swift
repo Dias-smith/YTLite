@@ -535,6 +535,12 @@ struct LibraryView: View {
                     .font(.system(size: 20))
                     .foregroundStyle(YTLiteColor.onSurfaceVariant)
             }
+            .simultaneousGesture(
+                TapGesture().onEnded {
+                    BubbleGuideStore.shared.dismiss(.librarySettings)
+                }
+            )
+            .bubbleGuide(.librarySettings, text: L("guide.library_settings"))
         }
         .padding(.horizontal, YTLiteLayout.screenPadding)
         .padding(.top, YTLiteLayout.rowVertical)

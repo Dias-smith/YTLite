@@ -13,17 +13,20 @@ struct YouView: View {
 
     var body: some View {
         NavigationStack {
-            Group {
-                if !auth.isAuthenticated {
-                    subsSignInEmpty
-                } else if auth.googleAccessToken == nil {
-                    appleSignedInYouPlaceholder
-                } else if !viewModel.hasLoadedOnce {
-                    ProgressView()
-                        .tint(YTLiteColor.accent)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else {
-                    signedInContent
+            VStack(spacing: 0) {
+                youSettingsBar
+                Group {
+                    if !auth.isAuthenticated {
+                        subsSignInEmpty
+                    } else if auth.googleAccessToken == nil {
+                        appleSignedInYouPlaceholder
+                    } else if !viewModel.hasLoadedOnce {
+                        ProgressView()
+                            .tint(YTLiteColor.accent)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else {
+                        signedInContent
+                    }
                 }
             }
             .ytLiteContentWidth(enabled: YTLiteAdaptive.isRegularWidth(horizontalSizeClass))
@@ -43,6 +46,23 @@ struct YouView: View {
                 )
             }
         }
+    }
+
+    /// Trailing settings control (parity with Library header gear).
+    private var youSettingsBar: some View {
+        HStack {
+            Spacer(minLength: 0)
+            NavigationLink {
+                SettingsView()
+            } label: {
+                Image(systemName: "gearshape")
+                    .font(.system(size: 20))
+                    .foregroundStyle(YTLiteColor.onSurfaceVariant)
+            }
+            .accessibilityLabel(L("settings.title"))
+        }
+        .padding(.horizontal, YTLiteLayout.screenPadding)
+        .padding(.top, YTLiteLayout.rowVertical)
     }
 
     // MARK: - Guest

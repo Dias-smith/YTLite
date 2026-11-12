@@ -772,6 +772,8 @@ struct HomeView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var showCategoryReorder = false
     @State private var showFeedFilter = false
+    /// Drives horizontal page scroll; kept in sync with `selectedCategoryId`.
+    @State private var pagerScrollId: String?
     @EnvironmentObject private var playerPresentation: PlayerPresentation
 
     var body: some View {
@@ -783,6 +785,11 @@ struct HomeView: View {
             .ytLiteContentWidth(enabled: YTLiteAdaptive.isRegularWidth(horizontalSizeClass))
             .ytLiteAppBackground()
             .toolbar(.hidden, for: .navigationBar)
+            .onAppear {
+                if pagerScrollId == nil {
+                    pagerScrollId = viewModel.selectedCategoryId
+                }
+            }
             .task {
                 viewModel.libraryStore = libraryStore
                 guard !appModel.isAwaitingLocaleSetup else { return }
@@ -849,8 +856,9 @@ struct HomeView: View {
                     .padding(.vertical, YTLiteLayout.stackLoose)
                 }
 
-                HStack(spacing: YTLiteLayout.stackLoose) {
+                HStack(spacing: 0) {
                     Button {
+                        BubbleGuideStore.shared.dismiss(.homeFilter)
                         showFeedFilter = true
                     } label: {
                         Image(systemName: viewModel.feedFilter.isActive
@@ -862,25 +870,30 @@ struct HomeView: View {
                                     ? YTLiteColor.accent
                                     : YTLiteColor.onSurface
                             )
-                            .frame(width: 32, height: 32)
-                            .background(YTLiteColor.surfaceChip, in: Circle())
+                            .frame(width: 30, height: 30)
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel(L("home.filter.title"))
 
                     Button {
+                        BubbleGuideStore.shared.dismiss(.homeFilter)
                         showCategoryReorder = true
                     } label: {
                         Image(systemName: "arrow.left.arrow.right")
                             .font(.system(size: 13, weight: .semibold))
                             .foregroundStyle(YTLiteColor.onSurface)
-                            // Match YTLiteChip height (subheadline + chipVertical×2 ≈ 32–34).
-                            .frame(width: 32, height: 32)
-                            .background(YTLiteColor.surfaceChip, in: Circle())
+                            .frame(width: 30, height: 30)
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel(L("home.category.reorder"))
                 }
+                // One chip shell — matches YTLiteChip height / fill.
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background(YTLiteColor.surfaceChip, in: Capsule())
+                .bubbleGuide(.homeFilter, text: L("guide.home_filter"))
                 .padding(.leading, YTLiteLayout.stackLoose)
                 .padding(.trailing, YTLiteLayout.screenPadding)
             }
@@ -896,29 +909,34 @@ struct HomeView: View {
     }
 
     /// Interactive page swipe between chips — content tracks the finger.
+    /// Uses a paging `ScrollView` (not page-`TabView`) so UIKit chrome cannot paint an opaque black plate over the wallpaper.
     private var categoryPager: some View {
-        TabView(selection: categorySelection) {
-            ForEach(viewModel.orderedCategories) { category in
-                categoryPage(for: category)
-                    .tag(category.id)
-                    .allowsHitTesting(viewModel.selectedCategoryId == category.id)
+        ScrollView(.horizontal) {
+            LazyHStack(spacing: 0) {
+                ForEach(viewModel.orderedCategories) { category in
+                    categoryPage(for: category)
+                        .containerRelativeFrame(.horizontal)
+                        .id(category.id)
+                        .allowsHitTesting(viewModel.selectedCategoryId == category.id)
+                }
             }
+            .scrollTargetLayout()
         }
-        .tabViewStyle(.page(indexDisplayMode: .never))
+        .scrollTargetBehavior(.paging)
+        .scrollIndicators(.hidden)
+        .scrollPosition(id: $pagerScrollId)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .ytLiteAppBackground()
-    }
-
-    private var categorySelection: Binding<String> {
-        Binding(
-            get: { viewModel.selectedCategoryId },
-            set: { newId in
-                guard newId != viewModel.selectedCategoryId,
-                      let category = viewModel.orderedCategories.first(where: { $0.id == newId })
-                else { return }
-                viewModel.selectCategory(category)
-            }
-        )
+        .onChange(of: viewModel.selectedCategoryId) { _, id in
+            guard pagerScrollId != id else { return }
+            pagerScrollId = id
+        }
+        .onChange(of: pagerScrollId) { _, id in
+            guard let id,
+                  id != viewModel.selectedCategoryId,
+                  let category = viewModel.orderedCategories.first(where: { $0.id == id })
+            else { return }
+            viewModel.selectCategory(category)
+        }
     }
 
     @ViewBuilder
@@ -1021,7 +1039,7 @@ struct HomeView: View {
     private func previewCategoryPage(categoryId: String) -> some View {
         let entries = previewEntries(for: categoryId)
         if entries.isEmpty {
-            YTLiteColor.background
+            Color.clear
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             GeometryReader { geo in
@@ -1152,8 +1170,8 @@ private struct HomeFeedGridPane: View, Equatable {
     }
 }
 
-/// Duration / view-count filter sheet for Home feed.
-private struct HomeFeedFilterSheet: View {
+/// Duration / view-count filter sheet (Home feed + Search results).
+struct HomeFeedFilterSheet: View {
     @State private var draft: HomeFeedFilter
     let onApply: (HomeFeedFilter) -> Void
     let onCancel: () -> Void
@@ -1288,8 +1306,8 @@ private struct HomeFeedFilterSheet: View {
     }
 }
 
-/// Simple wrapping chip row (Home filter only).
-private struct HomeFilterFlowLayout: Layout {
+/// Simple wrapping chip row (shared by feed filter sheet).
+struct HomeFilterFlowLayout: Layout {
     var spacing: CGFloat = 8
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {

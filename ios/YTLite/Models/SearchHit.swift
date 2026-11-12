@@ -46,3 +46,9 @@ enum SearchHit: Identifiable, Hashable, Sendable {
         return nil
     }
 }
+
+/// One search response page (items + optional next-page token).
+struct SearchHitsPage: Sendable {
+    let hits: [SearchHit]
+    let continuation: String?
+}

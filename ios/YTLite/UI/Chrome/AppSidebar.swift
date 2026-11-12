@@ -8,8 +8,8 @@ struct AppSidebar: View {
         [
             (.home, L("tab.home"), "house.fill"),
             (.search, L("tab.search"), "magnifyingglass"),
-            (.you, isAuthenticated ? L("tab.account") : L("tab.subs"), "play.square.fill"),
             (.library, L("tab.library"), "rectangle.stack.fill"),
+            (.you, isAuthenticated ? L("tab.account") : L("tab.subs"), "play.square.fill"),
         ]
     }
 

@@ -157,19 +157,37 @@ enum InnerTubeClient {
     /// - All: videos from catalog Music songs; channels / playlists from www
     /// - Videos: www catalog video search
     /// - Channels / Playlists: www
-    static func search(query: String, tab: SearchResultTab) async throws -> [SearchHit] {
+    static func search(
+        query: String,
+        tab: SearchResultTab,
+        continuation: String? = nil
+    ) async throws -> SearchHitsPage {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return [] }
+        guard !trimmed.isEmpty else {
+            return SearchHitsPage(hits: [], continuation: nil)
+        }
         switch tab {
         case .videos, .channels, .playlists:
-            return try await searchCatalog(query: trimmed, tab: tab)
+            return try await searchCatalog(
+                query: trimmed,
+                tab: tab,
+                continuation: continuation
+            )
         case .all:
+            // Continuations only continue catalog search (Android parity).
+            if let continuation, !continuation.isEmpty {
+                return try await searchCatalog(
+                    query: trimmed,
+                    tab: .all,
+                    continuation: continuation
+                )
+            }
             async let songsTask = searchMusicSongs(query: trimmed)
-            async let webTask = searchCatalog(query: trimmed, tab: .all)
+            async let webTask = searchCatalog(query: trimmed, tab: .all, continuation: nil)
             let songs = try await songsTask
-            let webHits = try await webTask
+            let webPage = try await webTask
             var hits: [SearchHit] = songs.map { .video($0) }
-            for hit in webHits {
+            for hit in webPage.hits {
                 switch hit {
                 case .video:
                     continue
@@ -177,7 +195,7 @@ enum InnerTubeClient {
                     hits.append(hit)
                 }
             }
-            return hits
+            return SearchHitsPage(hits: hits, continuation: webPage.continuation)
         }
     }
 
@@ -204,22 +222,39 @@ enum InnerTubeClient {
         }
     }
 
-    private static func searchCatalog(query: String, tab: SearchResultTab) async throws -> [SearchHit] {
-        var body: [String: Any] = [
-            "context": clientContext(),
-            "query": query,
-        ]
-        if let params = tab.innerTubeParams {
-            body["params"] = params
+    private static func searchCatalog(
+        query: String,
+        tab: SearchResultTab,
+        continuation: String? = nil
+    ) async throws -> SearchHitsPage {
+        let body: [String: Any]
+        if let continuation, !continuation.isEmpty {
+            // Continuation payloads omit query/params (Android InnerTubeApi.search).
+            body = [
+                "context": clientContext(),
+                "continuation": continuation,
+            ]
+        } else {
+            var initial: [String: Any] = [
+                "context": clientContext(),
+                "query": query,
+            ]
+            if let params = tab.innerTubeParams {
+                initial["params"] = params
+            }
+            body = initial
         }
         let json = try await postJSON(
             url: CatalogConstants.searchURL,
             body: body,
-            label: "search_\(tab.rawValue)"
+            label: continuation == nil ? "search_\(tab.rawValue)" : "search_\(tab.rawValue)_cont"
         )
         nonisolated(unsafe) let payload = json
         return await parseOffMain {
-            VideoJSONParser.parseSearchHits(from: payload, tab: tab)
+            SearchHitsPage(
+                hits: VideoJSONParser.parseSearchHits(from: payload, tab: tab),
+                continuation: VideoJSONParser.parseContinuation(from: payload)
+            )
         }
     }
 

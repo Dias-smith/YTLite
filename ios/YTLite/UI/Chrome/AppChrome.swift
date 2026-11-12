@@ -99,3 +99,113 @@ struct AppChrome<Content: View>: View {
         return YTLiteLayout.miniPlayerChromeHeight(displayScale: displayScale) + (isRegular ? 8 : 0)
     }
 }
+
+// MARK: - Bubble guide (coach marks)
+
+/// One-shot coach-mark tips. Dismissed permanently after the linked control is used.
+@MainActor
+final class BubbleGuideStore: ObservableObject {
+    static let shared = BubbleGuideStore()
+
+    enum ID: String {
+        case homeFilter = "bubble_guide.home_filter.v1"
+        case librarySettings = "bubble_guide.library_settings.v1"
+    }
+
+    @Published private(set) var revision = 0
+
+    func isVisible(_ id: ID) -> Bool {
+        _ = revision
+        return !UserDefaults.standard.bool(forKey: id.rawValue)
+    }
+
+    func dismiss(_ id: ID) {
+        guard isVisible(id) else { return }
+        UserDefaults.standard.set(true, forKey: id.rawValue)
+        revision += 1
+    }
+}
+
+/// Accent capsule with a small arrow toward the anchored control.
+struct BubbleGuideCallout: View {
+    let text: String
+    /// Arrow points up toward a control above the callout.
+    var pointsUp: Bool = true
+
+    var body: some View {
+        VStack(spacing: 0) {
+            if pointsUp {
+                BubbleGuideArrow()
+                    .fill(YTLiteColor.accent)
+                    .frame(width: 14, height: 7)
+            }
+            Text(text)
+                .font(YTLiteType.meta.weight(.semibold))
+                .foregroundStyle(YTLiteColor.onAccent)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(YTLiteColor.accent, in: Capsule())
+            if !pointsUp {
+                BubbleGuideArrow()
+                    .fill(YTLiteColor.accent)
+                    .frame(width: 14, height: 7)
+                    .rotationEffect(.degrees(180))
+            }
+        }
+        .shadow(color: .black.opacity(0.28), radius: 8, y: 3)
+        .accessibilityHidden(true)
+        .allowsHitTesting(false)
+    }
+}
+
+private struct BubbleGuideArrow: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.midX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
+        path.closeSubpath()
+        return path
+    }
+}
+
+extension View {
+    /// Shows a one-shot bubble under the view until `BubbleGuideStore.dismiss` is called.
+    func bubbleGuide(
+        _ id: BubbleGuideStore.ID,
+        text: String,
+        alignment: Alignment = .bottomTrailing
+    ) -> some View {
+        modifier(BubbleGuideOverlayModifier(id: id, text: text, alignment: alignment))
+    }
+}
+
+private struct BubbleGuideOverlayModifier: ViewModifier {
+    let id: BubbleGuideStore.ID
+    let text: String
+    let alignment: Alignment
+    @ObservedObject private var store = BubbleGuideStore.shared
+    @State private var reveal = false
+
+    func body(content: Content) -> some View {
+        content
+            .overlay(alignment: alignment) {
+                if store.isVisible(id), reveal {
+                    BubbleGuideCallout(text: text)
+                        .offset(y: 10)
+                        .transition(.opacity.combined(with: .scale(scale: 0.92, anchor: .top)))
+                }
+            }
+            .zIndex(store.isVisible(id) ? 2 : 0)
+            .onAppear {
+                guard store.isVisible(id) else { return }
+                // Let the host layout settle before popping the tip.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.55) {
+                    withAnimation(.spring(response: 0.38, dampingFraction: 0.82)) {
+                        reveal = true
+                    }
+                }
+            }
+    }
+}

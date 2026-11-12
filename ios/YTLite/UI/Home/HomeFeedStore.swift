@@ -477,6 +477,25 @@ enum HomeFeedFilterStore {
     }
 }
 
+/// Independent persistence for Search results (same filter model as Home).
+enum SearchResultsFilterStore {
+    private static let defaultsKey = "search.results.filter.v1"
+
+    static func load() -> HomeFeedFilter {
+        guard let data = UserDefaults.standard.data(forKey: defaultsKey),
+              let decoded = try? JSONDecoder().decode(HomeFeedFilter.self, from: data)
+        else {
+            return .default
+        }
+        return decoded
+    }
+
+    static func save(_ filter: HomeFeedFilter) {
+        guard let data = try? JSONEncoder().encode(filter) else { return }
+        UserDefaults.standard.set(data, forKey: defaultsKey)
+    }
+}
+
 // MARK: - View count parsing ("1.2M views", "15K", "120万次观看", …)
 
 enum ViewCountFormat {

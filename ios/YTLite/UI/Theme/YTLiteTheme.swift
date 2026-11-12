@@ -299,7 +299,8 @@ struct FeedVideoCard: View {
             .padding(.top, YTLiteLayout.feedInfoTop)
             .padding(.bottom, YTLiteLayout.feedInfoBottom)
         }
-        .background(YTLiteColor.background)
+        // Keep clear so the shared app wallpaper shows between / around feed rows.
+        .background(Color.clear)
     }
 
     private var feedAvatar: some View {
