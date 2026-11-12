@@ -1652,17 +1652,18 @@ private struct LibrarySongsPane: View, Equatable {
             }
             .padding(.horizontal, YTLiteLayout.screenPadding)
         } else if usesUIKitList {
+            // No nested `ytLiteAppBackground()` — parent Library already owns the canvas.
+            // Opaque row fills would clip the shared image and create a header/list seam.
             List {
                 ForEach(Array(songs.enumerated()), id: \.element.videoId) { index, item in
                     songListRow(item, index: index)
                         .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
-                        .listRowBackground(YTLiteColor.background)
+                        .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
                 }
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
-            .ytLiteAppBackground()
         } else {
             ForEach(Array(songs.enumerated()), id: \.element.videoId) { index, item in
                 songListRow(item, index: index)
@@ -1868,7 +1869,7 @@ private struct HistoryTracksPane: View, Equatable {
                     }
                     .buttonStyle(.plain)
                     .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
-                    .listRowBackground(YTLiteColor.background)
+                    .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
                 }
                 .onDelete { offsets in
@@ -1878,7 +1879,6 @@ private struct HistoryTracksPane: View, Equatable {
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
-            .ytLiteAppBackground()
         }
     }
 }
