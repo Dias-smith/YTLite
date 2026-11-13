@@ -70,6 +70,8 @@ enum AdSceneLifecycle {
     /// Ordinary ads wait until sheets / full-screen UX have closed.
     static func isAdUIBlocked(for reason: String? = nil) -> Bool {
         if ReviewPromptCoordinator.shared.showSheet { return true }
+        // Avoid ads over first-launch locale / feature intro sheets.
+        if LaunchSheetGate.isBlocking { return true }
         var blockers = uiBlockers
         if reason == "play_start" {
             blockers.remove("player_detail")

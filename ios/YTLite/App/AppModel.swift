@@ -41,7 +41,13 @@ final class AppModel: ObservableObject {
     @Published private(set) var contentLocaleRevision: Int = 0
     /// Blocks home feed until first-launch locale sheet is confirmed.
     @Published private(set) var isAwaitingLocaleSetup: Bool = false
-    @Published var showLocaleSetupSheet: Bool = false
+    @Published var showLocaleSetupSheet: Bool = false {
+        didSet { LaunchSheetGate.locale = showLocaleSetupSheet }
+    }
+    /// First-launch core-feature intro slides (after locale, if any).
+    @Published var showFeatureIntroSheet: Bool = false {
+        didSet { LaunchSheetGate.featureIntro = showFeatureIntroSheet }
+    }
     @Published var isAuthenticated: Bool = false
     /// Bumped after library sync / account-switch adopt so Subs & Library reload.
     @Published private(set) var libraryRevision: Int = 0
@@ -94,6 +100,8 @@ final class AppModel: ObservableObject {
         if AppContentLocale.shouldPresentLocaleSetupOnLaunch {
             isAwaitingLocaleSetup = true
             showLocaleSetupSheet = true
+        } else {
+            presentFeatureIntroIfNeeded()
         }
 
         UserDefaults.standard.removeObject(forKey: "wifi_only")
@@ -150,6 +158,23 @@ final class AppModel: ObservableObject {
         InnerTubeClient.invalidateHotKeywordsCache()
         isAwaitingLocaleSetup = false
         showLocaleSetupSheet = false
+        presentFeatureIntroIfNeeded()
+    }
+
+    func presentFeatureIntroIfNeeded() {
+        #if DEBUG
+        showFeatureIntroSheet = true
+        #else
+        guard !UserDefaults.standard.bool(forKey: Self.featureIntroCompletedKey) else { return }
+        showFeatureIntroSheet = true
+        #endif
+    }
+
+    func completeFeatureIntro() {
+        #if !DEBUG
+        UserDefaults.standard.set(true, forKey: Self.featureIntroCompletedKey)
+        #endif
+        showFeatureIntroSheet = false
     }
 
     private func applyCatalogContentLocaleIfNeeded() {
@@ -162,6 +187,15 @@ final class AppModel: ObservableObject {
     }
 
     private static let pictureInPictureKey = PictureInPictureSettings.defaultsKey
+    private static let featureIntroCompletedKey = "feature_intro_completed_v1"
+}
+
+/// Shared gate so ads / other presenters can wait out first-launch sheets.
+@MainActor
+enum LaunchSheetGate {
+    static var locale = false
+    static var featureIntro = false
+    static var isBlocking: Bool { locale || featureIntro }
 }
 
 struct AppConfig: Sendable {
