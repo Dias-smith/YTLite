@@ -108,43 +108,42 @@ struct PhoneNowPlayingWidgetEntryView: View {
     }
 
     private var smallBody: some View {
-        // WidgetKit only allows Button/Toggle — no DragGesture swipe.
-        // Left / right artwork hit zones approximate “swipe to skip”.
-        ZStack {
-            HStack(spacing: 0) {
+        // Do not use full-bleed `Color.clear` intent Buttons here — on iOS 18+/26
+        // Liquid Glass they can morph into an empty chrome tile and hide all content.
+        VStack(alignment: .leading, spacing: 8) {
+            Link(destination: playerURL) {
+                Text(entry.snapshot.hasTrack ? entry.snapshot.title : "Mixtube")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(PhoneWidgetPalette.onSurface)
+                    .shadow(color: .black.opacity(0.55), radius: 2, y: 1)
+                    .lineLimit(2)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .buttonStyle(WidgetControlButtonStyle())
+
+            Spacer(minLength: 0)
+
+            HStack(spacing: 8) {
                 Button(intent: PhoneWidgetPlayPreviousIntent()) {
-                    Color.clear
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .contentShape(Rectangle())
+                    sideControlIcon("backward.fill", diameter: 28)
                 }
                 .buttonStyle(WidgetControlButtonStyle())
                 .accessibilityLabel("Previous")
 
+                Spacer(minLength: 0)
+
+                playPauseControl(diameter: 32)
+
+                Spacer(minLength: 0)
+
                 Button(intent: PhoneWidgetPlayNextIntent()) {
-                    Color.clear
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .contentShape(Rectangle())
+                    sideControlIcon("forward.fill", diameter: 28)
                 }
                 .buttonStyle(WidgetControlButtonStyle())
                 .accessibilityLabel("Next")
             }
-
-            VStack(alignment: .leading, spacing: 0) {
-                Spacer(minLength: 0)
-                HStack(alignment: .bottom, spacing: 10) {
-                    Link(destination: playerURL) {
-                        Text(entry.snapshot.hasTrack ? entry.snapshot.title : "Mixtube")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(PhoneWidgetPalette.onSurface)
-                            .lineLimit(2)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    .buttonStyle(WidgetControlButtonStyle())
-
-                    playPauseControl(diameter: 30)
-                }
-            }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .containerBackground(for: .widget) {
             smallArtworkBackground
         }
@@ -254,12 +253,18 @@ struct PhoneNowPlayingWidgetEntryView: View {
 
     private var smallArtworkBackground: some View {
         ZStack {
+            // Opaque base so the tile never renders as an empty glass square.
+            PhoneWidgetPalette.background
             artwork
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .clipped()
             LinearGradient(
-                colors: [.clear, .black.opacity(0.72)],
-                startPoint: .center,
+                colors: [
+                    .black.opacity(0.28),
+                    .clear,
+                    .black.opacity(0.78),
+                ],
+                startPoint: .top,
                 endPoint: .bottom
             )
         }
@@ -304,12 +309,12 @@ struct PhoneNowPlayingWidgetEntryView: View {
         .buttonBorderShape(.circle)
     }
 
-    private func sideControlIcon(_ name: String) -> some View {
+    private func sideControlIcon(_ name: String, diameter: CGFloat = 32) -> some View {
         Image(systemName: name)
-            .font(.system(size: 14, weight: .semibold))
+            .font(.system(size: diameter * 0.44, weight: .semibold))
             .foregroundStyle(PhoneWidgetPalette.onSurface)
-            .frame(width: 32, height: 32)
-            .background(Circle().fill(Color.white.opacity(0.12)))
+            .frame(width: diameter, height: diameter)
+            .background(Circle().fill(Color.white.opacity(0.18)))
             .contentShape(Circle())
     }
 }
