@@ -1087,7 +1087,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -euo pipefail\nAPP_ROOT=\"${TARGET_BUILD_DIR}/${WRAPPER_NAME}\"\nWATCH_DIR=\"${APP_ROOT}/Watch\"\nWATCH_APP=\"${WATCH_DIR}/MixtubeWatch.app\"\nPLUGINS_DIR=\"${APP_ROOT}/PlugIns\"\nPLUGINS_APP=\"${PLUGINS_DIR}/MixtubeWatch.app\"\n\n# Prefer whatever the Embed phase produced.\nSRC=\"\"\nif [ -d \"$WATCH_APP\" ] && [ ! -L \"$WATCH_APP\" ]; then\n  SRC=\"$WATCH_APP\"\nelif [ -d \"$PLUGINS_APP\" ] && [ ! -L \"$PLUGINS_APP\" ]; then\n  SRC=\"$PLUGINS_APP\"\nfi\nif [ -z \"$SRC\" ]; then\n  echo \"[YTLite] ERROR: MixtubeWatch.app missing under Watch/ or PlugIns/\"\n  exit 1\nfi\n\nmkdir -p \"$WATCH_DIR\"\nif [ \"$SRC\" != \"$WATCH_APP\" ]; then\n  rm -rf \"$WATCH_APP\"\n  ditto \"$SRC\" \"$WATCH_APP\"\n  echo \"[YTLite] Copied companion to Watch/MixtubeWatch.app\"\nfi\n\n# App Store (Release/Archive): Watch apps must not live under PlugIns/.\nif [ \"${CONFIGURATION}\" = \"Release\" ] || [ \"${ACTION:-}\" = \"install\" ]; then\n  if [ -e \"$PLUGINS_APP\" ]; then\n    rm -rf \"$PLUGINS_APP\"\n    echo \"[YTLite] Removed PlugIns/MixtubeWatch.app for App Store packaging\"\n  fi\n  # Drop empty PlugIns dir if we emptied it.\n  if [ -d \"$PLUGINS_DIR\" ] && [ -z \"$(ls -A \"$PLUGINS_DIR\" 2>/dev/null || true)\" ]; then\n    rmdir \"$PLUGINS_DIR\" 2>/dev/null || true\n  fi\nelse\n  # Debug: keep a real copy under PlugIns for Xcode 26 local install paths.\n  mkdir -p \"$PLUGINS_DIR\"\n  if [ ! -d \"$PLUGINS_APP\" ] || [ -L \"$PLUGINS_APP\" ]; then\n    rm -rf \"$PLUGINS_APP\"\n    ditto \"$WATCH_APP\" \"$PLUGINS_APP\"\n    echo \"[YTLite] Mirrored companion to PlugIns/MixtubeWatch.app (Debug)\"\n  fi\nfi\n";
+			shellScript = "set -euo pipefail\nAPP_ROOT=\"${TARGET_BUILD_DIR}/${WRAPPER_NAME}\"\nWATCH_DIR=\"${APP_ROOT}/Watch\"\nWATCH_APP=\"${WATCH_DIR}/MixtubeWatch.app\"\nPLUGINS_DIR=\"${APP_ROOT}/PlugIns\"\nPLUGINS_APP=\"${PLUGINS_DIR}/MixtubeWatch.app\"\n\n# Prefer whatever the Embed phase produced.\nSRC=\"\"\nif [ -d \"$WATCH_APP\" ] && [ ! -L \"$WATCH_APP\" ]; then\n  SRC=\"$WATCH_APP\"\nelif [ -d \"$PLUGINS_APP\" ] && [ ! -L \"$PLUGINS_APP\" ]; then\n  SRC=\"$PLUGINS_APP\"\nfi\nif [ -z \"$SRC\" ]; then\n  echo \"[YTLite] ERROR: MixtubeWatch.app missing under Watch/ or PlugIns/\"\n  exit 1\nfi\n\nmkdir -p \"$WATCH_DIR\"\nif [ \"$SRC\" != \"$WATCH_APP\" ]; then\n  rm -rf \"$WATCH_APP\"\n  ditto \"$SRC\" \"$WATCH_APP\"\n  echo \"[YTLite] Copied companion to Watch/MixtubeWatch.app\"\nfi\n\n# App Store (Release/Archive): Watch apps must not live under PlugIns/.\nif [ \"${CONFIGURATION}\" = \"Release\" ] || [ \"${ACTION:-}\" = \"install\" ]; then\n  if [ -e \"$PLUGINS_APP\" ]; then\n    rm -rf \"$PLUGINS_APP\"\n    echo \"[YTLite] Removed PlugIns/MixtubeWatch.app for App Store packaging\"\n  fi\n  # Drop empty PlugIns dir if we emptied it.\n  if [ -d \"$PLUGINS_DIR\" ] && [ -z \"$(ls -A \"$PLUGINS_DIR\" 2>/dev/null || true)\" ]; then\n    rmdir \"$PLUGINS_DIR\" 2>/dev/null || true\n  fi\nelse\n  # Debug: always refresh PlugIns copy for Xcode 26 local install paths.\n  # Stale copies (old CFBundleVersion) cause intermittent Watch install failures.\n  mkdir -p \"$PLUGINS_DIR\"\n  rm -rf \"$PLUGINS_APP\"\n  ditto \"$WATCH_APP\" \"$PLUGINS_APP\"\n  echo \"[YTLite] Mirrored companion to PlugIns/MixtubeWatch.app (Debug)\"\nfi\n\n# Strip iOS-only keys that leak into the embedded companion Info.plist.\nfor PLIST in \\\n  \"$WATCH_APP/Info.plist\" \\\n  \"$PLUGINS_APP/Info.plist\"\ndo\n  if [ -f \"$PLIST\" ]; then\n    /usr/libexec/PlistBuddy -c \"Delete :MinimumOSVersion~ipad\" \"$PLIST\" 2>/dev/null || true\n    /usr/libexec/PlistBuddy -c \"Delete :UISupportedInterfaceOrientations~ipad\" \"$PLIST\" 2>/dev/null || true\n  fi\ndone\n";
 		};
 		D51AC7BB983E9AA1CA1070F7 /* Strip iOS Info.plist leaks from Watch */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -1297,7 +1297,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = YTLiteWatch/YTLiteWatch.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_TEAM = 8S748AQ4H7;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = YTLiteWatch/Info.plist;
@@ -1353,7 +1353,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
@@ -1389,7 +1389,7 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = YTLiteWatchWidget/YTLiteWatchWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_TEAM = 8S748AQ4H7;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = YTLiteWatchWidget/Info.plist;
@@ -1416,7 +1416,7 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = YTLiteWidget/YTLiteWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_TEAM = 8S748AQ4H7;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = YTLiteWidget/Info.plist;
@@ -1470,7 +1470,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -1499,7 +1499,7 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = YTLiteWatchWidget/YTLiteWatchWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_TEAM = 8S748AQ4H7;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = YTLiteWatchWidget/Info.plist;
@@ -1527,7 +1527,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = YTLiteWatch/YTLiteWatch.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_TEAM = 8S748AQ4H7;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = YTLiteWatch/Info.plist;
@@ -1557,7 +1557,7 @@
 				CODE_SIGN_ENTITLEMENTS = YTLite/YTLite.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_LANGUAGE = en;
 				DEVELOPMENT_TEAM = 8S748AQ4H7;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -1585,7 +1585,7 @@
 				CODE_SIGN_ENTITLEMENTS = YTLite/YTLite.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_LANGUAGE = en;
 				DEVELOPMENT_TEAM = 8S748AQ4H7;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -1610,7 +1610,7 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = YTLiteWidget/YTLiteWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_TEAM = 8S748AQ4H7;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = YTLiteWidget/Info.plist;
