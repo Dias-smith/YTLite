@@ -141,6 +141,8 @@ final class PlaybackController: ObservableObject {
     private var resumeAfterSecondaryAudioSilence = false
     /// Avoid spamming WidgetKit reloads on every elapsed tick.
     private var lastPhoneWidgetSignature: String?
+    /// Keeps Lock Screen / Home Screen widget aligned with `nowPlaying` + `isPlaying`.
+    private var playbackSurfaceSyncCancellables = Set<AnyCancellable>()
     /// Progressive stream eligible for local persistence after the watch threshold.
     private struct PlaybackStoreContext {
         let videoId: String
@@ -238,6 +240,26 @@ final class PlaybackController: ObservableObject {
         configureRemoteCommands()
         restoreSession()
         refreshRemoteCommandEnabled()
+        installPlaybackSurfaceSync()
+    }
+
+    /// Any play/pause flip or track/metadata change → refresh MPNowPlaying + widget together.
+    private func installPlaybackSurfaceSync() {
+        Publishers.CombineLatest(
+            $nowPlaying.map { item -> String in
+                guard let item else { return "|" }
+                return "\(item.videoId)|\(item.title)|\(item.channelName)"
+            },
+            $isPlaying
+        )
+        .removeDuplicates { $0.0 == $1.0 && $0.1 == $1.1 }
+        .dropFirst()
+        .sink { [weak self] _, _ in
+            guard let self else { return }
+            self.updateNowPlayingInfo()
+            self.publishPhoneWidgetSnapshot(force: true)
+        }
+        .store(in: &playbackSurfaceSyncCancellables)
     }
 
     func play(items: [VideoItem], startAt index: Int = 0, sourcePlaylistId: String? = nil, analyticsSource: String = "unknown") {
@@ -991,6 +1013,8 @@ final class PlaybackController: ObservableObject {
                 if generation == resolveGeneration, isCurrentResolveTarget(expectedVideoId) {
                     isBuffering = false
                     isPlaying = false
+                    updateNowPlayingInfo()
+                    publishPhoneWidgetSnapshot(force: true)
                 }
                 return
             } catch {
@@ -1025,6 +1049,7 @@ final class PlaybackController: ObservableObject {
                     return
                 }
                 updateNowPlayingInfo()
+                publishPhoneWidgetSnapshot(force: true)
                 refreshRemoteCommandEnabled()
             }
         }
@@ -1768,7 +1793,11 @@ final class PlaybackController: ObservableObject {
     /// Pause without clearing queue / now playing (used by sleep timer).
     func pause() {
         guard player != nil else {
-            isPlaying = false
+            if isPlaying {
+                isPlaying = false
+                updateNowPlayingInfo()
+                publishPhoneWidgetSnapshot(force: true)
+            }
             return
         }
         guard isPlaying else { return }
@@ -2362,7 +2391,8 @@ final class PlaybackController: ObservableObject {
             artist: nowPlaying?.channelName,
             thumbnailURL: nowPlaying?.thumbnailURL,
             artwork: artworkImage,
-            isPlaying: isPlaying
+            isPlaying: isPlaying,
+            reloadImmediately: force
         )
     }
 

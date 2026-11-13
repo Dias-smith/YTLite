@@ -13,7 +13,8 @@ enum PhoneWidgetSnapshotBridge {
         artist: String?,
         thumbnailURL: URL?,
         artwork: UIImage?,
-        isPlaying: Bool
+        isPlaying: Bool,
+        reloadImmediately: Bool = false
     ) {
         let widgetSnapshot: PhoneWidgetPlaybackSnapshot = {
             guard let videoId, !videoId.isEmpty else {
@@ -31,7 +32,11 @@ enum PhoneWidgetSnapshotBridge {
             )
         }()
         PhoneWidgetPlaybackSnapshotStore.save(widgetSnapshot)
-        scheduleTimelineReload()
+        if reloadImmediately {
+            reloadTimelinesNow()
+        } else {
+            scheduleTimelineReload()
+        }
     }
 
     /// Prefer freshly written cover bytes; otherwise reuse an on-disk cover for this videoId
@@ -62,6 +67,16 @@ enum PhoneWidgetSnapshotBridge {
         pendingReload = work
         reloadLock.unlock()
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.15, execute: work)
+    }
+
+    private static func reloadTimelinesNow() {
+        reloadLock.lock()
+        pendingReload?.cancel()
+        pendingReload = nil
+        reloadLock.unlock()
+        DispatchQueue.main.async {
+            WidgetCenter.shared.reloadTimelines(ofKind: PhoneWidgetShared.widgetKind)
+        }
     }
 }
 
@@ -97,24 +112,27 @@ final class PhoneWidgetCommandBridge {
         }
         switch command {
         case .togglePlayPause:
-            // `togglePlayPause` may call `playCurrentQueueItem()` (async resolve) and return
-            // without flipping `isPlaying`. A forced publish here would write the *old*
-            // play/pause bit; WidgetKit often coalesces the later correct reload, so the
-            // home-screen button stays wrong intermittently.
-            let playingBefore = playback.isPlaying
+            // May call `playCurrentQueueItem()` without flipping `isPlaying` immediately;
+            // surface sync + a short follow-up cover both the instant and settled states.
             playback.togglePlayPause()
-            if playback.isPlaying != playingBefore {
+            playback.publishNowPlaying()
+            playback.publishPhoneWidgetSnapshot(force: true)
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 120_000_000)
                 playback.publishPhoneWidgetSnapshot(force: true)
             }
         case .next:
             playback.playNext()
-            // Let sync artwork + nowPlaying settle, then force a consistent snapshot.
+            playback.publishNowPlaying()
+            playback.publishPhoneWidgetSnapshot(force: true)
             Task { @MainActor in
                 try? await Task.sleep(nanoseconds: 80_000_000)
                 playback.publishPhoneWidgetSnapshot(force: true)
             }
         case .previous:
             playback.playPrevious()
+            playback.publishNowPlaying()
+            playback.publishPhoneWidgetSnapshot(force: true)
             Task { @MainActor in
                 try? await Task.sleep(nanoseconds: 80_000_000)
                 playback.publishPhoneWidgetSnapshot(force: true)
