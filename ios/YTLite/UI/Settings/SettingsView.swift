@@ -704,3 +704,138 @@ struct LocaleSetupSheet: View {
         .presentationBackground(YTLiteColor.surfaceElevated)
     }
 }
+
+// MARK: - First-launch feature intro
+
+private struct FeatureIntroPage: Identifiable {
+    let id: Int
+    let imageName: String
+    let titleKey: String
+    let bodyKey: String
+
+    static let all: [FeatureIntroPage] = [
+        FeatureIntroPage(
+            id: 0,
+            imageName: "onboarding_search",
+            titleKey: "feature_intro.search.title",
+            bodyKey: "feature_intro.search.body"
+        ),
+        FeatureIntroPage(
+            id: 1,
+            imageName: "onboarding_recommend",
+            titleKey: "feature_intro.recommend.title",
+            bodyKey: "feature_intro.recommend.body"
+        ),
+        FeatureIntroPage(
+            id: 2,
+            imageName: "onboarding_sync",
+            titleKey: "feature_intro.sync.title",
+            bodyKey: "feature_intro.sync.body"
+        ),
+        FeatureIntroPage(
+            id: 3,
+            imageName: "onboarding_playback",
+            titleKey: "feature_intro.playback.title",
+            bodyKey: "feature_intro.playback.body"
+        ),
+        FeatureIntroPage(
+            id: 4,
+            imageName: "onboarding_watch_widget",
+            titleKey: "feature_intro.watch_widget.title",
+            bodyKey: "feature_intro.watch_widget.body"
+        ),
+    ]
+}
+
+/// First-launch slides introducing core Mixtube capabilities.
+struct FeatureIntroSheet: View {
+    @EnvironmentObject private var appModel: AppModel
+    @State private var pageIndex = 0
+
+    private var pages: [FeatureIntroPage] { FeatureIntroPage.all }
+    private var isLastPage: Bool { pageIndex >= pages.count - 1 }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Spacer(minLength: 0)
+                Button(L("feature_intro.skip")) {
+                    appModel.completeFeatureIntro()
+                }
+                .font(YTLiteType.meta)
+                .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                .opacity(isLastPage ? 0 : 1)
+                .disabled(isLastPage)
+                .accessibilityHidden(isLastPage)
+            }
+            .padding(.horizontal, YTLiteLayout.screenPadding)
+            .padding(.top, YTLiteLayout.stackDefault)
+
+            TabView(selection: $pageIndex) {
+                ForEach(pages) { page in
+                    featurePage(page)
+                        .tag(page.id)
+                }
+            }
+            .tabViewStyle(.page(indexDisplayMode: .always))
+            .indexViewStyle(.page(backgroundDisplayMode: .always))
+
+            Button {
+                if isLastPage {
+                    appModel.completeFeatureIntro()
+                } else {
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        pageIndex = min(pageIndex + 1, pages.count - 1)
+                    }
+                }
+            } label: {
+                Text(isLastPage ? L("feature_intro.get_started") : L("feature_intro.next"))
+                    .font(YTLiteType.labelEmphasized)
+                    .foregroundStyle(YTLiteColor.onAccent)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(YTLiteColor.accent, in: Capsule())
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal, YTLiteLayout.screenPadding)
+            .padding(.top, YTLiteLayout.stackLoose)
+            .padding(.bottom, 28)
+        }
+        .background(YTLiteColor.surfaceElevated.ignoresSafeArea())
+        .interactiveDismissDisabled(true)
+        .presentationDetents([.fraction(2.0 / 3.0)])
+        .presentationDragIndicator(.hidden)
+        .presentationBackground(YTLiteColor.surfaceElevated)
+    }
+
+    private func featurePage(_ page: FeatureIntroPage) -> some View {
+        VStack(spacing: YTLiteLayout.stackLoose) {
+            Spacer(minLength: 0)
+
+            Image(page.imageName)
+                .resizable()
+                .scaledToFit()
+                .frame(maxWidth: .infinity, maxHeight: 260)
+                .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                .padding(.horizontal, YTLiteLayout.screenPadding)
+                .accessibilityHidden(true)
+
+            Text(L(page.titleKey))
+                .font(YTLiteType.pageTitle)
+                .foregroundStyle(YTLiteColor.onSurface)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, YTLiteLayout.screenPadding)
+
+            Text(L(page.bodyKey))
+                .font(YTLiteType.body)
+                .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, YTLiteLayout.screenPadding)
+
+            // Page dots sit in the TabView chrome — keep clear of the copy.
+            Spacer(minLength: 44)
+                .frame(maxHeight: 44)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}

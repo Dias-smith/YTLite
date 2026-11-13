@@ -224,8 +224,11 @@ final class WatchPlaybackClient: ObservableObject {
     func setVolume(_ volume: Float) {
         let clamped = min(max(volume, 0), 1)
         // Optimistic local mirror until phone pushes the next snapshot.
+        // Must bump `updatedAt` or periodic phone snapshots wipe the draft before apply.
         if var current = snapshot {
             current.outputVolume = clamped
+            current.updatedAt = Date().timeIntervalSince1970
+            lastPlaybackUpdatedAt = max(lastPlaybackUpdatedAt, current.updatedAt ?? 0)
             snapshot = current
         }
         send(kind: .transportSetVolume, body: WatchConnectivityProtocol.VolumeBody(volume: clamped))

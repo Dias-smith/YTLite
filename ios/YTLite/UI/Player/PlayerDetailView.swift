@@ -385,16 +385,22 @@ struct PlayerDetailView: View {
         .sheet(isPresented: $showAddPlaylist) {
             AddToPlaylistSheet(items: currentTrackItems)
                 .environmentObject(trackActions)
+                .environmentObject(playback)
         }
         .sheet(isPresented: $showSaveList) {
             AddToPlaylistSheet(items: playlistSaveItems)
                 .environmentObject(trackActions)
+                .environmentObject(playback)
         }
         .sheet(isPresented: $showBatchAdd) {
-            AddToPlaylistSheet(items: selectedPlaylistSaveItems) {
+            AddToPlaylistSheet(
+                items: selectedPlaylistSaveItems,
+                offersCurrentQueue: true
+            ) {
                 exitSelectionMode()
             }
             .environmentObject(trackActions)
+            .environmentObject(playback)
         }
         .sheet(isPresented: $showSortMenu) {
             PlayerListSortSheet(selected: listSort) { option in
@@ -1941,10 +1947,13 @@ private struct PlayerListSortSheet: View {
 
 struct AddToPlaylistSheet: View {
     var items: [VideoItem]
+    /// Batch selection from player — first row adds to Up next only (no Library mutation).
+    var offersCurrentQueue: Bool = false
     var onDone: (() -> Void)? = nil
 
     @Environment(\.libraryStore) private var store
     @EnvironmentObject private var trackActions: TrackActionPresenter
+    @EnvironmentObject private var playback: PlaybackController
     @Environment(\.dismiss) private var dismiss
     /// Inline create form (avoid nested sheet + keyboard dismissing the player stack on device).
     @State private var showCreate = false
@@ -1978,6 +1987,14 @@ struct AddToPlaylistSheet: View {
 
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 0) {
+                    if offersCurrentQueue {
+                        YTLiteSheetActionRow(
+                            systemImage: "text.append",
+                            title: L("player.add_to_current_queue")
+                        ) {
+                            addToCurrentQueue()
+                        }
+                    }
                     ForEach(store?.allPlaylists() ?? [], id: \.playlistId) { playlist in
                         YTLiteSheetActionRow(
                             systemImage: playlistRowIcon(for: playlist),
@@ -2033,6 +2050,14 @@ struct AddToPlaylistSheet: View {
             }
             .padding(.bottom, 28)
         }
+    }
+
+    private func addToCurrentQueue() {
+        // Up next only — never writes Library playlists / SwiftData.
+        playback.appendToQueue(items)
+        trackActions.showToast(L("toast.added_to_queue"))
+        onDone?()
+        dismiss()
     }
 
     private func save(to playlist: LibraryPlaylist) {

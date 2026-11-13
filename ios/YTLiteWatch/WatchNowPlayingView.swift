@@ -10,6 +10,7 @@ struct WatchNowPlayingView: View {
     @State private var showSleepTimerPicker = false
     @State private var draftVolume: Float = 0.5
     @State private var isAdjustingVolume = false
+    @State private var volumeSendTask: Task<Void, Never>?
     @State private var swipeOffset: CGFloat = 0
 
     private var canControl: Bool { bridge.isReachable }
@@ -48,7 +49,9 @@ struct WatchNowPlayingView: View {
         .onAppear {
             playback.syncWithPhone(bootstrap: true)
         }
-        .sheet(isPresented: $showMore) {
+        .sheet(isPresented: $showMore, onDismiss: {
+            flushVolumeToPhone()
+        }) {
             moreSheet
                 .onAppear {
                     draftVolume = playback.snapshot?.outputVolume ?? draftVolume
@@ -312,20 +315,34 @@ struct WatchNowPlayingView: View {
                                 Image(systemName: "speaker.fill")
                                     .font(WatchType.meta)
                                     .foregroundStyle(.secondary)
+                                // watchOS Slider often never fires `onEditingChanged(false)`
+                                // (Digital Crown). Debounce on value change instead.
                                 Slider(
                                     value: Binding(
                                         get: { Double(draftVolume) },
-                                        set: { draftVolume = Float($0) }
-                                    ),
-                                    in: 0...1,
-                                    onEditingChanged: { editing in
-                                        isAdjustingVolume = editing
-                                        if !editing, canControl {
-                                            playback.setVolume(draftVolume)
+                                        set: { newValue in
+                                            draftVolume = Float(newValue)
+                                            scheduleVolumeSend()
                                         }
-                                    }
+                                    ),
+                                    in: 0...1
                                 )
                                 .disabled(!canControl)
+                                .digitalCrownRotation(
+                                    Binding(
+                                        get: { Double(draftVolume) },
+                                        set: { newValue in
+                                            draftVolume = Float(min(max(newValue, 0), 1))
+                                            scheduleVolumeSend()
+                                        }
+                                    ),
+                                    from: 0,
+                                    through: 1,
+                                    by: 0.02,
+                                    sensitivity: .medium,
+                                    isContinuous: true,
+                                    isHapticFeedbackEnabled: true
+                                )
                                 Image(systemName: "speaker.wave.3.fill")
                                     .font(WatchType.meta)
                                     .foregroundStyle(.secondary)
@@ -407,10 +424,37 @@ struct WatchNowPlayingView: View {
             }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(WL("watch.done", "Done")) { showMore = false }
+                    Button(WL("watch.done", "Done")) {
+                        flushVolumeToPhone()
+                        showMore = false
+                    }
                 }
             }
         }
+    }
+
+    /// watchOS may never end a Slider edit — send while dragging (debounced) and on dismiss.
+    private func scheduleVolumeSend() {
+        guard canControl else { return }
+        isAdjustingVolume = true
+        volumeSendTask?.cancel()
+        volumeSendTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 120_000_000)
+            guard !Task.isCancelled else { return }
+            playback.setVolume(draftVolume)
+            // Keep blocking phone echoes briefly so the thumb does not jump back.
+            try? await Task.sleep(nanoseconds: 350_000_000)
+            guard !Task.isCancelled else { return }
+            isAdjustingVolume = false
+        }
+    }
+
+    private func flushVolumeToPhone() {
+        volumeSendTask?.cancel()
+        volumeSendTask = nil
+        isAdjustingVolume = false
+        guard canControl else { return }
+        playback.setVolume(draftVolume)
     }
 
     private var speedPickerSheet: some View {

@@ -137,17 +137,16 @@ struct YTLiteSheetSecondaryButton: View {
 
 // MARK: - Toast
 
-/// Shared in-app toast — always dark snackbar (independent of app theme).
+/// Shared in-app toast — dark translucent snackbar (readable on light & dark chrome).
 struct YTLiteToastBanner: View {
     let message: String
 
     /// Keep presenter timers and local auto-dismiss in sync.
     static let displayNanoseconds: UInt64 = 2_200_000_000
 
-    private static let fill = Color(red: 0.11, green: 0.11, blue: 0.12) // #1C1C1F
-    private static let fillElevated = Color(red: 0.16, green: 0.16, blue: 0.18)
-    private static let label = Color.white.opacity(0.95)
-    private static let stroke = Color.white.opacity(0.12)
+    private static let tint = Color.black.opacity(0.42)
+    private static let label = Color.white.opacity(0.96)
+    private static let stroke = Color.white.opacity(0.14)
 
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
@@ -166,17 +165,16 @@ struct YTLiteToastBanner: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 14)
         .frame(maxWidth: 420)
-        .background(
+        .background {
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [Self.fillElevated, Self.fill],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
-                .shadow(color: Color.black.opacity(0.55), radius: 18, y: 8)
-        )
+                .fill(.ultraThinMaterial)
+                .environment(\.colorScheme, .dark)
+                .overlay {
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(Self.tint)
+                }
+                .shadow(color: Color.black.opacity(0.22), radius: 14, y: 6)
+        }
         .overlay(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .stroke(Self.stroke, lineWidth: 1)

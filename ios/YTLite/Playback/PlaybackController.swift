@@ -512,17 +512,33 @@ final class PlaybackController: ObservableObject {
 
     /// Append to the end of the play queue (Android "Add to queue").
     func appendToQueue(_ item: VideoItem) {
+        appendToQueue([item])
+    }
+
+    /// Append many items to the end of Up next — skips duplicates; does not touch Library playlists.
+    func appendToQueue(_ items: [VideoItem]) {
+        guard !items.isEmpty else { return }
         if queue.isEmpty {
-            play(items: [item], startAt: 0)
+            play(items: items, startAt: 0)
             return
         }
-        if queue.contains(where: { $0.videoId == item.videoId }) { return }
-        queue.append(item)
-        if var order = originalOrder, !order.contains(where: { $0.videoId == item.videoId }) {
-            order.append(item)
+        var seen = Set(queue.map(\.videoId))
+        var toAdd: [VideoItem] = []
+        toAdd.reserveCapacity(items.count)
+        for item in items where seen.insert(item.videoId).inserted {
+            toAdd.append(item)
+        }
+        guard !toAdd.isEmpty else { return }
+        queue.append(contentsOf: toAdd)
+        if var order = originalOrder {
+            var orderSeen = Set(order.map(\.videoId))
+            for item in toAdd where orderSeen.insert(item.videoId).inserted {
+                order.append(item)
+            }
             originalOrder = order
         }
         persistSession(immediate: true)
+        refreshRemoteCommandEnabled()
     }
 
     /// Move an existing queue item to the end without interrupting the current track.

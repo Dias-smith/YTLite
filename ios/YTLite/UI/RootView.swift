@@ -232,6 +232,10 @@ struct RootView: View {
                 )
                 .environmentObject(appModel)
             }
+            .sheet(isPresented: $appModel.showFeatureIntroSheet) {
+                FeatureIntroSheet()
+                    .environmentObject(appModel)
+            }
         }
         // Must wrap TrackActionHost so AppChrome itself (not only its children) receives it.
         .environmentObject(playerPresentation)

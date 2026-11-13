@@ -80,6 +80,7 @@ final class WatchPlaybackHost {
             playback.$shuffleEnabled.map { _ in () }.eraseToAnyPublisher(),
             playback.$repeatMode.map { _ in () }.eraseToAnyPublisher(),
             playback.$playbackSpeed.map { _ in () }.eraseToAnyPublisher(),
+            playback.$playerVolume.map { _ in () }.eraseToAnyPublisher(),
             playback.$sleepTimerEndsAt.map { _ in () }.eraseToAnyPublisher(),
             playback.$sleepTimerMinutes.map { _ in () }.eraseToAnyPublisher(),
             playback.$queueIndex.map { _ in () }.eraseToAnyPublisher(),
