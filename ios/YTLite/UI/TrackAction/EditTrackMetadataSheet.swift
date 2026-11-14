@@ -6,6 +6,7 @@ struct EditTrackMetadataSheet: View {
     let context: TrackActionContext
     @Environment(\.libraryStore) private var store
     @EnvironmentObject private var trackActions: TrackActionPresenter
+    @EnvironmentObject private var playback: PlaybackController
     @Environment(\.dismiss) private var dismiss
     @ObservedObject private var rewardUnlocks = RewardUnlockStore.shared
 
@@ -273,6 +274,7 @@ struct EditTrackMetadataSheet: View {
         if let store {
             trackActions.refreshPresentedItem(using: store)
         }
+        playback.refreshDisplayMetadataFromLibrary()
         trackActions.showToast(L("toast.saved"))
         trackActions.notifyListsChanged()
         dismiss()

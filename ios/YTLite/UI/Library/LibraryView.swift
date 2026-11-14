@@ -2190,8 +2190,8 @@ struct HistoryDetailView: View {
             requestHistoryReload(force: false, notifyParent: true)
         }
         .onChange(of: trackActions.listEpoch) { _, _ in
-            // Metadata / not-interested edits that affect History rows.
-            requestHistoryReload(force: false, notifyParent: true)
+            // Metadata / not-interested edits that affect History rows — force so Edit Info isn't throttled.
+            requestHistoryReload(force: true, notifyParent: true)
         }
         .onChange(of: filterText) { _, _ in
             selectedIds = selectedIds.intersection(Set(filteredEntries.map(\.id)))
@@ -2464,8 +2464,13 @@ struct HistoryDetailView: View {
         let next = store.map { store in
             raw.filter { !store.isNotInterested(videoId: $0.item.videoId) }
         } ?? raw
-        let fingerprint = next.map { "\($0.id):\($0.progressMs):\($0.durationSeconds):\($0.lastPlayedAt.timeIntervalSince1970)" }
-        let previous = entries.map { "\($0.id):\($0.progressMs):\($0.durationSeconds):\($0.lastPlayedAt.timeIntervalSince1970)" }
+        // Include title/artist/artwork so Edit Info invalidates the Equatable History pane.
+        let fingerprint = next.map {
+            "\($0.id):\($0.progressMs):\($0.durationSeconds):\($0.lastPlayedAt.timeIntervalSince1970)|\($0.item.title)|\($0.item.channelName)|\($0.item.thumbnailURL?.absoluteString ?? "")"
+        }
+        let previous = entries.map {
+            "\($0.id):\($0.progressMs):\($0.durationSeconds):\($0.lastPlayedAt.timeIntervalSince1970)|\($0.item.title)|\($0.item.channelName)|\($0.item.thumbnailURL?.absoluteString ?? "")"
+        }
         if force || fingerprint != previous {
             entriesVersion &+= 1
         }

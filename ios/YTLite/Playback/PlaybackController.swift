@@ -2682,6 +2682,62 @@ final class PlaybackController: ObservableObject {
         enrichRestoredPlaybackFromLibrary()
     }
 
+    /// Re-apply Edit Info / custom metadata overlays onto the live queue + now playing.
+    func refreshDisplayMetadataFromLibrary() {
+        guard let store = libraryStore else { return }
+        let metaById = Dictionary(
+            uniqueKeysWithValues: store.allMetadata().map { ($0.trackId, $0) }
+        )
+        guard !queue.isEmpty || nowPlaying != nil else { return }
+
+        var queueChanged = false
+        let nextQueue: [VideoItem] = queue.map { item in
+            let refreshed = store.displayItem(for: item, metaById: metaById)
+            if refreshed.title != item.title
+                || refreshed.channelName != item.channelName
+                || refreshed.thumbnailURL != item.thumbnailURL
+            {
+                queueChanged = true
+            }
+            return refreshed
+        }
+        if queueChanged {
+            queue = nextQueue
+        }
+
+        if let playing = nowPlaying {
+            let base = VideoItem(
+                videoId: playing.videoId,
+                title: playing.title,
+                channelName: playing.channelName,
+                thumbnailURL: playing.thumbnailURL,
+                channelAvatarURL: playing.channelAvatarURL,
+                durationText: playing.durationText
+            )
+            let refreshed = store.displayItem(for: base, metaById: metaById)
+            if refreshed.title != playing.title
+                || refreshed.channelName != playing.channelName
+                || refreshed.thumbnailURL != playing.thumbnailURL
+            {
+                nowPlaying = NowPlayingItem(
+                    videoId: playing.videoId,
+                    title: refreshed.title,
+                    channelName: refreshed.channelName,
+                    thumbnailURL: refreshed.thumbnailURL ?? playing.thumbnailURL,
+                    durationText: playing.durationText ?? refreshed.durationText,
+                    channelId: playing.channelId,
+                    channelAvatarURL: playing.channelAvatarURL
+                )
+                updateNowPlayingInfo()
+                publishPhoneWidgetSnapshot(force: true)
+            }
+        }
+
+        if queueChanged {
+            persistSession(immediate: true)
+        }
+    }
+
     /// When LibraryStore arrives after cold restore, replace videoId placeholders from the catalogue.
     private func enrichRestoredPlaybackFromLibrary() {
         guard let store = libraryStore, nowPlaying != nil, !queue.isEmpty else { return }

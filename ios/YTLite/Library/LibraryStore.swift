@@ -453,10 +453,13 @@ final class LibraryStore {
         let tracksById = Dictionary(
             uniqueKeysWithValues: tracks(ids: ids).map { ($0.trackId, $0) }
         )
+        let metaById = Dictionary(
+            uniqueKeysWithValues: allMetadata().map { ($0.trackId, $0) }
+        )
         return rows.compactMap { row in
             guard let track = tracksById[row.trackId] else { return nil }
             return HistoryDisplayItem(
-                item: track.asVideoItem,
+                item: displayItem(for: track.asVideoItem, metaById: metaById),
                 progressMs: row.progressMs,
                 durationSeconds: track.durationSeconds,
                 lastPlayedAt: row.lastPlayedAt

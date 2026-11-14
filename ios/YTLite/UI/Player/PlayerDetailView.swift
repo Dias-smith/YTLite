@@ -233,9 +233,14 @@ struct PlayerDetailView: View {
         var hasher = Hasher()
         hasher.combine(tab)
         hasher.combine(playback.queue.count)
-        hasher.combine(playback.queue.first?.videoId)
-        hasher.combine(playback.queue.last?.videoId)
         hasher.combine(playback.queueIndex)
+        // Include display fields so Edit Info refreshes Equatable Up Next rows.
+        for item in playback.queue {
+            hasher.combine(item.videoId)
+            hasher.combine(item.title)
+            hasher.combine(item.channelName)
+            hasher.combine(item.thumbnailURL?.absoluteString)
+        }
         hasher.combine(relatedVersion)
         hasher.combine(relatedLoading)
         hasher.combine(relatedError)
