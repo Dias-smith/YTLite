@@ -154,10 +154,11 @@ targets:
             [ -d "$ROOT" ] || continue
             FOUND=$(find "$ROOT" \( -name '*.debug.dylib' -o -name '__preview.dylib' \) -type f -print 2>/dev/null || true)
             if [ -n "$FOUND" ]; then
-              echo "$FOUND" | while IFS= read -r DYLIB; do
+              # Avoid `set -o pipefail` + `while read` EOF=1 killing the script.
+              printf '%s\n' "$FOUND" | while IFS= read -r DYLIB; do
                 [ -n "$DYLIB" ] || continue
                 echo "[YTLite] Removed $(basename "$DYLIB") from embedded Watch package"
-              done
+              done || true
               find "$ROOT" \( -name '*.debug.dylib' -o -name '__preview.dylib' \) -type f -delete 2>/dev/null || true
               resign_needed=1
             fi
@@ -168,19 +169,32 @@ targets:
             if [ -z "$IDENTITY" ] || [ "$IDENTITY" = "-" ]; then
               IDENTITY="${CODE_SIGN_IDENTITY:-}"
             fi
-            if [ -n "$IDENTITY" ] && [ "$IDENTITY" != "-" ]; then
+            # Simulator builds often expose a placeholder like "iPhone Developer"
+            # with no keychain cert — ad-hoc (-) is enough after plist/dylib edits.
+            case "${PLATFORM_NAME:-}${EFFECTIVE_PLATFORM_NAME:-}" in
+              *simulator*) IDENTITY="-" ;;
+            esac
+            if [ -n "$IDENTITY" ]; then
               for BUNDLE in "$WATCH_APP" "$PLUGINS_APP"; do
                 [ -d "$BUNDLE" ] || continue
                 if [ -d "$BUNDLE/PlugIns/MixtubeWatchWidget.appex" ]; then
-                  codesign --force --sign "$IDENTITY" --timestamp=none \
+                  if ! codesign --force --sign "$IDENTITY" --timestamp=none \
                     --generate-entitlement-der \
                     "$BUNDLE/PlugIns/MixtubeWatchWidget.appex"
+                  then
+                    echo "[YTLite] WARNING: widget re-sign failed (identity=$IDENTITY)"
+                    continue
+                  fi
                 fi
-                codesign --force --sign "$IDENTITY" --timestamp=none \
+                if codesign --force --sign "$IDENTITY" --timestamp=none \
                   --generate-entitlement-der \
                   --preserve-metadata=identifier,entitlements,flags \
                   "$BUNDLE"
-                echo "[YTLite] Re-signed $(basename "$BUNDLE") after packaging fixes"
+                then
+                  echo "[YTLite] Re-signed $(basename "$BUNDLE") after packaging fixes"
+                else
+                  echo "[YTLite] WARNING: re-sign failed for $(basename "$BUNDLE") (identity=$IDENTITY)"
+                fi
               done
             else
               echo "[YTLite] WARNING: no code-sign identity; Watch package may fail install"
