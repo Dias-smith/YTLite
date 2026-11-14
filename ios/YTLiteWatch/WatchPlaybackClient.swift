@@ -318,17 +318,28 @@ final class WatchPlaybackClient: ObservableObject {
             lastCommandError = WL("watch.phone_required", "Open Mixtube on iPhone")
             return
         }
-        guard bridge.isReachable else {
-            lastCommandError = WL("watch.phone_required", "Open Mixtube on iPhone")
-            return
+        // When the iPhone app is not running, `isReachable` is false — still send via
+        // `transferUserInfo` so WatchConnectivity can wake the companion and start playback.
+        if !bridge.isReachable {
+            if !bridge.isCompanionAppInstalled {
+                lastCommandError = WL("watch.phone_required", "Open Mixtube on iPhone")
+                return
+            }
+            lastCommandError = WL("watch.waking_iphone", "Starting on iPhone…")
+        } else {
+            lastCommandError = nil
         }
-        lastCommandError = nil
         do {
             let envelope = try WatchConnectivityProtocol.Envelope.make(kind: kind, body: body)
             _ = bridge.send(envelope) { [weak self] result in
                 if case .failure(let error) = result {
                     self?.lastCommandError = error.localizedDescription
+                } else if WatchConnectivityBridge.shared.isReachable {
+                    self?.lastCommandError = nil
                 }
+            }
+            if !bridge.isReachable {
+                scheduleReconcile()
             }
         } catch {
             lastCommandError = error.localizedDescription
@@ -471,6 +482,7 @@ final class WatchPlaybackClient: ObservableObject {
         }
 
         snapshot = next
+        // Phone answered — clear wake / start messaging.
         lastCommandError = nil
         if next.videoId != nil {
             WatchPlaybackMirrorStore.save(next)

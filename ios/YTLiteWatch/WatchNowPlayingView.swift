@@ -13,7 +13,12 @@ struct WatchNowPlayingView: View {
     @State private var volumeSendTask: Task<Void, Never>?
     @State private var swipeOffset: CGFloat = 0
 
-    private var canControl: Bool { bridge.isReachable }
+    /// Interactive WC link (live snapshots / low-latency commands).
+    private var isLiveLinked: Bool { bridge.isReachable }
+    /// Play/pause may still wake a killed iPhone via `transferUserInfo`.
+    private var canControl: Bool {
+        bridge.activationState == .activated && bridge.isCompanionAppInstalled
+    }
 
     private static let accent = Color(red: 0.98, green: 0.78, blue: 0.18)
     /// Prefer horizontal over vertical so vertical TabView paging still works.
@@ -139,6 +144,15 @@ struct WatchNowPlayingView: View {
                 Text(WL("watch.phone_required", "Open Mixtube on iPhone"))
                     .font(WatchType.meta)
                     .foregroundStyle(.orange)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 2)
+            } else if !isLiveLinked {
+                Text(WL("watch.waking_iphone_hint", "Tap play to start on iPhone"))
+                    .font(WatchType.meta)
+                    .foregroundStyle(.white.opacity(0.65))
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
                     .multilineTextAlignment(.center)

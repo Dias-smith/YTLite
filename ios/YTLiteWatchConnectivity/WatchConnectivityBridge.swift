@@ -26,6 +26,8 @@ final class WatchConnectivityBridge: NSObject, ObservableObject {
     private var pendingApplicationContext: WatchConnectivityProtocol.Envelope?
     /// Interactive / queue payloads queued until activation completes.
     private var pendingTransfers: [WatchConnectivityProtocol.Envelope] = []
+    /// Inbound envelopes received before any host/client registered `onEnvelope`.
+    private var pendingInboundEnvelopes: [WatchConnectivityProtocol.Envelope] = []
     private var lastBackgroundTransferAt: [String: Date] = [:]
     private var isFlushingPending = false
     #if targetEnvironment(simulator)
@@ -86,6 +88,12 @@ final class WatchConnectivityBridge: NSObject, ObservableObject {
 
     func onEnvelope(_ handler: @escaping @MainActor (WatchConnectivityProtocol.Envelope) -> Void) {
         handlers.append(handler)
+        guard !pendingInboundEnvelopes.isEmpty else { return }
+        let queued = pendingInboundEnvelopes
+        pendingInboundEnvelopes.removeAll()
+        for envelope in queued {
+            handler(envelope)
+        }
     }
 
     /// Whether the phone should spend work pushing Watch snapshots / transfers.
@@ -153,7 +161,15 @@ final class WatchConnectivityBridge: NSObject, ObservableObject {
                 return true
             }
 
-            deliverViaBackground(message, kind: envelope.kind.rawValue, requestId: envelope.id, reply: reply)
+            // Not interactively reachable — `transferUserInfo` can still wake a suspended /
+            // terminated iPhone companion so Watch play/pause works without the app open.
+            deliverViaBackground(
+                message,
+                kind: envelope.kind.rawValue,
+                requestId: envelope.id,
+                reply: reply,
+                coalesce: Self.shouldCoalesceBackgroundDelivery(envelope.kind)
+            )
             if envelope.kind == .playbackSnapshot || envelope.kind == .queueSnapshot {
                 enqueuePending(envelope)
             }
@@ -161,6 +177,21 @@ final class WatchConnectivityBridge: NSObject, ObservableObject {
         } catch {
             lastErrorMessage = error.localizedDescription
             reply?(.failure(error))
+            return false
+        }
+    }
+
+    /// Transport / queue commands must always be delivered (coalesced), even when the phone
+    /// app is not running — WC may wake it to process `transferUserInfo`.
+    private static func shouldCoalesceBackgroundDelivery(_ kind: WatchConnectivityProtocol.Kind) -> Bool {
+        switch kind {
+        case .transportPlayPause, .transportNext, .transportPrevious, .transportSeek,
+             .transportSetShuffle, .transportCycleRepeat, .transportSetSpeed,
+             .transportSetVolume, .transportSetSleepTimer,
+             .queuePlayIndex, .queueRemove, .queuePlayNext, .queueAppend,
+             .syncRequestSnapshot, .playbackSnapshot:
+            return true
+        default:
             return false
         }
     }
@@ -194,7 +225,13 @@ final class WatchConnectivityBridge: NSObject, ObservableObject {
             }
             return
         }
-        deliverViaBackground(message, kind: envelope.kind.rawValue, requestId: envelope.id, reply: reply)
+        deliverViaBackground(
+            message,
+            kind: envelope.kind.rawValue,
+            requestId: envelope.id,
+            reply: reply,
+            coalesce: Self.shouldCoalesceBackgroundDelivery(envelope.kind)
+        )
     }
 
     /// Queues `transferUserInfo` without treating interactive-send failure as a user-visible error.
@@ -202,9 +239,10 @@ final class WatchConnectivityBridge: NSObject, ObservableObject {
         _ message: [String: Any],
         kind: String,
         requestId: String,
-        reply: ((Result<WatchConnectivityProtocol.Envelope, Error>) -> Void)?
+        reply: ((Result<WatchConnectivityProtocol.Envelope, Error>) -> Void)?,
+        coalesce: Bool = false
     ) {
-        queueBackgroundTransfer(message, kind: kind)
+        queueBackgroundTransfer(message, kind: kind, coalesce: coalesce)
         guard let reply else { return }
         let ack = WatchConnectivityProtocol.Envelope(
             kind: .ack,
@@ -221,21 +259,17 @@ final class WatchConnectivityBridge: NSObject, ObservableObject {
         coalesce: Bool = false
     ) {
         guard let session, session.activationState == .activated else { return }
-        // ***
-        if kind == WatchConnectivityProtocol.Kind.playbackSnapshot.rawValue {
+        // Playback + transport: single coalesced transfer so Watch can wake a killed iPhone
+        // without building a backlog of every track / button press.
+        if kind == WatchConnectivityProtocol.Kind.playbackSnapshot.rawValue || coalesce {
             cancelOutstandingTransfers(kind: kind)
             lastBackgroundTransferAt[kind] = Date()
             session.transferUserInfo(message)
             return
         }
-        if coalesce {
-            cancelOutstandingTransfers(kind: kind)
-        }
         if session.outstandingUserInfoTransfers.count >= 8 { return }
         let now = Date()
-        if !coalesce,
-           let last = lastBackgroundTransferAt[kind],
-           now.timeIntervalSince(last) < 2.0 {
+        if let last = lastBackgroundTransferAt[kind], now.timeIntervalSince(last) < 2.0 {
             return
         }
         lastBackgroundTransferAt[kind] = now
@@ -323,7 +357,11 @@ final class WatchConnectivityBridge: NSObject, ObservableObject {
         guard canAttemptWatchDelivery else { return }
         do {
             let data = try JSONEncoder().encode(envelope)
-            queueBackgroundTransfer(["envelope": data], kind: envelope.kind.rawValue)
+            queueBackgroundTransfer(
+                ["envelope": data],
+                kind: envelope.kind.rawValue,
+                coalesce: Self.shouldCoalesceBackgroundDelivery(envelope.kind)
+            )
         } catch {
             lastErrorMessage = error.localizedDescription
         }
@@ -413,6 +451,13 @@ final class WatchConnectivityBridge: NSObject, ObservableObject {
     }
 
     private func dispatch(_ envelope: WatchConnectivityProtocol.Envelope) {
+        if handlers.isEmpty {
+            pendingInboundEnvelopes.append(envelope)
+            if pendingInboundEnvelopes.count > 32 {
+                pendingInboundEnvelopes.removeFirst(pendingInboundEnvelopes.count - 32)
+            }
+            return
+        }
         for handler in handlers {
             handler(envelope)
         }

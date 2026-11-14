@@ -2,7 +2,8 @@ import SwiftUI
 import UIKit
 
 /// App-wide interface orientation lock.
-/// Portrait everywhere except AVPlayer full-screen video (landscape right).
+/// Portrait everywhere except landscape AVPlayer full-screen (landscape right).
+/// Portrait / square videos stay portrait when entering video fullscreen.
 enum AppOrientation {
     static var mask: UIInterfaceOrientationMask = defaultMask
 
@@ -31,9 +32,15 @@ enum AppOrientation {
         }
     }
 
-    static func beginVideoFullscreen() {
-        mask = .landscapeRight
-        applyRotation(.landscapeRight)
+    /// - Parameter portrait: vertical/square video → keep portrait fullscreen; landscape → rotate.
+    static func beginVideoFullscreen(portrait: Bool) {
+        if portrait {
+            mask = .portrait
+            applyRotation(.portrait)
+        } else {
+            mask = .landscapeRight
+            applyRotation(.landscapeRight)
+        }
     }
 
     static func endVideoFullscreen(from surface: UIViewController? = nil) {

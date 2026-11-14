@@ -44,13 +44,22 @@ struct ImportedTracksListView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            filterChips
+            VStack(alignment: .leading, spacing: YTLiteLayout.screenPadding) {
+                filterChips
+                listControls
+            }
+            .padding(.bottom, YTLiteLayout.stackTight)
+
             listBody
         }
         .ytLiteAppBackground()
+        .ytLiteMiniPlayerScrollInset()
         .navigationTitle(L("import.list.title"))
-        .navigationBarTitleDisplayMode(.inline)
-        .onAppear { reload() }
+        .toolbarBackground(YTLiteColor.background, for: .navigationBar)
+        .onAppear {
+            reload()
+            Task { await backfillCoversIfNeeded() }
+        }
         .onChange(of: trackActions.listEpoch) { _, _ in reload() }
     }
 
@@ -64,20 +73,26 @@ struct ImportedTracksListView: View {
                 }
             }
             .padding(.horizontal, YTLiteLayout.screenPadding)
-            .padding(.vertical, YTLiteLayout.rowVertical)
         }
+        .padding(.top, YTLiteLayout.stackTight)
+    }
+
+    private var listControls: some View {
+        HStack {
+            Text(Lf("common.n_items", filteredEntries.count))
+                .font(YTLiteType.body)
+                .foregroundStyle(YTLiteColor.onSurfaceVariant)
+            Spacer()
+        }
+        .padding(.horizontal, YTLiteLayout.screenPadding)
     }
 
     @ViewBuilder
     private var listBody: some View {
         if entries.isEmpty {
-            Text(L("import.hub.empty"))
-                .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            emptyState(L("import.hub.empty"))
         } else if filteredEntries.isEmpty {
-            Text(L("import.list.empty_filter"))
-                .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            emptyState(L("import.list.empty_filter"))
         } else {
             ScrollView {
                 LazyVStack(spacing: 0) {
@@ -85,55 +100,73 @@ struct ImportedTracksListView: View {
                         importedRow(entry, index: index)
                     }
                 }
-                .ytLiteMiniPlayerScrollInset()
+                .padding(.bottom, 80)
             }
         }
     }
 
-    private func importedRow(_ entry: ImportedDisplayEntry, index: Int) -> some View {
-        Button {
-            play(at: index)
-        } label: {
-            HStack(spacing: YTLiteLayout.stackLoose) {
-                Group {
-                    if entry.item.thumbnailURL != nil {
-                        RemoteImage(url: entry.item.thumbnailURL, maxPointSize: 96)
-                    } else {
-                        Image(systemName: "music.note")
-                            .foregroundStyle(YTLiteColor.accent)
-                    }
-                }
-                .frame(width: YTLiteLayout.channelAvatar, height: YTLiteLayout.channelAvatar)
-                .background(YTLiteColor.surfaceVariant)
-                .clipShape(RoundedRectangle(cornerRadius: 6))
-                .id("import-list-thumb-\(entry.id)-\(entry.item.thumbnailURL?.absoluteString ?? "")")
+    private func emptyState(_ message: String) -> some View {
+        Text(message)
+            .font(YTLiteType.body)
+            .foregroundStyle(YTLiteColor.onSurfaceVariant)
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .padding(.horizontal, 32)
+    }
 
-                VStack(alignment: .leading, spacing: YTLiteLayout.stackTight) {
-                    Text(entry.item.title)
-                        .font(YTLiteType.rowTitle)
-                        .foregroundStyle(YTLiteColor.onSurface)
-                        .lineLimit(1)
-                    Text(entry.subtitleLine)
-                        .font(YTLiteType.meta)
-                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                        .lineLimit(1)
+    private func importedRow(_ entry: ImportedDisplayEntry, index: Int) -> some View {
+        HStack(spacing: 0) {
+            Button {
+                play(at: index)
+            } label: {
+                HStack(spacing: 14) {
+                    Group {
+                        if entry.item.thumbnailURL != nil {
+                            RemoteImage(url: entry.item.thumbnailURL, contentMode: .fill)
+                        } else {
+                            ZStack {
+                                YTLiteColor.surfaceVariant
+                                Image(systemName: "music.note")
+                                    .font(.system(size: 22, weight: .semibold))
+                                    .foregroundStyle(YTLiteColor.accent)
+                            }
+                        }
+                    }
+                    .frame(width: 64, height: 64)
+                    .clipped()
+                    .clipShape(RoundedRectangle(cornerRadius: YTLiteLayout.thumbRadius))
+                    .id("import-list-thumb-\(entry.id)-\(entry.item.thumbnailURL?.absoluteString ?? "")")
+
+                    VStack(alignment: .leading, spacing: YTLiteLayout.stackTight) {
+                        Text(entry.item.title)
+                            .font(YTLiteType.rowTitle)
+                            .foregroundStyle(YTLiteColor.onSurface)
+                            .lineLimit(1)
+                        Text(entry.subtitleLine)
+                            .font(YTLiteType.meta)
+                            .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                            .lineLimit(1)
+                    }
+                    Spacer(minLength: 0)
                 }
-                Spacer(minLength: 0)
-                Button {
-                    trackActions.present(item: entry.item, canDeleteFromLibrary: true)
-                } label: {
-                    Image(systemName: "ellipsis")
-                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                        .frame(width: 32, height: 32)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.borderless)
+                .padding(.leading, YTLiteLayout.screenPadding)
+                .padding(.vertical, YTLiteLayout.rowVertical)
+                .contentShape(Rectangle())
             }
-            .padding(.horizontal, YTLiteLayout.screenPadding)
-            .padding(.vertical, YTLiteLayout.rowVertical)
-            .contentShape(Rectangle())
+            .buttonStyle(.plain)
+
+            Button {
+                trackActions.present(item: entry.item, canDeleteFromLibrary: true)
+            } label: {
+                Image(systemName: "ellipsis")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .padding(.trailing, YTLiteLayout.screenPadding - 8)
         }
-        .buttonStyle(.plain)
     }
 
     private func play(at index: Int) {
@@ -144,6 +177,14 @@ struct ImportedTracksListView: View {
 
     private func reload() {
         entries = ImportedDisplayEntry.loadAll(from: store)
+    }
+
+    private func backfillCoversIfNeeded() async {
+        guard let store else { return }
+        let updated = await ImportIngestService.shared.backfillMissingCovers(store: store)
+        guard updated > 0 else { return }
+        reload()
+        trackActions.notifyListsChanged()
     }
 }
 

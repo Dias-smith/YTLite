@@ -2120,6 +2120,22 @@ final class PlaybackController: ObservableObject {
         updateNowPlayingInfo()
     }
 
+    /// Photos / Files pickers often interrupt audio without `.shouldResume` — restore after dismiss/import.
+    func resumeAfterSystemPickerIfNeeded(wasPlaying: Bool) {
+        guard wasPlaying, nowPlaying != nil else { return }
+        resumeAfterInterruption = false
+        if AVAudioSession.sharedInstance().secondaryAudioShouldBeSilencedHint {
+            resumeAfterSecondaryAudioSilence = true
+            return
+        }
+        activatePlaybackAudioSession(allowMixWithOthers: false)
+        guard let player else { return }
+        player.playImmediately(atRate: playbackSpeed)
+        isPlaying = true
+        updateNowPlayingInfo()
+        persistSession(immediate: true)
+    }
+
     private func handleAudioInterruption(_ note: Notification) {
         guard let typeValue = note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
               let type = AVAudioSession.InterruptionType(rawValue: typeValue)

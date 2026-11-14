@@ -1155,7 +1155,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -euo pipefail\nAPP_ROOT=\"${TARGET_BUILD_DIR}/${WRAPPER_NAME}\"\nWATCH_DIR=\"${APP_ROOT}/Watch\"\nWATCH_APP=\"${WATCH_DIR}/MixtubeWatch.app\"\nPLUGINS_DIR=\"${APP_ROOT}/PlugIns\"\nPLUGINS_APP=\"${PLUGINS_DIR}/MixtubeWatch.app\"\n\n# Prefer whatever the Embed phase produced.\nSRC=\"\"\nif [ -d \"$WATCH_APP\" ] && [ ! -L \"$WATCH_APP\" ]; then\n  SRC=\"$WATCH_APP\"\nelif [ -d \"$PLUGINS_APP\" ] && [ ! -L \"$PLUGINS_APP\" ]; then\n  SRC=\"$PLUGINS_APP\"\nfi\nif [ -z \"$SRC\" ]; then\n  echo \"[YTLite] ERROR: MixtubeWatch.app missing under Watch/ or PlugIns/\"\n  exit 1\nfi\n\nmkdir -p \"$WATCH_DIR\"\nif [ \"$SRC\" != \"$WATCH_APP\" ]; then\n  rm -rf \"$WATCH_APP\"\n  ditto \"$SRC\" \"$WATCH_APP\"\n  echo \"[YTLite] Copied companion to Watch/MixtubeWatch.app\"\nfi\n\n# App Store (Release/Archive): Watch apps must not live under PlugIns/.\nif [ \"${CONFIGURATION}\" = \"Release\" ] || [ \"${ACTION:-}\" = \"install\" ]; then\n  if [ -e \"$PLUGINS_APP\" ]; then\n    rm -rf \"$PLUGINS_APP\"\n    echo \"[YTLite] Removed PlugIns/MixtubeWatch.app for App Store packaging\"\n  fi\n  # Drop empty PlugIns dir if we emptied it.\n  if [ -d \"$PLUGINS_DIR\" ] && [ -z \"$(ls -A \"$PLUGINS_DIR\" 2>/dev/null || true)\" ]; then\n    rmdir \"$PLUGINS_DIR\" 2>/dev/null || true\n  fi\nelse\n  # Debug: always refresh PlugIns copy for Xcode 26 local install paths.\n  # Stale copies (old CFBundleVersion) cause intermittent Watch install failures.\n  mkdir -p \"$PLUGINS_DIR\"\n  rm -rf \"$PLUGINS_APP\"\n  ditto \"$WATCH_APP\" \"$PLUGINS_APP\"\n  echo \"[YTLite] Mirrored companion to PlugIns/MixtubeWatch.app (Debug)\"\nfi\n\n# Strip iOS-only keys that leak into the embedded companion Info.plist.\n# Only rewrite when a key actually exists, then re-sign — mutating a signed\n# Info.plist breaks phone→Watch companion install (codesign verify fails).\nresign_needed=0\nfor PLIST in \\\n  \"$WATCH_APP/Info.plist\" \\\n  \"$PLUGINS_APP/Info.plist\"\ndo\n  if [ -f \"$PLIST\" ]; then\n    if /usr/libexec/PlistBuddy -c \"Print :MinimumOSVersion~ipad\" \"$PLIST\" >/dev/null 2>&1; then\n      /usr/libexec/PlistBuddy -c \"Delete :MinimumOSVersion~ipad\" \"$PLIST\"\n      resign_needed=1\n    fi\n    if /usr/libexec/PlistBuddy -c \"Print :UISupportedInterfaceOrientations~ipad\" \"$PLIST\" >/dev/null 2>&1; then\n      /usr/libexec/PlistBuddy -c \"Delete :UISupportedInterfaceOrientations~ipad\" \"$PLIST\"\n      resign_needed=1\n    fi\n  fi\ndone\n\n# Drop debug/preview dylibs from the embedded companion — watchOS rejects them\n# during integrity check when installing from the iPhone Watch app.\n# POSIX-only (Xcode runs this with /bin/sh).\nfor ROOT in \"$WATCH_APP\" \"$PLUGINS_APP\"; do\n  [ -d \"$ROOT\" ] || continue\n  FOUND=$(find \"$ROOT\" \\( -name '*.debug.dylib' -o -name '__preview.dylib' \\) -type f -print 2>/dev/null || true)\n  if [ -n \"$FOUND\" ]; then\n    # Avoid `set -o pipefail` + `while read` EOF=1 killing the script.\n    printf '%s\\n' \"$FOUND\" | while IFS= read -r DYLIB; do\n      [ -n \"$DYLIB\" ] || continue\n      echo \"[YTLite] Removed $(basename \"$DYLIB\") from embedded Watch package\"\n    done || true\n    find \"$ROOT\" \\( -name '*.debug.dylib' -o -name '__preview.dylib' \\) -type f -delete 2>/dev/null || true\n    resign_needed=1\n  fi\ndone\n\nif [ \"$resign_needed\" = \"1\" ]; then\n  IDENTITY=\"${EXPANDED_CODE_SIGN_IDENTITY:-}\"\n  if [ -z \"$IDENTITY\" ] || [ \"$IDENTITY\" = \"-\" ]; then\n    IDENTITY=\"${CODE_SIGN_IDENTITY:-}\"\n  fi\n  # Simulator builds often expose a placeholder like \"iPhone Developer\"\n  # with no keychain cert — ad-hoc (-) is enough after plist/dylib edits.\n  case \"${PLATFORM_NAME:-}${EFFECTIVE_PLATFORM_NAME:-}\" in\n    *simulator*) IDENTITY=\"-\" ;;\n  esac\n  if [ -n \"$IDENTITY\" ]; then\n    for BUNDLE in \"$WATCH_APP\" \"$PLUGINS_APP\"; do\n      [ -d \"$BUNDLE\" ] || continue\n      if [ -d \"$BUNDLE/PlugIns/MixtubeWatchWidget.appex\" ]; then\n        if ! codesign --force --sign \"$IDENTITY\" --timestamp=none \\\n          --generate-entitlement-der \\\n          \"$BUNDLE/PlugIns/MixtubeWatchWidget.appex\"\n        then\n          echo \"[YTLite] WARNING: widget re-sign failed (identity=$IDENTITY)\"\n          continue\n        fi\n      fi\n      if codesign --force --sign \"$IDENTITY\" --timestamp=none \\\n        --generate-entitlement-der \\\n        --preserve-metadata=identifier,entitlements,flags \\\n        \"$BUNDLE\"\n      then\n        echo \"[YTLite] Re-signed $(basename \"$BUNDLE\") after packaging fixes\"\n      else\n        echo \"[YTLite] WARNING: re-sign failed for $(basename \"$BUNDLE\") (identity=$IDENTITY)\"\n      fi\n    done\n  else\n    echo \"[YTLite] WARNING: no code-sign identity; Watch package may fail install\"\n  fi\nfi\n";
+			shellScript = "set -euo pipefail\nAPP_ROOT=\"${TARGET_BUILD_DIR}/${WRAPPER_NAME}\"\nWATCH_DIR=\"${APP_ROOT}/Watch\"\nWATCH_APP=\"${WATCH_DIR}/MixtubeWatch.app\"\nPLUGINS_DIR=\"${APP_ROOT}/PlugIns\"\nPLUGINS_APP=\"${PLUGINS_DIR}/MixtubeWatch.app\"\n\n# Prefer whatever the Embed phase produced.\nSRC=\"\"\nif [ -d \"$WATCH_APP\" ] && [ ! -L \"$WATCH_APP\" ]; then\n  SRC=\"$WATCH_APP\"\nelif [ -d \"$PLUGINS_APP\" ] && [ ! -L \"$PLUGINS_APP\" ]; then\n  SRC=\"$PLUGINS_APP\"\nfi\nif [ -z \"$SRC\" ]; then\n  echo \"[YTLite] ERROR: MixtubeWatch.app missing under Watch/ or PlugIns/\"\n  exit 1\nfi\n\nmkdir -p \"$WATCH_DIR\"\nif [ \"$SRC\" != \"$WATCH_APP\" ]; then\n  rm -rf \"$WATCH_APP\"\n  ditto \"$SRC\" \"$WATCH_APP\"\n  echo \"[YTLite] Copied companion to Watch/MixtubeWatch.app\"\nfi\n\n# App Store (Release/Archive): Watch apps must not live under PlugIns/.\nif [ \"${CONFIGURATION}\" = \"Release\" ] || [ \"${ACTION:-}\" = \"install\" ]; then\n  if [ -e \"$PLUGINS_APP\" ]; then\n    rm -rf \"$PLUGINS_APP\"\n    echo \"[YTLite] Removed PlugIns/MixtubeWatch.app for App Store packaging\"\n  fi\n  # Drop empty PlugIns dir if we emptied it.\n  if [ -d \"$PLUGINS_DIR\" ] && [ -z \"$(ls -A \"$PLUGINS_DIR\" 2>/dev/null || true)\" ]; then\n    rmdir \"$PLUGINS_DIR\" 2>/dev/null || true\n  fi\nelse\n  # Debug: always refresh PlugIns copy for Xcode 26 local install paths.\n  # Stale copies (old CFBundleVersion) cause intermittent Watch install failures.\n  mkdir -p \"$PLUGINS_DIR\"\n  rm -rf \"$PLUGINS_APP\"\n  ditto \"$WATCH_APP\" \"$PLUGINS_APP\"\n  echo \"[YTLite] Mirrored companion to PlugIns/MixtubeWatch.app (Debug)\"\nfi\n\n# Strip iOS-only keys that leak into the embedded companion Info.plist.\nfor PLIST in \\\n  \"$WATCH_APP/Info.plist\" \\\n  \"$PLUGINS_APP/Info.plist\"\ndo\n  if [ -f \"$PLIST\" ]; then\n    /usr/libexec/PlistBuddy -c \"Delete :MinimumOSVersion~ipad\" \"$PLIST\" 2>/dev/null || true\n    /usr/libexec/PlistBuddy -c \"Delete :UISupportedInterfaceOrientations~ipad\" \"$PLIST\" 2>/dev/null || true\n  fi\ndone\n\n# Drop debug/preview dylibs from the embedded companion — watchOS rejects them\n# during integrity check when installing from the iPhone Watch app.\nfor ROOT in \"$WATCH_APP\" \"$PLUGINS_APP\"; do\n  [ -d \"$ROOT\" ] || continue\n  FOUND=$(find \"$ROOT\" \\( -name '*.debug.dylib' -o -name '__preview.dylib' \\) -type f -print 2>/dev/null || true)\n  if [ -n \"$FOUND\" ]; then\n    printf '%s\\n' \"$FOUND\" | while IFS= read -r DYLIB; do\n      [ -n \"$DYLIB\" ] || continue\n      echo \"[YTLite] Removed $(basename \"$DYLIB\") from embedded Watch package\"\n    done || true\n    find \"$ROOT\" \\( -name '*.debug.dylib' -o -name '__preview.dylib' \\) -type f -delete 2>/dev/null || true\n  fi\ndone\n\n# Always re-sign Watch + nested widget after packaging / PlugIns mirror.\n# Skipping this leaves an unsigned or mismatched nested appex and phone→Watch\n# install fails with a generic \"Unable to install\" in the Watch app.\nIDENTITY=\"${EXPANDED_CODE_SIGN_IDENTITY:-}\"\nif [ -z \"$IDENTITY\" ] || [ \"$IDENTITY\" = \"-\" ]; then\n  IDENTITY=\"${CODE_SIGN_IDENTITY:-}\"\nfi\ncase \"${PLATFORM_NAME:-}${EFFECTIVE_PLATFORM_NAME:-}\" in\n  *simulator*) IDENTITY=\"-\" ;;\nesac\nif [ -z \"$IDENTITY\" ]; then\n  echo \"[YTLite] ERROR: no code-sign identity for Watch companion\"\n  exit 1\nfi\nfor BUNDLE in \"$WATCH_APP\" \"$PLUGINS_APP\"; do\n  [ -d \"$BUNDLE\" ] || continue\n  if [ -d \"$BUNDLE/PlugIns/MixtubeWatchWidget.appex\" ]; then\n    codesign --force --sign \"$IDENTITY\" --timestamp=none \\\n      --generate-entitlement-der \\\n      --preserve-metadata=identifier,entitlements,flags \\\n      \"$BUNDLE/PlugIns/MixtubeWatchWidget.appex\"\n  fi\n  codesign --force --sign \"$IDENTITY\" --timestamp=none \\\n    --generate-entitlement-der \\\n    --preserve-metadata=identifier,entitlements,flags \\\n    \"$BUNDLE\"\n  echo \"[YTLite] Re-signed $(basename \"$BUNDLE\") (identity=$IDENTITY)\"\n  # Device builds: fail early if the companion is not installable.\n  case \"${PLATFORM_NAME:-}${EFFECTIVE_PLATFORM_NAME:-}\" in\n    *simulator*) ;;\n    *)\n      if ! codesign --verify --deep --strict \"$BUNDLE\" 2>/dev/null; then\n        echo \"[YTLite] ERROR: codesign verify failed for $BUNDLE\"\n        codesign --verify --deep --strict \"$BUNDLE\" || true\n        exit 1\n      fi\n      ;;\n  esac\ndone\n";
 		};
 		D51AC7BB983E9AA1CA1070F7 /* Strip iOS Info.plist leaks from Watch */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -1382,6 +1382,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = YTLiteWatch/YTLiteWatch.entitlements;
 				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 5;
 				DEVELOPMENT_TEAM = 8S748AQ4H7;
 				ENABLE_DEBUG_DYLIB = NO;
 				ENABLE_PREVIEWS = NO;
@@ -1390,6 +1391,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = Mixtube;
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.ytlite.player;
 				INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp = NO;
+				MARKETING_VERSION = 1.3.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.ytlite.player.watchkitapp;
 				PRODUCT_MODULE_NAME = YTLiteWatch;
 				PRODUCT_NAME = MixtubeWatch;
@@ -1474,12 +1476,14 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = YTLiteWatchWidget/YTLiteWatchWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 5;
 				DEVELOPMENT_TEAM = 8S748AQ4H7;
 				ENABLE_DEBUG_DYLIB = NO;
 				ENABLE_PREVIEWS = NO;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = YTLiteWatchWidget/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
+				MARKETING_VERSION = 1.3.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.ytlite.player.watchkitapp.widget;
 				PRODUCT_MODULE_NAME = YTLiteWatchWidget;
 				PRODUCT_NAME = MixtubeWatchWidget;
@@ -1574,12 +1578,14 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = YTLiteWatchWidget/YTLiteWatchWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 5;
 				DEVELOPMENT_TEAM = 8S748AQ4H7;
 				ENABLE_DEBUG_DYLIB = NO;
 				ENABLE_PREVIEWS = NO;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = YTLiteWatchWidget/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
+				MARKETING_VERSION = 1.3.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.ytlite.player.watchkitapp.widget;
 				PRODUCT_MODULE_NAME = YTLiteWatchWidget;
 				PRODUCT_NAME = MixtubeWatchWidget;
@@ -1598,6 +1604,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = YTLiteWatch/YTLiteWatch.entitlements;
 				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 5;
 				DEVELOPMENT_TEAM = 8S748AQ4H7;
 				ENABLE_DEBUG_DYLIB = NO;
 				ENABLE_PREVIEWS = NO;
@@ -1606,6 +1613,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = Mixtube;
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.ytlite.player;
 				INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp = NO;
+				MARKETING_VERSION = 1.3.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.ytlite.player.watchkitapp;
 				PRODUCT_MODULE_NAME = YTLiteWatch;
 				PRODUCT_NAME = MixtubeWatch;

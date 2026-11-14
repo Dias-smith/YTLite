@@ -228,6 +228,7 @@ final class PlayerSurfaceController: UIViewController, AVPictureInPictureControl
 
         let pipEnabled = PictureInPictureSettings.isEnabled
         pictureInPictureEnabled = pipEnabled
+        let preferPortrait = Self.isPortraitVideo(player: player)
 
         isFullscreenActive = true
         fullscreenPlayer = player
@@ -236,9 +237,10 @@ final class PlayerSurfaceController: UIViewController, AVPictureInPictureControl
         // Inline PiP controller must not survive across fullscreen / Home.
         destroyPipController()
 
-        AppOrientation.beginVideoFullscreen()
+        AppOrientation.beginVideoFullscreen(portrait: preferPortrait)
 
         let vc = FullscreenPlayerViewController()
+        vc.preferPortrait = preferPortrait
         vc.player = player
         vc.showsPlaybackControls = true
         vc.allowsPictureInPicturePlayback = pipEnabled
@@ -255,6 +257,14 @@ final class PlayerSurfaceController: UIViewController, AVPictureInPictureControl
                 self.restoreAfterFullscreen()
             }
         }
+    }
+
+    /// Uses `presentationSize` (includes preferred transform). Square → portrait fullscreen.
+    private static func isPortraitVideo(player: AVPlayer) -> Bool {
+        guard let item = player.currentItem else { return false }
+        let size = item.presentationSize
+        guard size.width > 1, size.height > 1 else { return false }
+        return size.height >= size.width
     }
 
     // MARK: - AVPictureInPictureControllerDelegate
@@ -391,9 +401,17 @@ final class PlayerSurfaceController: UIViewController, AVPictureInPictureControl
 /// Detects Done dismiss so we can reattach the player to the inline layer.
 private final class FullscreenPlayerViewController: AVPlayerViewController {
     var onDidDismiss: (() -> Void)?
+    /// Vertical / square video stays upright; landscape video locks landscape right.
+    var preferPortrait = false
 
-    override var supportedInterfaceOrientations: UIInterfaceOrientationMask { .landscapeRight }
-    override var preferredInterfaceOrientationForPresentation: UIInterfaceOrientation { .landscapeRight }
+    override var supportedInterfaceOrientations: UIInterfaceOrientationMask {
+        preferPortrait ? .portrait : .landscapeRight
+    }
+
+    override var preferredInterfaceOrientationForPresentation: UIInterfaceOrientation {
+        preferPortrait ? .portrait : .landscapeRight
+    }
+
     override var shouldAutorotate: Bool { false }
 
     override func viewDidDisappear(_ animated: Bool) {

@@ -482,6 +482,40 @@
         }
       }
     },
+    "watch.waking_iphone" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Starting on iPhone…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在启动 iPhone…"
+          }
+        }
+      }
+    },
+    "watch.waking_iphone_hint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tap play to start on iPhone"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "点播放以在 iPhone 上启动"
+          }
+        }
+      }
+    },
     "watch.phone_required" : {
       "extractionState" : "manual",
       "localizations" : {

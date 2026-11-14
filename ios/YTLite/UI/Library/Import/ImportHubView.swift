@@ -2,8 +2,71 @@ import PhotosUI
 import SwiftUI
 import UniformTypeIdentifiers
 
+private enum ImportHubSource: Identifiable {
+    case local
+    case photos
+    case wifi
+    case webdav
+    case icloud
+    case gdrive
+    case baidu
+
+    var id: String {
+        switch self {
+        case .local: return "local"
+        case .photos: return "photos"
+        case .wifi: return "wifi"
+        case .webdav: return "webdav"
+        case .icloud: return "icloud"
+        case .gdrive: return "gdrive"
+        case .baidu: return "baidu"
+        }
+    }
+
+    var title: String {
+        switch self {
+        case .local: return L("import.source.local")
+        case .photos: return L("import.source.photos")
+        case .wifi: return L("import.source.wifi")
+        case .webdav: return L("import.source.webdav")
+        case .icloud: return L("import.source.icloud")
+        case .gdrive: return L("import.source.gdrive")
+        case .baidu: return L("import.source.baidu")
+        }
+    }
+
+    var subtitle: String {
+        switch self {
+        case .local: return L("import.source.local.hint")
+        case .photos: return L("import.source.photos.hint")
+        case .wifi: return L("import.source.wifi.hint")
+        case .webdav: return L("import.source.webdav.hint")
+        case .icloud: return L("import.source.icloud.hint")
+        case .gdrive: return L("import.source.gdrive.hint")
+        case .baidu: return L("import.source.baidu.hint")
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .local: return "folder"
+        case .photos: return "photo.on.rectangle"
+        case .wifi: return "wifi"
+        case .webdav: return "externaldrive.connected.to.line.below"
+        case .icloud: return "icloud"
+        case .gdrive: return "globe"
+        case .baidu: return "cloud"
+        }
+    }
+
+    static let all: [ImportHubSource] = [
+        .local, .photos, .wifi, .webdav, .icloud, .gdrive, .baidu,
+    ]
+}
+
 struct ImportHubView: View {
     @EnvironmentObject private var trackActions: TrackActionPresenter
+    @EnvironmentObject private var playback: PlaybackController
     @Environment(\.libraryStore) private var store
 
     @State private var importedCount: Int = 0
@@ -16,39 +79,26 @@ struct ImportHubView: View {
     @State private var showWebDAV = false
     @State private var showGoogleDrive = false
     @State private var showBaidu = false
+    @State private var preferICloudPicker = false
+    /// Photos/Files steal AVAudioSession; restore after dismiss/import if we were playing.
+    @State private var resumePlaybackAfterPicker = false
 
     var body: some View {
-        List {
-            Section {
-                sourceButton(title: L("import.source.local"), systemImage: "folder") {
-                    showFileImporter = true
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 0) {
+                listControls
+                    .padding(.bottom, YTLiteLayout.stackTight)
+
+                ForEach(ImportHubSource.all) { source in
+                    sourceRow(source)
                 }
-                sourceButton(title: L("import.source.photos"), systemImage: "photo.on.rectangle") {
-                    showPhotosPicker = true
-                }
-                sourceButton(title: L("import.source.wifi"), systemImage: "wifi") {
-                    showWiFi = true
-                }
-                sourceButton(title: L("import.source.webdav"), systemImage: "externaldrive.connected.to.line.below") {
-                    showWebDAV = true
-                }
-                sourceButton(title: L("import.source.icloud"), systemImage: "icloud") {
-                    showFileImporter = true
-                }
-                sourceButton(title: L("import.source.gdrive"), systemImage: "globe") {
-                    showGoogleDrive = true
-                }
-                sourceButton(title: L("import.source.baidu"), systemImage: "cloud") {
-                    showBaidu = true
-                }
-            } header: {
-                Text(L("import.hub.sources"))
             }
+            .padding(.bottom, 80)
         }
-        .listStyle(.insetGrouped)
-        .scrollContentBackground(.hidden)
+        .ytLiteMiniPlayerScrollInset()
         .ytLiteAppBackground()
         .navigationTitle(L("import.hub.title"))
+        .toolbarBackground(YTLiteColor.background, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 NavigationLink {
@@ -79,11 +129,34 @@ struct ImportHubView: View {
                     .foregroundStyle(YTLiteColor.onSurfaceVariant)
                     .padding()
                     .frame(maxWidth: .infinity)
-                    .background(YTLiteColor.surface)
+                    .background(YTLiteColor.surface.opacity(0.92))
             }
         }
-        .onAppear { reloadCount() }
+        .onAppear {
+            reloadCount()
+            Task {
+                guard let store else { return }
+                let updated = await ImportIngestService.shared.backfillMissingCovers(store: store)
+                if updated > 0 {
+                    reloadCount()
+                    trackActions.notifyListsChanged()
+                }
+            }
+        }
         .onChange(of: trackActions.listEpoch) { _, _ in reloadCount() }
+        .onChange(of: showPhotosPicker) { _, presented in
+            if presented {
+                resumePlaybackAfterPicker = playback.isPlaying
+            } else if resumePlaybackAfterPicker, photoItems.isEmpty {
+                // Cancelled without selection — interruption often lacks `.shouldResume`.
+                finishPickerPlaybackResume()
+            }
+        }
+        .onChange(of: showFileImporter) { _, presented in
+            if presented {
+                resumePlaybackAfterPicker = playback.isPlaying
+            }
+        }
         .fileImporter(
             isPresented: $showFileImporter,
             allowedContentTypes: Self.allowedTypes,
@@ -126,10 +199,82 @@ struct ImportHubView: View {
         }
     }
 
-    private func sourceButton(title: String, systemImage: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Label(title, systemImage: systemImage)
-                .foregroundStyle(YTLiteColor.onSurface)
+    private var listControls: some View {
+        HStack {
+            Text(Lf("common.n_items", ImportHubSource.all.count))
+                .font(YTLiteType.body)
+                .foregroundStyle(YTLiteColor.onSurfaceVariant)
+            Spacer()
+        }
+        .padding(.horizontal, YTLiteLayout.screenPadding)
+        .padding(.top, YTLiteLayout.stackTight)
+    }
+
+    private func sourceRow(_ source: ImportHubSource) -> some View {
+        Button {
+            activate(source)
+        } label: {
+            HStack(spacing: 14) {
+                ZStack {
+                    YTLiteColor.surfaceVariant
+                    Image(systemName: source.systemImage)
+                        .font(.system(size: 22, weight: .semibold))
+                        .foregroundStyle(YTLiteColor.accent)
+                }
+                .frame(width: 64, height: 64)
+                .clipShape(RoundedRectangle(cornerRadius: YTLiteLayout.thumbRadius))
+
+                VStack(alignment: .leading, spacing: YTLiteLayout.stackTight) {
+                    Text(source.title)
+                        .font(YTLiteType.rowTitle)
+                        .foregroundStyle(YTLiteColor.onSurface)
+                        .lineLimit(1)
+                    Text(source.subtitle)
+                        .font(YTLiteType.meta)
+                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, YTLiteLayout.screenPadding)
+            .padding(.vertical, YTLiteLayout.rowVertical)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func activate(_ source: ImportHubSource) {
+        switch source {
+        case .local:
+            preferICloudPicker = false
+            resumePlaybackAfterPicker = playback.isPlaying
+            showFileImporter = true
+        case .photos:
+            resumePlaybackAfterPicker = playback.isPlaying
+            showPhotosPicker = true
+        case .wifi:
+            showWiFi = true
+        case .webdav:
+            showWebDAV = true
+        case .icloud:
+            preferICloudPicker = true
+            resumePlaybackAfterPicker = playback.isPlaying
+            showFileImporter = true
+        case .gdrive:
+            showGoogleDrive = true
+        case .baidu:
+            showBaidu = true
+        }
+    }
+
+    private func finishPickerPlaybackResume() {
+        let shouldResume = resumePlaybackAfterPicker
+        resumePlaybackAfterPicker = false
+        guard shouldResume else { return }
+        // Let PHPicker / document picker fully tear down before reactivating the session.
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 250_000_000)
+            playback.resumeAfterSystemPickerIfNeeded(wasPlaying: true)
         }
     }
 
@@ -145,9 +290,13 @@ struct ImportHubView: View {
     }
 
     private func handleFileImporter(_ result: Result<[URL], Error>) async {
+        defer { finishPickerPlaybackResume() }
         guard let store else { return }
         isBusy = true
-        defer { isBusy = false }
+        defer {
+            isBusy = false
+            preferICloudPicker = false
+        }
         do {
             let urls = try result.get()
             var imported = 0
@@ -155,7 +304,8 @@ struct ImportHubView: View {
                 let accessed = url.startAccessingSecurityScopedResource()
                 defer { if accessed { url.stopAccessingSecurityScopedResource() } }
                 guard ImportIngestService.isSupportedAudioURL(url) else { continue }
-                let kind: ImportSourceKind = url.path.contains("Mobile Documents") ? .icloud : .local
+                let kind: ImportSourceKind =
+                    preferICloudPicker || url.path.contains("Mobile Documents") ? .icloud : .local
                 _ = try await ImportIngestService.shared.ingestFileURL(
                     url,
                     sourceKind: kind,
@@ -173,12 +323,13 @@ struct ImportHubView: View {
     }
 
     private func handlePhotos(_ items: [PhotosPickerItem]) async {
+        defer {
+            photoItems = []
+            finishPickerPlaybackResume()
+        }
         guard let store else { return }
         isBusy = true
-        defer {
-            isBusy = false
-            photoItems = []
-        }
+        defer { isBusy = false }
         var imported = 0
         for item in items {
             do {

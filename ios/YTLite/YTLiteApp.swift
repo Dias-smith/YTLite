@@ -23,6 +23,10 @@ struct YTLiteApp: App {
         let playbackController = PlaybackController()
         _playback = StateObject(wrappedValue: playbackController)
         PhoneWidgetCommandBridge.shared.start(playback: playbackController)
+        // Activate WC + playback host in init so a Watch `transferUserInfo` that wakes a
+        // killed app can be handled before SwiftUI `.task` runs.
+        WatchConnectivityBridge.shared.activate()
+        WatchPlaybackHost.shared.start(playback: playbackController)
         #if DEBUG
         print("[AppDebugKit] YTLiteApp.init → starting debug server")
         NSLog("[AppDebugKit] YTLiteApp.init → starting debug server")

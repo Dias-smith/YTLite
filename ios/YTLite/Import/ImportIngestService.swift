@@ -1,5 +1,6 @@
 import AVFoundation
 import Foundation
+import ImageIO
 import UniformTypeIdentifiers
 
 @MainActor
@@ -178,7 +179,77 @@ final class ImportIngestService {
                 }
             }
         }
+        // Videos often have no embedded album art — grab a frame as cover.
+        if artwork == nil {
+            artwork = await extractVideoPoster(asset: asset, durationSeconds: durationSeconds)
+        }
         return Probed(durationSeconds: durationSeconds, artworkData: artwork)
+    }
+
+    /// First usable video frame (≈1s or 10% of duration) as JPEG cover.
+    private func extractVideoPoster(asset: AVURLAsset, durationSeconds: Int) async -> Data? {
+        guard let tracks = try? await asset.loadTracks(withMediaType: .video), !tracks.isEmpty else {
+            return nil
+        }
+        let generator = AVAssetImageGenerator(asset: asset)
+        generator.appliesPreferredTrackTransform = true
+        generator.maximumSize = CGSize(width: 720, height: 720)
+        let candidates: [Double] = {
+            if durationSeconds <= 0 { return [0.5, 0] }
+            let mid = min(1.0, max(0.1, Double(durationSeconds) * 0.1))
+            return [mid, 0.5, 0]
+        }()
+        for seconds in candidates {
+            let time = CMTime(seconds: seconds, preferredTimescale: 600)
+            guard let cgImage = try? await generator.image(at: time).image,
+                  let jpeg = jpegData(from: cgImage, quality: 0.85)
+            else { continue }
+            return jpeg
+        }
+        return nil
+    }
+
+    /// Fill missing covers for already-imported video files (embedded art / prior ingest).
+    func backfillMissingCovers(store: LibraryStore) async -> Int {
+        var updated = 0
+        for track in store.importedTracks() {
+            if let thumb = track.thumbnailURLString, !thumb.isEmpty { continue }
+            guard let audioURL = LocalMediaStore.shared.audioURL(
+                trackId: track.trackId,
+                relativePath: track.localRelativePath
+            ) else { continue }
+            let asset = AVURLAsset(url: audioURL)
+            guard let data = await extractVideoPoster(
+                asset: asset,
+                durationSeconds: track.durationSeconds
+            ),
+                  let coverURL = try? writeArtwork(data, trackId: track.trackId)
+            else { continue }
+            track.thumbnailHigh = coverURL.absoluteString
+            track.updatedAt = .now
+            updated += 1
+        }
+        if updated > 0 {
+            store.saveLocalOnly()
+        }
+        return updated
+    }
+
+    private func jpegData(from cgImage: CGImage, quality: CGFloat) -> Data? {
+        let data = NSMutableData()
+        guard let destination = CGImageDestinationCreateWithData(
+            data as CFMutableData,
+            UTType.jpeg.identifier as CFString,
+            1,
+            nil
+        ) else { return nil }
+        CGImageDestinationAddImage(
+            destination,
+            cgImage,
+            [kCGImageDestinationLossyCompressionQuality: quality] as CFDictionary
+        )
+        guard CGImageDestinationFinalize(destination) else { return nil }
+        return data as Data
     }
 
     private func writeArtwork(_ data: Data, trackId: String) throws -> URL {

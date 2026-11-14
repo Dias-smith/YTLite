@@ -6,7 +6,10 @@ struct WatchQueueView: View {
     @EnvironmentObject private var bridge: WatchConnectivityBridge
     @EnvironmentObject private var playback: WatchPlaybackClient
 
-    private var canControl: Bool { bridge.isReachable }
+    /// Allow queue play even when iPhone app is not running (WC may wake it).
+    private var canControl: Bool {
+        bridge.activationState == .activated && bridge.isCompanionAppInstalled
+    }
 
     var body: some View {
         NavigationStack {
