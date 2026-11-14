@@ -44,17 +44,20 @@ struct ImportedTracksListView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            // Same chrome stack as Library: page title → chips → N items.
             VStack(alignment: .leading, spacing: YTLiteLayout.screenPadding) {
+                header
                 filterChips
                 listControls
             }
             .padding(.bottom, YTLiteLayout.stackTight)
 
             listBody
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .ytLiteAppBackground()
         .ytLiteMiniPlayerScrollInset()
-        .navigationTitle(L("import.list.title"))
+        .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.visible, for: .navigationBar)
         .toolbarBackground(YTLiteColor.background, for: .navigationBar)
@@ -65,6 +68,14 @@ struct ImportedTracksListView: View {
         .onChange(of: trackActions.listEpoch) { _, _ in reload() }
     }
 
+    private var header: some View {
+        Text(L("import.list.title"))
+            .font(YTLiteType.pageTitle)
+            .foregroundStyle(YTLiteColor.onSurface)
+            .padding(.horizontal, YTLiteLayout.screenPadding)
+            .padding(.top, YTLiteLayout.rowVertical)
+    }
+
     private var filterChips: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: YTLiteLayout.stackDefault) {
@@ -73,9 +84,11 @@ struct ImportedTracksListView: View {
                         filter = item
                     }
                 }
+                Spacer(minLength: 0)
             }
             .padding(.horizontal, YTLiteLayout.screenPadding)
         }
+        .fixedSize(horizontal: false, vertical: true)
     }
 
     private var listControls: some View {
@@ -83,8 +96,9 @@ struct ImportedTracksListView: View {
             Text(Lf("common.n_items", filteredEntries.count))
                 .font(YTLiteType.body)
                 .foregroundStyle(YTLiteColor.onSurfaceVariant)
-            Spacer()
+            Spacer(minLength: 0)
         }
+        .frame(minHeight: 36, alignment: .center)
         .padding(.horizontal, YTLiteLayout.screenPadding)
     }
 
