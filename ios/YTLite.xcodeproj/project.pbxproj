@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 63;
+	objectVersion = 54;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -262,7 +262,7 @@
 		3627B7BDF36A0A93C17CD290 /* AppNotificationCenterDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppNotificationCenterDelegate.swift; sourceTree = "<group>"; };
 		3693FFE80E6D4EF4B5DFF004 /* WatchLibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchLibraryView.swift; sourceTree = "<group>"; };
 		37556EF2BFFC392D74790365 /* YTLiteApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YTLiteApp.swift; sourceTree = "<group>"; };
-		37C2F08AB6A2F5D3CA68773E /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		37C2F08AB6A2F5D3CA68773E /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		393F20A5B7AC6195756265CF /* WatchRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchRootView.swift; sourceTree = "<group>"; };
 		3B55C886627AC848E97298C4 /* AppDebugActionRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDebugActionRegistry.swift; sourceTree = "<group>"; };
 		3C80835FE38E5DA31A668C72 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
@@ -273,7 +273,7 @@
 		434F92C460A095DE6033DDDC /* HLSMasterPlaylist.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HLSMasterPlaylist.swift; sourceTree = "<group>"; };
 		43D1015CCF65D86C7643D926 /* PhoneWidgetSnapshotBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneWidgetSnapshotBridge.swift; sourceTree = "<group>"; };
 		4485B717C9F34EE0E7961AD2 /* YTLiteWatchApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YTLiteWatchApp.swift; sourceTree = "<group>"; };
-		44EBD8B1BFEA37CB163553EB /* Mixtube.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Mixtube.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		44EBD8B1BFEA37CB163553EB /* YTLite.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = YTLite.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		47C40FB76C18A469B03EFE2C /* PlaybackMediaStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackMediaStore.swift; sourceTree = "<group>"; };
 		496F688C233012874D29141D /* AuthNonce.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthNonce.swift; sourceTree = "<group>"; };
 		4F148613909F22D6432E97CD /* PlaybackController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackController.swift; sourceTree = "<group>"; };
@@ -281,7 +281,7 @@
 		5A11CDF83668D8A9A2C3E19C /* PhoneNowPlayingWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneNowPlayingWidget.swift; sourceTree = "<group>"; };
 		5A76E914564581D50AA61C93 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		5AFE9EE0EA45B07E50D60070 /* AppBackgroundSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppBackgroundSettingsView.swift; sourceTree = "<group>"; };
-		5BD940F58CB5E24CE6D14334 /* YTLite Watch App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; name = "YTLite Watch App.app"; path = MixtubeWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		5BD940F58CB5E24CE6D14334 /* YTLite Watch App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "YTLite Watch App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		5CC3E87622C393A7C74ACF92 /* PlaybackSessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackSessionStore.swift; sourceTree = "<group>"; };
 		5E2C45DEAA65E1A67289B7E1 /* WatchTrackRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchTrackRow.swift; sourceTree = "<group>"; };
 		5F60984D6226BFEC61765B98 /* StreamResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamResolver.swift; sourceTree = "<group>"; };
@@ -297,7 +297,7 @@
 		723AC8550AD0E6C810588CF2 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		73BAD5DC1A5F29987C6AC92F /* WatchLibraryClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchLibraryClient.swift; sourceTree = "<group>"; };
 		749BB83F54AEA2CB94657F58 /* SearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchView.swift; sourceTree = "<group>"; };
-		751771CAED218117BBD90823 /* YTLite Widget.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.extensionkit-extension"; name = "YTLite Widget.appex"; path = MixtubeWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		751771CAED218117BBD90823 /* YTLite Widget.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = "YTLite Widget.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
 		75CAA6841345006D2B609D51 /* PipPlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PipPlayerView.swift; sourceTree = "<group>"; };
 		7808B0DE3172F30505602CA1 /* PlayerDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerDetailView.swift; sourceTree = "<group>"; };
 		785F0DBABA94995BF9801E53 /* SearchSuggestionItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchSuggestionItem.swift; sourceTree = "<group>"; };
@@ -350,7 +350,7 @@
 		D36539F7B8580F83FE3B4756 /* TrackActionHost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackActionHost.swift; sourceTree = "<group>"; };
 		D529CBE3CDAA9B46643E4923 /* WatchConnectivityProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchConnectivityProtocol.swift; sourceTree = "<group>"; };
 		D8C7436F66145066500D2402 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		D8F0AB006C1A1E4E72F38358 /* YTLite Watch Widget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; name = "YTLite Watch Widget.appex"; path = MixtubeWatchWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		D8F0AB006C1A1E4E72F38358 /* YTLite Watch Widget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "YTLite Watch Widget.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
 		D99707A101EB325B31044467 /* PlaybackEqualizerPresets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackEqualizerPresets.swift; sourceTree = "<group>"; };
 		DA08DCC883CFF6F9B394A997 /* ThemePickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemePickerView.swift; sourceTree = "<group>"; };
 		DB87027CCC60DA905FB7A4E8 /* LibrarySyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibrarySyncService.swift; sourceTree = "<group>"; };
@@ -761,7 +761,7 @@
 				5BD940F58CB5E24CE6D14334 /* YTLite Watch App.app */,
 				D8F0AB006C1A1E4E72F38358 /* YTLite Watch Widget.appex */,
 				751771CAED218117BBD90823 /* YTLite Widget.appex */,
-				44EBD8B1BFEA37CB163553EB /* Mixtube.app */,
+				44EBD8B1BFEA37CB163553EB /* YTLite.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -965,7 +965,7 @@
 				0C59CF5F40C1CC69EA3B79E6 /* GoogleMobileAds */,
 			);
 			productName = YTLite;
-			productReference = 44EBD8B1BFEA37CB163553EB /* Mixtube.app */;
+			productReference = 44EBD8B1BFEA37CB163553EB /* YTLite.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -1017,6 +1017,7 @@
 				2804343E1E0634B83C50B636 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */,
 				A4DE782A5061B5C8A8FFBDA8 /* XCRemoteSwiftPackageReference "supabase-swift" */,
 			);
+			preferredProjectObjectVersion = 54;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -1087,7 +1088,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -euo pipefail\nAPP_ROOT=\"${TARGET_BUILD_DIR}/${WRAPPER_NAME}\"\nWATCH_DIR=\"${APP_ROOT}/Watch\"\nWATCH_APP=\"${WATCH_DIR}/MixtubeWatch.app\"\nPLUGINS_DIR=\"${APP_ROOT}/PlugIns\"\nPLUGINS_APP=\"${PLUGINS_DIR}/MixtubeWatch.app\"\n\n# Prefer whatever the Embed phase produced.\nSRC=\"\"\nif [ -d \"$WATCH_APP\" ] && [ ! -L \"$WATCH_APP\" ]; then\n  SRC=\"$WATCH_APP\"\nelif [ -d \"$PLUGINS_APP\" ] && [ ! -L \"$PLUGINS_APP\" ]; then\n  SRC=\"$PLUGINS_APP\"\nfi\nif [ -z \"$SRC\" ]; then\n  echo \"[YTLite] ERROR: MixtubeWatch.app missing under Watch/ or PlugIns/\"\n  exit 1\nfi\n\nmkdir -p \"$WATCH_DIR\"\nif [ \"$SRC\" != \"$WATCH_APP\" ]; then\n  rm -rf \"$WATCH_APP\"\n  ditto \"$SRC\" \"$WATCH_APP\"\n  echo \"[YTLite] Copied companion to Watch/MixtubeWatch.app\"\nfi\n\n# App Store (Release/Archive): Watch apps must not live under PlugIns/.\nif [ \"${CONFIGURATION}\" = \"Release\" ] || [ \"${ACTION:-}\" = \"install\" ]; then\n  if [ -e \"$PLUGINS_APP\" ]; then\n    rm -rf \"$PLUGINS_APP\"\n    echo \"[YTLite] Removed PlugIns/MixtubeWatch.app for App Store packaging\"\n  fi\n  # Drop empty PlugIns dir if we emptied it.\n  if [ -d \"$PLUGINS_DIR\" ] && [ -z \"$(ls -A \"$PLUGINS_DIR\" 2>/dev/null || true)\" ]; then\n    rmdir \"$PLUGINS_DIR\" 2>/dev/null || true\n  fi\nelse\n  # Debug: always refresh PlugIns copy for Xcode 26 local install paths.\n  # Stale copies (old CFBundleVersion) cause intermittent Watch install failures.\n  mkdir -p \"$PLUGINS_DIR\"\n  rm -rf \"$PLUGINS_APP\"\n  ditto \"$WATCH_APP\" \"$PLUGINS_APP\"\n  echo \"[YTLite] Mirrored companion to PlugIns/MixtubeWatch.app (Debug)\"\nfi\n\n# Strip iOS-only keys that leak into the embedded companion Info.plist.\nfor PLIST in \\\n  \"$WATCH_APP/Info.plist\" \\\n  \"$PLUGINS_APP/Info.plist\"\ndo\n  if [ -f \"$PLIST\" ]; then\n    /usr/libexec/PlistBuddy -c \"Delete :MinimumOSVersion~ipad\" \"$PLIST\" 2>/dev/null || true\n    /usr/libexec/PlistBuddy -c \"Delete :UISupportedInterfaceOrientations~ipad\" \"$PLIST\" 2>/dev/null || true\n  fi\ndone\n";
+			shellScript = "set -euo pipefail\nAPP_ROOT=\"${TARGET_BUILD_DIR}/${WRAPPER_NAME}\"\nWATCH_DIR=\"${APP_ROOT}/Watch\"\nWATCH_APP=\"${WATCH_DIR}/MixtubeWatch.app\"\nPLUGINS_DIR=\"${APP_ROOT}/PlugIns\"\nPLUGINS_APP=\"${PLUGINS_DIR}/MixtubeWatch.app\"\n\n# Prefer whatever the Embed phase produced.\nSRC=\"\"\nif [ -d \"$WATCH_APP\" ] && [ ! -L \"$WATCH_APP\" ]; then\n  SRC=\"$WATCH_APP\"\nelif [ -d \"$PLUGINS_APP\" ] && [ ! -L \"$PLUGINS_APP\" ]; then\n  SRC=\"$PLUGINS_APP\"\nfi\nif [ -z \"$SRC\" ]; then\n  echo \"[YTLite] ERROR: MixtubeWatch.app missing under Watch/ or PlugIns/\"\n  exit 1\nfi\n\nmkdir -p \"$WATCH_DIR\"\nif [ \"$SRC\" != \"$WATCH_APP\" ]; then\n  rm -rf \"$WATCH_APP\"\n  ditto \"$SRC\" \"$WATCH_APP\"\n  echo \"[YTLite] Copied companion to Watch/MixtubeWatch.app\"\nfi\n\n# App Store (Release/Archive): Watch apps must not live under PlugIns/.\nif [ \"${CONFIGURATION}\" = \"Release\" ] || [ \"${ACTION:-}\" = \"install\" ]; then\n  if [ -e \"$PLUGINS_APP\" ]; then\n    rm -rf \"$PLUGINS_APP\"\n    echo \"[YTLite] Removed PlugIns/MixtubeWatch.app for App Store packaging\"\n  fi\n  # Drop empty PlugIns dir if we emptied it.\n  if [ -d \"$PLUGINS_DIR\" ] && [ -z \"$(ls -A \"$PLUGINS_DIR\" 2>/dev/null || true)\" ]; then\n    rmdir \"$PLUGINS_DIR\" 2>/dev/null || true\n  fi\nelse\n  # Debug: always refresh PlugIns copy for Xcode 26 local install paths.\n  # Stale copies (old CFBundleVersion) cause intermittent Watch install failures.\n  mkdir -p \"$PLUGINS_DIR\"\n  rm -rf \"$PLUGINS_APP\"\n  ditto \"$WATCH_APP\" \"$PLUGINS_APP\"\n  echo \"[YTLite] Mirrored companion to PlugIns/MixtubeWatch.app (Debug)\"\nfi\n\n# Strip iOS-only keys that leak into the embedded companion Info.plist.\n# Only rewrite when a key actually exists, then re-sign — mutating a signed\n# Info.plist breaks phone→Watch companion install (codesign verify fails).\nresign_needed=0\nfor PLIST in \\\n  \"$WATCH_APP/Info.plist\" \\\n  \"$PLUGINS_APP/Info.plist\"\ndo\n  if [ -f \"$PLIST\" ]; then\n    if /usr/libexec/PlistBuddy -c \"Print :MinimumOSVersion~ipad\" \"$PLIST\" >/dev/null 2>&1; then\n      /usr/libexec/PlistBuddy -c \"Delete :MinimumOSVersion~ipad\" \"$PLIST\"\n      resign_needed=1\n    fi\n    if /usr/libexec/PlistBuddy -c \"Print :UISupportedInterfaceOrientations~ipad\" \"$PLIST\" >/dev/null 2>&1; then\n      /usr/libexec/PlistBuddy -c \"Delete :UISupportedInterfaceOrientations~ipad\" \"$PLIST\"\n      resign_needed=1\n    fi\n  fi\ndone\n\n# Drop debug/preview dylibs from the embedded companion — watchOS rejects them\n# during integrity check when installing from the iPhone Watch app.\n# POSIX-only (Xcode runs this with /bin/sh).\nfor ROOT in \"$WATCH_APP\" \"$PLUGINS_APP\"; do\n  [ -d \"$ROOT\" ] || continue\n  FOUND=$(find \"$ROOT\" \\( -name '*.debug.dylib' -o -name '__preview.dylib' \\) -type f -print 2>/dev/null || true)\n  if [ -n \"$FOUND\" ]; then\n    echo \"$FOUND\" | while IFS= read -r DYLIB; do\n      [ -n \"$DYLIB\" ] || continue\n      echo \"[YTLite] Removed $(basename \"$DYLIB\") from embedded Watch package\"\n    done\n    find \"$ROOT\" \\( -name '*.debug.dylib' -o -name '__preview.dylib' \\) -type f -delete 2>/dev/null || true\n    resign_needed=1\n  fi\ndone\n\nif [ \"$resign_needed\" = \"1\" ]; then\n  IDENTITY=\"${EXPANDED_CODE_SIGN_IDENTITY:-}\"\n  if [ -z \"$IDENTITY\" ] || [ \"$IDENTITY\" = \"-\" ]; then\n    IDENTITY=\"${CODE_SIGN_IDENTITY:-}\"\n  fi\n  if [ -n \"$IDENTITY\" ] && [ \"$IDENTITY\" != \"-\" ]; then\n    for BUNDLE in \"$WATCH_APP\" \"$PLUGINS_APP\"; do\n      [ -d \"$BUNDLE\" ] || continue\n      if [ -d \"$BUNDLE/PlugIns/MixtubeWatchWidget.appex\" ]; then\n        codesign --force --sign \"$IDENTITY\" --timestamp=none \\\n          --generate-entitlement-der \\\n          \"$BUNDLE/PlugIns/MixtubeWatchWidget.appex\"\n      fi\n      codesign --force --sign \"$IDENTITY\" --timestamp=none \\\n        --generate-entitlement-der \\\n        --preserve-metadata=identifier,entitlements,flags \\\n        \"$BUNDLE\"\n      echo \"[YTLite] Re-signed $(basename \"$BUNDLE\") after packaging fixes\"\n    done\n  else\n    echo \"[YTLite] WARNING: no code-sign identity; Watch package may fail install\"\n  fi\nfi\n";
 		};
 		D51AC7BB983E9AA1CA1070F7 /* Strip iOS Info.plist leaks from Watch */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -1297,14 +1298,14 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = YTLiteWatch/YTLiteWatch.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_TEAM = 8S748AQ4H7;
+				ENABLE_DEBUG_DYLIB = NO;
+				ENABLE_PREVIEWS = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = YTLiteWatch/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Mixtube;
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.ytlite.player;
 				INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp = NO;
-				MARKETING_VERSION = 1.3.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.ytlite.player.watchkitapp;
 				PRODUCT_MODULE_NAME = YTLiteWatch;
 				PRODUCT_NAME = MixtubeWatch;
@@ -1353,7 +1354,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 5;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
@@ -1389,16 +1390,12 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = YTLiteWatchWidget/YTLiteWatchWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_TEAM = 8S748AQ4H7;
+				ENABLE_DEBUG_DYLIB = NO;
+				ENABLE_PREVIEWS = NO;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = YTLiteWatchWidget/Info.plist;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				MARKETING_VERSION = 1.3.0;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = com.ytlite.player.watchkitapp.widget;
 				PRODUCT_MODULE_NAME = YTLiteWatchWidget;
 				PRODUCT_NAME = MixtubeWatchWidget;
@@ -1416,17 +1413,11 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = YTLiteWidget/YTLiteWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_TEAM = 8S748AQ4H7;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = YTLiteWidget/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				MARKETING_VERSION = 1.3.0;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = com.ytlite.player.widget;
 				PRODUCT_MODULE_NAME = YTLiteWidget;
 				PRODUCT_NAME = MixtubeWidget;
@@ -1470,7 +1461,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 5;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -1499,16 +1490,12 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = YTLiteWatchWidget/YTLiteWatchWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_TEAM = 8S748AQ4H7;
+				ENABLE_DEBUG_DYLIB = NO;
+				ENABLE_PREVIEWS = NO;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = YTLiteWatchWidget/Info.plist;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				MARKETING_VERSION = 1.3.0;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = com.ytlite.player.watchkitapp.widget;
 				PRODUCT_MODULE_NAME = YTLiteWatchWidget;
 				PRODUCT_NAME = MixtubeWatchWidget;
@@ -1527,14 +1514,14 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = YTLiteWatch/YTLiteWatch.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_TEAM = 8S748AQ4H7;
+				ENABLE_DEBUG_DYLIB = NO;
+				ENABLE_PREVIEWS = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = YTLiteWatch/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Mixtube;
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.ytlite.player;
 				INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp = NO;
-				MARKETING_VERSION = 1.3.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.ytlite.player.watchkitapp;
 				PRODUCT_MODULE_NAME = YTLiteWatch;
 				PRODUCT_NAME = MixtubeWatch;
@@ -1557,17 +1544,14 @@
 				CODE_SIGN_ENTITLEMENTS = YTLite/YTLite.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_LANGUAGE = en;
 				DEVELOPMENT_TEAM = 8S748AQ4H7;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = YTLite/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = Mixtube;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.3.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.ytlite.player;
 				PRODUCT_NAME = Mixtube;
 				SDKROOT = iphoneos;
@@ -1585,17 +1569,14 @@
 				CODE_SIGN_ENTITLEMENTS = YTLite/YTLite.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_LANGUAGE = en;
 				DEVELOPMENT_TEAM = 8S748AQ4H7;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = YTLite/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = Mixtube;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.3.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.ytlite.player;
 				PRODUCT_NAME = Mixtube;
 				SDKROOT = iphoneos;
@@ -1610,17 +1591,11 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = YTLiteWidget/YTLiteWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_TEAM = 8S748AQ4H7;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = YTLiteWidget/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				MARKETING_VERSION = 1.3.0;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = com.ytlite.player.widget;
 				PRODUCT_MODULE_NAME = YTLiteWidget;
 				PRODUCT_NAME = MixtubeWidget;
