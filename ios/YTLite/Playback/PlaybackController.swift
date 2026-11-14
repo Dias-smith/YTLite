@@ -22,7 +22,7 @@ final class PlaybackController: ObservableObject {
         }
     }
     /// When true, advance to the next queue item after resolve / stream failure.
-    @Published var autoSkipOnFailure: Bool = false {
+    @Published var autoSkipOnFailure: Bool = true {
         didSet {
             UserDefaults.standard.set(autoSkipOnFailure, forKey: Self.autoSkipOnFailureKey)
         }
