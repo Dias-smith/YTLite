@@ -43,17 +43,16 @@ struct ImportedTracksListView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Same chrome stack as Library: page title → chips → N items.
-            VStack(alignment: .leading, spacing: YTLiteLayout.screenPadding) {
+        // Mirror Library scroll chrome: title → chips → N items → rows in one vertical stack
+        // so the horizontal chip ScrollView sizes to content (no overlap / no giant gap).
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: YTLiteLayout.screenPadding) {
                 header
                 filterChips
                 listControls
+                listBody
             }
-            .padding(.bottom, YTLiteLayout.stackTight)
-
-            listBody
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .padding(.bottom, 80)
         }
         .ytLiteAppBackground()
         .ytLiteMiniPlayerScrollInset()
@@ -72,6 +71,7 @@ struct ImportedTracksListView: View {
         Text(L("import.list.title"))
             .font(YTLiteType.pageTitle)
             .foregroundStyle(YTLiteColor.onSurface)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, YTLiteLayout.screenPadding)
             .padding(.top, YTLiteLayout.rowVertical)
     }
@@ -84,11 +84,9 @@ struct ImportedTracksListView: View {
                         filter = item
                     }
                 }
-                Spacer(minLength: 0)
             }
             .padding(.horizontal, YTLiteLayout.screenPadding)
         }
-        .fixedSize(horizontal: false, vertical: true)
     }
 
     private var listControls: some View {
@@ -98,7 +96,6 @@ struct ImportedTracksListView: View {
                 .foregroundStyle(YTLiteColor.onSurfaceVariant)
             Spacer(minLength: 0)
         }
-        .frame(minHeight: 36, alignment: .center)
         .padding(.horizontal, YTLiteLayout.screenPadding)
     }
 
@@ -109,13 +106,10 @@ struct ImportedTracksListView: View {
         } else if filteredEntries.isEmpty {
             emptyState(L("import.list.empty_filter"))
         } else {
-            ScrollView {
-                LazyVStack(spacing: 0) {
-                    ForEach(Array(filteredEntries.enumerated()), id: \.element.id) { index, entry in
-                        importedRow(entry, index: index)
-                    }
+            LazyVStack(spacing: 0) {
+                ForEach(Array(filteredEntries.enumerated()), id: \.element.id) { index, entry in
+                    importedRow(entry, index: index)
                 }
-                .padding(.bottom, 80)
             }
         }
     }
@@ -125,8 +119,9 @@ struct ImportedTracksListView: View {
             .font(YTLiteType.body)
             .foregroundStyle(YTLiteColor.onSurfaceVariant)
             .multilineTextAlignment(.center)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .frame(maxWidth: .infinity)
             .padding(.horizontal, 32)
+            .padding(.vertical, 48)
     }
 
     private func importedRow(_ entry: ImportedDisplayEntry, index: Int) -> some View {
