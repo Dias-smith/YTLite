@@ -14,6 +14,12 @@ final class LibraryStore {
     var onUnsubscribeChannel: ((String) -> Void)?
     /// Fired after tracks leave a playlist so an active queue from that playlist can prune itself.
     var onTracksRemovedFromPlaylist: ((String, [String]) -> Void)?
+    /// Bumps when History rows change (order / progress / membership) so History UI can refresh.
+    private(set) var historyEpoch: Int = 0
+
+    private func noteHistoryChanged() {
+        historyEpoch &+= 1
+    }
 
     init(
         modelContext: ModelContext,
@@ -471,6 +477,7 @@ final class LibraryStore {
         existing.progressMs = progressMs
         existing.isSynced = false
         save()
+        noteHistoryChanged()
     }
 
     /// Distinct tracks with at least one confirmed successful playback (not resolve-only / failed open).
@@ -880,6 +887,7 @@ final class LibraryStore {
             )
         }
         save()
+        noteHistoryChanged()
     }
 
     func upsertLastPlayedRemote(
@@ -892,10 +900,15 @@ final class LibraryStore {
             predicate: #Predicate { $0.ownerKey == key && $0.trackId == trackId }
         )
         descriptor.fetchLimit = 1
+        var changed = false
         if let existing = try? modelContext.fetch(descriptor).first {
             if lastPlayedAt > existing.lastPlayedAt {
                 existing.lastPlayedAt = lastPlayedAt
                 existing.progressMs = progressMs
+                changed = true
+            } else if existing.progressMs != progressMs {
+                existing.progressMs = progressMs
+                changed = true
             }
             existing.isSynced = true
         } else {
@@ -908,6 +921,10 @@ final class LibraryStore {
                     isSynced: true
                 )
             )
+            changed = true
+        }
+        if changed {
+            noteHistoryChanged()
         }
     }
 
@@ -1060,6 +1077,7 @@ final class LibraryStore {
             }
         }
         save()
+        noteHistoryChanged()
     }
 
     func remove(trackId: String, from playlist: LibraryPlaylist) {

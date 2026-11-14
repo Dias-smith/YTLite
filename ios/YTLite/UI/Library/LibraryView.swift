@@ -2056,6 +2056,12 @@ struct HistoryDetailView: View {
     @State private var showDeleteConfirm = false
     @State private var showBatchPlaylistPicker = false
     @State private var showListFilter = false
+    @State private var lastHistoryReloadAt: Date = .distantPast
+    @State private var pendingHistoryReloadTask: Task<Void, Never>?
+
+    private var historyEpoch: Int {
+        store?.historyEpoch ?? 0
+    }
 
     private var filteredEntries: [HistoryDisplayItem] {
         let query = filterText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -2078,6 +2084,8 @@ struct HistoryDetailView: View {
     }
 
     var body: some View {
+        // Keep Observation subscribed to history mutations while this screen is visible.
+        let observedHistoryEpoch = historyEpoch
         VStack(spacing: 0) {
             if isSelectionMode {
                 selectionHeader
@@ -2114,10 +2122,20 @@ struct HistoryDetailView: View {
         .navigationTitle(L("library.history"))
         .toolbar(.visible, for: .navigationBar)
         .toolbarBackground(YTLiteColor.background, for: .navigationBar)
-        .onAppear { reload() }
+        .onAppear {
+            // Entering History always reloads once immediately.
+            requestHistoryReload(force: true, notifyParent: true)
+        }
+        .onDisappear {
+            pendingHistoryReloadTask?.cancel()
+            pendingHistoryReloadTask = nil
+        }
+        .onChange(of: observedHistoryEpoch) { _, _ in
+            requestHistoryReload(force: false, notifyParent: true)
+        }
         .onChange(of: trackActions.listEpoch) { _, _ in
-            reload()
-            onChange()
+            // Metadata / not-interested edits that affect History rows.
+            requestHistoryReload(force: false, notifyParent: true)
         }
         .onChange(of: filterText) { _, _ in
             selectedIds = selectedIds.intersection(Set(filteredEntries.map(\.id)))
@@ -2339,8 +2357,8 @@ struct HistoryDetailView: View {
 
     private func removeFromHistory(_ ids: [String]) {
         store?.removeLastPlayed(trackIds: ids)
-        reload()
-        onChange()
+        // historyEpoch will also fire; force keeps the list snappy after an explicit delete.
+        requestHistoryReload(force: true, notifyParent: true)
         trackActions.notifyListsChanged()
     }
 
@@ -2348,8 +2366,41 @@ struct HistoryDetailView: View {
     private func refreshHistory() async {
         // Brief yield so the system refresh spinner is visible even for fast local reloads.
         try? await Task.sleep(nanoseconds: 250_000_000)
-        reload(force: true)
-        onChange()
+        requestHistoryReload(force: true, notifyParent: true)
+    }
+
+    /// Reloads History. `force` bypasses the 1s throttle (enter / pull-to-refresh / local delete).
+    private func requestHistoryReload(force: Bool, notifyParent: Bool) {
+        if force {
+            pendingHistoryReloadTask?.cancel()
+            pendingHistoryReloadTask = nil
+            reload(force: true)
+            lastHistoryReloadAt = .now
+            if notifyParent { onChange() }
+            return
+        }
+
+        let elapsed = Date.now.timeIntervalSince(lastHistoryReloadAt)
+        if elapsed >= 1.0 {
+            pendingHistoryReloadTask?.cancel()
+            pendingHistoryReloadTask = nil
+            reload(force: false)
+            lastHistoryReloadAt = .now
+            if notifyParent { onChange() }
+            return
+        }
+
+        let delay = 1.0 - elapsed
+        pendingHistoryReloadTask?.cancel()
+        pendingHistoryReloadTask = Task { @MainActor in
+            let ns = UInt64(delay * 1_000_000_000)
+            try? await Task.sleep(nanoseconds: ns)
+            guard !Task.isCancelled else { return }
+            reload(force: false)
+            lastHistoryReloadAt = .now
+            if notifyParent { onChange() }
+            pendingHistoryReloadTask = nil
+        }
     }
 
     private func reload(force: Bool = false) {
@@ -2357,8 +2408,8 @@ struct HistoryDetailView: View {
         let next = store.map { store in
             raw.filter { !store.isNotInterested(videoId: $0.item.videoId) }
         } ?? raw
-        let fingerprint = next.map { "\($0.id):\($0.progressMs):\($0.durationSeconds)" }
-        let previous = entries.map { "\($0.id):\($0.progressMs):\($0.durationSeconds)" }
+        let fingerprint = next.map { "\($0.id):\($0.progressMs):\($0.durationSeconds):\($0.lastPlayedAt.timeIntervalSince1970)" }
+        let previous = entries.map { "\($0.id):\($0.progressMs):\($0.durationSeconds):\($0.lastPlayedAt.timeIntervalSince1970)" }
         if force || fingerprint != previous {
             entriesVersion &+= 1
         }
