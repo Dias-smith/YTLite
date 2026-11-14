@@ -36,6 +36,7 @@
 		248046DEE93E888AC60BBB5D /* PlaybackStorePolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCDF33527C39D4F20606A83A /* PlaybackStorePolicy.swift */; };
 		25568AF9ED2AE2D467DB5336 /* AppSidebar.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF1D4F2047684FA19074EF97 /* AppSidebar.swift */; };
 		261B27E5E75695DC3EFD085F /* AdConsentManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42FC3949402F83619C537A0F /* AdConsentManager.swift */; };
+		28508AAD817485CF23DB8C7C /* ImportTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9594CDFC180E4C6BB50C3231 /* ImportTabView.swift */; };
 		2B3B25D39EB8485F2E811E14 /* YTLite Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 5BD940F58CB5E24CE6D14334 /* YTLite Watch App.app */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		2B6232DDF2A8963B88B651A2 /* ReviewPromptSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA984090A0483D4EDE4D797D /* ReviewPromptSheet.swift */; };
 		2CE6EDAB2E4409FFBDA45CED /* BaiduPanImportClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE9C293AD6BB0D2D32F376EE /* BaiduPanImportClient.swift */; };
@@ -341,6 +342,7 @@
 		900D0ABF7EAFDD3D6A6237F7 /* WebDAVClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebDAVClient.swift; sourceTree = "<group>"; };
 		90C3AFEA3FF8DF17A290E374 /* TrackLyricsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackLyricsSheet.swift; sourceTree = "<group>"; };
 		90EBA08F4DAC7086675EBFA2 /* AppLanguage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLanguage.swift; sourceTree = "<group>"; };
+		9594CDFC180E4C6BB50C3231 /* ImportTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportTabView.swift; sourceTree = "<group>"; };
 		95BB5987A01CB83F34EC4732 /* LyricsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricsSheet.swift; sourceTree = "<group>"; };
 		97CE0B7B90B1D6BAB93E05AC /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		9A55CD805817F66FD809FA49 /* MixtubeWatchWidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MixtubeWatchWidgetBundle.swift; sourceTree = "<group>"; };
@@ -749,6 +751,7 @@
 				BDF4DF1397C7EA3362BF21CF /* GoogleDriveImportSheet.swift */,
 				B2CB572477BAEDE948EEC542 /* ImportedTracksListView.swift */,
 				C1CAC2D597C0FE1C67778962 /* ImportHubView.swift */,
+				9594CDFC180E4C6BB50C3231 /* ImportTabView.swift */,
 				2A51E6657A7DF2EB8C1C8BF3 /* WebDAVBrowserSheet.swift */,
 				0988BAA40C3FA01A35722581 /* WiFiImportSheet.swift */,
 			);
@@ -1251,6 +1254,7 @@
 				4D3EF66D6EFCB14AD1817CE3 /* ImportIngestService.swift in Sources */,
 				098E0208FEC7ECF19364823B /* ImportNetworkGate.swift in Sources */,
 				E7C046C129470DB02D3F27FD /* ImportSourceStore.swift in Sources */,
+				28508AAD817485CF23DB8C7C /* ImportTabView.swift in Sources */,
 				9D05925C9785BEF75D133C98 /* ImportedTracksListView.swift in Sources */,
 				84CEB04446E705C0D3F63EE6 /* InnerTubeClient.swift in Sources */,
 				920561CD927F56B1C4B14999 /* InterstitialAdManager.swift in Sources */,

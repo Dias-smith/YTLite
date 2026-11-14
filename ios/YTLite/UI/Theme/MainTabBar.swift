@@ -14,6 +14,7 @@ struct MainTabBar: View {
             (.home, L("tab.home"), "house.fill"),
             (.search, L("tab.search"), "magnifyingglass"),
             (.library, L("tab.library"), "rectangle.stack.fill"),
+            (.importMusic, L("tab.import"), "square.and.arrow.down"),
             // Android: guest "Subs" → authenticated "catalog"
             (.you, isAuthenticated ? L("tab.account") : L("tab.subs"), "play.square.fill"),
         ]

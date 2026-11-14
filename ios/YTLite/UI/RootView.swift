@@ -31,6 +31,8 @@ struct RootView: View {
                         YouView()
                     case .library:
                         LibraryView()
+                    case .importMusic:
+                        ImportTabView()
                     }
                 }
             }
@@ -50,6 +52,7 @@ struct RootView: View {
             .debugAction("tab.search") { selectedTab = .search }
             .debugAction("tab.you") { selectedTab = .you }
             .debugAction("tab.library") { selectedTab = .library }
+            .debugAction("tab.import") { selectedTab = .importMusic }
             .debugAction("playback.toggle") { playback.togglePlayPause() }
             .debugAction("playback.next") { playback.playNext() }
             .debugAction("playback.previous") { playback.playPrevious() }
@@ -243,7 +246,7 @@ struct RootView: View {
 }
 
 enum AppTab: String, Hashable {
-    case home, search, you, library
+    case home, search, you, library, importMusic
 
     private static let storageKey = "selected_app_tab"
 
@@ -266,6 +269,7 @@ extension RootView {
         case .search: return "search"
         case .you: return "you"
         case .library: return "library"
+        case .importMusic: return "import"
         }
     }
 }

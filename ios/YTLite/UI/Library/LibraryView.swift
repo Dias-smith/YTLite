@@ -2,7 +2,6 @@ import SwiftUI
 
 private enum LibraryRoute {
     static let history = "system:history"
-    static let importHub = "system:import"
 }
 
 private enum LibraryFilter: String, CaseIterable {
@@ -220,8 +219,6 @@ struct LibraryView: View {
             .navigationDestination(for: String.self) { destinationId in
                 if destinationId == LibraryRoute.history {
                     HistoryDetailView { reload() }
-                } else if destinationId == LibraryRoute.importHub {
-                    ImportHubView()
                 } else if let playlist = playlists.first(where: { $0.playlistId == destinationId }) {
                     PlaylistDetailView(playlist: playlist) { reload() }
                 }
@@ -970,59 +967,16 @@ struct LibraryView: View {
                 columns: [GridItem(.adaptive(minimum: 160, maximum: 260), spacing: 12)],
                 spacing: 12
             ) {
-                if !isSelectionMode {
-                    importHubGridCell
-                }
                 ForEach(items) { item in
                     playlistGridCell(item)
                 }
             }
             .padding(.horizontal, YTLiteLayout.screenPadding)
         } else {
-            if !isSelectionMode {
-                importHubRow
-            }
             ForEach(items) { item in
                 playlistRow(item)
             }
         }
-    }
-
-    private var importHubRow: some View {
-        NavigationLink(value: LibraryRoute.importHub) {
-            libraryRowLabel(
-                title: L("import.hub.title"),
-                subtitle: L("import.hub.subtitle"),
-                cover: .importHub,
-                showsMore: false
-            )
-            .padding(.horizontal, YTLiteLayout.screenPadding)
-            .padding(.vertical, YTLiteLayout.rowVertical)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-    }
-
-    private var importHubGridCell: some View {
-        NavigationLink(value: LibraryRoute.importHub) {
-            VStack(alignment: .leading, spacing: 6) {
-                GeometryReader { geo in
-                    SystemCoverView(cover: .importHub, fillsContainer: true)
-                        .frame(width: geo.size.width, height: geo.size.width)
-                }
-                .aspectRatio(1, contentMode: .fit)
-                Text(L("import.hub.title"))
-                    .font(YTLiteType.rowTitleMedium)
-                    .foregroundStyle(YTLiteColor.onSurface)
-                    .lineLimit(2)
-                Text(L("import.hub.subtitle"))
-                    .font(YTLiteType.meta)
-                    .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                    .lineLimit(1)
-            }
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
     }
 
     @ViewBuilder
@@ -1647,7 +1601,7 @@ private struct PlaylistDisplayItem: Identifiable {
 }
 
 private enum SystemCover {
-    case liked, watchLater, history, local, custom, importHub
+    case liked, watchLater, history, local, custom
 }
 
 private struct SystemCoverView: View {
@@ -1687,11 +1641,6 @@ private struct SystemCoverView: View {
                 YTLiteColor.surfaceVariant
                 Image(systemName: "music.note.list")
                     .foregroundStyle(YTLiteColor.onSurfaceVariant)
-            case .importHub:
-                YTLiteColor.surfaceVariant
-                Image(systemName: "square.and.arrow.down")
-                    .font(.system(size: 22, weight: .semibold))
-                    .foregroundStyle(YTLiteColor.accent)
             case .custom:
                 if let url {
                     RemoteImage(url: url, contentMode: .fill)

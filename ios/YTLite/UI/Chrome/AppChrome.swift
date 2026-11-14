@@ -53,6 +53,13 @@ struct AppChrome<Content: View>: View {
                 MainTabBar(selected: $selectedTab, isAuthenticated: isAuthenticated)
             }
         }
+        .coordinateSpace(name: BubbleGuideStore.coordinateSpaceName)
+        .bubbleGuideLayer(
+            .miniPlayerSwipe,
+            text: L("guide.mini_player_swipe"),
+            placement: .above,
+            isActive: showsMiniPlayer && !playerPresentation.isPresented && !isKeyboardVisible
+        )
     }
 
     private var regularChrome: some View {
@@ -69,6 +76,13 @@ struct AppChrome<Content: View>: View {
                 .safeAreaInset(edge: .bottom, spacing: 0) {
                     miniPlayerSlot(docked: true)
                 }
+                .coordinateSpace(name: BubbleGuideStore.coordinateSpaceName)
+                .bubbleGuideLayer(
+                    .miniPlayerSwipe,
+                    text: L("guide.mini_player_swipe"),
+                    placement: .above,
+                    isActive: showsMiniPlayer && !playerPresentation.isPresented && !isKeyboardVisible
+                )
                 .playerDetailPresentation(isPresented: $playerPresentation.isPresented)
         }
         .navigationSplitViewStyle(.balanced)
@@ -112,6 +126,14 @@ final class BubbleGuideStore: ObservableObject {
     enum ID: String, Hashable {
         case homeFilter = "bubble_guide.home_filter.v1"
         case searchFilter = "bubble_guide.search_filter.v1"
+        case miniPlayerSwipe = "bubble_guide.mini_player_swipe.v1"
+    }
+
+    enum Placement: Hashable {
+        /// Callout below the target (Home / Search filter chips).
+        case below
+        /// Callout above the target (mini player near the tab bar).
+        case above
     }
 
     /// Named coordinate space shared by `bubbleGuideTarget` + `bubbleGuideLayer`.
@@ -161,37 +183,42 @@ private struct BubbleGuideCalloutSizeKey: PreferenceKey {
     }
 }
 
-/// Design-mock callout: green capsule below the target, caret tip on the target's
-/// bottom edge. Arrow sits near the trailing side; body extends left.
+/// Design-mock callout: accent capsule with caret tip aimed at the target.
+/// Arrow sits near the trailing side; body extends left.
 struct BubbleGuideCallout: View {
     let text: String
+    var placement: BubbleGuideStore.Placement = .below
 
     static let arrowWidth: CGFloat = 16
     static let arrowHeight: CGFloat = 8
     /// Distance from callout trailing edge to arrow tip (under filter icon).
     static let arrowTipFromTrailing: CGFloat = 22
 
+    private var arrowOnTop: Bool { placement == .below }
+
     var body: some View {
         Text(text)
             .font(YTLiteType.meta.weight(.semibold))
             .foregroundStyle(YTLiteColor.onAccent)
-            .lineLimit(1)
+            .lineLimit(2)
+            .multilineTextAlignment(.leading)
             .fixedSize(horizontal: true, vertical: false)
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
             .background(YTLiteColor.accent, in: Capsule())
-            .overlay(alignment: .topTrailing) {
+            .overlay(alignment: arrowOnTop ? .topTrailing : .bottomTrailing) {
                 BubbleGuideArrow()
                     .fill(YTLiteColor.accent)
                     .frame(width: Self.arrowWidth, height: Self.arrowHeight)
+                    .rotationEffect(.degrees(arrowOnTop ? 0 : 180))
                     .offset(
                         x: -(Self.arrowTipFromTrailing - Self.arrowWidth / 2),
-                        y: -Self.arrowHeight
+                        y: arrowOnTop ? -Self.arrowHeight : Self.arrowHeight
                     )
             }
-            // Reserve space above the capsule so the arrow is inside the view bounds
-            // (needed for correct absolute offset from the tip point).
-            .padding(.top, Self.arrowHeight)
+            // Reserve space so the arrow stays inside the view bounds for tip math.
+            .padding(.top, arrowOnTop ? Self.arrowHeight : 0)
+            .padding(.bottom, arrowOnTop ? 0 : Self.arrowHeight)
             .shadow(color: .black.opacity(0.28), radius: 8, y: 3)
             .fixedSize()
             .accessibilityHidden(true)
@@ -231,9 +258,19 @@ extension View {
         text: String,
         /// Horizontal inset from the target's leading edge to the caret tip
         /// (filter-icon center). `nil` = target midX.
-        tipXFromLeading: CGFloat? = nil
+        tipXFromLeading: CGFloat? = nil,
+        placement: BubbleGuideStore.Placement = .below,
+        isActive: Bool = true
     ) -> some View {
-        modifier(BubbleGuideLayerModifier(id: id, text: text, tipXFromLeading: tipXFromLeading))
+        modifier(
+            BubbleGuideLayerModifier(
+                id: id,
+                text: text,
+                tipXFromLeading: tipXFromLeading,
+                placement: placement,
+                isActive: isActive
+            )
+        )
     }
 }
 
@@ -241,10 +278,16 @@ private struct BubbleGuideLayerModifier: ViewModifier {
     let id: BubbleGuideStore.ID
     let text: String
     let tipXFromLeading: CGFloat?
+    let placement: BubbleGuideStore.Placement
+    let isActive: Bool
     @ObservedObject private var store = BubbleGuideStore.shared
     @State private var reveal = false
     @State private var targetFrame: CGRect = .null
     @State private var calloutSize: CGSize = .zero
+
+    private var shouldShow: Bool {
+        isActive && store.isVisible(id) && reveal && !targetFrame.isNull && targetFrame.width > 0
+    }
 
     func body(content: Content) -> some View {
         content
@@ -253,10 +296,10 @@ private struct BubbleGuideLayerModifier: ViewModifier {
                 targetFrame = frames[id] ?? .null
             }
             .overlay(alignment: .topLeading) {
-                if store.isVisible(id), reveal, !targetFrame.isNull, targetFrame.width > 0 {
+                if shouldShow {
                     let tipX = targetFrame.minX + (tipXFromLeading ?? targetFrame.width / 2)
-                    let tipY = targetFrame.maxY
-                    BubbleGuideCallout(text: text)
+                    let tipY = placement == .below ? targetFrame.maxY : targetFrame.minY
+                    BubbleGuideCallout(text: text, placement: placement)
                         .background {
                             GeometryReader { geo in
                                 Color.clear.preference(
@@ -266,26 +309,31 @@ private struct BubbleGuideLayerModifier: ViewModifier {
                             }
                         }
                         .onPreferenceChange(BubbleGuideCalloutSizeKey.self) { calloutSize = $0 }
-                        // Pin callout top-leading so arrow tip (top, tipFromTrailing from trailing)
-                        // lands exactly on (tipX, tipY).
+                        // Pin callout so the arrow tip lands on (tipX, tipY).
                         .offset(
                             x: tipX - max(calloutSize.width, 1) + BubbleGuideCallout.arrowTipFromTrailing,
-                            y: tipY
+                            y: placement == .below
+                                ? tipY
+                                : tipY - max(calloutSize.height, 1)
                         )
                         .opacity(calloutSize == .zero ? 0 : 1)
                         .transition(
-                            .opacity.combined(with: .scale(scale: 0.92, anchor: .topTrailing))
+                            .opacity.combined(
+                                with: .scale(
+                                    scale: 0.92,
+                                    anchor: placement == .below ? .topTrailing : .bottomTrailing
+                                )
+                            )
                         )
                         .allowsHitTesting(false)
                 }
             }
             .onAppear {
-                guard store.isVisible(id) else { return }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.55) {
-                    guard store.isVisible(id) else { return }
-                    withAnimation(.spring(response: 0.38, dampingFraction: 0.82)) {
-                        reveal = true
-                    }
+                scheduleRevealIfNeeded()
+            }
+            .onChange(of: isActive) { _, active in
+                if active {
+                    scheduleRevealIfNeeded()
                 }
             }
             .onChange(of: store.revision) { _, _ in
@@ -293,5 +341,15 @@ private struct BubbleGuideLayerModifier: ViewModifier {
                     reveal = false
                 }
             }
+    }
+
+    private func scheduleRevealIfNeeded() {
+        guard store.isVisible(id) else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.55) {
+            guard store.isVisible(id) else { return }
+            withAnimation(.spring(response: 0.38, dampingFraction: 0.82)) {
+                reveal = true
+            }
+        }
     }
 }

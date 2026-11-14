@@ -71,9 +71,11 @@ struct MiniPlayerBar: View {
             .simultaneousGesture(
                 TapGesture().onEnded {
                     guard abs(swipeOffset) < 8 else { return }
+                    BubbleGuideStore.shared.dismiss(.miniPlayerSwipe)
                     playerPresentation.present()
                 }
             )
+            .bubbleGuideTarget(.miniPlayerSwipe)
             .clipped()
             .accessibilityAddTraits(.isButton)
             .accessibilityLabel(item.title)
@@ -142,6 +144,11 @@ struct MiniPlayerBar: View {
 
                 withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
                     swipeOffset = 0
+                }
+
+                // Any clear horizontal swipe dismisses the coach mark (user discovered the gesture).
+                if abs(dx) > abs(dy) * 1.1, abs(primary) > 28 {
+                    BubbleGuideStore.shared.dismiss(.miniPlayerSwipe)
                 }
 
                 guard shouldSkip else { return }
