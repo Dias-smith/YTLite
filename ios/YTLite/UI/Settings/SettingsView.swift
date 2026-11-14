@@ -51,6 +51,45 @@ struct SettingsView: View {
             }
 
             Section {
+                Toggle(
+                    isOn: Binding(
+                        get: { ImportCachePolicy.wifiOnlyAutoCache },
+                        set: { ImportCachePolicy.wifiOnlyAutoCache = $0 }
+                    )
+                ) {
+                    Text(L("import.settings.wifi_only_cache"))
+                }
+                .tint(YTLiteColor.accent)
+
+                Picker(
+                    selection: Binding(
+                        get: { ImportCachePolicy.budgetBytes },
+                        set: { ImportCachePolicy.budgetBytes = $0 }
+                    )
+                ) {
+                    Text("512 MB").tag(Int64(512 * 1024 * 1024))
+                    Text("1 GB").tag(Int64(1024 * 1024 * 1024))
+                    Text("2 GB").tag(Int64(2 * 1024 * 1024 * 1024))
+                    Text("4 GB").tag(Int64(4 * 1024 * 1024 * 1024))
+                } label: {
+                    Text(L("import.settings.cache_budget"))
+                }
+
+                NavigationLink {
+                    ImportHubView()
+                } label: {
+                    HStack(spacing: 12) {
+                        SettingsLeadingIcon(systemName: "square.and.arrow.down")
+                        Text(L("import.hub.title"))
+                    }
+                }
+            } header: {
+                Text(L("import.settings.section"))
+            } footer: {
+                Text(L("import.settings.footer"))
+            }
+
+            Section {
                 NavigationLink {
                     ThemePickerView()
                 } label: {
@@ -209,45 +248,6 @@ struct SettingsView: View {
                 }
 
                 LabeledContent(L("settings.about"), value: appVersionLabel)
-            }
-
-            Section {
-                Toggle(
-                    isOn: Binding(
-                        get: { ImportCachePolicy.wifiOnlyAutoCache },
-                        set: { ImportCachePolicy.wifiOnlyAutoCache = $0 }
-                    )
-                ) {
-                    Text(L("import.settings.wifi_only_cache"))
-                }
-                .tint(YTLiteColor.accent)
-
-                Picker(
-                    selection: Binding(
-                        get: { ImportCachePolicy.budgetBytes },
-                        set: { ImportCachePolicy.budgetBytes = $0 }
-                    )
-                ) {
-                    Text("512 MB").tag(Int64(512 * 1024 * 1024))
-                    Text("1 GB").tag(Int64(1024 * 1024 * 1024))
-                    Text("2 GB").tag(Int64(2 * 1024 * 1024 * 1024))
-                    Text("4 GB").tag(Int64(4 * 1024 * 1024 * 1024))
-                } label: {
-                    Text(L("import.settings.cache_budget"))
-                }
-
-                NavigationLink {
-                    ImportHubView()
-                } label: {
-                    HStack(spacing: 12) {
-                        SettingsLeadingIcon(systemName: "square.and.arrow.down")
-                        Text(L("import.hub.title"))
-                    }
-                }
-            } header: {
-                Text(L("import.settings.section"))
-            } footer: {
-                Text(L("import.settings.footer"))
             }
 
             #if DEBUG
