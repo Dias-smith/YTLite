@@ -795,6 +795,50 @@ final class PlaybackController: ObservableObject {
                     videoId: expectedVideoId,
                     "isLive=\(item.isLive) allowPrepare=\(canConsumePrepare)"
                 )
+                // Imported local music: skip InnerTube resolve entirely.
+                if LocalTrackID.isLocal(expectedVideoId) {
+                    guard generation == resolveGeneration,
+                          !Task.isCancelled,
+                          isCurrentResolveTarget(expectedVideoId)
+                    else {
+                        PlayProbe.log(SaltedLiteral.probeStale, videoId: expectedVideoId)
+                        return
+                    }
+                    let relative = libraryStore?.track(id: expectedVideoId)?.localRelativePath
+                    guard let importURL = LocalMediaStore.shared.audioURL(
+                        trackId: expectedVideoId,
+                        relativePath: relative
+                    ) else {
+                        lastError = L("import.error.missing_file")
+                        isBuffering = false
+                        PlayProbe.log("play.fail", videoId: expectedVideoId, "import missing file")
+                        return
+                    }
+                    lastError = nil
+                    playingFromPrepare = false
+                    playbackStoreContext = nil
+                    playbackStoreThresholdMet = true
+                    PlayProbe.log("play.import", videoId: expectedVideoId, importURL.lastPathComponent)
+                    play(url: importURL)
+                    let seekTo = pendingSeekSeconds
+                    pendingSeekSeconds = 0
+                    if seekTo > 1 {
+                        seek(to: seekTo)
+                    }
+                    let resolveMs = analyticsResolveStartedAt.map { PlayProbe.ms(since: $0) } ?? 0
+                    AppAnalytics.playResolveOk(
+                        videoId: expectedVideoId,
+                        ms: resolveMs,
+                        source: "import"
+                    )
+                    if let playing = nowPlaying {
+                        onPlaybackStarted?(playing)
+                    }
+                    refreshFavoriteState()
+                    persistSession(immediate: true)
+                    PlayProbe.log("play.ok", videoId: expectedVideoId, "source=import")
+                    return
+                }
                 if !preferLiveHLS,
                    PlaybackStorePolicy.allowsDirectKickoffPlayback,
                    let localFileURL = await PlaybackMediaStore.shared.localFileURL(videoId: expectedVideoId)

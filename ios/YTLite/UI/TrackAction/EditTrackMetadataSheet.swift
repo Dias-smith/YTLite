@@ -270,6 +270,9 @@ struct EditTrackMetadataSheet: View {
             customAlbum: albumText,
             customYear: yearText
         )
+        if let store {
+            trackActions.refreshPresentedItem(using: store)
+        }
         trackActions.showToast(L("toast.saved"))
         trackActions.notifyListsChanged()
         dismiss()
@@ -320,20 +323,34 @@ enum TrackThumbnailStorage {
             return URL(string: raw)
         }
         if let trackId = trackId(fromLocalToken: raw) {
-            return existingFileURL(for: trackId)
+            return cacheBustedFileURL(existingFileURL(for: trackId))
         }
         if raw.hasPrefix("file://"), let url = URL(string: raw) {
-            if FileManager.default.fileExists(atPath: url.path) { return url }
-            return existingFileURL(for: url.deletingPathExtension().lastPathComponent)
+            if FileManager.default.fileExists(atPath: url.path) {
+                return cacheBustedFileURL(url)
+            }
+            return cacheBustedFileURL(
+                existingFileURL(for: url.deletingPathExtension().lastPathComponent)
+            )
         }
         if raw.hasPrefix("/") {
             if FileManager.default.fileExists(atPath: raw) {
-                return URL(fileURLWithPath: raw)
+                return cacheBustedFileURL(URL(fileURLWithPath: raw))
             }
             let name = URL(fileURLWithPath: raw).deletingPathExtension().lastPathComponent
-            return existingFileURL(for: name)
+            return cacheBustedFileURL(existingFileURL(for: name))
         }
         return URL(string: raw)
+    }
+
+    /// Append `#v=<mtime>` so `RemoteImage` / `ImageStore` reload when the JPEG is overwritten in place.
+    private static func cacheBustedFileURL(_ url: URL?) -> URL? {
+        guard let url else { return nil }
+        let mtime = (try? url.resourceValues(forKeys: [.contentModificationDateKey])
+            .contentModificationDate)?
+            .timeIntervalSince1970 ?? Date().timeIntervalSince1970
+        let stamp = Int(mtime * 1000)
+        return URL(string: "\(url.absoluteString)#v=\(stamp)") ?? url
     }
 
     static func isLocalPath(_ raw: String) -> Bool {
@@ -345,7 +362,13 @@ enum TrackThumbnailStorage {
         let dir = thumbsDirectory()
         do {
             try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-            try data.write(to: fileURL(for: trackId), options: .atomic)
+            let dest = fileURL(for: trackId)
+            // Invalidate any previously cached decode of this path before overwrite.
+            ImageStore.shared.invalidate(url: dest)
+            if let busted = cacheBustedFileURL(dest) {
+                ImageStore.shared.invalidate(url: busted)
+            }
+            try data.write(to: dest, options: .atomic)
             return token(for: trackId)
         } catch {
             return nil

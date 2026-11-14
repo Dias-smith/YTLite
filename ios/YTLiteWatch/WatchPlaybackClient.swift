@@ -22,18 +22,62 @@ final class WatchPlaybackClient: ObservableObject {
     /// Local volume chrome hold — do not advance `lastPlaybackUpdatedAt` or phone metadata is blocked.
     private var volumeHoldUntil: Date?
 
-    private init() {}
+    private init() {
+        // Paint Now Playing immediately on cold launch from the last mirrored track.
+        hydrateFromLocalCaches()
+    }
+
+    /// Load last mirrored Now Playing / queue before the first SwiftUI frame.
+    func preloadCachedNowPlaying() {
+        hydrateFromLocalCaches()
+    }
 
     func start() {
-        if queue == nil, let cached = WatchQueueMirrorStore.load() {
-            queue = cached
-        }
+        hydrateFromLocalCaches()
         let bridge = WatchConnectivityBridge.shared
         bridge.activate()
         bindIfNeeded()
         WatchWidgetCommandBridge.shared.start(client: self)
         syncWithPhone(bootstrap: true)
         publishWidgetSnapshot()
+    }
+
+    private func hydrateFromLocalCaches() {
+        if queue == nil, let cachedQueue = WatchQueueMirrorStore.load() {
+            queue = cachedQueue
+            lastQueueUpdatedAt = cachedQueue.updatedAt ?? lastQueueUpdatedAt
+        }
+        if snapshot?.videoId == nil {
+            if let mirrored = WatchPlaybackMirrorStore.load(), mirrored.videoId != nil {
+                snapshot = mirrored
+                lastPlaybackUpdatedAt = mirrored.updatedAt ?? lastPlaybackUpdatedAt
+            } else {
+                let widget = WatchWidgetPlaybackSnapshotStore.load()
+                if widget.hasTrack {
+                    snapshot = WatchConnectivityProtocol.PlaybackSnapshot(
+                        videoId: widget.videoId,
+                        title: widget.title,
+                        artist: widget.artist,
+                        thumbnailURL: nil,
+                        position: 0,
+                        duration: nil,
+                        isPlaying: widget.isPlaying,
+                        shuffleEnabled: false,
+                        repeatMode: "OFF",
+                        speed: 1,
+                        isExtracting: false,
+                        isSeekable: false,
+                        errorMessage: nil,
+                        outputVolume: nil,
+                        sleepTimerMinutes: nil,
+                        sleepTimerEndsAt: nil,
+                        updatedAt: widget.updatedAt
+                    )
+                    lastPlaybackUpdatedAt = widget.updatedAt
+                }
+            }
+        }
+        ingestCachedApplicationContext()
     }
 
     /// ***
@@ -428,6 +472,11 @@ final class WatchPlaybackClient: ObservableObject {
 
         snapshot = next
         lastCommandError = nil
+        if next.videoId != nil {
+            WatchPlaybackMirrorStore.save(next)
+        } else {
+            WatchPlaybackMirrorStore.clear()
+        }
         publishWidgetSnapshot()
 
         if next.isPlaying != previousPlaying {

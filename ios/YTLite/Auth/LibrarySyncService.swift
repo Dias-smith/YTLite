@@ -112,7 +112,13 @@ final class LibrarySyncService {
         var tracksById: [String: LibraryTrack] = [:]
 
         for playlist in store.allPlaylists() {
-            let entries = playlist.entries.filter { !$0.isSynced }
+            // Imported music playlist is device-local only.
+            if playlist.systemType == SystemPlaylistType.imported { continue }
+            let entries = playlist.entries.filter { entry in
+                guard !entry.isSynced else { return false }
+                guard let track = entry.track else { return false }
+                return !track.isImportedLocally && !LocalTrackID.isLocal(track.trackId)
+            }
             let needsPlaylistUpsert = !playlist.isSynced
             guard needsPlaylistUpsert || !entries.isEmpty else { continue }
 
@@ -127,18 +133,24 @@ final class LibrarySyncService {
             }
         }
 
-        let dirtyHistory = store.playbackHistory(limit: 100).filter { !$0.isSynced }
-        let dirtyLastPlayed = store.lastPlayed(limit: 100).filter { !$0.isSynced }
-        let dirtyMeta = store.allMetadata().filter { !$0.isSynced }
+        let dirtyHistory = store.playbackHistory(limit: 100).filter {
+            !$0.isSynced && !LocalTrackID.isLocal($0.trackId)
+        }
+        let dirtyLastPlayed = store.lastPlayed(limit: 100).filter {
+            !$0.isSynced && !LocalTrackID.isLocal($0.trackId)
+        }
+        let dirtyMeta = store.allMetadata().filter {
+            !$0.isSynced && !LocalTrackID.isLocal($0.trackId)
+        }
         let dirtyChannels = store.allSubscribedChannels().filter { !$0.isSynced }
 
         for item in dirtyHistory {
-            if let track = store.track(id: item.trackId) {
+            if let track = store.track(id: item.trackId), !track.isImportedLocally {
                 tracksById[track.trackId] = track
             }
         }
         for row in dirtyLastPlayed {
-            if let track = store.track(id: row.trackId) {
+            if let track = store.track(id: row.trackId), !track.isImportedLocally {
                 tracksById[track.trackId] = track
             }
         }
@@ -174,7 +186,10 @@ final class LibrarySyncService {
         }
 
         // Batch tracks then cross-refs (FK: tracks must exist before entries).
-        let tracks = Array(tracksById.values)
+        // Never push imported / local-only media metadata.
+        let tracks = Array(tracksById.values).filter {
+            !$0.isImportedLocally && !LocalTrackID.isLocal($0.trackId)
+        }
         if !tracks.isEmpty {
             let tT = SyncProbe.now()
             await upsertTracks(client: client, tracks: tracks)

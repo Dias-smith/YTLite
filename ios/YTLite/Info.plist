@@ -56,11 +56,25 @@
 	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>BAIDU_PAN_APP_KEY</key>
+	<string>$(BAIDU_PAN_APP_KEY)</string>
+	<key>BAIDU_PAN_SECRET_KEY</key>
+	<string>$(BAIDU_PAN_SECRET_KEY)</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsArbitraryLoads</key>
 		<false/>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
 	</dict>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_ytlite-import._tcp</string>
+	</array>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Mixtube uses the local network so you can import music from a computer on the same Wi‑Fi.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Mixtube needs photo library access to import videos and audio from your album.</string>
 	<key>NSUserTrackingUsageDescription</key>
 	<string>This identifier is used to deliver personalized ads and measure ad performance.</string>
 	<key>SKAdNetworkItems</key>

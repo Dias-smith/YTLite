@@ -3,9 +3,11 @@ import SwiftUI
 /// Phase 5 shell: Now Playing + Queue + Library.
 struct WatchRootView: View {
     @Environment(\.scenePhase) private var scenePhase
+    /// Always land on Now Playing when opening the Watch app.
+    @State private var selectedPage = 0
 
     var body: some View {
-        TabView {
+        TabView(selection: $selectedPage) {
             WatchNowPlayingView()
                 .containerBackground(for: .tabView) {
                     Color.black
@@ -20,12 +22,14 @@ struct WatchRootView: View {
         .tabViewStyle(.verticalPage)
         .scrollIndicators(.hidden)
         .onAppear {
+            selectedPage = 0
             WatchPlaybackClient.shared.syncWithPhone(bootstrap: true)
             WatchLibraryClient.shared.requestSnapshot()
             WatchWidgetCommandBridge.shared.consumePending()
         }
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active else { return }
+            selectedPage = 0
             WatchPlaybackClient.shared.syncWithPhone(bootstrap: true)
             WatchLibraryClient.shared.requestSnapshot()
             WatchWidgetCommandBridge.shared.consumePending()

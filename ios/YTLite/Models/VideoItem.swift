@@ -28,8 +28,13 @@ struct VideoItem: Identifiable, Hashable, Sendable {
         self.videoId = videoId
         self.title = title
         self.channelName = channelName
-        self.thumbnailURL = thumbnailURL
-            ?? URL(string: "https://i.ytimg.com/vi/\(videoId)/hqdefault.jpg")
+        if let thumbnailURL {
+            self.thumbnailURL = thumbnailURL
+        } else if LocalTrackID.isLocal(videoId) {
+            self.thumbnailURL = nil
+        } else {
+            self.thumbnailURL = URL(string: "https://i.ytimg.com/vi/\(videoId)/hqdefault.jpg")
+        }
         self.channelAvatarURL = channelAvatarURL
         self.durationText = durationText
         self.viewCountText = viewCountText
@@ -44,6 +49,8 @@ struct VideoItem: Identifiable, Hashable, Sendable {
             self.subtitle = subtitle
         }
     }
+
+    var isLocalImport: Bool { LocalTrackID.isLocal(videoId) }
 
     /// Meta line under the title (channel · views · published).
     var feedMetaLine: String {

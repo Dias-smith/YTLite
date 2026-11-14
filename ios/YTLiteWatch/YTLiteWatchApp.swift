@@ -4,6 +4,9 @@ import SwiftUI
 struct YTLiteWatchApp: App {
     init() {
         WatchL10n.configureAtLaunch()
+        // Hydrate Now Playing before the first frame so home shows the current track immediately.
+        WatchPlaybackClient.shared.preloadCachedNowPlaying()
+        WatchConnectivityBridge.shared.activate()
     }
 
     var body: some Scene {

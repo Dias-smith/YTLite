@@ -18,6 +18,18 @@ final class LibraryTrack {
     var primaryArtistId: String?
     var primaryArtistName: String?
     var updatedAt: Date
+    /// `youtube` or import kinds (`local`, `wifi`, `webdav`, …). Default keeps legacy rows as YouTube.
+    var sourceKind: String = ImportSourceKind.youtube.rawValue
+    /// Path relative to `LocalMediaStore` root (e.g. `{trackId}/audio.mp3`).
+    var localRelativePath: String?
+    /// Security-scoped bookmark for Files/SMB/iCloud originals (optional after copy).
+    var bookmarkData: Data?
+    /// SHA-256 hex of file bytes for dedupe.
+    var contentHash: String?
+    /// Remote locator for NAS/cloud re-fetch (`webdav://…`, `gdrive:fileId`, …).
+    var remoteURI: String?
+    /// When true, file may be LRU-evicted under import cache budget (NAS/cloud caches only).
+    var cacheEligible: Bool = false
 
     init(
         trackId: String,
@@ -32,7 +44,13 @@ final class LibraryTrack {
         publishedText: String? = nil,
         primaryArtistId: String? = nil,
         primaryArtistName: String? = nil,
-        updatedAt: Date = .now
+        updatedAt: Date = .now,
+        sourceKind: String = ImportSourceKind.youtube.rawValue,
+        localRelativePath: String? = nil,
+        bookmarkData: Data? = nil,
+        contentHash: String? = nil,
+        remoteURI: String? = nil,
+        cacheEligible: Bool = false
     ) {
         self.trackId = trackId
         self.title = title
@@ -47,11 +65,21 @@ final class LibraryTrack {
         self.primaryArtistId = primaryArtistId
         self.primaryArtistName = primaryArtistName
         self.updatedAt = updatedAt
+        self.sourceKind = sourceKind
+        self.localRelativePath = localRelativePath
+        self.bookmarkData = bookmarkData
+        self.contentHash = contentHash
+        self.remoteURI = remoteURI
+        self.cacheEligible = cacheEligible
     }
 
     var videoId: String { trackId }
     var channelName: String { primaryArtistName ?? "" }
     var thumbnailURLString: String? { thumbnailHigh ?? thumbnailMedium ?? thumbnailLow }
+    var importSourceKind: ImportSourceKind {
+        ImportSourceKind(rawValue: sourceKind) ?? (LocalTrackID.isLocal(trackId) ? .local : .youtube)
+    }
+    var isImportedLocally: Bool { importSourceKind.isImported || LocalTrackID.isLocal(trackId) }
 
     var asVideoItem: VideoItem {
         VideoItem(
@@ -275,6 +303,8 @@ final class NotInterestedItem {
 enum SystemPlaylistType {
     static let favorites = "favorites"
     static let watchLater = "watch_later"
+    /// On-device imported music (never synced).
+    static let imported = "imported"
 }
 
 typealias PlayHistoryItem = PlaybackHistoryItem

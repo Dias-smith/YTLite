@@ -25,6 +25,30 @@
         }
       }
     },
+    "NSLocalNetworkUsageDescription" : {
+      "comment" : "Privacy - Local Network Usage Description",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Mixtube uses the local network so you can import music from a computer on the same Wi‑Fi."
+          }
+        }
+      }
+    },
+    "NSPhotoLibraryUsageDescription" : {
+      "comment" : "Privacy - Photo Library Usage Description",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Mixtube needs photo library access to import videos and audio from your album."
+          }
+        }
+      }
+    },
     "NSUserTrackingUsageDescription" : {
       "extractionState" : "manual",
       "localizations" : {

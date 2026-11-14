@@ -139,9 +139,11 @@ final class ImageStore: @unchecked Sendable {
     }
 
     private func decodeFile(url: URL, maxPixelSize: Int?) async -> UIImage? {
-        await withCheckedContinuation { cont in
+        // Strip cache-busting fragments (`#v=…`) so FileManager reads the real path.
+        let fileURL = URL(fileURLWithPath: url.path)
+        return await withCheckedContinuation { cont in
             ioQueue.async {
-                guard let data = try? Data(contentsOf: url) else {
+                guard let data = try? Data(contentsOf: fileURL) else {
                     cont.resume(returning: nil)
                     return
                 }
@@ -170,6 +172,24 @@ final class ImageStore: @unchecked Sendable {
             return "\(url.absoluteString)#\(maxPixelSize)"
         }
         return url.absoluteString
+    }
+
+    /// Drop memory entries for a local/remote URL (and common pixel-budget variants).
+    /// Used after replacing on-disk track artwork that keeps the same file path.
+    func invalidate(url: URL) {
+        let variants: [Int?] = [nil, 96, 128, 192, 256, 420, 512, 640, 880, 1260]
+        for px in variants {
+            memory.removeObject(forKey: storeKey(url: url, maxPixelSize: px) as NSString)
+        }
+        // Also clear keys that only differ by cache-busting fragment.
+        if let stripped = url.absoluteString.split(separator: "#").first.map(String.init),
+           stripped != url.absoluteString,
+           let base = URL(string: stripped)
+        {
+            for px in variants {
+                memory.removeObject(forKey: storeKey(url: base, maxPixelSize: px) as NSString)
+            }
+        }
     }
 
     static func decodeImage(data: Data, maxPixelSize: Int?) -> UIImage? {

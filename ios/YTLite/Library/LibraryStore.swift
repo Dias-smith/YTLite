@@ -49,6 +49,7 @@ final class LibraryStore {
     func ensureSystemPlaylists(for key: String) {
         ensureSystemPlaylist(for: key, name: "Liked videos", systemType: SystemPlaylistType.favorites)
         ensureSystemPlaylist(for: key, name: "Watch later", systemType: SystemPlaylistType.watchLater)
+        ensureSystemPlaylist(for: key, name: "Imported", systemType: SystemPlaylistType.imported)
         try? modelContext.save()
     }
 
@@ -559,6 +560,24 @@ final class LibraryStore {
             }
         }
 
+        // Imported / local-only tracks live in the Imported system playlist, which is
+        // intentionally hidden from the Playlists tab — still surface them in Songs.
+        for track in importedTracks() {
+            let id = track.trackId
+            let item = displayItem(for: track.asVideoItem, metaById: metaById)
+            let saved = track.updatedAt
+            let activity = max(playedAtById[id] ?? .distantPast, saved)
+            if let prev = byId[id] {
+                byId[id] = Acc(
+                    item: item,
+                    activity: max(prev.activity, activity),
+                    saved: max(prev.saved, saved)
+                )
+            } else {
+                byId[id] = Acc(item: item, activity: activity, saved: saved)
+            }
+        }
+
         for video in historyVideos(limit: 200) {
             let id = video.videoId
             guard byId[id] == nil else { continue }
@@ -606,7 +625,14 @@ final class LibraryStore {
         guard !ids.isEmpty else { return }
         let key = ownerKey
         var removedByPlaylist: [String: [String]] = [:]
-        for playlist in allPlaylists() {
+        // Include Imported system playlist (excluded from `allPlaylists()` / Playlists tab).
+        var playlistsToScan = allPlaylists()
+        if let imported = importedPlaylist(),
+           !playlistsToScan.contains(where: { $0.playlistId == imported.playlistId })
+        {
+            playlistsToScan.append(imported)
+        }
+        for playlist in playlistsToScan {
             let doomed = playlist.entries.filter { entry in
                 guard let tid = entry.track?.trackId else { return false }
                 return ids.contains(tid)
@@ -620,7 +646,9 @@ final class LibraryStore {
                 remaining.position = index
             }
             playlist.updatedAt = .now
-            playlist.isSynced = false
+            if playlist.systemType != SystemPlaylistType.imported {
+                playlist.isSynced = false
+            }
             if !removedIds.isEmpty {
                 removedByPlaylist[playlist.playlistId] = removedIds
             }
@@ -655,6 +683,14 @@ final class LibraryStore {
                 modelContext.delete(meta)
             } else {
                 TrackThumbnailStorage.deleteFile(for: id)
+            }
+
+            // Drop sandboxed import media + LibraryTrack row for local imports.
+            if LocalTrackID.isLocal(id) || track(id: id)?.isImportedLocally == true {
+                LocalMediaStore.shared.remove(trackId: id)
+                if let row = track(id: id) {
+                    modelContext.delete(row)
+                }
             }
         }
         save()
@@ -1230,6 +1266,111 @@ final class LibraryStore {
 
     func saveLocalOnly() {
         try? modelContext.save()
+    }
+
+    // MARK: - Imported / local-only music
+
+    func importedPlaylist() -> LibraryPlaylist? {
+        fetchPlaylist(systemType: SystemPlaylistType.imported)
+    }
+
+    func importedTracks() -> [LibraryTrack] {
+        let all = (try? modelContext.fetch(FetchDescriptor<LibraryTrack>())) ?? []
+        return all
+            .filter { $0.isImportedLocally }
+            .sorted { $0.updatedAt > $1.updatedAt }
+    }
+
+    func importedTrack(contentHash: String) -> LibraryTrack? {
+        guard !contentHash.isEmpty else { return nil }
+        let hash = contentHash
+        var descriptor = FetchDescriptor<LibraryTrack>(
+            predicate: #Predicate { $0.contentHash == hash }
+        )
+        descriptor.fetchLimit = 1
+        return try? modelContext.fetch(descriptor).first
+    }
+
+    @discardableResult
+    func upsertImportedTrack(
+        item: VideoItem,
+        sourceKind: ImportSourceKind,
+        localRelativePath: String?,
+        contentHash: String?,
+        remoteURI: String?,
+        cacheEligible: Bool,
+        durationSeconds: Int
+    ) -> LibraryTrack {
+        let track = upsertTrack(from: item, durationSeconds: durationSeconds)
+        track.sourceKind = sourceKind.rawValue
+        track.localRelativePath = localRelativePath
+        track.contentHash = contentHash
+        track.remoteURI = remoteURI
+        track.cacheEligible = cacheEligible
+        track.updatedAt = .now
+        saveLocalOnly()
+        return track
+    }
+
+    func ensureImportedPlaylistEntry(trackId: String) {
+        ensureSystemPlaylists()
+        guard let playlist = importedPlaylist(),
+              let track = track(id: trackId)
+        else { return }
+        if playlist.entries.contains(where: { $0.track?.trackId == trackId }) {
+            return
+        }
+        let entry = LibraryPlaylistEntry(position: playlist.entries.count, track: track)
+        // Never sync imported playlist rows.
+        entry.isSynced = true
+        playlist.entries.append(entry)
+        playlist.updatedAt = .now
+        playlist.isSynced = true
+        saveLocalOnly()
+    }
+
+    func removeImportedTrack(trackId: String) {
+        guard LocalTrackID.isLocal(trackId) || track(id: trackId)?.isImportedLocally == true else {
+            return
+        }
+        // Drop playlist entries referencing this track.
+        let playlists = (try? modelContext.fetch(FetchDescriptor<LibraryPlaylist>(
+            predicate: #Predicate { $0.ownerKey == ownerKey }
+        ))) ?? []
+        for playlist in playlists {
+            for entry in playlist.entries.filter({ $0.track?.trackId == trackId }) {
+                modelContext.delete(entry)
+            }
+        }
+        if let row = track(id: trackId) {
+            modelContext.delete(row)
+        }
+        LocalMediaStore.shared.remove(trackId: trackId)
+        saveLocalOnly()
+    }
+
+    /// Evict oldest cache-eligible import files when over budget.
+    func trimImportCacheIfNeeded() {
+        let budget = ImportCachePolicy.budgetBytes
+        let total = LocalMediaStore.shared.totalByteCount()
+        guard total > budget else { return }
+        let candidates = importedTracks()
+            .filter { $0.cacheEligible }
+            .sorted { $0.updatedAt < $1.updatedAt }
+        var used = total
+        for track in candidates {
+            guard used > budget else { break }
+            if let rel = track.localRelativePath,
+               let url = LocalMediaStore.shared.audioURL(trackId: track.trackId, relativePath: rel),
+               let size = try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize
+            {
+                used -= Int64(size)
+            }
+            LocalMediaStore.shared.remove(trackId: track.trackId)
+            track.localRelativePath = nil
+            track.updatedAt = .now
+        }
+        saveLocalOnly()
     }
 
     /// Remove all user-scoped rows for `key`. Does not delete global `LibraryTrack` rows.

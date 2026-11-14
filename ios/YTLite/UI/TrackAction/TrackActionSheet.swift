@@ -10,6 +10,8 @@ struct TrackActionSheet: View {
     @State private var isLiked = false
     @State private var isNotInterested = false
     @State private var showShareSheet = false
+    /// Bumps after Edit Info so header artwork reloads even when the file path is unchanged.
+    @State private var headerRevision: Int = 0
 
     var body: some View {
         VStack(spacing: 0) {
@@ -124,6 +126,10 @@ struct TrackActionSheet: View {
         }
         .background(YTLiteColor.surfaceElevated)
         .onAppear { refreshState() }
+        .onChange(of: trackActions.listEpoch) { _, _ in
+            refreshState()
+            headerRevision &+= 1
+        }
         .sheet(isPresented: $showShareSheet) {
             SystemShareSheet(items: [context.watchURL])
                 .ignoresSafeArea()
@@ -149,7 +155,8 @@ struct TrackActionSheet: View {
 
     private var header: some View {
         HStack(alignment: .center, spacing: YTLiteLayout.stackLoose) {
-            RemoteImage(url: context.thumbnailURL)
+            RemoteImage(url: displayThumbnailURL)
+                .id("track-action-thumb-\(context.videoId)-\(headerRevision)")
                 .frame(width: 48, height: 48)
                 .clipShape(RoundedRectangle(cornerRadius: 6))
 
@@ -173,6 +180,15 @@ struct TrackActionSheet: View {
 
     private var displayChannel: String {
         store?.metadata(for: context.videoId)?.customArtistName ?? context.channelName
+    }
+
+    private var displayThumbnailURL: URL? {
+        if let raw = store?.metadata(for: context.videoId)?.customThumbnailUrl,
+           let url = TrackThumbnailStorage.resolveURL(raw)
+        {
+            return url
+        }
+        return context.thumbnailURL
     }
 
     private func actionRow(

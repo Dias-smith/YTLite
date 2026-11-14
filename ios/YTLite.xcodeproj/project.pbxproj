@@ -14,6 +14,7 @@
 		05A6F6DE91194A7A4011AF39 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 544D2CE3812330069EAA5F43 /* WidgetKit.framework */; };
 		05E890CF43A22346F8982065 /* YTLiteSheetChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A2E2B438DB6EE30A26B52AF /* YTLiteSheetChrome.swift */; };
 		066A25810E3D5FC86C4EC92E /* PlayerPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13BB97ED088396518B3C9658 /* PlayerPresentation.swift */; };
+		098E0208FEC7ECF19364823B /* ImportNetworkGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA84F0925307CFAAF8DAEA7B /* ImportNetworkGate.swift */; };
 		0B53FFD0BF2E85F8B97EAA04 /* TrackLyricsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90C3AFEA3FF8DF17A290E374 /* TrackLyricsSheet.swift */; };
 		0D385F61BE1987AE49BF1350 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3C80835FE38E5DA31A668C72 /* SwiftUI.framework */; };
 		0E5EF549889C4FCCF8FF3FB7 /* WatchWidgetShared.swift in Sources */ = {isa = PBXBuildFile; fileRef = B55205A8BEA3D5FB6BF2F7F0 /* WatchWidgetShared.swift */; };
@@ -24,6 +25,7 @@
 		155523AA5ACE86E47C08C2AF /* TrackActionContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2636192842BC76B345106015 /* TrackActionContext.swift */; };
 		1650ADADA2A34FC0700C38C6 /* LibraryModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7A48A97E56F72E6C058051D /* LibraryModels.swift */; };
 		1A3505B77CF3305D06B94FE6 /* WatchRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 393F20A5B7AC6195756265CF /* WatchRootView.swift */; };
+		1BD06681D9587C6BDD914BAC /* GoogleDriveImportSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = BDF4DF1397C7EA3362BF21CF /* GoogleDriveImportSheet.swift */; };
 		1C210BBBB2506247D4CAE222 /* MiniPlayerBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 810DCEABC066DAF9AA39EB6B /* MiniPlayerBar.swift */; };
 		1C43B4B4D233FE99E4F4B0BC /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 2494B70D8B87F4D8017C5DD3 /* Assets.xcassets */; };
 		1E87FB2FF22BDCC5E17B3E12 /* PlaybackEqualizerStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B40A15D8C65A3837D7A6B98 /* PlaybackEqualizerStore.swift */; };
@@ -36,6 +38,7 @@
 		261B27E5E75695DC3EFD085F /* AdConsentManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42FC3949402F83619C537A0F /* AdConsentManager.swift */; };
 		2B3B25D39EB8485F2E811E14 /* YTLite Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 5BD940F58CB5E24CE6D14334 /* YTLite Watch App.app */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		2B6232DDF2A8963B88B651A2 /* ReviewPromptSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA984090A0483D4EDE4D797D /* ReviewPromptSheet.swift */; };
+		2CE6EDAB2E4409FFBDA45CED /* BaiduPanImportClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE9C293AD6BB0D2D32F376EE /* BaiduPanImportClient.swift */; };
 		2D07C0163794B8207E90E485 /* AppDebugActionRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B55C886627AC848E97298C4 /* AppDebugActionRegistry.swift */; };
 		2E39CB7A265038BB757B2849 /* PipPlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75CAA6841345006D2B609D51 /* PipPlayerView.swift */; };
 		300870AFC0F9C52483DA1479 /* CatalogDataApiClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A25C466BFB54DFC24CAEEAC0 /* CatalogDataApiClient.swift */; };
@@ -55,8 +58,10 @@
 		423C6E7CB9B51DA859474FF1 /* WatchL10n.swift in Sources */ = {isa = PBXBuildFile; fileRef = 855C3C286749985AA739263C /* WatchL10n.swift */; };
 		4364F3831FB199C48AE20975 /* AppOpenAdManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F682ACDF7A8982F71824A43E /* AppOpenAdManager.swift */; };
 		456F1AA42C36FEB434184169 /* AdEligibility.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11567CB3A3CED4C251F885D /* AdEligibility.swift */; };
+		45D55E7774DFA04A8F8A90B9 /* ImportCachePolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFDB634067580EB4F15DD6A5 /* ImportCachePolicy.swift */; };
 		49A7947FC79A9434EC92558F /* PlaybackProgressModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6DA6324F90A27DDA7AC262F5 /* PlaybackProgressModel.swift */; };
 		4B2C617FA37FF13D7E5B62B0 /* MixtubeWidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67AAAA799F2B47C7B2660EDF /* MixtubeWidgetBundle.swift */; };
+		4D3EF66D6EFCB14AD1817CE3 /* ImportIngestService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48F551EBE06976E25F00ECFD /* ImportIngestService.swift */; };
 		4E633D165B0AB4553FC46BB2 /* AccountMenuSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E5C2529DFCFF70006816FEF /* AccountMenuSheet.swift */; };
 		4E7D31CED4A509358E65D6C3 /* PlayerDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7808B0DE3172F30505602CA1 /* PlayerDetailView.swift */; };
 		4FFC0B7F64200ADB4D2FE006 /* AppLinks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 331CF6675622B27BE928BF8F /* AppLinks.swift */; };
@@ -68,6 +73,7 @@
 		575E084B0BD8FE5EAC0730FE /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 5A76E914564581D50AA61C93 /* Localizable.xcstrings */; };
 		5854A05E63D39CFC42F35AD9 /* SignInOptionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C251E6365A38B882F20E592D /* SignInOptionsView.swift */; };
 		5868BDEF5E409CE44B910293 /* HomeFeedStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E40139A2CF194C95CE59BED6 /* HomeFeedStore.swift */; };
+		5A053598265E8211B88408B9 /* WiFiImportSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0988BAA40C3FA01A35722581 /* WiFiImportSheet.swift */; };
 		5BDDD6110AE7842AA9A2A090 /* AppDebugServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04071B92A578D66D2D5E7872 /* AppDebugServer.swift */; };
 		5D33A2805BC4A67850B6F32A /* PlaybackMediaStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47C40FB76C18A469B03EFE2C /* PlaybackMediaStore.swift */; };
 		61174809B8488595EBC4C135 /* HLSMasterPlaylist.swift in Sources */ = {isa = PBXBuildFile; fileRef = 434F92C460A095DE6033DDDC /* HLSMasterPlaylist.swift */; };
@@ -76,12 +82,15 @@
 		6BF60720EDA8058C26B06028 /* RemoteImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEA8F5D964477DD5F396E4DF /* RemoteImage.swift */; };
 		6D58ABF96C77EE3CB340F156 /* AdProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32D75E4713CE7E6F4FE314C2 /* AdProbe.swift */; };
 		6E568293668C6DB619757C5B /* RewardedInterstitialAdManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C518CFCCBFCC6A0E45AD132 /* RewardedInterstitialAdManager.swift */; };
+		6EAEEB7C1A25755C87D41B26 /* WebDAVBrowserSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A51E6657A7DF2EB8C1C8BF3 /* WebDAVBrowserSheet.swift */; };
 		7197A0A39469C449A174BAD7 /* YTLiteTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6E872E174975CD347699542 /* YTLiteTheme.swift */; };
 		72573D3B64285A67519CD06D /* AppLanguage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90EBA08F4DAC7086675EBFA2 /* AppLanguage.swift */; };
+		734AC682DE71D7D3E3A2BE40 /* LocalMediaStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4767C92426CECEEDA89C48AE /* LocalMediaStore.swift */; };
 		73BC05E6480050619289B585 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3C80835FE38E5DA31A668C72 /* SwiftUI.framework */; };
 		782027D6AD9C0F605EFE2002 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 37C2F08AB6A2F5D3CA68773E /* PrivacyInfo.xcprivacy */; };
 		787539C19261E0FBDB51E703 /* ThemePickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA08DCC883CFF6F9B394A997 /* ThemePickerView.swift */; };
 		7884DC7AFD57DA870BBD504D /* PlaylistPickerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFC27F0F09C186AC380D7C63 /* PlaylistPickerSheet.swift */; };
+		79F510539ACC972FE4C5D297 /* WebDAVClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 900D0ABF7EAFDD3D6A6237F7 /* WebDAVClient.swift */; };
 		7E9F961C70588D8A61B9CA88 /* PlaybackSessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CC3E87622C393A7C74ACF92 /* PlaybackSessionStore.swift */; };
 		7F228C3FD30D4E6F5C647A3C /* NextTrackPrimer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2ED34FDB258D5E0F254BCF4C /* NextTrackPrimer.swift */; };
 		7F8714B5A445F112C836739C /* EqualizerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60A6BFA68E47ED7E47B8664C /* EqualizerSheet.swift */; };
@@ -94,6 +103,7 @@
 		851939A3DB608B78BD6AE447 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1E29FF55D17C97ACE61342E /* SettingsView.swift */; };
 		85FB72072901FE9C6474A5C5 /* AuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0D829B6D0AECE937F00F00B /* AuthService.swift */; };
 		85FE44FE3940F53F9CC9C344 /* ThemeStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FD1210B08F78331A292AAFB /* ThemeStore.swift */; };
+		8667F51BF48C6CC8BC85B0A0 /* WiFiImportServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FBC1FB7FB3001BA5DCBF6EE /* WiFiImportServer.swift */; };
 		8744A853B67B073F62115058 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = DCDEDB27FD269AA2B186D2CE /* Assets.xcassets */; };
 		885197C2AA8B674B041A6337 /* SearchMemoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2604D4FEBF8E477C2661E52 /* SearchMemoryStore.swift */; };
 		8B40FE067EBF0D43EB70F6B2 /* VideoPlayback.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F5A721FF8CF72CE0C688B87 /* VideoPlayback.swift */; };
@@ -106,16 +116,21 @@
 		94797E28FAD1C5F6DA0903AD /* AppleSignInBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0E9FBEC0FBD1E9926018E3D /* AppleSignInBridge.swift */; };
 		96C22C7C115AE15C68F55E6E /* LibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3EC77F988D8FEBB7F2CF01F9 /* LibraryView.swift */; };
 		9BA2A97B4E399A8DE578DC68 /* SearchHit.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC4BC0290DBF96C47203AFD9 /* SearchHit.swift */; };
+		9D05925C9785BEF75D133C98 /* ImportedTracksListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2CB572477BAEDE948EEC542 /* ImportedTracksListView.swift */; };
 		9D20F5C774371733516C227B /* WatchLibraryClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73BAD5DC1A5F29987C6AC92F /* WatchLibraryClient.swift */; };
+		9EA976D4F927D84A67C16149 /* BaiduPanImportSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = C20C8FFCF29E2E7FB230B2C2 /* BaiduPanImportSheet.swift */; };
 		A0C52569804720BB50820642 /* AppNotificationCenterDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3627B7BDF36A0A93C17CD290 /* AppNotificationCenterDelegate.swift */; };
 		A10BB1987728C2EBC73EDC5B /* SearchSuggestionItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 785F0DBABA94995BF9801E53 /* SearchSuggestionItem.swift */; };
 		A53E557E991FFD84DC607608 /* RewardUnlockStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC27B4F23FA6597C0BB4BF8E /* RewardUnlockStore.swift */; };
 		A55A4CBD88227662C70CD702 /* WatchLibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3693FFE80E6D4EF4B5DFF004 /* WatchLibraryView.swift */; };
+		A8E8EFFFCC953B00213E72BE /* ImportHubView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1CAC2D597C0FE1C67778962 /* ImportHubView.swift */; };
 		ABDFB899F83099B946824AB2 /* WatchLibraryHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1599B065951A1763B8BF8B32 /* WatchLibraryHost.swift */; };
 		AC5AAF98AAC986DE54945E5B /* ResolverBundleStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9B8F693DCDB340FC381410A /* ResolverBundleStore.swift */; };
+		AD313F9D710C2C3AF24A5DB5 /* LocalTrackID.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FDACA352236201EE4D26B87 /* LocalTrackID.swift */; };
 		AD70B6E4A962301570BF6A75 /* TrackActionHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = D36539F7B8580F83FE3B4756 /* TrackActionHost.swift */; };
 		AD871C2F04053794AD0E327A /* PlaybackEqualizerEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 197EAC3D47F62DCD7A77D7DA /* PlaybackEqualizerEngine.swift */; };
 		AE21C0418B1A9191DCFDA975 /* WatchPlaybackClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6652DCC2BD591AA9528A7466 /* WatchPlaybackClient.swift */; };
+		AEE1DB0D95CDFDEAB87DCE83 /* GoogleDriveImportClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2668B810A5F3FE402E8E5BB9 /* GoogleDriveImportClient.swift */; };
 		B04E52060C43E1FD3BC223A0 /* CatalogHTTPClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F7C7CAC57A8D09B471B6A99 /* CatalogHTTPClient.swift */; };
 		B16BE6D9BA3036105207BB4D /* DailyListenNotificationScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE727250622F785756673393 /* DailyListenNotificationScheduler.swift */; };
 		B19A0548C73F27801320D382 /* YTLiteApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37556EF2BFFC392D74790365 /* YTLiteApp.swift */; };
@@ -133,6 +148,7 @@
 		C06C0FA40C364358A25A6960 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 544D2CE3812330069EAA5F43 /* WidgetKit.framework */; };
 		C1053E242CD9AEB38A48E0B9 /* WatchLibraryMirrorStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6223BC47D42CCA0DCC0E38E /* WatchLibraryMirrorStore.swift */; };
 		C19BD51835241D512AC44504 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C4F19839ED9E5F08A089B302 /* Assets.xcassets */; };
+		C1EF17CE97D488F76F7A3EE4 /* WatchPlaybackMirrorStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE688F99431FA3F28870FC31 /* WatchPlaybackMirrorStore.swift */; };
 		C29709D6EEA4B7209A8C09D8 /* SearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 749BB83F54AEA2CB94657F58 /* SearchView.swift */; };
 		C29750763FAF4774A24F6C45 /* GoogleMobileAds in Frameworks */ = {isa = PBXBuildFile; productRef = 0C59CF5F40C1CC69EA3B79E6 /* GoogleMobileAds */; };
 		C3B8006BDA68B9F981C63E64 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 1C0CE6C787F30A3581B3B99D /* Supabase */; };
@@ -149,6 +165,7 @@
 		E5F6B1F7B9B0A80491470DCC /* SyncProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83D92D45BD22133BAE19413F /* SyncProbe.swift */; };
 		E66E7C07D1BD760E5FE5351A /* PlaylistActionPresenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCF093D73F22FDA34058B5CC /* PlaylistActionPresenter.swift */; };
 		E6C1694D0E07F9369B1A75F2 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F95FC71C6F5AA5033BEA826 /* HomeView.swift */; };
+		E7C046C129470DB02D3F27FD /* ImportSourceStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 609838468E137FB22CF6746E /* ImportSourceStore.swift */; };
 		E7F997775E76B65B843E5B8A /* YTLite Watch Widget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = D8F0AB006C1A1E4E72F38358 /* YTLite Watch Widget.appex */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		E9A98B32D68EE01E61F4AC38 /* SaltedLiteral.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25310C480FBD653E3ADCD63D /* SaltedLiteral.swift */; };
 		E9C2FF39F477ECA1182EC33C /* UIApplication+TopViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4B6BF5B71EC7B5E523DCB54 /* UIApplication+TopViewController.swift */; };
@@ -233,7 +250,9 @@
 		04B9DD7A53CD8AD757A58299 /* AdSceneLifecycle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdSceneLifecycle.swift; sourceTree = "<group>"; };
 		06130C31D2605D884A1AEAE0 /* PhoneWidgetArtworkStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneWidgetArtworkStore.swift; sourceTree = "<group>"; };
 		0655C2E16E330F3F5522D5F5 /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Release.xcconfig; sourceTree = "<group>"; };
+		0988BAA40C3FA01A35722581 /* WiFiImportSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WiFiImportSheet.swift; sourceTree = "<group>"; };
 		0E5C2529DFCFF70006816FEF /* AccountMenuSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountMenuSheet.swift; sourceTree = "<group>"; };
+		0FDACA352236201EE4D26B87 /* LocalTrackID.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalTrackID.swift; sourceTree = "<group>"; };
 		10BFEB752B6874E008390EA9 /* WatchNowPlayingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchNowPlayingView.swift; sourceTree = "<group>"; };
 		12C527412004C365CBFE5998 /* YTLiteWatchWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = YTLiteWatchWidget.entitlements; sourceTree = "<group>"; };
 		13BB97ED088396518B3C9658 /* PlayerPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerPresentation.swift; sourceTree = "<group>"; };
@@ -253,6 +272,8 @@
 		25310C480FBD653E3ADCD63D /* SaltedLiteral.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SaltedLiteral.swift; sourceTree = "<group>"; };
 		25442A901E96D0DDD22BA084 /* AppChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppChrome.swift; sourceTree = "<group>"; };
 		2636192842BC76B345106015 /* TrackActionContext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackActionContext.swift; sourceTree = "<group>"; };
+		2668B810A5F3FE402E8E5BB9 /* GoogleDriveImportClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleDriveImportClient.swift; sourceTree = "<group>"; };
+		2A51E6657A7DF2EB8C1C8BF3 /* WebDAVBrowserSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebDAVBrowserSheet.swift; sourceTree = "<group>"; };
 		2B8C50C2E560547F7D394FCF /* ThemePalette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemePalette.swift; sourceTree = "<group>"; };
 		2ED34FDB258D5E0F254BCF4C /* NextTrackPrimer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NextTrackPrimer.swift; sourceTree = "<group>"; };
 		2F95FC71C6F5AA5033BEA826 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
@@ -274,7 +295,9 @@
 		43D1015CCF65D86C7643D926 /* PhoneWidgetSnapshotBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneWidgetSnapshotBridge.swift; sourceTree = "<group>"; };
 		4485B717C9F34EE0E7961AD2 /* YTLiteWatchApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YTLiteWatchApp.swift; sourceTree = "<group>"; };
 		44EBD8B1BFEA37CB163553EB /* YTLite.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = YTLite.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		4767C92426CECEEDA89C48AE /* LocalMediaStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalMediaStore.swift; sourceTree = "<group>"; };
 		47C40FB76C18A469B03EFE2C /* PlaybackMediaStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackMediaStore.swift; sourceTree = "<group>"; };
+		48F551EBE06976E25F00ECFD /* ImportIngestService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportIngestService.swift; sourceTree = "<group>"; };
 		496F688C233012874D29141D /* AuthNonce.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthNonce.swift; sourceTree = "<group>"; };
 		4F148613909F22D6432E97CD /* PlaybackController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackController.swift; sourceTree = "<group>"; };
 		544D2CE3812330069EAA5F43 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
@@ -287,6 +310,7 @@
 		5F60984D6226BFEC61765B98 /* StreamResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamResolver.swift; sourceTree = "<group>"; };
 		5FD1210B08F78331A292AAFB /* ThemeStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeStore.swift; sourceTree = "<group>"; };
 		600528C6F65FDCE50209D758 /* playback_equalizer_presets.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = playback_equalizer_presets.json; sourceTree = "<group>"; };
+		609838468E137FB22CF6746E /* ImportSourceStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportSourceStore.swift; sourceTree = "<group>"; };
 		60A6BFA68E47ED7E47B8664C /* EqualizerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EqualizerSheet.swift; sourceTree = "<group>"; };
 		62C485D587E09BF45EE29C1A /* AppOrientation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppOrientation.swift; sourceTree = "<group>"; };
 		6652DCC2BD591AA9528A7466 /* WatchPlaybackClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchPlaybackClient.swift; sourceTree = "<group>"; };
@@ -303,6 +327,7 @@
 		785F0DBABA94995BF9801E53 /* SearchSuggestionItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchSuggestionItem.swift; sourceTree = "<group>"; };
 		7A2E2B438DB6EE30A26B52AF /* YTLiteSheetChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YTLiteSheetChrome.swift; sourceTree = "<group>"; };
 		7D97FC34EC16452EF0EB359E /* AppDebugSessionState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDebugSessionState.swift; sourceTree = "<group>"; };
+		7FBC1FB7FB3001BA5DCBF6EE /* WiFiImportServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WiFiImportServer.swift; sourceTree = "<group>"; };
 		810DCEABC066DAF9AA39EB6B /* MiniPlayerBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniPlayerBar.swift; sourceTree = "<group>"; };
 		82F8E26AA33C8BCEF1EC7A42 /* VideoItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoItem.swift; sourceTree = "<group>"; };
 		83D92D45BD22133BAE19413F /* SyncProbe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncProbe.swift; sourceTree = "<group>"; };
@@ -313,6 +338,7 @@
 		8C518CFCCBFCC6A0E45AD132 /* RewardedInterstitialAdManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RewardedInterstitialAdManager.swift; sourceTree = "<group>"; };
 		8F5A721FF8CF72CE0C688B87 /* VideoPlayback.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoPlayback.swift; sourceTree = "<group>"; };
 		8F7C7CAC57A8D09B471B6A99 /* CatalogHTTPClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CatalogHTTPClient.swift; sourceTree = "<group>"; };
+		900D0ABF7EAFDD3D6A6237F7 /* WebDAVClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebDAVClient.swift; sourceTree = "<group>"; };
 		90C3AFEA3FF8DF17A290E374 /* TrackLyricsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackLyricsSheet.swift; sourceTree = "<group>"; };
 		90EBA08F4DAC7086675EBFA2 /* AppLanguage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLanguage.swift; sourceTree = "<group>"; };
 		95BB5987A01CB83F34EC4732 /* LyricsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricsSheet.swift; sourceTree = "<group>"; };
@@ -325,16 +351,21 @@
 		A9B8F693DCDB340FC381410A /* ResolverBundleStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResolverBundleStore.swift; sourceTree = "<group>"; };
 		AC4BC0290DBF96C47203AFD9 /* SearchHit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchHit.swift; sourceTree = "<group>"; };
 		AC54A43DB6A8227E002B122C /* AppBackgroundStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppBackgroundStore.swift; sourceTree = "<group>"; };
+		B2CB572477BAEDE948EEC542 /* ImportedTracksListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportedTracksListView.swift; sourceTree = "<group>"; };
 		B3D35BBCB625F4189FAF99BD /* ReviewPromptStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReviewPromptStore.swift; sourceTree = "<group>"; };
 		B55205A8BEA3D5FB6BF2F7F0 /* WatchWidgetShared.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchWidgetShared.swift; sourceTree = "<group>"; };
 		B70A93BD5CE828D414CF8BBE /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		B7BDF3DBE52E857E4DC704CC /* YTLiteWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = YTLiteWidget.entitlements; sourceTree = "<group>"; };
 		B8CE7E52ECFFEE4E9D9F3BBD /* PlaylistActionSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistActionSheet.swift; sourceTree = "<group>"; };
+		BA84F0925307CFAAF8DAEA7B /* ImportNetworkGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportNetworkGate.swift; sourceTree = "<group>"; };
 		BAAC16F100525461930D06E4 /* MusicAlbumRelease.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicAlbumRelease.swift; sourceTree = "<group>"; };
 		BCF093D73F22FDA34058B5CC /* PlaylistActionPresenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistActionPresenter.swift; sourceTree = "<group>"; };
+		BDF4DF1397C7EA3362BF21CF /* GoogleDriveImportSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleDriveImportSheet.swift; sourceTree = "<group>"; };
 		BE239ADAEF6BDAECA1B2404A /* Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Debug.xcconfig; sourceTree = "<group>"; };
 		BFC27F0F09C186AC380D7C63 /* PlaylistPickerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistPickerSheet.swift; sourceTree = "<group>"; };
 		BFCB820E67E7A7AAB7B5EEC3 /* YTLiteAdaptive.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YTLiteAdaptive.swift; sourceTree = "<group>"; };
+		C1CAC2D597C0FE1C67778962 /* ImportHubView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportHubView.swift; sourceTree = "<group>"; };
+		C20C8FFCF29E2E7FB230B2C2 /* BaiduPanImportSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BaiduPanImportSheet.swift; sourceTree = "<group>"; };
 		C251E6365A38B882F20E592D /* SignInOptionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignInOptionsView.swift; sourceTree = "<group>"; };
 		C3205950DD065037BA8B8A4E /* AppIntents.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppIntents.framework; path = System/Library/Frameworks/AppIntents.framework; sourceTree = SDKROOT; };
 		C4F19839ED9E5F08A089B302 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -371,6 +402,7 @@
 		E902EE0E43D333287B5F8804 /* AppBackgroundView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppBackgroundView.swift; sourceTree = "<group>"; };
 		EAFBF9441F241D72411C6974 /* TrackActionPresenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackActionPresenter.swift; sourceTree = "<group>"; };
 		ECD35447602E861C65935DA9 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		EE9C293AD6BB0D2D32F376EE /* BaiduPanImportClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BaiduPanImportClient.swift; sourceTree = "<group>"; };
 		F11567CB3A3CED4C251F885D /* AdEligibility.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdEligibility.swift; sourceTree = "<group>"; };
 		F638D88CF4C1B27A6C5A3F53 /* PlaylistDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistDetailView.swift; sourceTree = "<group>"; };
 		F682ACDF7A8982F71824A43E /* AppOpenAdManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppOpenAdManager.swift; sourceTree = "<group>"; };
@@ -379,8 +411,10 @@
 		F8153A84024FB28B0A0E73D3 /* YTLite.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = YTLite.entitlements; sourceTree = "<group>"; };
 		FA984090A0483D4EDE4D797D /* ReviewPromptSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReviewPromptSheet.swift; sourceTree = "<group>"; };
 		FCDF33527C39D4F20606A83A /* PlaybackStorePolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackStorePolicy.swift; sourceTree = "<group>"; };
+		FE688F99431FA3F28870FC31 /* WatchPlaybackMirrorStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchPlaybackMirrorStore.swift; sourceTree = "<group>"; };
 		FE727250622F785756673393 /* DailyListenNotificationScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyListenNotificationScheduler.swift; sourceTree = "<group>"; };
 		FEA8F5D964477DD5F396E4DF /* RemoteImage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteImage.swift; sourceTree = "<group>"; };
+		FFDB634067580EB4F15DD6A5 /* ImportCachePolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportCachePolicy.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -677,6 +711,7 @@
 			children = (
 				3EC77F988D8FEBB7F2CF01F9 /* LibraryView.swift */,
 				F638D88CF4C1B27A6C5A3F53 /* PlaylistDetailView.swift */,
+				C87C1A15EAF21E7AEDC5748C /* Import */,
 			);
 			path = Library;
 			sourceTree = "<group>";
@@ -707,6 +742,19 @@
 			path = AppDebugKit;
 			sourceTree = "<group>";
 		};
+		C87C1A15EAF21E7AEDC5748C /* Import */ = {
+			isa = PBXGroup;
+			children = (
+				C20C8FFCF29E2E7FB230B2C2 /* BaiduPanImportSheet.swift */,
+				BDF4DF1397C7EA3362BF21CF /* GoogleDriveImportSheet.swift */,
+				B2CB572477BAEDE948EEC542 /* ImportedTracksListView.swift */,
+				C1CAC2D597C0FE1C67778962 /* ImportHubView.swift */,
+				2A51E6657A7DF2EB8C1C8BF3 /* WebDAVBrowserSheet.swift */,
+				0988BAA40C3FA01A35722581 /* WiFiImportSheet.swift */,
+			);
+			path = Import;
+			sourceTree = "<group>";
+		};
 		CC4379482ACB6643E994EC8E /* Review */ = {
 			isa = PBXGroup;
 			children = (
@@ -722,6 +770,23 @@
 				F6BBAA11B76671F940E18383 /* WatchPlaybackHost.swift */,
 			);
 			path = WatchConnectivity;
+			sourceTree = "<group>";
+		};
+		CF4FDAF94AB34AA861F97548 /* Import */ = {
+			isa = PBXGroup;
+			children = (
+				EE9C293AD6BB0D2D32F376EE /* BaiduPanImportClient.swift */,
+				2668B810A5F3FE402E8E5BB9 /* GoogleDriveImportClient.swift */,
+				FFDB634067580EB4F15DD6A5 /* ImportCachePolicy.swift */,
+				48F551EBE06976E25F00ECFD /* ImportIngestService.swift */,
+				BA84F0925307CFAAF8DAEA7B /* ImportNetworkGate.swift */,
+				609838468E137FB22CF6746E /* ImportSourceStore.swift */,
+				4767C92426CECEEDA89C48AE /* LocalMediaStore.swift */,
+				0FDACA352236201EE4D26B87 /* LocalTrackID.swift */,
+				900D0ABF7EAFDD3D6A6237F7 /* WebDAVClient.swift */,
+				7FBC1FB7FB3001BA5DCBF6EE /* WiFiImportServer.swift */,
+			);
+			path = Import;
 			sourceTree = "<group>";
 		};
 		D0D6305E5024EA561A552511 /* UI */ = {
@@ -782,6 +847,7 @@
 				C846572293AF047A99DB187C /* AppDebugKit */,
 				9516BC3EDFBBD9076F33909C /* Auth */,
 				A4A89C0BA5653128012E51C9 /* Captions */,
+				CF4FDAF94AB34AA861F97548 /* Import */,
 				75BE702FE64776B13A105E02 /* Library */,
 				FA67EE210ACAA18E3B76AFBA /* Models */,
 				77A77DBD6BEBAC0656A4E71B /* Network */,
@@ -864,6 +930,7 @@
 				3693FFE80E6D4EF4B5DFF004 /* WatchLibraryView.swift */,
 				10BFEB752B6874E008390EA9 /* WatchNowPlayingView.swift */,
 				6652DCC2BD591AA9528A7466 /* WatchPlaybackClient.swift */,
+				FE688F99431FA3F28870FC31 /* WatchPlaybackMirrorStore.swift */,
 				9B60EC580637B37FEF7FB4E0 /* WatchPlaylistDetailView.swift */,
 				14ABA3E911BDD8570E22A4D4 /* WatchQueueMirrorStore.swift */,
 				87A61B259C52EE148229734E /* WatchQueueView.swift */,
@@ -1088,7 +1155,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -euo pipefail\nAPP_ROOT=\"${TARGET_BUILD_DIR}/${WRAPPER_NAME}\"\nWATCH_DIR=\"${APP_ROOT}/Watch\"\nWATCH_APP=\"${WATCH_DIR}/MixtubeWatch.app\"\nPLUGINS_DIR=\"${APP_ROOT}/PlugIns\"\nPLUGINS_APP=\"${PLUGINS_DIR}/MixtubeWatch.app\"\n\n# Prefer whatever the Embed phase produced.\nSRC=\"\"\nif [ -d \"$WATCH_APP\" ] && [ ! -L \"$WATCH_APP\" ]; then\n  SRC=\"$WATCH_APP\"\nelif [ -d \"$PLUGINS_APP\" ] && [ ! -L \"$PLUGINS_APP\" ]; then\n  SRC=\"$PLUGINS_APP\"\nfi\nif [ -z \"$SRC\" ]; then\n  echo \"[YTLite] ERROR: MixtubeWatch.app missing under Watch/ or PlugIns/\"\n  exit 1\nfi\n\nmkdir -p \"$WATCH_DIR\"\nif [ \"$SRC\" != \"$WATCH_APP\" ]; then\n  rm -rf \"$WATCH_APP\"\n  ditto \"$SRC\" \"$WATCH_APP\"\n  echo \"[YTLite] Copied companion to Watch/MixtubeWatch.app\"\nfi\n\n# App Store (Release/Archive): Watch apps must not live under PlugIns/.\nif [ \"${CONFIGURATION}\" = \"Release\" ] || [ \"${ACTION:-}\" = \"install\" ]; then\n  if [ -e \"$PLUGINS_APP\" ]; then\n    rm -rf \"$PLUGINS_APP\"\n    echo \"[YTLite] Removed PlugIns/MixtubeWatch.app for App Store packaging\"\n  fi\n  # Drop empty PlugIns dir if we emptied it.\n  if [ -d \"$PLUGINS_DIR\" ] && [ -z \"$(ls -A \"$PLUGINS_DIR\" 2>/dev/null || true)\" ]; then\n    rmdir \"$PLUGINS_DIR\" 2>/dev/null || true\n  fi\nelse\n  # Debug: always refresh PlugIns copy for Xcode 26 local install paths.\n  # Stale copies (old CFBundleVersion) cause intermittent Watch install failures.\n  mkdir -p \"$PLUGINS_DIR\"\n  rm -rf \"$PLUGINS_APP\"\n  ditto \"$WATCH_APP\" \"$PLUGINS_APP\"\n  echo \"[YTLite] Mirrored companion to PlugIns/MixtubeWatch.app (Debug)\"\nfi\n\n# Strip iOS-only keys that leak into the embedded companion Info.plist.\n# Only rewrite when a key actually exists, then re-sign — mutating a signed\n# Info.plist breaks phone→Watch companion install (codesign verify fails).\nresign_needed=0\nfor PLIST in \\\n  \"$WATCH_APP/Info.plist\" \\\n  \"$PLUGINS_APP/Info.plist\"\ndo\n  if [ -f \"$PLIST\" ]; then\n    if /usr/libexec/PlistBuddy -c \"Print :MinimumOSVersion~ipad\" \"$PLIST\" >/dev/null 2>&1; then\n      /usr/libexec/PlistBuddy -c \"Delete :MinimumOSVersion~ipad\" \"$PLIST\"\n      resign_needed=1\n    fi\n    if /usr/libexec/PlistBuddy -c \"Print :UISupportedInterfaceOrientations~ipad\" \"$PLIST\" >/dev/null 2>&1; then\n      /usr/libexec/PlistBuddy -c \"Delete :UISupportedInterfaceOrientations~ipad\" \"$PLIST\"\n      resign_needed=1\n    fi\n  fi\ndone\n\n# Drop debug/preview dylibs from the embedded companion — watchOS rejects them\n# during integrity check when installing from the iPhone Watch app.\n# POSIX-only (Xcode runs this with /bin/sh).\nfor ROOT in \"$WATCH_APP\" \"$PLUGINS_APP\"; do\n  [ -d \"$ROOT\" ] || continue\n  FOUND=$(find \"$ROOT\" \\( -name '*.debug.dylib' -o -name '__preview.dylib' \\) -type f -print 2>/dev/null || true)\n  if [ -n \"$FOUND\" ]; then\n    echo \"$FOUND\" | while IFS= read -r DYLIB; do\n      [ -n \"$DYLIB\" ] || continue\n      echo \"[YTLite] Removed $(basename \"$DYLIB\") from embedded Watch package\"\n    done\n    find \"$ROOT\" \\( -name '*.debug.dylib' -o -name '__preview.dylib' \\) -type f -delete 2>/dev/null || true\n    resign_needed=1\n  fi\ndone\n\nif [ \"$resign_needed\" = \"1\" ]; then\n  IDENTITY=\"${EXPANDED_CODE_SIGN_IDENTITY:-}\"\n  if [ -z \"$IDENTITY\" ] || [ \"$IDENTITY\" = \"-\" ]; then\n    IDENTITY=\"${CODE_SIGN_IDENTITY:-}\"\n  fi\n  if [ -n \"$IDENTITY\" ] && [ \"$IDENTITY\" != \"-\" ]; then\n    for BUNDLE in \"$WATCH_APP\" \"$PLUGINS_APP\"; do\n      [ -d \"$BUNDLE\" ] || continue\n      if [ -d \"$BUNDLE/PlugIns/MixtubeWatchWidget.appex\" ]; then\n        codesign --force --sign \"$IDENTITY\" --timestamp=none \\\n          --generate-entitlement-der \\\n          \"$BUNDLE/PlugIns/MixtubeWatchWidget.appex\"\n      fi\n      codesign --force --sign \"$IDENTITY\" --timestamp=none \\\n        --generate-entitlement-der \\\n        --preserve-metadata=identifier,entitlements,flags \\\n        \"$BUNDLE\"\n      echo \"[YTLite] Re-signed $(basename \"$BUNDLE\") after packaging fixes\"\n    done\n  else\n    echo \"[YTLite] WARNING: no code-sign identity; Watch package may fail install\"\n  fi\nfi\n";
+			shellScript = "set -euo pipefail\nAPP_ROOT=\"${TARGET_BUILD_DIR}/${WRAPPER_NAME}\"\nWATCH_DIR=\"${APP_ROOT}/Watch\"\nWATCH_APP=\"${WATCH_DIR}/MixtubeWatch.app\"\nPLUGINS_DIR=\"${APP_ROOT}/PlugIns\"\nPLUGINS_APP=\"${PLUGINS_DIR}/MixtubeWatch.app\"\n\n# Prefer whatever the Embed phase produced.\nSRC=\"\"\nif [ -d \"$WATCH_APP\" ] && [ ! -L \"$WATCH_APP\" ]; then\n  SRC=\"$WATCH_APP\"\nelif [ -d \"$PLUGINS_APP\" ] && [ ! -L \"$PLUGINS_APP\" ]; then\n  SRC=\"$PLUGINS_APP\"\nfi\nif [ -z \"$SRC\" ]; then\n  echo \"[YTLite] ERROR: MixtubeWatch.app missing under Watch/ or PlugIns/\"\n  exit 1\nfi\n\nmkdir -p \"$WATCH_DIR\"\nif [ \"$SRC\" != \"$WATCH_APP\" ]; then\n  rm -rf \"$WATCH_APP\"\n  ditto \"$SRC\" \"$WATCH_APP\"\n  echo \"[YTLite] Copied companion to Watch/MixtubeWatch.app\"\nfi\n\n# App Store (Release/Archive): Watch apps must not live under PlugIns/.\nif [ \"${CONFIGURATION}\" = \"Release\" ] || [ \"${ACTION:-}\" = \"install\" ]; then\n  if [ -e \"$PLUGINS_APP\" ]; then\n    rm -rf \"$PLUGINS_APP\"\n    echo \"[YTLite] Removed PlugIns/MixtubeWatch.app for App Store packaging\"\n  fi\n  # Drop empty PlugIns dir if we emptied it.\n  if [ -d \"$PLUGINS_DIR\" ] && [ -z \"$(ls -A \"$PLUGINS_DIR\" 2>/dev/null || true)\" ]; then\n    rmdir \"$PLUGINS_DIR\" 2>/dev/null || true\n  fi\nelse\n  # Debug: always refresh PlugIns copy for Xcode 26 local install paths.\n  # Stale copies (old CFBundleVersion) cause intermittent Watch install failures.\n  mkdir -p \"$PLUGINS_DIR\"\n  rm -rf \"$PLUGINS_APP\"\n  ditto \"$WATCH_APP\" \"$PLUGINS_APP\"\n  echo \"[YTLite] Mirrored companion to PlugIns/MixtubeWatch.app (Debug)\"\nfi\n\n# Strip iOS-only keys that leak into the embedded companion Info.plist.\n# Only rewrite when a key actually exists, then re-sign — mutating a signed\n# Info.plist breaks phone→Watch companion install (codesign verify fails).\nresign_needed=0\nfor PLIST in \\\n  \"$WATCH_APP/Info.plist\" \\\n  \"$PLUGINS_APP/Info.plist\"\ndo\n  if [ -f \"$PLIST\" ]; then\n    if /usr/libexec/PlistBuddy -c \"Print :MinimumOSVersion~ipad\" \"$PLIST\" >/dev/null 2>&1; then\n      /usr/libexec/PlistBuddy -c \"Delete :MinimumOSVersion~ipad\" \"$PLIST\"\n      resign_needed=1\n    fi\n    if /usr/libexec/PlistBuddy -c \"Print :UISupportedInterfaceOrientations~ipad\" \"$PLIST\" >/dev/null 2>&1; then\n      /usr/libexec/PlistBuddy -c \"Delete :UISupportedInterfaceOrientations~ipad\" \"$PLIST\"\n      resign_needed=1\n    fi\n  fi\ndone\n\n# Drop debug/preview dylibs from the embedded companion — watchOS rejects them\n# during integrity check when installing from the iPhone Watch app.\n# POSIX-only (Xcode runs this with /bin/sh).\nfor ROOT in \"$WATCH_APP\" \"$PLUGINS_APP\"; do\n  [ -d \"$ROOT\" ] || continue\n  FOUND=$(find \"$ROOT\" \\( -name '*.debug.dylib' -o -name '__preview.dylib' \\) -type f -print 2>/dev/null || true)\n  if [ -n \"$FOUND\" ]; then\n    # Avoid `set -o pipefail` + `while read` EOF=1 killing the script.\n    printf '%s\\n' \"$FOUND\" | while IFS= read -r DYLIB; do\n      [ -n \"$DYLIB\" ] || continue\n      echo \"[YTLite] Removed $(basename \"$DYLIB\") from embedded Watch package\"\n    done || true\n    find \"$ROOT\" \\( -name '*.debug.dylib' -o -name '__preview.dylib' \\) -type f -delete 2>/dev/null || true\n    resign_needed=1\n  fi\ndone\n\nif [ \"$resign_needed\" = \"1\" ]; then\n  IDENTITY=\"${EXPANDED_CODE_SIGN_IDENTITY:-}\"\n  if [ -z \"$IDENTITY\" ] || [ \"$IDENTITY\" = \"-\" ]; then\n    IDENTITY=\"${CODE_SIGN_IDENTITY:-}\"\n  fi\n  # Simulator builds often expose a placeholder like \"iPhone Developer\"\n  # with no keychain cert — ad-hoc (-) is enough after plist/dylib edits.\n  case \"${PLATFORM_NAME:-}${EFFECTIVE_PLATFORM_NAME:-}\" in\n    *simulator*) IDENTITY=\"-\" ;;\n  esac\n  if [ -n \"$IDENTITY\" ]; then\n    for BUNDLE in \"$WATCH_APP\" \"$PLUGINS_APP\"; do\n      [ -d \"$BUNDLE\" ] || continue\n      if [ -d \"$BUNDLE/PlugIns/MixtubeWatchWidget.appex\" ]; then\n        if ! codesign --force --sign \"$IDENTITY\" --timestamp=none \\\n          --generate-entitlement-der \\\n          \"$BUNDLE/PlugIns/MixtubeWatchWidget.appex\"\n        then\n          echo \"[YTLite] WARNING: widget re-sign failed (identity=$IDENTITY)\"\n          continue\n        fi\n      fi\n      if codesign --force --sign \"$IDENTITY\" --timestamp=none \\\n        --generate-entitlement-der \\\n        --preserve-metadata=identifier,entitlements,flags \\\n        \"$BUNDLE\"\n      then\n        echo \"[YTLite] Re-signed $(basename \"$BUNDLE\") after packaging fixes\"\n      else\n        echo \"[YTLite] WARNING: re-sign failed for $(basename \"$BUNDLE\") (identity=$IDENTITY)\"\n      fi\n    done\n  else\n    echo \"[YTLite] WARNING: no code-sign identity; Watch package may fail install\"\n  fi\nfi\n";
 		};
 		D51AC7BB983E9AA1CA1070F7 /* Strip iOS Info.plist leaks from Watch */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -1125,6 +1192,7 @@
 				A55A4CBD88227662C70CD702 /* WatchLibraryView.swift in Sources */,
 				537B4A1E2F48DE4663AFDF7E /* WatchNowPlayingView.swift in Sources */,
 				AE21C0418B1A9191DCFDA975 /* WatchPlaybackClient.swift in Sources */,
+				C1EF17CE97D488F76F7A3EE4 /* WatchPlaybackMirrorStore.swift in Sources */,
 				54C1DD41B3DA24CBB9B2F30B /* WatchPlaylistDetailView.swift in Sources */,
 				13CAE68A85E51773EF77BF60 /* WatchQueueMirrorStore.swift in Sources */,
 				3BF7A688FD4191FEA086EE3E /* WatchQueueView.swift in Sources */,
@@ -1164,6 +1232,8 @@
 				94797E28FAD1C5F6DA0903AD /* AppleSignInBridge.swift in Sources */,
 				8C89C3839A5FF48DA5D8A9A9 /* AuthNonce.swift in Sources */,
 				85FB72072901FE9C6474A5C5 /* AuthService.swift in Sources */,
+				2CE6EDAB2E4409FFBDA45CED /* BaiduPanImportClient.swift in Sources */,
+				9EA976D4F927D84A67C16149 /* BaiduPanImportSheet.swift in Sources */,
 				1416F31DD3C8F32D5F655843 /* CaptionService.swift in Sources */,
 				300870AFC0F9C52483DA1479 /* CatalogDataApiClient.swift in Sources */,
 				B04E52060C43E1FD3BC223A0 /* CatalogHTTPClient.swift in Sources */,
@@ -1171,15 +1241,25 @@
 				BAAE4BAA3C318ACE54DE33BE /* EditTrackMetadataSheet.swift in Sources */,
 				7F8714B5A445F112C836739C /* EqualizerSheet.swift in Sources */,
 				84F40862E2DC039A1845FF15 /* FirebaseBootstrap.swift in Sources */,
+				AEE1DB0D95CDFDEAB87DCE83 /* GoogleDriveImportClient.swift in Sources */,
+				1BD06681D9587C6BDD914BAC /* GoogleDriveImportSheet.swift in Sources */,
 				61174809B8488595EBC4C135 /* HLSMasterPlaylist.swift in Sources */,
 				5868BDEF5E409CE44B910293 /* HomeFeedStore.swift in Sources */,
 				E6C1694D0E07F9369B1A75F2 /* HomeView.swift in Sources */,
+				45D55E7774DFA04A8F8A90B9 /* ImportCachePolicy.swift in Sources */,
+				A8E8EFFFCC953B00213E72BE /* ImportHubView.swift in Sources */,
+				4D3EF66D6EFCB14AD1817CE3 /* ImportIngestService.swift in Sources */,
+				098E0208FEC7ECF19364823B /* ImportNetworkGate.swift in Sources */,
+				E7C046C129470DB02D3F27FD /* ImportSourceStore.swift in Sources */,
+				9D05925C9785BEF75D133C98 /* ImportedTracksListView.swift in Sources */,
 				84CEB04446E705C0D3F63EE6 /* InnerTubeClient.swift in Sources */,
 				920561CD927F56B1C4B14999 /* InterstitialAdManager.swift in Sources */,
 				1650ADADA2A34FC0700C38C6 /* LibraryModels.swift in Sources */,
 				BBC8F08DC5CBB521277C50EC /* LibraryStore.swift in Sources */,
 				8DF42706E7A623593FF1DC5D /* LibrarySyncService.swift in Sources */,
 				96C22C7C115AE15C68F55E6E /* LibraryView.swift in Sources */,
+				734AC682DE71D7D3E3A2BE40 /* LocalMediaStore.swift in Sources */,
+				AD313F9D710C2C3AF24A5DB5 /* LocalTrackID.swift in Sources */,
 				04AA8137173B3F16BA42BA89 /* LyricsSheet.swift in Sources */,
 				B5851BD5F592B0AED825CA0D /* MainTabBar.swift in Sources */,
 				1C210BBBB2506247D4CAE222 /* MiniPlayerBar.swift in Sources */,
@@ -1242,6 +1322,10 @@
 				E2EDBA9F69ADA3A318D964DC /* WatchConnectivityProtocol.swift in Sources */,
 				ABDFB899F83099B946824AB2 /* WatchLibraryHost.swift in Sources */,
 				BDD79EF9BB5CF23B7A5058C6 /* WatchPlaybackHost.swift in Sources */,
+				6EAEEB7C1A25755C87D41B26 /* WebDAVBrowserSheet.swift in Sources */,
+				79F510539ACC972FE4C5D297 /* WebDAVClient.swift in Sources */,
+				8667F51BF48C6CC8BC85B0A0 /* WiFiImportServer.swift in Sources */,
+				5A053598265E8211B88408B9 /* WiFiImportSheet.swift in Sources */,
 				40AF764540F68981EE19664E /* YTLiteAdaptive.swift in Sources */,
 				B19A0548C73F27801320D382 /* YTLiteApp.swift in Sources */,
 				05E890CF43A22346F8982065 /* YTLiteSheetChrome.swift in Sources */,

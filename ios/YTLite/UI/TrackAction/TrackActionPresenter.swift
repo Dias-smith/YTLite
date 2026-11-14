@@ -71,6 +71,20 @@ final class TrackActionPresenter: ObservableObject {
         listEpoch += 1
     }
 
+    /// Refresh the open action-sheet context after Edit Info / metadata mutations.
+    func refreshPresentedItem(using store: LibraryStore) {
+        guard let current = context else { return }
+        let refreshed = store.displayItem(for: current.asVideoItem)
+        context = TrackActionContext(
+            item: refreshed,
+            playlistId: current.playlistId,
+            canRemoveFromPlaylist: current.canRemoveFromPlaylist,
+            canRemoveFromQueue: current.canRemoveFromQueue,
+            canDeleteFromLibrary: current.canDeleteFromLibrary,
+            canRemoveFromHistory: current.canRemoveFromHistory
+        )
+    }
+
     /// Dismiss every overlay first, then show toast after the sheet animation.
     func completePlaylistSave(toast message: String) {
         dismissAllOverlays()
