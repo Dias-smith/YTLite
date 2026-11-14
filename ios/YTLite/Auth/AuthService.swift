@@ -67,6 +67,31 @@ final class AuthService: ObservableObject {
     private static let providerTokenKey = "auth.storedGoogleProviderToken"
     private static let providerTokenUserKey = "auth.storedGoogleProviderTokenUser"
     private static let providerRefreshKey = "auth.storedGoogleProviderRefreshToken"
+    private static let googleDriveGrantedKey = "auth.googleDriveGranted"
+    private static let googleDriveGrantedUserKey = "auth.googleDriveGrantedUser"
+
+    /// `drive.readonly` — requested only via Drive import incremental / full OAuth.
+    static let googleDriveReadonlyScope = "https://www.googleapis.com/auth/drive.readonly"
+
+    /// Whether this Google user previously granted Drive read access in-app.
+    var isGoogleDriveGranted: Bool {
+        guard let userId,
+              UserDefaults.standard.string(forKey: Self.googleDriveGrantedUserKey) == userId
+        else { return false }
+        return UserDefaults.standard.bool(forKey: Self.googleDriveGrantedKey)
+    }
+
+    func markGoogleDriveGranted() {
+        guard let userId else { return }
+        UserDefaults.standard.set(true, forKey: Self.googleDriveGrantedKey)
+        UserDefaults.standard.set(userId, forKey: Self.googleDriveGrantedUserKey)
+    }
+
+    /// Clears Drive grant flag only (keeps Supabase / Subs session).
+    func clearGoogleDriveGranted() {
+        UserDefaults.standard.removeObject(forKey: Self.googleDriveGrantedKey)
+        UserDefaults.standard.removeObject(forKey: Self.googleDriveGrantedUserKey)
+    }
 
     private func storeProviderToken(_ token: String) {
         guard let userId else { return }
@@ -172,6 +197,11 @@ final class AuthService: ObservableObject {
     private static let googleOAuthScopes =
         SaltedLiteral.oauthReadonlyScope
 
+    /// Subs scopes + Drive readonly for import (incremental or first-time Drive login).
+    private static var googleOAuthScopesWithDrive: String {
+        "\(googleOAuthScopes) \(googleDriveReadonlyScope)"
+    }
+
     init(config: AppConfig) {
         guard config.isConfigured,
               let url = URL(string: config.supabaseURL)
@@ -195,10 +225,69 @@ final class AuthService: ObservableObject {
 
     func signInWithGoogle(source: String = "unknown") async {
         AppAnalytics.signInStart(provider: "google", source: source)
+        let ok = await performGoogleOAuth(
+            scopes: Self.googleOAuthScopes,
+            queryParams: [
+                // Ensure catalog.readonly is (re)granted — incremental auth / stale sessions often omit it.
+                (name: "prompt", value: "consent"),
+                (name: "access_type", value: "offline"),
+            ],
+            ephemeral: false
+        )
+        if ok {
+            AppAnalytics.signInSuccess(provider: "google")
+        } else if lastError != nil {
+            AppAnalytics.signInFail(provider: "google", error: lastError ?? "unknown")
+        }
+    }
+
+    /// Ensures Google OAuth includes `drive.readonly`. Reuses Subs Google session via incremental consent.
+    /// After success the user has a Supabase Google session (Subs already signed in).
+    @discardableResult
+    func ensureGoogleDriveAccess(source: String = "import") async -> Bool {
+        AppAnalytics.signInStart(provider: "google", source: source)
+        if authProvider == .google, isGoogleDriveGranted, googleAccessToken != nil {
+            if let fresh = await ensureFreshGoogleAccessToken(), !fresh.isEmpty {
+                AppAnalytics.signInSuccess(provider: "google")
+                return true
+            }
+        }
+
+        let alreadyGoogle = authProvider == .google
+        let ok = await performGoogleOAuth(
+            scopes: Self.googleOAuthScopesWithDrive,
+            queryParams: [
+                (name: "include_granted_scopes", value: "true"),
+                (name: "access_type", value: "offline"),
+                // Incremental: consent for new Drive scope; avoid select_account so Subs account is reused.
+                (name: "prompt", value: "consent"),
+            ],
+            ephemeral: false
+        )
+        if ok {
+            markGoogleDriveGranted()
+            AppAnalytics.signInSuccess(provider: "google")
+            #if DEBUG
+            print("[YTLite.Auth] Drive access granted (incremental=\(alreadyGoogle))")
+            #endif
+            return true
+        }
+        if lastError != nil {
+            AppAnalytics.signInFail(provider: "google", error: lastError ?? "unknown")
+        }
+        return false
+    }
+
+    /// Shared Supabase Google OAuth. Does not default-include Drive (Subs stays minimal-scope).
+    @discardableResult
+    private func performGoogleOAuth(
+        scopes: String,
+        queryParams: [(name: String, value: String)],
+        ephemeral: Bool
+    ) async -> Bool {
         guard let client else {
             lastError = "Supabase is not configured. Fill ios/Config/Secrets.xcconfig.local"
-            AppAnalytics.signInFail(provider: "google", error: lastError ?? "not_configured")
-            return
+            return false
         }
         isBusy = true
         lastError = nil
@@ -207,14 +296,10 @@ final class AuthService: ObservableObject {
             let newSession = try await client.auth.signInWithOAuth(
                 provider: .google,
                 redirectTo: URL(string: "ytlite://auth-callback"),
-                scopes: Self.googleOAuthScopes,
-                queryParams: [
-                    // Ensure catalog.readonly is (re)granted — incremental auth / stale sessions often omit it.
-                    (name: "prompt", value: "consent"),
-                    (name: "access_type", value: "offline"),
-                ]
+                scopes: scopes,
+                queryParams: queryParams
             ) { (webSession: ASWebAuthenticationSession) in
-                webSession.prefersEphemeralWebBrowserSession = false
+                webSession.prefersEphemeralWebBrowserSession = ephemeral
             }
             session = newSession
             if let token = newSession.providerToken, !token.isEmpty {
@@ -223,14 +308,14 @@ final class AuthService: ObservableObject {
             if let refresh = newSession.providerRefreshToken, !refresh.isEmpty {
                 storeRefreshToken(refresh)
             }
-            AppAnalytics.signInSuccess(provider: "google")
+            return true
         } catch {
             if isOAuthCancel(error) {
                 lastError = nil
-                return
+                return false
             }
             lastError = error.localizedDescription
-            AppAnalytics.signInFail(provider: "google", error: lastError ?? "unknown")
+            return false
         }
     }
 
@@ -466,6 +551,7 @@ final class AuthService: ObservableObject {
             try await client.auth.signOut()
             session = nil
             clearStoredProviderToken()
+            clearGoogleDriveGranted()
             AppAnalytics.signOut()
         } catch {
             lastError = error.localizedDescription
@@ -498,6 +584,7 @@ final class AuthService: ObservableObject {
             try? await client.auth.signOut(scope: .local)
             session = nil
             clearStoredProviderToken()
+            clearGoogleDriveGranted()
             return true
         } catch {
             lastError = error.localizedDescription

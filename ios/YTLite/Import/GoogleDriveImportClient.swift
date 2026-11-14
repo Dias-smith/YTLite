@@ -1,17 +1,15 @@
-import AuthenticationServices
 import Foundation
-import UIKit
 
-/// Google Drive read-only import. Uses client id from Info.plist `GOOGLE_CLIENT_ID` / Secrets.
+/// Google Drive read-only import via AuthService Supabase Google OAuth (`drive.readonly`).
 @MainActor
-final class GoogleDriveImportClient: NSObject, ObservableObject {
+final class GoogleDriveImportClient: ObservableObject {
     static let shared = GoogleDriveImportClient()
 
     @Published private(set) var isAuthorized = false
     @Published var lastError: String?
 
     private let provider = "gdrive"
-    private var session: ASWebAuthenticationSession?
+    private weak var auth: AuthService?
 
     struct DriveFile: Identifiable, Hashable, Sendable {
         let id: String
@@ -20,81 +18,53 @@ final class GoogleDriveImportClient: NSObject, ObservableObject {
         let size: Int64?
     }
 
-    private override init() {
-        super.init()
+    private init() {
         isAuthorized = ImportSourceStore.shared.token(provider: provider) != nil
     }
 
-    private var googleClientID: String {
-        Bundle.main.object(forInfoDictionaryKey: "GOOGLE_CLIENT_ID") as? String ?? ""
+    /// Bind the shared AuthService (call from the import sheet).
+    func attach(auth: AuthService) {
+        self.auth = auth
+        syncAuthorizedFlag(auth: auth)
     }
 
-    private var redirectURI: String { "ytlite://import-gdrive" }
-
-    func signIn() async {
-        lastError = nil
-        let clientID = googleClientID
-        guard !clientID.isEmpty, !clientID.hasPrefix("$(") else {
-            lastError = L("import.error.missing_google_client")
+    func syncAuthorizedFlag(auth: AuthService) {
+        if auth.authProvider == .google, auth.isGoogleDriveGranted, auth.googleAccessToken != nil {
+            isAuthorized = true
             return
         }
-        var comps = URLComponents(string: "https://accounts.google.com/o/oauth2/v2/auth")!
-        comps.queryItems = [
-            URLQueryItem(name: "client_id", value: clientID),
-            URLQueryItem(name: "redirect_uri", value: redirectURI),
-            URLQueryItem(name: "response_type", value: "token"),
-            URLQueryItem(name: "scope", value: "https://www.googleapis.com/auth/drive.readonly"),
-            URLQueryItem(name: "include_granted_scopes", value: "true"),
-            URLQueryItem(name: "prompt", value: "consent")
-        ]
-        guard let authURL = comps.url else { return }
-        do {
-            let callback = try await withCheckedThrowingContinuation { (cont: CheckedContinuation<URL, Error>) in
-                let session = ASWebAuthenticationSession(
-                    url: authURL,
-                    callbackURLScheme: "ytlite"
-                ) { url, error in
-                    if let error {
-                        cont.resume(throwing: error)
-                    } else if let url {
-                        cont.resume(returning: url)
-                    } else {
-                        cont.resume(throwing: URLError(.badServerResponse))
-                    }
-                }
-                session.presentationContextProvider = self
-                session.prefersEphemeralWebBrowserSession = true
-                self.session = session
-                session.start()
-            }
-            guard let token = Self.fragmentValue(callback, key: "access_token") else {
-                lastError = L("import.error.oauth_failed")
-                return
-            }
-            let expiresIn = Self.fragmentValue(callback, key: "expires_in").flatMap(Double.init) ?? 3600
-            ImportSourceStore.shared.setToken(
-                provider: provider,
-                accessToken: token,
-                refreshToken: nil,
-                expiry: Date().addingTimeInterval(expiresIn)
-            )
-            isAuthorized = true
-        } catch {
-            lastError = error.localizedDescription
-        }
+        isAuthorized = ImportSourceStore.shared.token(provider: provider) != nil
     }
 
-    func signOut() {
+    /// Incremental Drive consent when Subs Google is already signed in; otherwise full Google+Drive OAuth.
+    func signIn(auth: AuthService) async {
+        lastError = nil
+        self.auth = auth
+        let ok = await auth.ensureGoogleDriveAccess(source: "import_gdrive")
+        guard ok else {
+            lastError = auth.lastError ?? L("import.error.oauth_failed")
+            isAuthorized = false
+            return
+        }
+        if let token = await auth.ensureFreshGoogleAccessToken() ?? auth.googleAccessToken {
+            cacheToken(token)
+        }
+        isAuthorized = true
+    }
+
+    /// Clears Drive grant + cached token. Does **not** sign out Subs / Supabase.
+    func signOut(auth: AuthService? = nil) {
+        let auth = auth ?? self.auth
         ImportSourceStore.shared.clearToken(provider: provider)
+        auth?.clearGoogleDriveGranted()
         isAuthorized = false
+        lastError = nil
     }
 
     func listAudioFiles(pageToken: String? = nil) async throws -> (files: [DriveFile], nextPage: String?) {
-        guard let access = ImportSourceStore.shared.token(provider: provider)?.access else {
-            throw URLError(.userAuthenticationRequired)
-        }
+        let access = try await resolvedAccessToken()
         var comps = URLComponents(string: "https://www.googleapis.com/drive/v3/files")!
-        var q = "trashed=false and (mimeType contains 'audio/' or mimeType='video/mp4')"
+        let q = "trashed=false and (mimeType contains 'audio/' or mimeType='video/mp4')"
         comps.queryItems = [
             URLQueryItem(name: "q", value: q),
             URLQueryItem(name: "fields", value: "nextPageToken,files(id,name,mimeType,size)"),
@@ -107,6 +77,10 @@ final class GoogleDriveImportClient: NSObject, ObservableObject {
         request.setValue("Bearer \(access)", forHTTPHeaderField: "Authorization")
         let (data, response) = try await URLSession.shared.data(for: request)
         let code = (response as? HTTPURLResponse)?.statusCode ?? -1
+        if code == 401 || code == 403 {
+            revokeLocalDriveAuth()
+            throw URLError(.userAuthenticationRequired)
+        }
         guard (200...299).contains(code) else { throw URLError(.badServerResponse) }
         struct Page: Decodable {
             struct File: Decodable {
@@ -126,35 +100,51 @@ final class GoogleDriveImportClient: NSObject, ObservableObject {
     }
 
     func download(fileId: String) async throws -> Data {
-        guard let access = ImportSourceStore.shared.token(provider: provider)?.access else {
-            throw URLError(.userAuthenticationRequired)
-        }
+        let access = try await resolvedAccessToken()
         let url = URL(string: "https://www.googleapis.com/drive/v3/files/\(fileId)?alt=media")!
         var request = URLRequest(url: url)
         request.setValue("Bearer \(access)", forHTTPHeaderField: "Authorization")
         let (data, response) = try await URLSession.shared.data(for: request)
         let code = (response as? HTTPURLResponse)?.statusCode ?? -1
+        if code == 401 || code == 403 {
+            revokeLocalDriveAuth()
+            throw URLError(.userAuthenticationRequired)
+        }
         guard (200...299).contains(code) else { throw URLError(.badServerResponse) }
         return data
     }
 
-    private static func fragmentValue(_ url: URL, key: String) -> String? {
-        let fragment = url.fragment ?? url.query ?? ""
-        for pair in fragment.split(separator: "&") {
-            let parts = pair.split(separator: "=", maxSplits: 1).map(String.init)
-            if parts.count == 2, parts[0] == key {
-                return parts[1].removingPercentEncoding ?? parts[1]
+    // MARK: - Private
+
+    private func resolvedAccessToken() async throws -> String {
+        if let auth {
+            if let token = await auth.ensureFreshGoogleAccessToken() ?? auth.googleAccessToken,
+               !token.isEmpty
+            {
+                cacheToken(token)
+                return token
             }
         }
-        return nil
+        if let cached = ImportSourceStore.shared.token(provider: provider)?.access, !cached.isEmpty {
+            return cached
+        }
+        isAuthorized = false
+        throw URLError(.userAuthenticationRequired)
     }
-}
 
-extension GoogleDriveImportClient: ASWebAuthenticationPresentationContextProviding {
-    func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
-        UIApplication.shared.connectedScenes
-            .compactMap { $0 as? UIWindowScene }
-            .flatMap(\.windows)
-            .first { $0.isKeyWindow } ?? ASPresentationAnchor()
+    private func cacheToken(_ access: String) {
+        ImportSourceStore.shared.setToken(
+            provider: provider,
+            accessToken: access,
+            refreshToken: nil,
+            expiry: Date().addingTimeInterval(3500)
+        )
+    }
+
+    private func revokeLocalDriveAuth() {
+        ImportSourceStore.shared.clearToken(provider: provider)
+        auth?.clearGoogleDriveGranted()
+        isAuthorized = false
+        lastError = L("import.error.oauth_failed")
     }
 }
