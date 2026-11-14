@@ -435,13 +435,42 @@ final class LibraryStore {
     }
 
     func historyVideos(limit: Int = 100) -> [VideoItem] {
+        historyDisplayItems(limit: limit).map(\.item)
+    }
+
+    /// History rows with last-played progress for the History screen.
+    func historyDisplayItems(limit: Int = 500) -> [HistoryDisplayItem] {
         let rows = lastPlayed(limit: limit)
         guard !rows.isEmpty else { return [] }
         let ids = rows.map(\.trackId)
         let tracksById = Dictionary(
             uniqueKeysWithValues: tracks(ids: ids).map { ($0.trackId, $0) }
         )
-        return rows.compactMap { tracksById[$0.trackId]?.asVideoItem }
+        return rows.compactMap { row in
+            guard let track = tracksById[row.trackId] else { return nil }
+            return HistoryDisplayItem(
+                item: track.asVideoItem,
+                progressMs: row.progressMs,
+                durationSeconds: track.durationSeconds,
+                lastPlayedAt: row.lastPlayedAt
+            )
+        }
+    }
+
+    /// Persist listen position without reshuffling History order (`lastPlayedAt` unchanged).
+    func updateLastPlayedProgress(trackId: String, progressMs: Int64) {
+        let trimmed = trackId.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, progressMs >= 0 else { return }
+        let key = ownerKey
+        var descriptor = FetchDescriptor<UserTrackLastPlayed>(
+            predicate: #Predicate { $0.ownerKey == key && $0.trackId == trimmed }
+        )
+        descriptor.fetchLimit = 1
+        guard let existing = try? modelContext.fetch(descriptor).first else { return }
+        if existing.progressMs == progressMs { return }
+        existing.progressMs = progressMs
+        existing.isSynced = false
+        save()
     }
 
     /// Distinct tracks with at least one confirmed successful playback (not resolve-only / failed open).

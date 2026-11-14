@@ -143,6 +143,9 @@ final class PlaybackController: ObservableObject {
     private var lastPhoneWidgetSignature: String?
     /// Keeps Lock Screen / Home Screen widget aligned with `nowPlaying` + `isPlaying`.
     private var playbackSurfaceSyncCancellables = Set<AnyCancellable>()
+    /// Throttle History progress writes (Android ticks every 1s; SwiftData is coarser).
+    private var lastHistoryProgressPersistAt: Date = .distantPast
+    private var lastHistoryProgressVideoId: String?
     /// Progressive stream eligible for local persistence after the watch threshold.
     private struct PlaybackStoreContext {
         let videoId: String
@@ -709,6 +712,10 @@ final class PlaybackController: ObservableObject {
     private func playCurrentQueueItem(allowPrepareConsume: Bool = true) {
         guard queue.indices.contains(queueIndex) else { return }
         let item = queue[queueIndex]
+        // Flush previous track progress before swapping Now Playing.
+        if nowPlaying?.videoId != item.videoId {
+            persistHistoryProgressIfNeeded(force: true)
+        }
         // New queue target → allow one timeout / prepare re-resolve again.
         if nowPlaying?.videoId != item.videoId {
             preparePlaybackRetryUsed = false
@@ -1803,6 +1810,7 @@ final class PlaybackController: ObservableObject {
         guard isPlaying else { return }
         player?.pause()
         isPlaying = false
+        persistHistoryProgressIfNeeded(force: true)
         updateNowPlayingInfo()
         persistSession(immediate: true)
     }
@@ -2201,6 +2209,7 @@ final class PlaybackController: ObservableObject {
                     self.progress.setPosition(position)
                     self.checkNextPrepareNearEnd(position: position, duration: duration)
                     self.checkPlaybackStoreThreshold(position: position, duration: duration)
+                    self.persistHistoryProgressIfNeeded(force: false)
                 }
                 self.checkSleepTimerExpired()
                 self.refreshNextPrepareIfNeeded()
@@ -2208,6 +2217,24 @@ final class PlaybackController: ObservableObject {
                 self.persistSession(immediate: false)
             }
         }
+    }
+
+    /// Writes listen position into `UserTrackLastPlayed` for History progress bars.
+    private func persistHistoryProgressIfNeeded(force: Bool) {
+        guard let videoId = nowPlaying?.videoId, !videoId.isEmpty else { return }
+        guard successfulPlaybackRecordedVideoId == videoId else { return }
+        let progressMs = Int64(max(0, positionSeconds) * 1000)
+        guard progressMs > 0 else { return }
+        let now = Date()
+        if !force {
+            let sameTrack = lastHistoryProgressVideoId == videoId
+            if sameTrack, now.timeIntervalSince(lastHistoryProgressPersistAt) < 5 {
+                return
+            }
+        }
+        lastHistoryProgressPersistAt = now
+        lastHistoryProgressVideoId = videoId
+        libraryStore?.updateLastPlayedProgress(trackId: videoId, progressMs: progressMs)
     }
 
     private func startSleepTimerTicker() {
@@ -2242,7 +2269,8 @@ final class PlaybackController: ObservableObject {
 
         libraryStore?.recordPlayback(
             playing,
-            durationSeconds: pendingResolvedDurationSeconds
+            durationSeconds: pendingResolvedDurationSeconds,
+            progressMs: Int64(max(0, positionSeconds) * 1000)
         )
         ReviewPromptCoordinator.shared.recordSuccessfulPlay(videoId: videoId)
         refreshFavoriteState()

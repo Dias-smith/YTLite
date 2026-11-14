@@ -212,7 +212,7 @@ struct SettingsView: View {
             }
 
             #if DEBUG
-            Section("Debug") {
+            Section {
                 Toggle(
                     "Force VIP (debug)",
                     isOn: Binding(
@@ -220,6 +220,33 @@ struct SettingsView: View {
                         set: { vip.debugForceVip = $0 }
                     )
                 )
+                Toggle(
+                    isOn: Binding(
+                        get: { DebugPlaybackCacheStore.forceEnableMediaCache },
+                        set: { enabled in
+                            DebugPlaybackCacheStore.forceEnableMediaCache = enabled
+                            if !enabled, !RemoteConfigStore.allowKickoff {
+                                Task { await PlaybackMediaStore.shared.clearAll() }
+                            }
+                        }
+                    )
+                ) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Enable media cache (debug)")
+                        Text(
+                            RemoteConfigStore.allowKickoff
+                                ? "Remote Config already allows cache"
+                                : "Overrides Remote Config allowKickoff"
+                        )
+                        .font(YTLiteType.meta)
+                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                    }
+                }
+                .tint(YTLiteColor.accent)
+            } header: {
+                Text("Debug")
+            } footer: {
+                Text("Debug-only. Media cache writes local stream files after the kickoff threshold.")
             }
             #endif
         }

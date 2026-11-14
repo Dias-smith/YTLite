@@ -36,11 +36,31 @@ enum PlaybackStorePolicy {
         return "bin"
     }
 
+    /// Remote Config `allowKickoff`, optionally forced on in DEBUG Settings.
+    static var isMediaCachePolicyEnabled: Bool {
+        #if DEBUG
+        if DebugPlaybackCacheStore.forceEnableMediaCache { return true }
+        #endif
+        return RemoteConfigStore.allowKickoff
+    }
+
     /// ***
     static var allowsDirectKickoffPlayback: Bool {
-        RemoteConfigStore.allowKickoff && !NetworkVpnStatus.isActive
+        isMediaCachePolicyEnabled && !NetworkVpnStatus.isActive
     }
 }
+
+#if DEBUG
+/// DEBUG-only override so local media caching can be exercised without Remote Config.
+enum DebugPlaybackCacheStore {
+    private static let forceEnableKey = "debug.force_enable_media_cache.v1"
+
+    static var forceEnableMediaCache: Bool {
+        get { UserDefaults.standard.bool(forKey: forceEnableKey) }
+        set { UserDefaults.standard.set(newValue, forKey: forceEnableKey) }
+    }
+}
+#endif
 
 /// Best-effort VPN detection via system proxy scoped interfaces.
 /// Prefer exact / prefix matches — bare `contains("tun")` false-positives on system `utun*`.

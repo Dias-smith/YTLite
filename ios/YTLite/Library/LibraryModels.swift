@@ -279,6 +279,25 @@ enum SystemPlaylistType {
 
 typealias PlayHistoryItem = PlaybackHistoryItem
 
+/// One History list row: video metadata + last listen progress.
+struct HistoryDisplayItem: Identifiable, Equatable, Hashable, Sendable {
+    var id: String { item.videoId }
+    let item: VideoItem
+    let progressMs: Int64
+    let durationSeconds: Int
+    let lastPlayedAt: Date
+
+    var progressFraction: Double {
+        let durationMs = Double(max(durationSeconds, 0)) * 1000
+        guard durationMs > 0, progressMs > 0 else { return 0 }
+        return min(max(Double(progressMs) / durationMs, 0), 1)
+    }
+
+    var hasProgress: Bool {
+        progressMs > 0 && durationSeconds > 0
+    }
+}
+
 /// Guards against resolve/sync fallbacks that use the YouTube video id as the title.
 enum TrackTitle {
     /// True when `title` is blank or literally the video id (common stream-resolve fallback).

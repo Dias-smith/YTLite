@@ -1840,33 +1840,272 @@ struct LibrarySongRow: View, Equatable {
     }
 }
 
-struct HistoryDetailView: View {
-    var onChange: () -> Void
-    @EnvironmentObject private var playback: PlaybackController
-    @EnvironmentObject private var trackActions: TrackActionPresenter
-    @Environment(\.libraryStore) private var store
-    @State private var tracks: [VideoItem] = []
-    @State private var tracksVersion: Int = 0
-    @EnvironmentObject private var playerPresentation: PlayerPresentation
+// MARK: - History list filters (duration + progress)
+
+enum HistoryProgressFilter: String, CaseIterable, Identifiable, Hashable, Sendable {
+    case under10
+    case from10To50
+    case from50To80
+    case over80
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .under10: return L("library.history.filter.progress.under_10")
+        case .from10To50: return L("library.history.filter.progress.10_50")
+        case .from50To80: return L("library.history.filter.progress.50_80")
+        case .over80: return L("library.history.filter.progress.over_80")
+        }
+    }
+
+    func matches(fraction: Double) -> Bool {
+        let percent = fraction * 100
+        switch self {
+        case .under10: return percent < 10
+        case .from10To50: return percent >= 10 && percent < 50
+        case .from50To80: return percent >= 50 && percent <= 80
+        case .over80: return percent > 80
+        }
+    }
+}
+
+struct HistoryListFilter: Equatable, Sendable {
+    var durations: Set<HomeDurationFilter>
+    var progress: Set<HistoryProgressFilter>
+
+    static let `default` = HistoryListFilter(durations: [], progress: [])
+
+    var isActive: Bool {
+        !durations.isEmpty || !progress.isEmpty
+    }
+
+    func matches(_ entry: HistoryDisplayItem) -> Bool {
+        if !durations.isEmpty {
+            let seconds = entry.durationSeconds > 0
+                ? entry.durationSeconds
+                : DurationFormat.seconds(from: entry.item.durationText)
+            guard durations.contains(where: { $0.matches(seconds: seconds) }) else { return false }
+        }
+        if !progress.isEmpty {
+            guard progress.contains(where: { $0.matches(fraction: entry.progressFraction) }) else {
+                return false
+            }
+        }
+        return true
+    }
+}
+
+private struct HistoryListFilterSheet: View {
+    @State private var draft: HistoryListFilter
+    let onApply: (HistoryListFilter) -> Void
+    let onCancel: () -> Void
+
+    init(
+        filter: HistoryListFilter,
+        onApply: @escaping (HistoryListFilter) -> Void,
+        onCancel: @escaping () -> Void
+    ) {
+        _draft = State(initialValue: filter)
+        self.onApply = onApply
+        self.onCancel = onCancel
+    }
 
     var body: some View {
-        // Same pattern as Library Songs: List recycling + Equatable vs playback churn.
-        HistoryTracksPane(
-            tracks: tracks,
-            tracksVersion: tracksVersion,
-            onPlay: { index in
-                playback.play(items: tracks, startAt: index, analyticsSource: "library")
-                playerPresentation.present()
-            },
-            onMore: { trackActions.present(item: $0, canRemoveFromHistory: true) },
-            onDelete: { ids in
-                store?.removeLastPlayed(trackIds: ids)
-                reload()
-                onChange()
-                trackActions.notifyListsChanged()
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: YTLiteLayout.sectionGap) {
+                    filterSection(title: L("home.filter.duration")) {
+                        durationOptions
+                    }
+                    filterSection(title: L("library.history.filter.progress")) {
+                        progressOptions
+                    }
+                }
+                .padding(.horizontal, YTLiteLayout.screenPadding)
+                .padding(.top, YTLiteLayout.stackLoose)
+                .padding(.bottom, YTLiteLayout.sectionGap)
             }
-        )
-        .equatable()
+            .background(YTLiteColor.surfaceElevated)
+            .navigationTitle(L("library.history.filter.title"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(L("common.cancel"), action: onCancel)
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(L("home.filter.reset")) {
+                        draft = .default
+                    }
+                    .disabled(!draft.isActive)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(L("common.done")) {
+                        onApply(draft)
+                    }
+                    .font(YTLiteType.labelEmphasized)
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
+        .presentationBackground(YTLiteColor.surfaceElevated)
+    }
+
+    private func filterSection<Content: View>(
+        title: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: YTLiteLayout.stackLoose) {
+            Text(title)
+                .font(YTLiteType.sectionTitle)
+                .foregroundStyle(YTLiteColor.onSurface)
+            content()
+        }
+    }
+
+    private var durationOptions: some View {
+        HomeFilterFlowLayout(spacing: YTLiteLayout.stackDefault) {
+            filterChip(
+                title: L("home.filter.duration.any"),
+                selected: draft.durations.isEmpty
+            ) {
+                draft.durations = []
+            }
+            ForEach(HomeDurationFilter.allCases) { option in
+                filterChip(
+                    title: option.title,
+                    selected: draft.durations.contains(option)
+                ) {
+                    toggleDuration(option)
+                }
+            }
+        }
+    }
+
+    private var progressOptions: some View {
+        HomeFilterFlowLayout(spacing: YTLiteLayout.stackDefault) {
+            filterChip(
+                title: L("library.history.filter.progress.any"),
+                selected: draft.progress.isEmpty
+            ) {
+                draft.progress = []
+            }
+            ForEach(HistoryProgressFilter.allCases) { option in
+                filterChip(
+                    title: option.title,
+                    selected: draft.progress.contains(option)
+                ) {
+                    toggleProgress(option)
+                }
+            }
+        }
+    }
+
+    private func filterChip(
+        title: String,
+        selected: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(selected ? YTLiteType.labelEmphasized : YTLiteType.label)
+                .foregroundStyle(selected ? YTLiteColor.onAccent : YTLiteColor.onSurface)
+                .padding(.horizontal, YTLiteLayout.chipHorizontal)
+                .padding(.vertical, YTLiteLayout.chipVertical)
+                .background(
+                    selected ? YTLiteColor.accent : YTLiteColor.surfaceChip,
+                    in: Capsule()
+                )
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func toggleDuration(_ option: HomeDurationFilter) {
+        if draft.durations.contains(option) {
+            draft.durations.remove(option)
+        } else {
+            draft.durations.insert(option)
+        }
+    }
+
+    private func toggleProgress(_ option: HistoryProgressFilter) {
+        if draft.progress.contains(option) {
+            draft.progress.remove(option)
+        } else {
+            draft.progress.insert(option)
+        }
+    }
+}
+
+/// Library → History: search filter, multi-select delete, listen progress bars.
+struct HistoryDetailView: View {
+    var onChange: () -> Void
+
+    @EnvironmentObject private var playback: PlaybackController
+    @EnvironmentObject private var trackActions: TrackActionPresenter
+    @EnvironmentObject private var playerPresentation: PlayerPresentation
+    @Environment(\.libraryStore) private var store
+
+    @State private var entries: [HistoryDisplayItem] = []
+    @State private var entriesVersion: Int = 0
+    @State private var filterText: String = ""
+    @State private var listFilter: HistoryListFilter = .default
+    @State private var isSelectionMode = false
+    @State private var selectedIds: Set<String> = []
+    @State private var showDeleteConfirm = false
+    @State private var showBatchPlaylistPicker = false
+    @State private var showListFilter = false
+
+    private var filteredEntries: [HistoryDisplayItem] {
+        let query = filterText.trimmingCharacters(in: .whitespacesAndNewlines)
+        return entries.filter { entry in
+            if listFilter.isActive, !listFilter.matches(entry) {
+                return false
+            }
+            guard !query.isEmpty else { return true }
+            return entry.item.title.localizedCaseInsensitiveContains(query)
+                || entry.item.channelName.localizedCaseInsensitiveContains(query)
+        }
+    }
+
+    private var batchTargetPlaylists: [LibraryPlaylist] {
+        (store?.allPlaylists() ?? []).filter {
+            $0.systemType == nil
+                || $0.systemType == SystemPlaylistType.favorites
+                || $0.systemType == SystemPlaylistType.watchLater
+        }
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            if isSelectionMode {
+                selectionHeader
+                    .padding(.bottom, YTLiteLayout.stackTight)
+            } else {
+                filterField
+                    .padding(.bottom, YTLiteLayout.stackTight)
+                listControls
+                    .padding(.bottom, YTLiteLayout.stackTight)
+            }
+
+            HistoryTracksPane(
+                entries: filteredEntries,
+                entriesVersion: entriesVersion,
+                filterText: filterText,
+                isSelectionMode: isSelectionMode,
+                selectedIds: selectedIds,
+                onPlay: { index in
+                    let queue = filteredEntries.map(\.item)
+                    playback.play(items: queue, startAt: index, analyticsSource: "library")
+                    playerPresentation.present()
+                },
+                onToggleSelection: toggleSelection,
+                onMore: { trackActions.present(item: $0, canRemoveFromHistory: true) },
+                onDelete: removeFromHistory
+            )
+            .equatable()
+        }
         .ytLiteAppBackground()
         .ytLiteMiniPlayerScrollInset()
         .navigationTitle(L("library.history"))
@@ -1877,59 +2116,382 @@ struct HistoryDetailView: View {
             reload()
             onChange()
         }
+        .onChange(of: filterText) { _, _ in
+            selectedIds = selectedIds.intersection(Set(filteredEntries.map(\.id)))
+        }
+        .onChange(of: listFilter) { _, _ in
+            selectedIds = selectedIds.intersection(Set(filteredEntries.map(\.id)))
+        }
+        .sheet(isPresented: $showDeleteConfirm) {
+            VStack(spacing: 0) {
+                YTLiteSheetGrabHandle()
+                YTLiteSheetTitle(title: L("common.delete"))
+                Text(Lf("library.history.remove_n", selectedIds.count))
+                    .font(YTLiteType.body)
+                    .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, YTLiteLayout.screenPadding)
+                Spacer(minLength: 20)
+                VStack(spacing: 10) {
+                    YTLiteSheetPrimaryButton(title: L("common.delete"), destructive: true) {
+                        removeFromHistory(Array(selectedIds))
+                        showDeleteConfirm = false
+                        exitSelectionMode()
+                    }
+                    YTLiteSheetSecondaryButton(title: L("common.cancel")) {
+                        showDeleteConfirm = false
+                    }
+                }
+                .padding(.bottom, 28)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .background(YTLiteColor.surfaceElevated)
+            .presentationDetents([.height(260)])
+            .presentationDragIndicator(.hidden)
+            .presentationBackground(YTLiteColor.surfaceElevated)
+        }
+        .sheet(isPresented: $showBatchPlaylistPicker) {
+            LibraryPlaylistPickSheet(
+                playlists: batchTargetPlaylists,
+                title: L("library.add_to_playlist"),
+                displayName: historyPlaylistDisplayName,
+                onSelect: { playlist in
+                    addSelectedToPlaylist(playlist)
+                    showBatchPlaylistPicker = false
+                }
+            )
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.hidden)
+            .presentationBackground(YTLiteColor.surfaceElevated)
+        }
+        .sheet(isPresented: $showListFilter) {
+            HistoryListFilterSheet(
+                filter: listFilter,
+                onApply: { next in
+                    listFilter = next
+                    showListFilter = false
+                },
+                onCancel: { showListFilter = false }
+            )
+        }
+    }
+
+    private var filterField: some View {
+        HStack(spacing: YTLiteLayout.stackDefault) {
+            Image(systemName: "magnifyingglass")
+                .foregroundStyle(YTLiteColor.onSurfaceVariant)
+            TextField(
+                "",
+                text: $filterText,
+                prompt: Text(L("library.history.search"))
+                    .foregroundStyle(YTLiteColor.onSurfaceVariant)
+            )
+            .font(YTLiteType.body)
+            .foregroundStyle(YTLiteColor.onSurface)
+            .textInputAutocapitalization(.never)
+            .autocorrectionDisabled()
+            if !filterText.isEmpty {
+                Button {
+                    filterText = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, YTLiteLayout.screenPadding)
+        .padding(.vertical, 10)
+        .background(YTLiteColor.surfaceVariant, in: RoundedRectangle(cornerRadius: 10))
+        .padding(.horizontal, YTLiteLayout.screenPadding)
+        .padding(.top, YTLiteLayout.stackTight)
+    }
+
+    private var listControls: some View {
+        HStack {
+            Text(Lf("common.n_items", filteredEntries.count))
+                .font(YTLiteType.body)
+                .foregroundStyle(YTLiteColor.onSurfaceVariant)
+            Spacer()
+            if !entries.isEmpty {
+                Button {
+                    showListFilter = true
+                } label: {
+                    Image(
+                        systemName: listFilter.isActive
+                            ? "line.3.horizontal.decrease.circle.fill"
+                            : "line.3.horizontal.decrease.circle"
+                    )
+                    .foregroundStyle(
+                        listFilter.isActive ? YTLiteColor.accent : YTLiteColor.onSurfaceVariant
+                    )
+                    .frame(width: 36, height: 36)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(L("library.history.filter.title"))
+
+                Button {
+                    enterSelectionMode()
+                } label: {
+                    Image(systemName: "checkmark.circle")
+                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                        .frame(width: 36, height: 36)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, YTLiteLayout.screenPadding)
+    }
+
+    private var selectionHeader: some View {
+        HStack(spacing: YTLiteLayout.stackLoose) {
+            Button {
+                exitSelectionMode()
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(YTLiteColor.onSurface)
+                    .frame(width: 36, height: 36)
+            }
+            Text(Lf("common.n_selected", selectedIds.count))
+                .font(YTLiteType.sectionTitle)
+                .foregroundStyle(YTLiteColor.onSurface)
+            Spacer()
+            Button {
+                selectedIds = Set(filteredEntries.map(\.id))
+            } label: {
+                Image(systemName: "checklist")
+                    .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                    .frame(width: 36, height: 36)
+            }
+            Button {
+                selectedIds.removeAll()
+            } label: {
+                Image(systemName: "checklist.unchecked")
+                    .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                    .frame(width: 36, height: 36)
+            }
+            .disabled(selectedIds.isEmpty)
+            if !selectedIds.isEmpty {
+                Button {
+                    showBatchPlaylistPicker = true
+                } label: {
+                    Image(systemName: "text.badge.plus")
+                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                        .frame(width: 36, height: 36)
+                }
+                .accessibilityLabel(L("library.add_to_playlist"))
+                Button {
+                    showDeleteConfirm = true
+                } label: {
+                    Image(systemName: "trash")
+                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                        .frame(width: 36, height: 36)
+                }
+            }
+        }
+        .padding(.horizontal, YTLiteLayout.screenPadding)
+        .padding(.top, YTLiteLayout.rowVertical)
+    }
+
+    private func enterSelectionMode() {
+        selectedIds = []
+        isSelectionMode = true
+    }
+
+    private func exitSelectionMode() {
+        isSelectionMode = false
+        selectedIds = []
+    }
+
+    private func toggleSelection(_ id: String) {
+        if selectedIds.contains(id) {
+            selectedIds.remove(id)
+        } else {
+            selectedIds.insert(id)
+        }
+    }
+
+    private func historyPlaylistDisplayName(_ playlist: LibraryPlaylist) -> String {
+        switch playlist.systemType {
+        case SystemPlaylistType.favorites: return L("library.liked")
+        case SystemPlaylistType.watchLater: return L("library.watch_later")
+        default: return playlist.name
+        }
+    }
+
+    private func addSelectedToPlaylist(_ playlist: LibraryPlaylist) {
+        guard let store else { return }
+        for videoId in selectedIds {
+            if let item = entries.first(where: { $0.id == videoId })?.item {
+                store.add(item: item, to: playlist)
+            }
+        }
+        exitSelectionMode()
+        onChange()
+        trackActions.notifyListsChanged()
+    }
+
+    private func removeFromHistory(_ ids: [String]) {
+        store?.removeLastPlayed(trackIds: ids)
+        reload()
+        onChange()
+        trackActions.notifyListsChanged()
     }
 
     private func reload() {
-        let items = store?.historyVideos() ?? []
-        let next = store?.filterNotInterested(items) ?? items
-        if next.map(\.videoId) != tracks.map(\.videoId) {
-            tracksVersion &+= 1
+        let raw = store?.historyDisplayItems() ?? []
+        let next = store.map { store in
+            raw.filter { !store.isNotInterested(videoId: $0.item.videoId) }
+        } ?? raw
+        let fingerprint = next.map { "\($0.id):\($0.progressMs):\($0.durationSeconds)" }
+        let previous = entries.map { "\($0.id):\($0.progressMs):\($0.durationSeconds)" }
+        if fingerprint != previous {
+            entriesVersion &+= 1
         }
-        tracks = next
+        entries = next
+        selectedIds = selectedIds.intersection(Set(next.map(\.id)))
     }
 }
 
 private struct HistoryTracksPane: View, Equatable {
-    let tracks: [VideoItem]
-    let tracksVersion: Int
+    let entries: [HistoryDisplayItem]
+    let entriesVersion: Int
+    let filterText: String
+    let isSelectionMode: Bool
+    let selectedIds: Set<String>
     let onPlay: (Int) -> Void
+    let onToggleSelection: (String) -> Void
     let onMore: (VideoItem) -> Void
     let onDelete: ([String]) -> Void
 
     static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.tracksVersion == rhs.tracksVersion
+        lhs.entriesVersion == rhs.entriesVersion
+            && lhs.filterText == rhs.filterText
+            && lhs.isSelectionMode == rhs.isSelectionMode
+            && lhs.selectedIds == rhs.selectedIds
+            && lhs.entries.map(\.id) == rhs.entries.map(\.id)
     }
 
     var body: some View {
-        if tracks.isEmpty {
-            Text(L("library.no_plays"))
-                .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                .padding()
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        if entries.isEmpty {
+            Text(
+                filterText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    ? L("library.no_plays")
+                    : L("library.history.no_matches")
+            )
+            .foregroundStyle(YTLiteColor.onSurfaceVariant)
+            .padding()
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         } else {
             List {
-                ForEach(Array(tracks.enumerated()), id: \.element.videoId) { index, item in
-                    Button {
-                        onPlay(index)
-                    } label: {
-                        LibrarySongRow(item: item) {
-                            onMore(item)
-                        }
-                        .equatable()
-                    }
-                    .buttonStyle(.plain)
-                    .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
+                ForEach(Array(entries.enumerated()), id: \.element.id) { index, entry in
+                    historyRow(entry, index: index)
+                        .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
                 }
                 .onDelete { offsets in
-                    let ids = offsets.map { tracks[$0].videoId }
+                    guard !isSelectionMode else { return }
+                    let ids = offsets.map { entries[$0].id }
                     onDelete(ids)
                 }
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
         }
+    }
+
+    @ViewBuilder
+    private func historyRow(_ entry: HistoryDisplayItem, index: Int) -> some View {
+        let selected = selectedIds.contains(entry.id)
+        Button {
+            if isSelectionMode {
+                onToggleSelection(entry.id)
+            } else {
+                onPlay(index)
+            }
+        } label: {
+            HStack(spacing: YTLiteLayout.stackLoose) {
+                if isSelectionMode {
+                    Image(systemName: selected ? "checkmark.circle.fill" : "circle")
+                        .foregroundStyle(selected ? YTLiteColor.accent : YTLiteColor.onSurfaceVariant)
+                        .padding(.leading, YTLiteLayout.screenPadding)
+                }
+                HistorySongRow(
+                    entry: entry,
+                    compactLeading: isSelectionMode,
+                    showsMore: !isSelectionMode,
+                    onMore: { onMore(entry.item) }
+                )
+            }
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+private struct HistorySongRow: View {
+    let entry: HistoryDisplayItem
+    var compactLeading: Bool = false
+    var showsMore: Bool = true
+    var onMore: (() -> Void)? = nil
+
+    var body: some View {
+        HStack(spacing: YTLiteLayout.stackLoose) {
+            VideoThumbnail(
+                url: entry.item.thumbnailURL,
+                durationText: entry.item.durationText,
+                width: YTLiteLayout.channelAvatar,
+                height: YTLiteLayout.channelAvatar,
+                cornerRadius: 6,
+                badgePadding: 2
+            )
+            VStack(alignment: .leading, spacing: YTLiteLayout.stackTight) {
+                Text(entry.item.title)
+                    .font(YTLiteType.rowTitle)
+                    .foregroundStyle(YTLiteColor.onSurface)
+                    .lineLimit(1)
+                Text(entry.item.channelName)
+                    .font(YTLiteType.meta)
+                    .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                    .lineLimit(1)
+                progressBar
+            }
+            Spacer(minLength: 0)
+            if showsMore {
+                Button {
+                    onMore?()
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                        .frame(width: 32, height: 32)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.borderless)
+            }
+        }
+        .padding(.leading, compactLeading ? 0 : YTLiteLayout.screenPadding)
+        .padding(.trailing, YTLiteLayout.screenPadding)
+        .padding(.vertical, YTLiteLayout.rowVertical)
+        .contentShape(Rectangle())
+    }
+
+    private var progressBar: some View {
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                Capsule()
+                    .fill(YTLiteColor.miniProgressTrack)
+                Capsule()
+                    .fill(YTLiteColor.accent)
+                    .frame(width: geo.size.width * entry.progressFraction)
+            }
+        }
+        .frame(height: max(3, YTLiteLayout.miniProgressHeight + 1))
+        .opacity(entry.hasProgress || entry.durationSeconds > 0 ? 1 : 0.35)
+        .accessibilityLabel(L("library.history.progress"))
+        .accessibilityValue("\(Int((entry.progressFraction * 100).rounded()))%")
     }
 }
 
