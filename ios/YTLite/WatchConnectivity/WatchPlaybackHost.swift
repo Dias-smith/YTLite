@@ -92,6 +92,19 @@ final class WatchPlaybackHost {
         }
         .store(in: &playbackCancellables)
 
+        // Track / title changes must not wait on the debounce coalescer.
+        playback.$nowPlaying
+            .map { item -> String in
+                guard let item else { return "|" }
+                return "\(item.videoId)|\(item.title)|\(item.channelName)|\(item.thumbnailURL?.absoluteString ?? "")"
+            }
+            .removeDuplicates()
+            .dropFirst()
+            .sink { [weak self] _ in
+                self?.pushAll(force: true)
+            }
+            .store(in: &playbackCancellables)
+
         playback.$isPlaying
             .removeDuplicates()
             .sink { [weak self] playing in

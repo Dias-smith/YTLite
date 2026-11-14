@@ -19,6 +19,8 @@ final class WatchPlaybackClient: ObservableObject {
     private var bootstrapTask: Task<Void, Never>?
     private var playSyncTimer: AnyCancellable?
     private var lastRequestedSyncAt: Date = .distantPast
+    /// Local volume chrome hold — do not advance `lastPlaybackUpdatedAt` or phone metadata is blocked.
+    private var volumeHoldUntil: Date?
 
     private init() {}
 
@@ -187,8 +189,6 @@ final class WatchPlaybackClient: ObservableObject {
     func setShuffle(_ enabled: Bool) {
         if var current = snapshot {
             current.shuffleEnabled = enabled
-            current.updatedAt = Date().timeIntervalSince1970
-            lastPlaybackUpdatedAt = max(lastPlaybackUpdatedAt, current.updatedAt ?? 0)
             snapshot = current
         }
         send(kind: .transportSetShuffle, body: WatchConnectivityProtocol.BoolBody(value: enabled))
@@ -202,8 +202,6 @@ final class WatchPlaybackClient: ObservableObject {
     func cycleRepeat() {
         if var current = snapshot {
             current.repeatMode = nextRepeatMode(current.repeatMode)
-            current.updatedAt = Date().timeIntervalSince1970
-            lastPlaybackUpdatedAt = max(lastPlaybackUpdatedAt, current.updatedAt ?? 0)
             snapshot = current
         }
         send(kind: .transportCycleRepeat, body: WatchConnectivityProtocol.EmptyBody())
@@ -213,8 +211,6 @@ final class WatchPlaybackClient: ObservableObject {
     func setSpeed(_ speed: Float) {
         if var current = snapshot {
             current.speed = speed
-            current.updatedAt = Date().timeIntervalSince1970
-            lastPlaybackUpdatedAt = max(lastPlaybackUpdatedAt, current.updatedAt ?? 0)
             snapshot = current
         }
         send(kind: .transportSetSpeed, body: WatchConnectivityProtocol.SpeedBody(speed: speed))
@@ -223,14 +219,12 @@ final class WatchPlaybackClient: ObservableObject {
 
     func setVolume(_ volume: Float) {
         let clamped = min(max(volume, 0), 1)
-        // Optimistic local mirror until phone pushes the next snapshot.
-        // Must bump `updatedAt` or periodic phone snapshots wipe the draft before apply.
+        // Optimistic local mirror — hold volume briefly without blocking phone metadata.
         if var current = snapshot {
             current.outputVolume = clamped
-            current.updatedAt = Date().timeIntervalSince1970
-            lastPlaybackUpdatedAt = max(lastPlaybackUpdatedAt, current.updatedAt ?? 0)
             snapshot = current
         }
+        volumeHoldUntil = Date().addingTimeInterval(1.6)
         send(kind: .transportSetVolume, body: WatchConnectivityProtocol.VolumeBody(volume: clamped))
         scheduleReconcile()
     }
@@ -243,8 +237,6 @@ final class WatchPlaybackClient: ObservableObject {
         if var current = snapshot {
             current.sleepTimerMinutes = normalized
             current.sleepTimerEndsAt = normalized.map { Date().addingTimeInterval(TimeInterval($0 * 60)).timeIntervalSince1970 }
-            current.updatedAt = Date().timeIntervalSince1970
-            lastPlaybackUpdatedAt = max(lastPlaybackUpdatedAt, current.updatedAt ?? 0)
             snapshot = current
             publishWidgetSnapshot()
         }
@@ -304,8 +296,7 @@ final class WatchPlaybackClient: ObservableObject {
     private func applyOptimisticPlayPause() {
         guard var current = snapshot, current.videoId != nil else { return }
         current.isPlaying.toggle()
-        current.updatedAt = Date().timeIntervalSince1970
-        lastPlaybackUpdatedAt = max(lastPlaybackUpdatedAt, current.updatedAt ?? 0)
+        // Do not advance lastPlaybackUpdatedAt — phone stamps must remain authoritative.
         snapshot = current
         publishWidgetSnapshot()
         configurePlaySyncTimer(playing: current.isPlaying)
@@ -341,10 +332,7 @@ final class WatchPlaybackClient: ObservableObject {
               queueSnapshot.items.indices.contains(index)
         else { return }
         let item = queueSnapshot.items[index]
-        let stamp = Date().timeIntervalSince1970
         queueSnapshot.currentIndex = index
-        queueSnapshot.updatedAt = stamp
-        lastQueueUpdatedAt = max(lastQueueUpdatedAt, stamp)
         queue = queueSnapshot
 
         var playback = snapshot ?? WatchConnectivityProtocol.PlaybackSnapshot(
@@ -364,7 +352,7 @@ final class WatchPlaybackClient: ObservableObject {
             outputVolume: nil,
             sleepTimerMinutes: nil,
             sleepTimerEndsAt: nil,
-            updatedAt: stamp
+            updatedAt: snapshot?.updatedAt
         )
         playback.videoId = item.videoId
         playback.title = item.title
@@ -376,8 +364,7 @@ final class WatchPlaybackClient: ObservableObject {
         playback.isExtracting = true
         playback.isSeekable = false
         playback.errorMessage = nil
-        playback.updatedAt = stamp
-        lastPlaybackUpdatedAt = max(lastPlaybackUpdatedAt, stamp)
+        // Keep prior watermark so the phone's next snapshot is never rejected.
         snapshot = playback
         publishWidgetSnapshot()
         configurePlaySyncTimer(playing: true)
@@ -413,22 +400,48 @@ final class WatchPlaybackClient: ObservableObject {
         _ body: WatchConnectivityProtocol.PlaybackSnapshot,
         source: SnapshotSource
     ) {
-        guard (body.updatedAt ?? 0) >= lastPlaybackUpdatedAt else { return }
+        let incoming = body.updatedAt ?? 0
         let previousVideoId = snapshot?.videoId
         let previousPlaying = snapshot?.isPlaying
-        lastPlaybackUpdatedAt = body.updatedAt ?? lastPlaybackUpdatedAt
-        snapshot = body
+        let trackChanged = body.videoId != nil && body.videoId != previousVideoId
+        let metadataChanged = body.videoId != nil
+            && body.videoId == previousVideoId
+            && (
+                nonempty(body.title) != nonempty(snapshot?.title)
+                || nonempty(body.artist) != nonempty(snapshot?.artist)
+                || body.thumbnailURL != snapshot?.thumbnailURL
+            )
+
+        // Progress / transport ticks still require a fresh stamp; track + title/art always win.
+        if !trackChanged, !metadataChanged {
+            guard incoming >= lastPlaybackUpdatedAt else { return }
+        }
+
+        lastPlaybackUpdatedAt = max(incoming, lastPlaybackUpdatedAt)
+
+        var next = body
+        if let hold = volumeHoldUntil, Date() < hold, !trackChanged {
+            next.outputVolume = snapshot?.outputVolume ?? body.outputVolume
+        } else if let hold = volumeHoldUntil, Date() >= hold {
+            volumeHoldUntil = nil
+        }
+
+        snapshot = next
         lastCommandError = nil
         publishWidgetSnapshot()
 
-        if body.isPlaying != previousPlaying {
-            configurePlaySyncTimer(playing: body.isPlaying)
+        if next.isPlaying != previousPlaying {
+            configurePlaySyncTimer(playing: next.isPlaying)
         }
 
         // Phone-side track change: actively re-pull so queue index / metadata stay aligned.
-        if source == .envelope, body.videoId != nil, body.videoId != previousVideoId {
+        if source == .envelope, trackChanged {
             requestSnapshot(force: true)
         }
+    }
+
+    private func nonempty(_ value: String?) -> String {
+        value?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
     }
 
     private func publishWidgetSnapshot() {
