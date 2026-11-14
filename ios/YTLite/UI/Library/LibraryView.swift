@@ -2102,7 +2102,10 @@ struct HistoryDetailView: View {
                 },
                 onToggleSelection: toggleSelection,
                 onMore: { trackActions.present(item: $0, canRemoveFromHistory: true) },
-                onDelete: removeFromHistory
+                onDelete: removeFromHistory,
+                onRefresh: {
+                    await refreshHistory()
+                }
             )
             .equatable()
         }
@@ -2341,14 +2344,22 @@ struct HistoryDetailView: View {
         trackActions.notifyListsChanged()
     }
 
-    private func reload() {
+    @MainActor
+    private func refreshHistory() async {
+        // Brief yield so the system refresh spinner is visible even for fast local reloads.
+        try? await Task.sleep(nanoseconds: 250_000_000)
+        reload(force: true)
+        onChange()
+    }
+
+    private func reload(force: Bool = false) {
         let raw = store?.historyDisplayItems() ?? []
         let next = store.map { store in
             raw.filter { !store.isNotInterested(videoId: $0.item.videoId) }
         } ?? raw
         let fingerprint = next.map { "\($0.id):\($0.progressMs):\($0.durationSeconds)" }
         let previous = entries.map { "\($0.id):\($0.progressMs):\($0.durationSeconds)" }
-        if fingerprint != previous {
+        if force || fingerprint != previous {
             entriesVersion &+= 1
         }
         entries = next
@@ -2366,6 +2377,7 @@ private struct HistoryTracksPane: View, Equatable {
     let onToggleSelection: (String) -> Void
     let onMore: (VideoItem) -> Void
     let onDelete: ([String]) -> Void
+    let onRefresh: () async -> Void
 
     static func == (lhs: Self, rhs: Self) -> Bool {
         lhs.entriesVersion == rhs.entriesVersion
@@ -2377,14 +2389,17 @@ private struct HistoryTracksPane: View, Equatable {
 
     var body: some View {
         if entries.isEmpty {
-            Text(
-                filterText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                    ? L("library.no_plays")
-                    : L("library.history.no_matches")
-            )
-            .foregroundStyle(YTLiteColor.onSurfaceVariant)
-            .padding()
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            ScrollView {
+                Text(
+                    filterText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                        ? L("library.no_plays")
+                        : L("library.history.no_matches")
+                )
+                .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                .padding()
+                .frame(maxWidth: .infinity, alignment: .top)
+            }
+            .refreshable { await onRefresh() }
         } else {
             List {
                 ForEach(Array(entries.enumerated()), id: \.element.id) { index, entry in
@@ -2401,6 +2416,7 @@ private struct HistoryTracksPane: View, Equatable {
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
+            .refreshable { await onRefresh() }
         }
     }
 
