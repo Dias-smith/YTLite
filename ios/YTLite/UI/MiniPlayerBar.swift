@@ -71,7 +71,7 @@ struct MiniPlayerBar: View {
             .simultaneousGesture(
                 TapGesture().onEnded {
                     guard abs(swipeOffset) < 8 else { return }
-                    BubbleGuideStore.shared.dismiss(.miniPlayerSwipe)
+                    dismissSwipeGuide()
                     playerPresentation.present()
                 }
             )
@@ -82,6 +82,7 @@ struct MiniPlayerBar: View {
 
             // Independent controls — do not open player.
             Button {
+                dismissSwipeGuide()
                 playback.togglePlayPause()
             } label: {
                 Image(systemName: playback.isPlaying ? "pause.fill" : "play.fill")
@@ -95,6 +96,7 @@ struct MiniPlayerBar: View {
             .accessibilityLabel(playback.isPlaying ? L("common.pause") : L("common.play"))
 
             Button {
+                dismissSwipeGuide()
                 playback.playNext()
             } label: {
                 Image(systemName: "forward.fill")
@@ -148,7 +150,7 @@ struct MiniPlayerBar: View {
 
                 // Any clear horizontal swipe dismisses the coach mark (user discovered the gesture).
                 if abs(dx) > abs(dy) * 1.1, abs(primary) > 28 {
-                    BubbleGuideStore.shared.dismiss(.miniPlayerSwipe)
+                    dismissSwipeGuide()
                 }
 
                 guard shouldSkip else { return }
@@ -158,6 +160,10 @@ struct MiniPlayerBar: View {
                     playback.playPrevious()
                 }
             }
+    }
+
+    private func dismissSwipeGuide() {
+        BubbleGuideStore.shared.dismiss(.miniPlayerSwipe)
     }
 
     @ViewBuilder

@@ -116,9 +116,7 @@ struct AppChrome<Content: View>: View {
 
 // MARK: - Bubble guide (coach marks)
 
-/// Coach-mark tips.
-/// - Release: one-shot — persisted after dismiss, never shown again.
-/// - DEBUG: every cold launch shows again (session dismiss only).
+/// Coach-mark tips — one-shot: persisted after dismiss, never shown again.
 @MainActor
 final class BubbleGuideStore: ObservableObject {
     static let shared = BubbleGuideStore()
@@ -145,19 +143,13 @@ final class BubbleGuideStore: ObservableObject {
     func isVisible(_ id: ID) -> Bool {
         _ = revision
         if dismissedThisSession.contains(id) { return false }
-        #if DEBUG
-        return true
-        #else
         return !UserDefaults.standard.bool(forKey: id.rawValue)
-        #endif
     }
 
     func dismiss(_ id: ID) {
         guard isVisible(id) else { return }
         dismissedThisSession.insert(id)
-        #if !DEBUG
         UserDefaults.standard.set(true, forKey: id.rawValue)
-        #endif
         revision += 1
     }
 }
@@ -334,6 +326,8 @@ private struct BubbleGuideLayerModifier: ViewModifier {
             .onChange(of: isActive) { _, active in
                 if active {
                     scheduleRevealIfNeeded()
+                } else {
+                    reveal = false
                 }
             }
             .onChange(of: store.revision) { _, _ in

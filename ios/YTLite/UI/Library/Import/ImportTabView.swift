@@ -1,12 +1,12 @@
 import SwiftUI
 
-/// Root tab host for music import (Import Hub + nested imported list).
+/// Root tab host for music import (Library-style chrome).
 struct ImportTabView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     var body: some View {
         NavigationStack {
-            ImportHubView()
+            ImportHubView(isTabRoot: true)
         }
         .ytLiteContentWidth(enabled: YTLiteAdaptive.isRegularWidth(horizontalSizeClass))
     }

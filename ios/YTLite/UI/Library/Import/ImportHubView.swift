@@ -65,6 +65,9 @@ private enum ImportHubSource: Identifiable {
 }
 
 struct ImportHubView: View {
+    /// Tab root uses Library-style page title + hidden nav bar; Settings push keeps system back.
+    var isTabRoot: Bool = false
+
     @EnvironmentObject private var trackActions: TrackActionPresenter
     @EnvironmentObject private var playback: PlaybackController
     @Environment(\.libraryStore) private var store
@@ -84,34 +87,28 @@ struct ImportHubView: View {
     @State private var resumePlaybackAfterPicker = false
 
     var body: some View {
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: 0) {
-                listControls
-                    .padding(.bottom, YTLiteLayout.stackTight)
-
-                ForEach(ImportHubSource.all) { source in
-                    sourceRow(source)
+        VStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: YTLiteLayout.screenPadding) {
+                if isTabRoot {
+                    header
                 }
+                listControls
             }
-            .padding(.bottom, 80)
+            .padding(.bottom, YTLiteLayout.stackTight)
+
+            sourcesBody
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .ytLiteMiniPlayerScrollInset()
         .ytLiteAppBackground()
-        .navigationTitle(L("import.hub.title"))
+        .toolbar(isTabRoot ? .hidden : .automatic, for: .navigationBar)
+        .navigationTitle(isTabRoot ? "" : L("import.hub.title"))
+        .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(YTLiteColor.background, for: .navigationBar)
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                NavigationLink {
-                    ImportedTracksListView()
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "music.note.list")
-                        Text("\(importedCount)")
-                            .font(YTLiteType.labelEmphasized)
-                            .monospacedDigit()
-                    }
-                    .foregroundStyle(YTLiteColor.accent)
-                    .accessibilityLabel(Lf("import.hub.count", importedCount))
+            if !isTabRoot {
+                ToolbarItem(placement: .topBarTrailing) {
+                    importedEntryLink
                 }
             }
         }
@@ -148,7 +145,6 @@ struct ImportHubView: View {
             if presented {
                 resumePlaybackAfterPicker = playback.isPlaying
             } else if resumePlaybackAfterPicker, photoItems.isEmpty {
-                // Cancelled without selection — interruption often lacks `.shouldResume`.
                 finishPickerPlaybackResume()
             }
         }
@@ -199,6 +195,47 @@ struct ImportHubView: View {
         }
     }
 
+    // MARK: - Library-style chrome
+
+    private var header: some View {
+        HStack(alignment: .center, spacing: YTLiteLayout.stackLoose) {
+            Text(L("import.hub.title"))
+                .font(YTLiteType.pageTitle)
+                .foregroundStyle(YTLiteColor.onSurface)
+            Spacer(minLength: 0)
+            importedEntryLink
+            NavigationLink {
+                SettingsView()
+            } label: {
+                Image(systemName: "gearshape")
+                    .font(.system(size: 20))
+                    .foregroundStyle(YTLiteColor.onSurfaceVariant)
+            }
+        }
+        .padding(.horizontal, YTLiteLayout.screenPadding)
+        .padding(.top, YTLiteLayout.rowVertical)
+    }
+
+    private var importedEntryLink: some View {
+        NavigationLink {
+            ImportedTracksListView()
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: "music.note.list")
+                    .font(.system(size: 14, weight: .semibold))
+                Text("\(importedCount)")
+                    .font(YTLiteType.labelEmphasized)
+                    .monospacedDigit()
+            }
+            .foregroundStyle(YTLiteColor.accent)
+            .padding(.horizontal, YTLiteLayout.chipHorizontal)
+            .padding(.vertical, YTLiteLayout.chipVertical)
+            .background(YTLiteColor.surfaceChip, in: Capsule())
+            .contentShape(Capsule())
+            .accessibilityLabel(Lf("import.hub.count", importedCount))
+        }
+    }
+
     private var listControls: some View {
         HStack {
             Text(Lf("common.n_items", ImportHubSource.all.count))
@@ -207,7 +244,17 @@ struct ImportHubView: View {
             Spacer()
         }
         .padding(.horizontal, YTLiteLayout.screenPadding)
-        .padding(.top, YTLiteLayout.stackTight)
+    }
+
+    private var sourcesBody: some View {
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 0) {
+                ForEach(ImportHubSource.all) { source in
+                    sourceRow(source)
+                }
+            }
+            .padding(.bottom, 80)
+        }
     }
 
     private func sourceRow(_ source: ImportHubSource) -> some View {
@@ -271,7 +318,6 @@ struct ImportHubView: View {
         let shouldResume = resumePlaybackAfterPicker
         resumePlaybackAfterPicker = false
         guard shouldResume else { return }
-        // Let PHPicker / document picker fully tear down before reactivating the session.
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: 250_000_000)
             playback.resumeAfterSystemPickerIfNeeded(wasPlaying: true)

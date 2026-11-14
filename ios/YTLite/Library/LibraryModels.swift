@@ -90,7 +90,10 @@ final class LibraryTrack {
                 .compactMap { $0 }
                 .filter { !$0.isEmpty }
                 .joined(separator: " · "),
-            thumbnailURL: thumbnailURLString.flatMap(URL.init(string:)),
+            thumbnailURL: PlaybackCachedCover.resolvedThumbnail(
+                videoId: trackId,
+                remote: thumbnailURLString.flatMap(URL.init(string:))
+            ),
             durationText: durationText ?? DurationFormat.text(seconds: durationSeconds)
         )
     }

@@ -23,7 +23,7 @@ private enum ImportedListFilter: Hashable {
     ]
 }
 
-/// Full list of on-device imported tracks (opened from Import Hub toolbar).
+/// Imported tracks list pushed from Import hub header / toolbar.
 struct ImportedTracksListView: View {
     @EnvironmentObject private var playback: PlaybackController
     @EnvironmentObject private var playerPresentation: PlayerPresentation
@@ -55,6 +55,8 @@ struct ImportedTracksListView: View {
         .ytLiteAppBackground()
         .ytLiteMiniPlayerScrollInset()
         .navigationTitle(L("import.list.title"))
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.visible, for: .navigationBar)
         .toolbarBackground(YTLiteColor.background, for: .navigationBar)
         .onAppear {
             reload()
@@ -74,7 +76,6 @@ struct ImportedTracksListView: View {
             }
             .padding(.horizontal, YTLiteLayout.screenPadding)
         }
-        .padding(.top, YTLiteLayout.stackTight)
     }
 
     private var listControls: some View {

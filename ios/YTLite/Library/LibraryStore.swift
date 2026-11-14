@@ -1234,7 +1234,11 @@ final class LibraryStore {
             title: meta.customTitle ?? item.title,
             channelName: meta.customArtistName ?? item.channelName,
             subtitle: item.subtitle,
-            thumbnailURL: TrackThumbnailStorage.resolveURL(meta.customThumbnailUrl) ?? item.thumbnailURL,
+            thumbnailURL: TrackThumbnailStorage.resolveURL(meta.customThumbnailUrl)
+                ?? PlaybackCachedCover.resolvedThumbnail(
+                    videoId: item.videoId,
+                    remote: item.thumbnailURL
+                ),
             channelAvatarURL: item.channelAvatarURL,
             durationText: item.durationText,
             viewCountText: item.viewCountText,

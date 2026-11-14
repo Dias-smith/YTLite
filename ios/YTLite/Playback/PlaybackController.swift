@@ -763,7 +763,10 @@ final class PlaybackController: ObservableObject {
                 if !fromItem.isEmpty { return fromItem }
                 return catalogTrack?.primaryArtistName ?? ""
             }(),
-            thumbnailURL: item.thumbnailURL,
+            thumbnailURL: PlaybackCachedCover.resolvedThumbnail(
+                videoId: item.videoId,
+                remote: item.thumbnailURL
+            ),
             durationText: item.durationText,
             channelId: knownArtistId,
             channelAvatarURL: knownAvatar
@@ -931,7 +934,10 @@ final class PlaybackController: ObservableObject {
                         videoId: playback.videoId
                     ),
                     channelName: playback.channelName.isEmpty ? item.channelName : playback.channelName,
-                    thumbnailURL: playback.thumbnailURL ?? item.thumbnailURL,
+                    thumbnailURL: PlaybackCachedCover.resolvedThumbnail(
+                        videoId: playback.videoId,
+                        remote: playback.thumbnailURL ?? item.thumbnailURL
+                    ),
                     durationText: durationText,
                     channelId: channelId,
                     channelAvatarURL: avatar
@@ -1527,14 +1533,41 @@ final class PlaybackController: ObservableObject {
             videoId: videoId,
             "itag=\(itag) progress=\(Int((position / duration * 100).rounded()))% pos=\(Int(position.rounded()))s"
         )
+        let thumbnailURL = nowPlaying?.thumbnailURL
         Task {
             await PlaybackMediaStore.shared.schedulePersist(
                 videoId: videoId,
                 sourceURL: streamURL,
                 itag: itag,
-                mimeType: mimeType
+                mimeType: mimeType,
+                thumbnailURL: thumbnailURL
             )
+            await MainActor.run {
+                self.applyCachedCoverToNowPlayingIfNeeded(videoId: videoId)
+            }
         }
+    }
+
+    /// Swap remote artwork for the durable on-disk cover once kickoff cache finishes.
+    private func applyCachedCoverToNowPlayingIfNeeded(videoId: String) {
+        guard nowPlaying?.videoId == videoId,
+              let cover = PlaybackCachedCover.resolveURL(videoId: videoId),
+              let playing = nowPlaying
+        else { return }
+        if playing.thumbnailURL == cover { return }
+        let updated = NowPlayingItem(
+            videoId: playing.videoId,
+            title: playing.title,
+            channelName: playing.channelName,
+            thumbnailURL: cover,
+            durationText: playing.durationText,
+            channelId: playing.channelId,
+            channelAvatarURL: playing.channelAvatarURL
+        )
+        nowPlaying = updated
+        loadArtworkIfNeeded(for: updated)
+        updateNowPlayingInfo()
+        publishPhoneWidgetSnapshot(force: true)
     }
 
     /// Remote `kickoff_interval` is a percent of duration (default 100%).
@@ -2573,7 +2606,10 @@ final class PlaybackController: ObservableObject {
     }
 
     private func loadArtworkIfNeeded(for item: NowPlayingItem) {
-        guard let url = item.thumbnailURL else {
+        guard let url = PlaybackCachedCover.resolvedThumbnail(
+            videoId: item.videoId,
+            remote: item.thumbnailURL
+        ) else {
             if artworkVideoId != item.videoId || artworkSourceURL != nil {
                 artworkGeneration += 1
                 artworkTask?.cancel()
@@ -2659,7 +2695,10 @@ final class PlaybackController: ObservableObject {
                 if !fromItem.isEmpty { return fromItem }
                 return catalog?.primaryArtistName ?? ""
             }(),
-            thumbnailURL: item.thumbnailURL,
+            thumbnailURL: PlaybackCachedCover.resolvedThumbnail(
+                videoId: item.videoId,
+                remote: item.thumbnailURL
+            ),
             durationText: item.durationText,
             channelId: snapshot.channelId ?? catalog?.primaryArtistId,
             channelAvatarURL: snapshot.channelAvatarURL.flatMap(URL.init(string:))
