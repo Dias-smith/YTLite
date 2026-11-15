@@ -3,10 +3,10 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Mixtube — Online video player</title>
+    <title>Mixtube — Music &amp; video player for iOS and Android</title>
     <meta
       name="description"
-      content="Mixtube is a focused online video player for iOS and Android. Library, playlists, and playback — without the clutter."
+      content="Mixtube is a free music-first online video player for iPhone, iPad, and Android. Browse, search, save playlists, import your own audio (including optional Google Drive), and play with a mini player and sleep timer. No login required to learn about the app."
     />
     <link rel="icon" href="assets/icon.png" type="image/png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -37,7 +37,10 @@
         <div class="hero-orb" aria-hidden="true"></div>
         <div class="hero-inner">
           <h1 class="hero-brand">Mixtube</h1>
-          <p class="hero-tag">A quieter online video player — music-first, library-ready.</p>
+          <p class="hero-tag">
+            Mixtube is a music-first online video player for iPhone, iPad, and Android — browse,
+            search, save, import your own audio, and play without the clutter.
+          </p>
           <div class="cta-row">
             <a
               class="btn btn-primary"
@@ -46,8 +49,64 @@
               >App Store</a
             >
             <a class="btn btn-ghost" href="#download" id="cta-android">Google Play</a>
+            <a class="btn btn-ghost" href="privacy.html">Privacy Policy</a>
           </div>
         </div>
+      </section>
+
+      <section class="section" id="purpose">
+        <p class="section-label">Purpose of Mixtube</p>
+        <h2>What Mixtube is — and why it uses Google APIs</h2>
+        <p class="lead">
+          <strong>Mixtube</strong> (also referred to historically as YTLite in some technical
+          identifiers) is a consumer media app. Its purpose is to let people discover and play
+          online video and music, keep a personal library (playlists, likes, history), optionally
+          sync that library when signed in, and optionally <strong>import their own audio files</strong>
+          from sources they choose — including Files, Wi‑Fi transfer, and
+          <strong>Google Drive (read-only)</strong>.
+        </p>
+        <p class="lead">
+          This homepage is public. You do not need to create an account or sign in to read about
+          Mixtube, its features, or our
+          <a href="privacy.html">Privacy Policy</a> and
+          <a href="terms.html">Terms</a>.
+        </p>
+        <ul class="feature-list">
+          <li>
+            <h3>Core product</h3>
+            <p>
+              Browse and search online video, build queues, use a mini player and sleep timer, and
+              manage playlists and history on device — with optional cloud sync after sign-in.
+            </p>
+          </li>
+          <li>
+            <h3>Optional Google Sign-In</h3>
+            <p>
+              If you sign in with Google, Mixtube may request read-only Google user data (for
+              example <code>youtube.readonly</code>) so we can show subscriptions, playlists, and
+              liked items you already have — display only, never to modify your Google content.
+            </p>
+          </li>
+          <li>
+            <h3>Optional Google Drive import</h3>
+            <p>
+              When you choose <strong>Import → Google Drive</strong>, Mixtube may request
+              <code>drive.readonly</code> solely so you can browse audio/video files in
+              <em>your</em> Drive and download selected files to this device for offline playback
+              in your local Imported library. We do not upload Drive files to our servers, do not
+              change or share Drive content, and do not use Drive data for advertising or AI model
+              training.
+            </p>
+          </li>
+        </ul>
+        <p class="lead">
+          <strong>Google APIs Terms compliance.</strong> Mixtube does not use Google APIs to create,
+          generate, or distribute AI-generated non-consensual intimate imagery (AI NCII). Mixtube
+          does not use Google user data (including YouTube or Drive data) to train or improve
+          generalized machine-learning or AI models. Use of Google user data is limited to the
+          in-app features described here and in our
+          <a href="privacy.html">Privacy Policy</a>.
+        </p>
       </section>
 
       <section class="section" id="features">
@@ -55,12 +114,12 @@
         <h2>Built for watching and listening — not endless clutter.</h2>
         <p class="lead">
           Browse, search, save, and play online video in one place — with night mode, sleep timer,
-          and sync when you sign in.
+          local import, and sync when you sign in.
         </p>
         <ul class="feature-list">
           <li>
             <h3>A real library</h3>
-            <p>Playlists, likes, watch later, and history that feel made for queues — not tabs of clutter.</p>
+            <p>Playlists, likes, watch later, history, and imported local tracks — made for queues.</p>
           </li>
           <li>
             <h3>Playback that stays with you</h3>

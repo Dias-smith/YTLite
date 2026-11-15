@@ -6,6 +6,10 @@
 	<string>$(APP_STORE_ID)</string>
 	<key>AVInitialRouteSharingPolicy</key>
 	<string>LongFormAudio</string>
+	<key>BAIDU_PAN_APP_KEY</key>
+	<string>$(BAIDU_PAN_APP_KEY)</string>
+	<key>BAIDU_PAN_SECRET_KEY</key>
+	<string>$(BAIDU_PAN_SECRET_KEY)</string>
 	<key>CATALOG_DATA_API_KEY</key>
 	<string>$(CATALOG_DATA_API_KEY)</string>
 	<key>CFBundleDevelopmentRegion</key>
@@ -56,10 +60,6 @@
 	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
-	<key>BAIDU_PAN_APP_KEY</key>
-	<string>$(BAIDU_PAN_APP_KEY)</string>
-	<key>BAIDU_PAN_SECRET_KEY</key>
-	<string>$(BAIDU_PAN_SECRET_KEY)</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsArbitraryLoads</key>
