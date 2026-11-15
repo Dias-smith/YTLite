@@ -92,7 +92,10 @@ final class LibraryTrack {
                 .joined(separator: " · "),
             thumbnailURL: PlaybackCachedCover.resolvedThumbnail(
                 videoId: trackId,
-                remote: thumbnailURLString.flatMap(URL.init(string:))
+                remote: ImportCoverStorage.resolveURL(
+                    trackId: trackId,
+                    stored: thumbnailURLString
+                ) ?? thumbnailURLString.flatMap(URL.init(string:))
             ),
             durationText: durationText ?? DurationFormat.text(seconds: durationSeconds)
         )

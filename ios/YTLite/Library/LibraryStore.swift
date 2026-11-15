@@ -1235,6 +1235,10 @@ final class LibraryStore {
             channelName: meta.customArtistName ?? item.channelName,
             subtitle: item.subtitle,
             thumbnailURL: TrackThumbnailStorage.resolveURL(meta.customThumbnailUrl)
+                ?? ImportCoverStorage.resolveURL(
+                    trackId: item.videoId,
+                    stored: item.thumbnailURL?.absoluteString
+                )
                 ?? PlaybackCachedCover.resolvedThumbnail(
                     videoId: item.videoId,
                     remote: item.thumbnailURL

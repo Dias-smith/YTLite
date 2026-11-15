@@ -119,12 +119,12 @@ final class ImportIngestService {
         }
 
         var duration = 0
-        var artworkURL: URL?
+        var artworkToken: String?
         if let sourceURL {
             let meta = await probeMetadata(url: sourceURL)
             duration = meta.durationSeconds
             if let art = meta.artworkData {
-                artworkURL = try? writeArtwork(art, trackId: trackId)
+                artworkToken = try? writeArtwork(art, trackId: trackId)
             }
         }
 
@@ -132,14 +132,17 @@ final class ImportIngestService {
         let title = trimmedTitle.isEmpty ? trackId : trimmedTitle
         let trimmedArtist = artistHint?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let artist: String? = trimmedArtist.isEmpty ? nil : trimmedArtist
+        // Prefer the stable token as the URL string so SwiftData never stores a sandbox-absolute path.
+        let thumbURL = artworkToken.flatMap(URL.init(string:))
+            ?? ImportCoverStorage.existingURL(trackId: trackId)
         let item = VideoItem(
             videoId: trackId,
             title: title,
             channelName: artist ?? L("import.artist.unknown"),
-            thumbnailURL: artworkURL,
+            thumbnailURL: thumbURL,
             durationText: DurationFormat.text(seconds: duration)
         )
-        _ = store.upsertImportedTrack(
+        let track = store.upsertImportedTrack(
             item: item,
             sourceKind: sourceKind,
             localRelativePath: relativePath,
@@ -148,9 +151,23 @@ final class ImportIngestService {
             cacheEligible: cacheEligible,
             durationSeconds: duration
         )
+        if let artworkToken {
+            track.thumbnailHigh = artworkToken
+            store.saveLocalOnly()
+        }
         store.ensureImportedPlaylistEntry(trackId: trackId)
         store.trimImportCacheIfNeeded()
-        return Result(trackId: trackId, item: item)
+        let displayItem = VideoItem(
+            videoId: item.videoId,
+            title: item.title,
+            channelName: item.channelName,
+            thumbnailURL: ImportCoverStorage.resolveURL(
+                trackId: trackId,
+                stored: artworkToken ?? track.thumbnailHigh
+            ),
+            durationText: item.durationText
+        )
+        return Result(trackId: trackId, item: displayItem)
     }
 
     private struct Probed {
@@ -210,12 +227,28 @@ final class ImportIngestService {
     }
 
     /// Fill missing covers for already-imported video files (embedded art / prior ingest).
+    /// Also migrates legacy absolute `file://` thumbnail paths to durable `importcover:` tokens.
     func backfillMissingCovers(store: LibraryStore) async -> Int {
         var updated = 0
         for track in store.importedTracks() {
-            if let thumb = track.thumbnailURLString, !thumb.isEmpty { continue }
+            let trackId = track.trackId
+            if ImportCoverStorage.existingURL(trackId: trackId) != nil {
+                // Cover file is on disk — normalize DB to a stable token if needed.
+                if !ImportCoverStorage.isImportCoverToken(track.thumbnailHigh) {
+                    track.thumbnailHigh = ImportCoverStorage.token(for: trackId)
+                    track.updatedAt = .now
+                    updated += 1
+                }
+                continue
+            }
+            // Skip remote http thumbs; only extract for imports that still need a local cover.
+            if let thumb = track.thumbnailURLString,
+               thumb.hasPrefix("http://") || thumb.hasPrefix("https://")
+            {
+                continue
+            }
             guard let audioURL = LocalMediaStore.shared.audioURL(
-                trackId: track.trackId,
+                trackId: trackId,
                 relativePath: track.localRelativePath
             ) else { continue }
             let asset = AVURLAsset(url: audioURL)
@@ -223,9 +256,9 @@ final class ImportIngestService {
                 asset: asset,
                 durationSeconds: track.durationSeconds
             ),
-                  let coverURL = try? writeArtwork(data, trackId: track.trackId)
+                  let token = try? writeArtwork(data, trackId: trackId)
             else { continue }
-            track.thumbnailHigh = coverURL.absoluteString
+            track.thumbnailHigh = token
             track.updatedAt = .now
             updated += 1
         }
@@ -252,12 +285,13 @@ final class ImportIngestService {
         return data as Data
     }
 
-    private func writeArtwork(_ data: Data, trackId: String) throws -> URL {
+    /// Writes JPEG next to the audio file and returns a stable `importcover:{trackId}` token.
+    private func writeArtwork(_ data: Data, trackId: String) throws -> String {
         let dir = LocalMediaStore.shared.directory(for: trackId)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        let url = dir.appendingPathComponent("cover.jpg")
+        let url = ImportCoverStorage.fileURL(trackId: trackId)
         try data.write(to: url, options: .atomic)
-        return url
+        return ImportCoverStorage.token(for: trackId)
     }
 
     static func isSupportedAudioURL(_ url: URL) -> Bool {

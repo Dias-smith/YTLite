@@ -109,3 +109,70 @@ final class LocalMediaStore {
         "mp3", "m4a", "aac", "flac", "wav", "aiff", "aif", "caf", "ogg", "opus", "mp4", "mov", "m4v"
     ]
 }
+
+/// Durable cover for imported tracks (`ImportMedia/{trackId}/cover.jpg`).
+/// DB stores `importcover:{trackId}` — never sandbox-absolute `file://` paths (they break after relaunch).
+enum ImportCoverStorage {
+    static let tokenPrefix = "importcover:"
+    static let fileName = "cover.jpg"
+
+    static func token(for trackId: String) -> String {
+        "\(tokenPrefix)\(trackId)"
+    }
+
+    /// Same root as `LocalMediaStore` — kept nonisolated so `LibraryTrack.asVideoItem` can resolve covers.
+    private static var importMediaRoot: URL {
+        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+            ?? FileManager.default.temporaryDirectory
+        return base.appendingPathComponent("ImportMedia", isDirectory: true)
+    }
+
+    static func fileURL(trackId: String) -> URL {
+        importMediaRoot
+            .appendingPathComponent(trackId, isDirectory: true)
+            .appendingPathComponent(fileName)
+    }
+
+    static func existingURL(trackId: String) -> URL? {
+        guard !trackId.isEmpty else { return nil }
+        let url = fileURL(trackId: trackId)
+        guard FileManager.default.fileExists(atPath: url.path) else { return nil }
+        return cacheBustedFileURL(url)
+    }
+
+    /// Resolve a stored thumbnail field (token / legacy file URL / http) plus on-disk import cover.
+    static func resolveURL(trackId: String, stored: String?) -> URL? {
+        if let disk = existingURL(trackId: trackId) {
+            return disk
+        }
+        guard let stored, !stored.isEmpty else { return nil }
+        if stored.hasPrefix("http://") || stored.hasPrefix("https://") {
+            return URL(string: stored)
+        }
+        if stored.hasPrefix(tokenPrefix) {
+            return nil
+        }
+        if stored.hasPrefix("file://"), let url = URL(string: stored),
+           FileManager.default.fileExists(atPath: url.path)
+        {
+            return cacheBustedFileURL(url)
+        }
+        if stored.hasPrefix("/"), FileManager.default.fileExists(atPath: stored) {
+            return cacheBustedFileURL(URL(fileURLWithPath: stored))
+        }
+        return nil
+    }
+
+    static func isImportCoverToken(_ raw: String?) -> Bool {
+        guard let raw else { return false }
+        return raw.hasPrefix(tokenPrefix)
+    }
+
+    private static func cacheBustedFileURL(_ url: URL) -> URL {
+        let mtime = (try? url.resourceValues(forKeys: [.contentModificationDateKey])
+            .contentModificationDate)?
+            .timeIntervalSince1970 ?? Date().timeIntervalSince1970
+        let stamp = Int(mtime * 1000)
+        return URL(string: "\(url.absoluteString)#v=\(stamp)") ?? url
+    }
+}

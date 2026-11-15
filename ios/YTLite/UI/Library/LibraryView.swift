@@ -1470,7 +1470,7 @@ struct LibraryView: View {
 
 // MARK: - Playlist pick sheet (batch add)
 
-private struct LibraryPlaylistPickSheet: View {
+struct LibraryPlaylistPickSheet: View {
     let playlists: [LibraryPlaylist]
     let title: String
     var displayName: (LibraryPlaylist) -> String

@@ -23,7 +23,7 @@ private enum ImportedListFilter: Hashable {
     ]
 }
 
-/// Imported tracks list pushed from Import hub header / toolbar.
+/// Imported tracks list pushed from Import hub / Library system playlist.
 struct ImportedTracksListView: View {
     @EnvironmentObject private var playback: PlaybackController
     @EnvironmentObject private var playerPresentation: PlayerPresentation
@@ -32,6 +32,10 @@ struct ImportedTracksListView: View {
 
     @State private var entries: [ImportedDisplayEntry] = []
     @State private var filter: ImportedListFilter = .all
+    @State private var isSelectionMode = false
+    @State private var selectedIds: Set<String> = []
+    @State private var showBatchPlaylistPicker = false
+    @State private var showDeleteConfirm = false
 
     private var filteredEntries: [ImportedDisplayEntry] {
         switch filter {
@@ -42,14 +46,26 @@ struct ImportedTracksListView: View {
         }
     }
 
+    private var batchTargetPlaylists: [LibraryPlaylist] {
+        (store?.allPlaylists() ?? []).filter {
+            $0.systemType == nil
+                || $0.systemType == SystemPlaylistType.favorites
+                || $0.systemType == SystemPlaylistType.watchLater
+        }
+    }
+
     var body: some View {
         // Mirror Library scroll chrome: title → chips → N items → rows in one vertical stack
         // so the horizontal chip ScrollView sizes to content (no overlap / no giant gap).
         ScrollView {
             LazyVStack(alignment: .leading, spacing: YTLiteLayout.screenPadding) {
-                header
-                filterChips
-                listControls
+                if isSelectionMode {
+                    selectionHeader
+                } else {
+                    header
+                    filterChips
+                    listControls
+                }
                 listBody
             }
             .padding(.bottom, 80)
@@ -65,6 +81,50 @@ struct ImportedTracksListView: View {
             Task { await backfillCoversIfNeeded() }
         }
         .onChange(of: trackActions.listEpoch) { _, _ in reload() }
+        .onChange(of: filter) { _, _ in
+            selectedIds = selectedIds.intersection(Set(filteredEntries.map(\.id)))
+        }
+        .sheet(isPresented: $showBatchPlaylistPicker) {
+            LibraryPlaylistPickSheet(
+                playlists: batchTargetPlaylists,
+                title: L("library.add_to_playlist"),
+                displayName: playlistDisplayName,
+                onSelect: { playlist in
+                    addSelectedToPlaylist(playlist)
+                    showBatchPlaylistPicker = false
+                }
+            )
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.hidden)
+            .presentationBackground(YTLiteColor.surfaceElevated)
+        }
+        .sheet(isPresented: $showDeleteConfirm) {
+            VStack(spacing: 0) {
+                YTLiteSheetGrabHandle()
+                YTLiteSheetTitle(title: L("common.delete"))
+                Text(Lf("import.list.remove_n", selectedIds.count))
+                    .font(YTLiteType.body)
+                    .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, YTLiteLayout.screenPadding)
+                Spacer(minLength: 20)
+                VStack(spacing: 10) {
+                    YTLiteSheetPrimaryButton(title: L("common.delete"), destructive: true) {
+                        deleteSelected()
+                        showDeleteConfirm = false
+                    }
+                    YTLiteSheetSecondaryButton(title: L("common.cancel")) {
+                        showDeleteConfirm = false
+                    }
+                }
+                .padding(.bottom, 28)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .background(YTLiteColor.surfaceElevated)
+            .presentationDetents([.height(260)])
+            .presentationDragIndicator(.hidden)
+            .presentationBackground(YTLiteColor.surfaceElevated)
+        }
     }
 
     private var header: some View {
@@ -95,8 +155,70 @@ struct ImportedTracksListView: View {
                 .font(YTLiteType.body)
                 .foregroundStyle(YTLiteColor.onSurfaceVariant)
             Spacer(minLength: 0)
+            if !entries.isEmpty {
+                Button {
+                    enterSelectionMode()
+                } label: {
+                    Image(systemName: "checkmark.circle")
+                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                        .frame(width: 36, height: 36)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
         }
         .padding(.horizontal, YTLiteLayout.screenPadding)
+    }
+
+    private var selectionHeader: some View {
+        HStack(spacing: YTLiteLayout.stackLoose) {
+            Button {
+                exitSelectionMode()
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(YTLiteColor.onSurface)
+                    .frame(width: 36, height: 36)
+            }
+            Text(Lf("common.n_selected", selectedIds.count))
+                .font(YTLiteType.sectionTitle)
+                .foregroundStyle(YTLiteColor.onSurface)
+            Spacer()
+            Button {
+                selectedIds = Set(filteredEntries.map(\.id))
+            } label: {
+                Image(systemName: "checklist")
+                    .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                    .frame(width: 36, height: 36)
+            }
+            Button {
+                selectedIds.removeAll()
+            } label: {
+                Image(systemName: "checklist.unchecked")
+                    .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                    .frame(width: 36, height: 36)
+            }
+            .disabled(selectedIds.isEmpty)
+            if !selectedIds.isEmpty {
+                Button {
+                    showBatchPlaylistPicker = true
+                } label: {
+                    Image(systemName: "text.badge.plus")
+                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                        .frame(width: 36, height: 36)
+                }
+                .accessibilityLabel(L("library.add_to_playlist"))
+                Button {
+                    showDeleteConfirm = true
+                } label: {
+                    Image(systemName: "trash")
+                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                        .frame(width: 36, height: 36)
+                }
+            }
+        }
+        .padding(.horizontal, YTLiteLayout.screenPadding)
+        .padding(.top, YTLiteLayout.rowVertical)
     }
 
     @ViewBuilder
@@ -125,11 +247,20 @@ struct ImportedTracksListView: View {
     }
 
     private func importedRow(_ entry: ImportedDisplayEntry, index: Int) -> some View {
-        HStack(spacing: 0) {
+        let selected = selectedIds.contains(entry.id)
+        return HStack(spacing: 0) {
             Button {
-                play(at: index)
+                if isSelectionMode {
+                    toggleSelection(entry.id)
+                } else {
+                    play(at: index)
+                }
             } label: {
                 HStack(spacing: 14) {
+                    if isSelectionMode {
+                        Image(systemName: selected ? "checkmark.circle.fill" : "circle")
+                            .foregroundStyle(selected ? YTLiteColor.accent : YTLiteColor.onSurfaceVariant)
+                    }
                     Group {
                         if entry.item.thumbnailURL != nil {
                             RemoteImage(url: entry.item.thumbnailURL, contentMode: .fill)
@@ -165,17 +296,22 @@ struct ImportedTracksListView: View {
             }
             .buttonStyle(.plain)
 
-            Button {
-                trackActions.present(item: entry.item, canDeleteFromLibrary: true)
-            } label: {
-                Image(systemName: "ellipsis")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                    .frame(width: 44, height: 44)
-                    .contentShape(Rectangle())
+            if !isSelectionMode {
+                Button {
+                    trackActions.present(item: entry.item, canDeleteFromLibrary: true)
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .padding(.trailing, YTLiteLayout.screenPadding - 8)
+            } else {
+                Color.clear
+                    .frame(width: YTLiteLayout.screenPadding)
             }
-            .buttonStyle(.plain)
-            .padding(.trailing, YTLiteLayout.screenPadding - 8)
         }
     }
 
@@ -185,8 +321,56 @@ struct ImportedTracksListView: View {
         playerPresentation.present()
     }
 
+    private func enterSelectionMode() {
+        selectedIds = []
+        isSelectionMode = true
+    }
+
+    private func exitSelectionMode() {
+        isSelectionMode = false
+        selectedIds = []
+    }
+
+    private func toggleSelection(_ id: String) {
+        if selectedIds.contains(id) {
+            selectedIds.remove(id)
+        } else {
+            selectedIds.insert(id)
+        }
+    }
+
+    private func playlistDisplayName(_ playlist: LibraryPlaylist) -> String {
+        switch playlist.systemType {
+        case SystemPlaylistType.favorites: return L("library.liked")
+        case SystemPlaylistType.watchLater: return L("library.watch_later")
+        default: return playlist.name
+        }
+    }
+
+    private func addSelectedToPlaylist(_ playlist: LibraryPlaylist) {
+        guard let store else { return }
+        for id in selectedIds {
+            if let item = entries.first(where: { $0.id == id })?.item {
+                store.add(item: item, to: playlist)
+            }
+        }
+        exitSelectionMode()
+        trackActions.notifyListsChanged()
+    }
+
+    private func deleteSelected() {
+        guard let store else { return }
+        for id in selectedIds {
+            store.removeImportedTrack(trackId: id)
+        }
+        exitSelectionMode()
+        reload()
+        trackActions.notifyListsChanged()
+    }
+
     private func reload() {
         entries = ImportedDisplayEntry.loadAll(from: store)
+        selectedIds = selectedIds.intersection(Set(entries.map(\.id)))
     }
 
     private func backfillCoversIfNeeded() async {
