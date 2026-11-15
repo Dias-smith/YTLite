@@ -144,15 +144,15 @@ struct YTLiteToastBanner: View {
     /// Keep presenter timers and local auto-dismiss in sync.
     static let displayNanoseconds: UInt64 = 2_200_000_000
 
-    private static let tint = Color.black.opacity(0.42)
-    private static let label = Color.white.opacity(0.96)
-    private static let stroke = Color.white.opacity(0.14)
+    private static let tint = Color.black.opacity(0.18)
+    private static let label = Color.white.opacity(0.92)
+    private static let stroke = Color.white.opacity(0.10)
 
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 20, weight: .semibold))
-                .foregroundStyle(YTLiteColor.accent)
+                .foregroundStyle(YTLiteColor.accent.opacity(0.92))
                 .accessibilityHidden(true)
 
             Text(message)
@@ -173,7 +173,7 @@ struct YTLiteToastBanner: View {
                     RoundedRectangle(cornerRadius: 16, style: .continuous)
                         .fill(Self.tint)
                 }
-                .shadow(color: Color.black.opacity(0.22), radius: 14, y: 6)
+                .shadow(color: Color.black.opacity(0.10), radius: 10, y: 4)
         }
         .overlay(
             RoundedRectangle(cornerRadius: 16, style: .continuous)

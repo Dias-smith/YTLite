@@ -69,10 +69,46 @@ actor WebDAVClient {
         return data
     }
 
+    /// Resolve a PROPFIND href / browse path against `baseURL` without double-encoding.
+    /// rclone / Synology often return already percent-encoded absolute paths (e.g. `/%E5%8D%8A.mp4`).
     private func join(_ path: String) -> URL {
-        if path.hasPrefix("http") { return URL(string: path) ?? baseURL }
-        let trimmed = path.hasPrefix("/") ? String(path.dropFirst()) : path
-        return baseURL.appendingPathComponent(trimmed)
+        let trimmed = path.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty || trimmed == "/" {
+            return baseURL
+        }
+
+        if let absolute = URL(string: trimmed),
+           let scheme = absolute.scheme?.lowercased(),
+           scheme == "http" || scheme == "https" {
+            return absolute
+        }
+
+        guard var components = URLComponents(url: baseURL, resolvingAgainstBaseURL: false) else {
+            return baseURL
+        }
+
+        let decoded = trimmed.removingPercentEncoding ?? trimmed
+        let resolvedPath: String
+        if decoded.hasPrefix("/") {
+            resolvedPath = decoded
+        } else {
+            var basePath = components.path
+            if basePath.isEmpty { basePath = "/" }
+            if !basePath.hasSuffix("/") { basePath += "/" }
+            resolvedPath = basePath + decoded
+        }
+
+        components.percentEncodedPath = Self.percentEncodePath(resolvedPath)
+        return components.url ?? baseURL
+    }
+
+    private static func percentEncodePath(_ path: String) -> String {
+        var allowed = CharacterSet.urlPathAllowed
+        allowed.remove(charactersIn: "/")
+        return path
+            .split(separator: "/", omittingEmptySubsequences: false)
+            .map { String($0).addingPercentEncoding(withAllowedCharacters: allowed) ?? String($0) }
+            .joined(separator: "/")
     }
 
     private func applyAuth(_ request: inout URLRequest) {

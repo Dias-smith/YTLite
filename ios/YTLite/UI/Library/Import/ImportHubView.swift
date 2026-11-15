@@ -176,13 +176,13 @@ struct ImportHubView: View {
                 trackActions.notifyListsChanged()
             }
         }
-        .sheet(isPresented: $showWebDAV) {
+        .fullScreenCover(isPresented: $showWebDAV) {
             WebDAVBrowserSheet {
                 reloadCount()
                 trackActions.notifyListsChanged()
             }
         }
-        .sheet(isPresented: $showGoogleDrive) {
+        .fullScreenCover(isPresented: $showGoogleDrive) {
             GoogleDriveImportSheet {
                 reloadCount()
                 trackActions.notifyListsChanged()

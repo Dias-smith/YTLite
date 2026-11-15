@@ -47,9 +47,18 @@ struct GoogleDriveImportSheet: View {
             .overlay { if isBusy { ProgressView() } }
             .ytLiteAppBackground()
             .navigationTitle(L("import.source.gdrive"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(YTLiteColor.background, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(L("common.done")) { dismiss() }
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                    }
+                    .accessibilityLabel(L("common.done"))
                 }
                 if client.isAuthorized {
                     ToolbarItem(placement: .primaryAction) {
@@ -68,7 +77,6 @@ struct GoogleDriveImportSheet: View {
                 }
             }
         }
-        .presentationDetents([.medium, .large])
     }
 
     /// Legacy Keychain Drive token without Supabase Google session → one OAuth so Subs is signed in.
