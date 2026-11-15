@@ -116,6 +116,18 @@ struct PlaylistActionSheet: View {
                 )
                 Image(systemName: "clock.arrow.circlepath").foregroundStyle(.white)
             }
+        case .imported:
+            ZStack {
+                LinearGradient(
+                    colors: [
+                        Color(red: 0.12, green: 0.55, blue: 0.52),
+                        Color(red: 0.08, green: 0.35, blue: 0.48),
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                Image(systemName: "square.and.arrow.down").foregroundStyle(.white)
+            }
         case .custom:
             if let url = context.coverURL {
                 RemoteImage(url: url)
@@ -177,6 +189,12 @@ struct PlaylistActionSheet: View {
                 .reduce(0, +)
             return
         }
+        if context.isImported {
+            let imported = store?.importedTracks() ?? []
+            trackCount = imported.count
+            totalDurationSeconds = imported.map(\.durationSeconds).reduce(0, +)
+            return
+        }
         guard let playlist = store?.playlist(id: context.playlistId) else {
             trackCount = 0
             totalDurationSeconds = 0
@@ -192,6 +210,13 @@ struct PlaylistActionSheet: View {
         let items: [VideoItem]
         if context.isHistory {
             items = store?.historyVideos() ?? []
+        } else if context.isImported {
+            let metaById = Dictionary(
+                uniqueKeysWithValues: (store?.allMetadata() ?? []).map { ($0.trackId, $0) }
+            )
+            items = (store?.importedTracks() ?? []).map {
+                store?.displayItem(for: $0.asVideoItem, metaById: metaById) ?? $0.asVideoItem
+            }
         } else if let playlist = store?.playlist(id: context.playlistId) {
             items = playlist.entries
                 .sorted { $0.position < $1.position }
@@ -203,7 +228,7 @@ struct PlaylistActionSheet: View {
         playback.play(
             items: items.shuffled(),
             startAt: 0,
-            sourcePlaylistId: context.isHistory ? nil : context.playlistId
+            sourcePlaylistId: (context.isHistory || context.isImported) ? nil : context.playlistId
         )
         playlistActions.showToast(L("toast.shuffle_play"))
         dismiss()

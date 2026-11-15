@@ -2,6 +2,7 @@ import SwiftUI
 
 private enum LibraryRoute {
     static let history = "system:history"
+    static let imported = "system:imported"
 }
 
 private enum LibraryFilter: String, CaseIterable {
@@ -219,6 +220,8 @@ struct LibraryView: View {
             .navigationDestination(for: String.self) { destinationId in
                 if destinationId == LibraryRoute.history {
                     HistoryDetailView { reload() }
+                } else if destinationId == LibraryRoute.imported {
+                    ImportedTracksListView()
                 } else if let playlist = playlists.first(where: { $0.playlistId == destinationId }) {
                     PlaylistDetailView(playlist: playlist) { reload() }
                 }
@@ -991,7 +994,8 @@ struct LibraryView: View {
                     }
                     .buttonStyle(.plain)
                 } else {
-                    NavigationLink(value: LibraryRoute.history) {
+                    // Synthetic system rows (Imported / History).
+                    NavigationLink(value: item.id) {
                         playlistListRowLabel(item, showCheck: false, selected: false, showsMore: false)
                     }
                     .buttonStyle(.plain)
@@ -1087,6 +1091,7 @@ struct LibraryView: View {
                 case .liked: return .liked
                 case .watchLater: return .watchLater
                 case .history: return .history
+                case .imported: return .imported
                 default: return .custom
                 }
             }()
@@ -1095,6 +1100,8 @@ struct LibraryView: View {
             )
         } else if item.id == LibraryRoute.history {
             playlistActions.present(.history())
+        } else if item.id == LibraryRoute.imported {
+            playlistActions.present(.imported())
         }
     }
 
@@ -1118,7 +1125,7 @@ struct LibraryView: View {
                 }
                 .buttonStyle(.plain)
             } else {
-                NavigationLink(value: LibraryRoute.history) {
+                NavigationLink(value: item.id) {
                     playlistGridLabel(item, showCheck: false, selected: false)
                 }
                 .buttonStyle(.plain)
@@ -1389,8 +1396,10 @@ struct LibraryView: View {
 
     private func orderedPlaylistItems() -> [PlaylistDisplayItem] {
         let mapped = playlists.map { PlaylistDisplayItem.playlist($0) }
+        let importedCount = store?.importedTracks().count ?? 0
+        let importedItem = PlaylistDisplayItem.imported(songCount: importedCount)
         let historyItem = PlaylistDisplayItem.history(songCount: history.count)
-        let all = mapped + [historyItem]
+        let all = mapped + [importedItem, historyItem]
 
         switch sortMode {
         case .custom:
@@ -1420,7 +1429,7 @@ struct LibraryView: View {
         }
     }
 
-    /// Liked → Watch later → History → custom (created oldest → newest).
+    /// Liked → Watch later → Imported → History → custom (created oldest → newest).
     private func defaultOrdered(_ items: [PlaylistDisplayItem]) -> [PlaylistDisplayItem] {
         defaultSystemBlock(items) + customPlaylistsAscending(items)
     }
@@ -1428,8 +1437,9 @@ struct LibraryView: View {
     private func defaultSystemBlock(_ items: [PlaylistDisplayItem]) -> [PlaylistDisplayItem] {
         let liked = items.filter { $0.systemType == SystemPlaylistType.favorites }
         let watchLater = items.filter { $0.systemType == SystemPlaylistType.watchLater }
+        let importedRows = items.filter { $0.id == LibraryRoute.imported }
         let historyRows = items.filter { $0.id == LibraryRoute.history }
-        return liked + watchLater + historyRows
+        return liked + watchLater + importedRows + historyRows
     }
 
     private func customPlaylistsAscending(_ items: [PlaylistDisplayItem]) -> [PlaylistDisplayItem] {
@@ -1443,7 +1453,8 @@ struct LibraryView: View {
         switch item.systemType {
         case SystemPlaylistType.favorites: return 0
         case SystemPlaylistType.watchLater: return 1
-        case "history": return 2
+        case SystemPlaylistType.imported, "imported": return 2
+        case "history": return 3
         default: return Int.max
         }
     }
@@ -1598,10 +1609,22 @@ private struct PlaylistDisplayItem: Identifiable {
             systemType: "history"
         )
     }
+
+    static func imported(songCount: Int) -> PlaylistDisplayItem {
+        PlaylistDisplayItem(
+            id: LibraryRoute.imported,
+            playlist: nil,
+            title: L("import.list.title"),
+            subtitle: Lf("common.system_n_songs", songCount),
+            cover: .imported,
+            coverURL: nil,
+            systemType: SystemPlaylistType.imported
+        )
+    }
 }
 
 private enum SystemCover {
-    case liked, watchLater, history, local, custom
+    case liked, watchLater, history, imported, local, custom
 }
 
 private struct SystemCoverView: View {
@@ -1637,6 +1660,16 @@ private struct SystemCoverView: View {
             case .history:
                 Color(red: 0.35, green: 0.32, blue: 0.42)
                 Image(systemName: "clock.arrow.circlepath").foregroundStyle(.white)
+            case .imported:
+                LinearGradient(
+                    colors: [
+                        Color(red: 0.12, green: 0.55, blue: 0.52),
+                        Color(red: 0.08, green: 0.35, blue: 0.48),
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                Image(systemName: "square.and.arrow.down").foregroundStyle(.white)
             case .local:
                 YTLiteColor.surfaceVariant
                 Image(systemName: "music.note.list")

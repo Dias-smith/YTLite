@@ -10,15 +10,18 @@ struct PlaylistActionContext: Identifiable, Hashable, Sendable {
     let systemType: String?
     /// Virtual History row (no `LibraryPlaylist` entity).
     let isHistory: Bool
+    /// Virtual Imported row (no `LibraryPlaylist` entity in the Playlists list).
+    let isImported: Bool
 
     enum CoverKind: Hashable, Sendable {
         case liked
         case watchLater
         case history
+        case imported
         case custom
     }
 
-    var canEdit: Bool { !isHistory && systemType == nil }
+    var canEdit: Bool { !isHistory && !isImported && systemType == nil }
     var canDelete: Bool { canEdit }
 
     static func from(playlist: LibraryPlaylist, title: String, coverKind: CoverKind) -> PlaylistActionContext {
@@ -28,7 +31,8 @@ struct PlaylistActionContext: Identifiable, Hashable, Sendable {
             coverURL: playlist.coverUrlOrPath.flatMap(URL.init(string:)),
             coverKind: coverKind,
             systemType: playlist.systemType,
-            isHistory: false
+            isHistory: false,
+            isImported: false
         )
     }
 
@@ -39,7 +43,20 @@ struct PlaylistActionContext: Identifiable, Hashable, Sendable {
             coverURL: nil,
             coverKind: .history,
             systemType: "history",
-            isHistory: true
+            isHistory: true,
+            isImported: false
+        )
+    }
+
+    static func imported(songCountIgnored _: Int = 0) -> PlaylistActionContext {
+        PlaylistActionContext(
+            playlistId: "system:imported",
+            title: L("import.list.title"),
+            coverURL: nil,
+            coverKind: .imported,
+            systemType: SystemPlaylistType.imported,
+            isHistory: false,
+            isImported: true
         )
     }
 }
