@@ -11,7 +11,8 @@ private enum ImportedListFilter: Hashable {
         }
     }
 
-    /// Matches Import Hub source order (Files → Wi‑Fi → WebDAV → iCloud → Drive → Baidu).
+    /// Matches Import Hub source order (Files → Wi‑Fi → WebDAV → iCloud → Drive).
+    /// Baidu chip temporarily hidden (parity with Import hub).
     static let chipOrder: [ImportedListFilter] = [
         .all,
         .source(.local),
@@ -19,7 +20,6 @@ private enum ImportedListFilter: Hashable {
         .source(.webdav),
         .source(.icloud),
         .source(.gdrive),
-        .source(.baidu),
     ]
 }
 

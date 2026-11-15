@@ -60,7 +60,8 @@ private enum ImportHubSource: Identifiable {
     }
 
     static let all: [ImportHubSource] = [
-        .local, .photos, .wifi, .webdav, .icloud, .gdrive, .baidu,
+        // Baidu temporarily hidden — keep `.baidu` case / sheet for easy restore.
+        .local, .photos, .wifi, .webdav, .icloud, .gdrive,
     ]
 }
 
