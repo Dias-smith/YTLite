@@ -10,65 +10,47 @@ struct GoogleDriveImportSheet: View {
 
     @State private var files: [GoogleDriveImportClient.DriveFile] = []
     @State private var isBusy = false
-    @State private var message: String?
+    @State private var errorText: String?
+    @State private var statusMessage: String?
+    @State private var statusClearTask: Task<Void, Never>?
+
+    @State private var isSelectionMode = false
+    @State private var selectedIds: Set<String> = []
+    @State private var importedRemoteURIs: Set<String> = []
+
+    private var importableFiles: [GoogleDriveImportClient.DriveFile] {
+        files.filter { !isAlreadyImported($0) }
+    }
 
     var body: some View {
         NavigationStack {
-            List {
-                if !client.isAuthorized {
-                    Button(L("import.gdrive.sign_in")) {
-                        Task { await signInAndReload() }
-                    }
+            Group {
+                if client.isAuthorized {
+                    fileList
                 } else {
-                    ForEach(files) { file in
-                        Button {
-                            Task { await importFile(file) }
-                        } label: {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(file.name)
-                                    .foregroundStyle(YTLiteColor.onSurface)
-                                Text(file.mimeType)
-                                    .font(YTLiteType.meta)
-                                    .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                            }
-                        }
-                    }
-                    if files.isEmpty, !isBusy {
-                        Text(L("import.gdrive.empty"))
-                            .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                    }
-                }
-                if let err = client.lastError ?? message {
-                    Text(err).foregroundStyle(.red)
+                    signInBody
                 }
             }
-            .listStyle(.insetGrouped)
-            .scrollContentBackground(.hidden)
-            .overlay { if isBusy { ProgressView() } }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .ytLiteAppBackground()
             .navigationTitle(L("import.source.gdrive"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(YTLiteColor.background, for: .navigationBar)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button {
-                        dismiss()
-                    } label: {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                    }
-                    .accessibilityLabel(L("common.done"))
-                }
-                if client.isAuthorized {
-                    ToolbarItem(placement: .primaryAction) {
-                        Button(L("import.gdrive.sign_out")) {
-                            client.signOut(auth: auth)
-                            files = []
-                        }
-                    }
+            .toolbar { toolbarContent }
+            .overlay {
+                if isBusy {
+                    ProgressView()
+                        .padding(20)
+                        .background(YTLiteColor.surfaceElevated, in: RoundedRectangle(cornerRadius: 12))
                 }
             }
+            .overlay(alignment: .bottom) {
+                toastOverlay
+            }
+            .safeAreaInset(edge: .bottom) {
+                bottomInset
+            }
+            .onAppear { refreshImportedRemoteURIs() }
             .task {
                 client.attach(auth: auth)
                 await migrateLegacyDriveAuthIfNeeded()
@@ -77,6 +59,276 @@ struct GoogleDriveImportSheet: View {
                 }
             }
         }
+    }
+
+    @ToolbarContentBuilder
+    private var toolbarContent: some ToolbarContent {
+        ToolbarItem(placement: .cancellationAction) {
+            if client.isAuthorized, isSelectionMode {
+                toolbarIconButton("xmark", label: L("common.cancel")) {
+                    exitSelectionMode()
+                }
+            } else {
+                toolbarIconButton("xmark", label: L("common.done")) {
+                    dismiss()
+                }
+            }
+        }
+        if client.isAuthorized {
+            ToolbarItemGroup(placement: .primaryAction) {
+                if isSelectionMode {
+                    toolbarIconButton("checklist", label: Lf("common.n_selected", importableFiles.count)) {
+                        selectedIds = Set(importableFiles.map(\.id))
+                    }
+                    .disabled(importableFiles.isEmpty)
+                } else {
+                    if !importableFiles.isEmpty {
+                        toolbarIconButton("checkmark.circle", label: L("tab.import")) {
+                            enterSelectionMode()
+                        }
+                    }
+                    toolbarIconButton(
+                        "rectangle.portrait.and.arrow.right",
+                        label: L("import.gdrive.sign_out")
+                    ) {
+                        signOut()
+                    }
+                }
+            }
+        }
+    }
+
+    private func toolbarIconButton(
+        _ systemName: String,
+        label: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Image(systemName: systemName)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(YTLiteColor.onSurfaceVariant)
+        }
+        .accessibilityLabel(label)
+    }
+
+    @ViewBuilder
+    private var bottomInset: some View {
+        if client.isAuthorized, isSelectionMode, !selectedIds.isEmpty {
+            Button {
+                Task { await importSelected() }
+            } label: {
+                Text("\(L("tab.import")) · \(selectedIds.count)")
+                    .font(YTLiteType.labelEmphasized)
+                    .foregroundStyle(YTLiteColor.onAccent)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(YTLiteColor.accent, in: Capsule())
+            }
+            .buttonStyle(.plain)
+            .disabled(isBusy)
+            .padding(.horizontal, YTLiteLayout.screenPadding)
+            .padding(.bottom, 12)
+        }
+    }
+
+    @ViewBuilder
+    private var toastOverlay: some View {
+        if let text = errorText ?? statusMessage {
+            Text(text)
+                .font(YTLiteType.meta)
+                .foregroundStyle(
+                    errorText != nil ? YTLiteColor.danger : YTLiteColor.onSurface
+                )
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(YTLiteColor.surfaceElevated, in: Capsule())
+                .padding(.horizontal, YTLiteLayout.screenPadding)
+                .padding(.bottom, isSelectionMode && !selectedIds.isEmpty ? 72 : 24)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+        }
+    }
+
+    private var signInBody: some View {
+        ZStack {
+            Color.clear
+            Button {
+                Task { await signInAndReload() }
+            } label: {
+                Text(L("import.gdrive.sign_in"))
+                    .font(YTLiteType.labelEmphasized)
+                    .foregroundStyle(YTLiteColor.onAccent)
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 14)
+                    .background(YTLiteColor.accent, in: Capsule())
+            }
+            .buttonStyle(.plain)
+            .disabled(isBusy)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var fileList: some View {
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 0) {
+                if isSelectionMode {
+                    Text(Lf("common.n_selected", selectedIds.count))
+                        .font(YTLiteType.meta)
+                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                        .padding(.horizontal, YTLiteLayout.screenPadding)
+                        .padding(.top, 8)
+                        .padding(.bottom, 4)
+                }
+                if files.isEmpty, !isBusy, errorText == nil {
+                    Text(L("import.gdrive.empty"))
+                        .font(YTLiteType.body)
+                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 48)
+                        .padding(.horizontal, YTLiteLayout.screenPadding)
+                } else {
+                    ForEach(files) { file in
+                        fileRow(file)
+                    }
+                }
+            }
+            .padding(.bottom, 88)
+        }
+    }
+
+    private func fileRow(_ file: GoogleDriveImportClient.DriveFile) -> some View {
+        let selected = selectedIds.contains(file.id)
+        let alreadyImported = isAlreadyImported(file)
+        return Button {
+            if isSelectionMode {
+                guard !alreadyImported else { return }
+                toggleSelection(file.id)
+            } else {
+                Task { await open(file) }
+            }
+        } label: {
+            HStack(spacing: 14) {
+                if isSelectionMode {
+                    Image(systemName: selectionIcon(selected: selected, alreadyImported: alreadyImported))
+                        .font(.system(size: 22, weight: .semibold))
+                        .foregroundStyle(
+                            selected || alreadyImported
+                                ? YTLiteColor.accent
+                                : YTLiteColor.onSurfaceVariant
+                        )
+                        .frame(width: 28)
+                }
+
+                ZStack {
+                    YTLiteColor.surfaceVariant
+                    Image(systemName: "music.note")
+                        .font(.system(size: 22, weight: .semibold))
+                        .foregroundStyle(YTLiteColor.accent)
+                }
+                .frame(width: 64, height: 64)
+                .clipShape(RoundedRectangle(cornerRadius: YTLiteLayout.thumbRadius))
+
+                VStack(alignment: .leading, spacing: YTLiteLayout.stackTight) {
+                    Text(file.name)
+                        .font(YTLiteType.rowTitle)
+                        .foregroundStyle(YTLiteColor.onSurface)
+                        .lineLimit(1)
+                    if let subtitle = fileSubtitle(file) {
+                        Text(subtitle)
+                            .font(YTLiteType.meta)
+                            .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                            .lineLimit(1)
+                    }
+                }
+                Spacer(minLength: 0)
+                if !isSelectionMode {
+                    Image(systemName: alreadyImported ? "checkmark.circle.fill" : "arrow.down.circle")
+                        .font(.system(size: alreadyImported ? 18 : 15, weight: .semibold))
+                        .foregroundStyle(alreadyImported ? YTLiteColor.accent : YTLiteColor.onSurfaceVariant)
+                        .accessibilityLabel(alreadyImported ? L("import.filter.imported") : L("tab.import"))
+                }
+            }
+            .padding(.horizontal, YTLiteLayout.screenPadding)
+            .padding(.vertical, YTLiteLayout.rowVertical)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(isSelectionMode && alreadyImported)
+    }
+
+    private func selectionIcon(selected: Bool, alreadyImported: Bool) -> String {
+        if alreadyImported || selected { return "checkmark.circle.fill" }
+        return "circle"
+    }
+
+    private func fileSubtitle(_ file: GoogleDriveImportClient.DriveFile) -> String? {
+        guard let bytes = file.size, bytes >= 0 else { return nil }
+        return ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
+    }
+
+    private func enterSelectionMode() {
+        selectedIds = []
+        isSelectionMode = true
+        clearTransientMessages()
+    }
+
+    private func exitSelectionMode() {
+        isSelectionMode = false
+        selectedIds = []
+    }
+
+    private func toggleSelection(_ id: String) {
+        if selectedIds.contains(id) {
+            selectedIds.remove(id)
+        } else {
+            selectedIds.insert(id)
+        }
+    }
+
+    private func remoteURI(for file: GoogleDriveImportClient.DriveFile) -> String {
+        "gdrive:\(file.id)"
+    }
+
+    private func isAlreadyImported(_ file: GoogleDriveImportClient.DriveFile) -> Bool {
+        importedRemoteURIs.contains(remoteURI(for: file))
+    }
+
+    private func refreshImportedRemoteURIs() {
+        importedRemoteURIs = Set(
+            (store?.importedTracks() ?? [])
+                .compactMap(\.remoteURI)
+                .filter { $0.hasPrefix("gdrive:") }
+        )
+    }
+
+    private func showStatus(_ text: String) {
+        statusClearTask?.cancel()
+        errorText = nil
+        statusMessage = text
+        statusClearTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 2_400_000_000)
+            guard !Task.isCancelled else { return }
+            statusMessage = nil
+        }
+    }
+
+    private func showError(_ text: String) {
+        statusClearTask?.cancel()
+        statusMessage = nil
+        errorText = text
+    }
+
+    private func clearTransientMessages() {
+        statusClearTask?.cancel()
+        statusMessage = nil
+        errorText = nil
+    }
+
+    private func signOut() {
+        client.signOut(auth: auth)
+        files = []
+        exitSelectionMode()
+        clearTransientMessages()
     }
 
     /// Legacy Keychain Drive token without Supabase Google session → one OAuth so Subs is signed in.
@@ -99,50 +351,110 @@ struct GoogleDriveImportSheet: View {
 
     private func signInAndReload() async {
         isBusy = true
+        clearTransientMessages()
         defer { isBusy = false }
         await client.signIn(auth: auth)
         if client.isAuthorized {
             await reload()
+        } else if let err = client.lastError {
+            showError(err)
         }
     }
 
     private func reload() async {
         isBusy = true
+        clearTransientMessages()
         defer { isBusy = false }
         do {
-            files = try await client.listAudioFiles().files
+            var collected: [GoogleDriveImportClient.DriveFile] = []
+            var seen = Set<String>()
+            var pageToken: String?
+            var pages = 0
+            repeat {
+                let result = try await client.listAudioFiles(pageToken: pageToken)
+                for file in result.files where seen.insert(file.id).inserted {
+                    collected.append(file)
+                }
+                pageToken = result.nextPage
+                pages += 1
+            } while pageToken != nil && pages < 20
+            files = collected
+            selectedIds = selectedIds.intersection(Set(files.map(\.id)))
             if !files.isEmpty || client.isAuthorized {
                 auth.markGoogleDriveGranted()
             }
+            refreshImportedRemoteURIs()
         } catch {
-            message = error.localizedDescription
+            showError(error.localizedDescription)
+            files = []
             if (error as? URLError)?.code == .userAuthenticationRequired {
                 client.syncAuthorizedFlag(auth: auth)
             }
         }
     }
 
-    private func importFile(_ file: GoogleDriveImportClient.DriveFile) async {
-        guard let store else { return }
+    private func open(_ file: GoogleDriveImportClient.DriveFile) async {
+        if isAlreadyImported(file) {
+            showStatus(L("import.filter.imported"))
+            return
+        }
+        await importFiles([file])
+    }
+
+    private func importSelected() async {
+        let chosen = importableFiles.filter { selectedIds.contains($0.id) }
+        guard !chosen.isEmpty else { return }
+        await importFiles(chosen)
+        exitSelectionMode()
+    }
+
+    private func importFiles(_ items: [GoogleDriveImportClient.DriveFile]) async {
+        guard let store, !items.isEmpty else { return }
+        guard await ImportNetworkGate.allowAutoCacheDownload() else {
+            showError(L("import.settings.wifi_only_cache"))
+            return
+        }
         isBusy = true
+        clearTransientMessages()
         defer { isBusy = false }
-        do {
-            let data = try await client.download(fileId: file.id)
-            let ext = (file.name as NSString).pathExtension
-            let useExt = ext.isEmpty ? "m4a" : ext
-            _ = try await ImportIngestService.shared.ingestData(
-                data,
-                fileExtension: useExt,
-                fileName: file.name,
-                sourceKind: .gdrive,
-                store: store,
-                remoteURI: "gdrive:\(file.id)",
-                cacheEligible: true
-            )
-            message = Lf("import.status.imported_n", 1)
+
+        var imported = 0
+        var lastError: String?
+        for file in items {
+            do {
+                let data = try await client.download(fileId: file.id)
+                let ext = (file.name as NSString).pathExtension
+                let useExt = ext.isEmpty ? "m4a" : ext
+                _ = try await ImportIngestService.shared.ingestData(
+                    data,
+                    fileExtension: useExt,
+                    fileName: file.name,
+                    sourceKind: .gdrive,
+                    store: store,
+                    remoteURI: remoteURI(for: file),
+                    cacheEligible: true
+                )
+                imported += 1
+            } catch {
+                lastError = error.localizedDescription
+                if (error as? URLError)?.code == .userAuthenticationRequired {
+                    client.syncAuthorizedFlag(auth: auth)
+                    break
+                }
+            }
+        }
+
+        refreshImportedRemoteURIs()
+        if imported > 0 {
             onImported()
-        } catch {
-            message = error.localizedDescription
+            showStatus(Lf("import.status.imported_n", imported))
+        }
+        if let lastError {
+            if imported > 0 {
+                showError("\(Lf("import.status.imported_n", imported)) · \(lastError)")
+            } else {
+                showError(lastError)
+            }
         }
     }
 }
