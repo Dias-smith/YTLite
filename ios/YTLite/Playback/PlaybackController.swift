@@ -331,6 +331,16 @@ final class PlaybackController: ObservableObject {
         persistSession(immediate: true)
     }
 
+    /// Play the queue row the user tapped. The row is identified by video id because
+    /// shuffle and later appends move items while reused list cells can still hold
+    /// the offset from before that reorder.
+    func playQueueVideoId(_ videoId: String) {
+        guard !videoId.isEmpty,
+              let index = queue.firstIndex(where: { $0.videoId == videoId })
+        else { return }
+        playQueueIndex(index)
+    }
+
     private func resumeCurrentPlaybackIfNeeded() {
         guard !isPlaying else { return }
         // An in-flight resolve starts playback when it completes.

@@ -194,6 +194,9 @@ struct PlayerDetailView: View {
                         }
                         // Isolate queue/related rows from buffering-only playback publishes.
                         // Row-level Equatable keeps isCurrent updates from rebuilding every cell.
+                        // Taps pass video id. Equality also includes the row offset so shuffle
+                        // or a mid-queue insert refreshes the tap closure instead of keeping
+                        // the offset captured before the reorder.
                         PlayerQueueTabPane(
                             token: playerQueueTabToken,
                             tab: tab,
@@ -204,12 +207,9 @@ struct PlayerDetailView: View {
                             relatedError: relatedError,
                             isSelectionMode: isSelectionMode,
                             selectedIds: selectedIds,
-                            onSelectQueueIndex: { playback.playQueueIndex($0) },
+                            onSelectQueueVideoId: { playback.playQueueVideoId($0) },
                             onToggleSelection: { toggleSelection($0) },
-                            onPlayRelatedIndex: { index in
-                                playback.play(items: related, startAt: index, analyticsSource: "related")
-                                AppAnalytics.relatedTap()
-                            },
+                            onPlayRelatedVideoId: { playRelated(videoId: $0) },
                             onRetryRelated: { Task { await loadRelated() } },
                             onOpenTrackMenu: { openTrackMenu($0) }
                         )
@@ -1463,6 +1463,14 @@ struct PlayerDetailView: View {
         }
     }
 
+    /// Related rows are reused by video id. Resolve the tapped id against the
+    /// current list so a sort cannot start the track that used to sit at that offset.
+    private func playRelated(videoId: String) {
+        guard let index = related.firstIndex(where: { $0.videoId == videoId }) else { return }
+        playback.play(items: related, startAt: index, analyticsSource: "related")
+        AppAnalytics.relatedTap()
+    }
+
     private func applySort(_ sort: PlayerListSort) {
         listSort = sort
         switch tab {
@@ -1589,9 +1597,9 @@ private struct PlayerQueueTabPane: View, Equatable {
     let relatedError: String?
     let isSelectionMode: Bool
     let selectedIds: Set<String>
-    let onSelectQueueIndex: (Int) -> Void
+    let onSelectQueueVideoId: (String) -> Void
     let onToggleSelection: (String) -> Void
-    let onPlayRelatedIndex: (Int) -> Void
+    let onPlayRelatedVideoId: (String) -> Void
     let onRetryRelated: () -> Void
     let onOpenTrackMenu: (VideoItem) -> Void
 
@@ -1606,6 +1614,7 @@ private struct PlayerQueueTabPane: View, Equatable {
             ForEach(Array(queue.enumerated()), id: \.element.videoId) { index, item in
                 PlayerQueueRowView(
                     item: item,
+                    index: index,
                     isCurrent: index == queueIndex,
                     isSelectionMode: isSelectionMode,
                     isSelected: selectedIds.contains(item.videoId),
@@ -1613,7 +1622,7 @@ private struct PlayerQueueTabPane: View, Equatable {
                         if isSelectionMode {
                             onToggleSelection(item.videoId)
                         } else {
-                            onSelectQueueIndex(index)
+                            onSelectQueueVideoId(item.videoId)
                         }
                     },
                     onMore: { onOpenTrackMenu(item) }
@@ -1654,6 +1663,7 @@ private struct PlayerQueueTabPane: View, Equatable {
                 ForEach(Array(related.enumerated()), id: \.element.videoId) { index, item in
                     PlayerQueueRowView(
                         item: item,
+                        index: index,
                         isCurrent: false,
                         isSelectionMode: isSelectionMode,
                         isSelected: selectedIds.contains(item.videoId),
@@ -1661,7 +1671,7 @@ private struct PlayerQueueTabPane: View, Equatable {
                             if isSelectionMode {
                                 onToggleSelection(item.videoId)
                             } else {
-                                onPlayRelatedIndex(index)
+                                onPlayRelatedVideoId(item.videoId)
                             }
                         },
                         onMore: { onOpenTrackMenu(item) }
@@ -1674,8 +1684,11 @@ private struct PlayerQueueTabPane: View, Equatable {
 }
 
 /// Equatable Up Next / Related row — only the current + previous current rows rebuild on skip.
+/// `index` is part of equality so a shuffle/append that moves the row refreshes its tap
+/// closure. The closure itself plays `item.videoId`, not the captured offset.
 private struct PlayerQueueRowView: View, Equatable {
     let item: VideoItem
+    let index: Int
     let isCurrent: Bool
     let isSelectionMode: Bool
     let isSelected: Bool
@@ -1683,7 +1696,8 @@ private struct PlayerQueueRowView: View, Equatable {
     let onMore: () -> Void
 
     static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.item.videoId == rhs.item.videoId
+        lhs.index == rhs.index
+            && lhs.item.videoId == rhs.item.videoId
             && lhs.item.title == rhs.item.title
             && lhs.item.channelName == rhs.item.channelName
             && lhs.item.durationText == rhs.item.durationText
