@@ -29,10 +29,28 @@
       "comment" : "Privacy - Local Network Usage Description",
       "extractionState" : "extracted_with_value",
       "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يستخدم Mixtube الشبكة المحلية لتتمكن من استيراد الموسيقى من جهاز كمبيوتر على شبكة Wi‑Fi نفسها."
+          }
+        },
         "en" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Mixtube uses the local network so you can import music from a computer on the same Wi‑Fi."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mixtube usa la red local para que puedas importar música desde un ordenador en la misma red Wi‑Fi."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O Mixtube usa a rede local para você importar músicas de um computador na mesma rede Wi‑Fi."
           }
         }
       }
@@ -41,10 +59,28 @@
       "comment" : "Privacy - Photo Library Usage Description",
       "extractionState" : "extracted_with_value",
       "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يحتاج Mixtube إلى الوصول إلى الصور لاستيراد الفيديو والصوت من ألبومك."
+          }
+        },
         "en" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Mixtube needs photo library access to import videos and audio from your album."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mixtube necesita acceso a Fotos para importar vídeos y audio de tu álbum."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O Mixtube precisa acessar as Fotos para importar vídeos e áudio do seu álbum."
           }
         }
       }
