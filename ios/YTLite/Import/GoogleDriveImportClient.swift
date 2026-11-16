@@ -99,19 +99,22 @@ final class GoogleDriveImportClient: ObservableObject {
         return (files, page.nextPageToken)
     }
 
-    func download(fileId: String) async throws -> Data {
+    func download(
+        fileId: String,
+        expectedBytes: Int64? = nil,
+        onProgress: (@Sendable (Double) -> Void)? = nil
+    ) async throws -> Data {
         let access = try await resolvedAccessToken()
         let url = URL(string: "https://www.googleapis.com/drive/v3/files/\(fileId)?alt=media")!
         var request = URLRequest(url: url)
         request.setValue("Bearer \(access)", forHTTPHeaderField: "Authorization")
-        let (data, response) = try await URLSession.shared.data(for: request)
-        let code = (response as? HTTPURLResponse)?.statusCode ?? -1
-        if code == 401 || code == 403 {
+        let loader = DriveFileBodyDownload(expectedBytes: expectedBytes, onProgress: onProgress)
+        do {
+            return try await loader.fetch(request)
+        } catch let error as URLError where error.code == .userAuthenticationRequired {
             revokeLocalDriveAuth()
-            throw URLError(.userAuthenticationRequired)
+            throw error
         }
-        guard (200...299).contains(code) else { throw URLError(.badServerResponse) }
-        return data
     }
 
     // MARK: - Private
@@ -146,5 +149,77 @@ final class GoogleDriveImportClient: ObservableObject {
         auth?.clearGoogleDriveGranted()
         isAuthorized = false
         lastError = L("import.error.oauth_failed")
+    }
+}
+
+/// Streams a Drive media body so the caller can show per-file progress.
+private final class DriveFileBodyDownload: NSObject, URLSessionDataDelegate {
+    private let onProgress: (@Sendable (Double) -> Void)?
+    private var session: URLSession?
+    private var continuation: CheckedContinuation<Data, Error>?
+    private var buffer = Data()
+    private var expected: Int64
+    private var received: Int64 = 0
+    private var statusCode = -1
+    private var lastFraction = -1.0
+
+    init(expectedBytes: Int64?, onProgress: (@Sendable (Double) -> Void)?) {
+        let hint = expectedBytes ?? -1
+        self.expected = hint > 0 ? hint : -1
+        self.onProgress = onProgress
+    }
+
+    func fetch(_ request: URLRequest) async throws -> Data {
+        let session = URLSession(configuration: .ephemeral, delegate: self, delegateQueue: nil)
+        self.session = session
+        return try await withCheckedThrowingContinuation { continuation in
+            self.continuation = continuation
+            session.dataTask(with: request).resume()
+        }
+    }
+
+    func urlSession(
+        _ session: URLSession,
+        dataTask: URLSessionDataTask,
+        didReceive response: URLResponse,
+        completionHandler: @escaping (URLSession.ResponseDisposition) -> Void
+    ) {
+        statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
+        if response.expectedContentLength > 0 {
+            expected = response.expectedContentLength
+        }
+        if (200...299).contains(statusCode) {
+            completionHandler(.allow)
+        } else {
+            completionHandler(.cancel)
+        }
+    }
+
+    func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
+        buffer.append(data)
+        received += Int64(data.count)
+        guard expected > 0, let onProgress else { return }
+        let fraction = min(0.99, Double(received) / Double(expected))
+        guard fraction - lastFraction >= 0.02 else { return }
+        lastFraction = fraction
+        onProgress(fraction)
+    }
+
+    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+        let result: Result<Data, Error>
+        if statusCode == 401 || statusCode == 403 {
+            result = .failure(URLError(.userAuthenticationRequired))
+        } else if !(200...299).contains(statusCode) {
+            result = .failure(error ?? URLError(.badServerResponse))
+        } else if let error {
+            result = .failure(error)
+        } else {
+            result = .success(buffer)
+        }
+        let continuation = self.continuation
+        self.continuation = nil
+        self.session?.finishTasksAndInvalidate()
+        self.session = nil
+        continuation?.resume(with: result)
     }
 }

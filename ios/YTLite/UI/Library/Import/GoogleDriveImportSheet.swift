@@ -17,6 +17,8 @@ struct GoogleDriveImportSheet: View {
     @State private var isSelectionMode = false
     @State private var selectedIds: Set<String> = []
     @State private var importedRemoteURIs: Set<String> = []
+    /// Byte fraction for each song currently downloading, shown on that row.
+    @State private var rowProgress: [String: Double] = [:]
 
     private var importableFiles: [GoogleDriveImportClient.DriveFile] {
         files.filter { !isAlreadyImported($0) }
@@ -117,7 +119,7 @@ struct GoogleDriveImportSheet: View {
             Button {
                 Task { await importSelected() }
             } label: {
-                Text("\(L("tab.import")) · \(selectedIds.count)")
+                Text("\(L("import.gdrive.download")) · \(selectedIds.count)")
                     .font(YTLiteType.labelEmphasized)
                     .foregroundStyle(YTLiteColor.onAccent)
                     .frame(maxWidth: .infinity)
@@ -125,7 +127,7 @@ struct GoogleDriveImportSheet: View {
                     .background(YTLiteColor.accent, in: Capsule())
             }
             .buttonStyle(.plain)
-            .disabled(isBusy)
+            .disabled(isBusy || !rowProgress.isEmpty)
             .padding(.horizontal, YTLiteLayout.screenPadding)
             .padding(.bottom, 12)
         }
@@ -239,13 +241,17 @@ struct GoogleDriveImportSheet: View {
                             .foregroundStyle(YTLiteColor.onSurfaceVariant)
                             .lineLimit(1)
                     }
+                    if let fraction = rowProgress[file.id] {
+                        songProgressBar(fraction)
+                    }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
                 Spacer(minLength: 0)
                 if !isSelectionMode {
                     Image(systemName: alreadyImported ? "checkmark.circle.fill" : "arrow.down.circle")
                         .font(.system(size: alreadyImported ? 18 : 15, weight: .semibold))
                         .foregroundStyle(alreadyImported ? YTLiteColor.accent : YTLiteColor.onSurfaceVariant)
-                        .accessibilityLabel(alreadyImported ? L("import.filter.imported") : L("tab.import"))
+                        .accessibilityLabel(alreadyImported ? L("import.filter.imported") : L("import.gdrive.download"))
                 }
             }
             .padding(.horizontal, YTLiteLayout.screenPadding)
@@ -253,7 +259,28 @@ struct GoogleDriveImportSheet: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .disabled(isSelectionMode && alreadyImported)
+        .disabled((isSelectionMode && alreadyImported) || !rowProgress.isEmpty)
+    }
+
+    private func songProgressBar(_ fraction: Double) -> some View {
+        let clamped = CGFloat(min(1, max(0, fraction)))
+        return GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                Capsule()
+                    .fill(YTLiteColor.surfaceVariant)
+                Capsule()
+                    .fill(YTLiteColor.accent)
+                    .frame(width: max(0, geo.size.width * clamped))
+            }
+        }
+        .frame(height: 4)
+        .padding(.top, 2)
+        .accessibilityLabel(L("import.gdrive.download"))
+    }
+
+    private func setRowProgress(_ id: String, _ fraction: Double) {
+        guard let current = rowProgress[id], current < 1, fraction >= current else { return }
+        rowProgress[id] = fraction
     }
 
     private func selectionIcon(selected: Bool, alreadyImported: Bool) -> String {
@@ -414,15 +441,20 @@ struct GoogleDriveImportSheet: View {
             showError(L("import.settings.wifi_only_cache"))
             return
         }
-        isBusy = true
+        rowProgress = Dictionary(uniqueKeysWithValues: items.map { ($0.id, 0) })
         clearTransientMessages()
-        defer { isBusy = false }
+        defer { rowProgress = [:] }
 
         var imported = 0
         var lastError: String?
         for file in items {
+            let fileId = file.id
             do {
-                let data = try await client.download(fileId: file.id)
+                let data = try await client.download(fileId: fileId, expectedBytes: file.size) { fraction in
+                    Task { @MainActor in
+                        self.setRowProgress(fileId, fraction)
+                    }
+                }
                 let ext = (file.name as NSString).pathExtension
                 let useExt = ext.isEmpty ? "m4a" : ext
                 _ = try await ImportIngestService.shared.ingestData(
@@ -434,8 +466,10 @@ struct GoogleDriveImportSheet: View {
                     remoteURI: remoteURI(for: file),
                     cacheEligible: true
                 )
+                rowProgress[fileId] = 1
                 imported += 1
             } catch {
+                rowProgress[fileId] = nil
                 lastError = error.localizedDescription
                 if (error as? URLError)?.code == .userAuthenticationRequired {
                     client.syncAuthorizedFlag(auth: auth)
