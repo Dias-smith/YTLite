@@ -133,10 +133,10 @@ final class LibrarySyncService {
             }
         }
 
-        let dirtyHistory = store.playbackHistory(limit: 100).filter {
+        let dirtyHistory = store.playbackHistory().filter {
             !$0.isSynced && !LocalTrackID.isLocal($0.trackId)
         }
-        let dirtyLastPlayed = store.lastPlayed(limit: 100).filter {
+        let dirtyLastPlayed = store.lastPlayed().filter {
             !$0.isSynced && !LocalTrackID.isLocal($0.trackId)
         }
         let dirtyMeta = store.allMetadata().filter {
@@ -374,20 +374,8 @@ final class LibrarySyncService {
         guard let client = auth.supabaseClient(), let userId = auth.userId else { return }
         let t0 = SyncProbe.now()
         SyncProbe.logTrace("pull.last_played.begin")
-        struct RemoteLastPlayed: Decodable {
-            let track_id: String
-            let last_played_at: String
-            let progress_ms: Int64?
-        }
         do {
-            let rows: [RemoteLastPlayed] = try await client
-                .from("user_track_last_played")
-                .select()
-                .eq("user_id", value: userId)
-                .order("last_played_at", ascending: false)
-                .limit(100)
-                .execute()
-                .value
+            let rows = try await fetchAllLastPlayed(client: client, userId: userId)
             let trackIds = rows.map(\.track_id)
             await pullTracksByIds(client: client, store: store, trackIds: trackIds)
             for row in rows {
@@ -400,6 +388,32 @@ final class LibrarySyncService {
             SyncProbe.logTrace("pull.last_played.end", "rows=\(rows.count) ms=\(SyncProbe.ms(since: t0))")
         } catch {
             SyncProbe.logTrace("pull.last_played.end", "error=1 ms=\(SyncProbe.ms(since: t0))")
+        }
+    }
+
+    private struct RemoteLastPlayed: Decodable {
+        let track_id: String
+        let last_played_at: String
+        let progress_ms: Int64?
+    }
+
+    /// Pages past the previous 100-row cap so a full history comes down.
+    private func fetchAllLastPlayed(client: SupabaseClient, userId: String) async throws -> [RemoteLastPlayed] {
+        let pageSize = 1000
+        var offset = 0
+        var all: [RemoteLastPlayed] = []
+        while true {
+            let page: [RemoteLastPlayed] = try await client
+                .from("user_track_last_played")
+                .select()
+                .eq("user_id", value: userId)
+                .order("last_played_at", ascending: false)
+                .range(from: offset, to: offset + pageSize - 1)
+                .execute()
+                .value
+            all.append(contentsOf: page)
+            if page.count < pageSize { return all }
+            offset += pageSize
         }
     }
 

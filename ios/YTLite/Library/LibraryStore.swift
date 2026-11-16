@@ -441,12 +441,13 @@ final class LibraryStore {
         return [liked, watchLater].compactMap { $0 } + custom
     }
 
-    func historyVideos(limit: Int = 100) -> [VideoItem] {
+    func historyVideos(limit: Int? = nil) -> [VideoItem] {
         historyDisplayItems(limit: limit).map(\.item)
     }
 
     /// History rows with last-played progress for the History screen.
-    func historyDisplayItems(limit: Int = 500) -> [HistoryDisplayItem] {
+    /// `nil` returns every row. Pass a limit only for a bounded preview.
+    func historyDisplayItems(limit: Int? = nil) -> [HistoryDisplayItem] {
         let rows = lastPlayed(limit: limit)
         guard !rows.isEmpty else { return [] }
         let ids = rows.map(\.trackId)
@@ -708,27 +709,31 @@ final class LibraryStore {
         }
     }
 
-    func playbackHistory(limit: Int = 50) -> [PlaybackHistoryItem] {
+    func playbackHistory(limit: Int? = nil) -> [PlaybackHistoryItem] {
         let key = ownerKey
         var descriptor = FetchDescriptor<PlaybackHistoryItem>(
             predicate: #Predicate { $0.ownerKey == key },
             sortBy: [SortDescriptor(\.playedAt, order: .reverse)]
         )
-        descriptor.fetchLimit = limit
+        if let limit {
+            descriptor.fetchLimit = limit
+        }
         return (try? modelContext.fetch(descriptor)) ?? []
     }
 
-    func history(limit: Int = 100) -> [PlaybackHistoryItem] {
+    func history(limit: Int? = nil) -> [PlaybackHistoryItem] {
         playbackHistory(limit: limit)
     }
 
-    func lastPlayed(limit: Int = 100) -> [UserTrackLastPlayed] {
+    func lastPlayed(limit: Int? = nil) -> [UserTrackLastPlayed] {
         let key = ownerKey
         var descriptor = FetchDescriptor<UserTrackLastPlayed>(
             predicate: #Predicate { $0.ownerKey == key },
             sortBy: [SortDescriptor(\.lastPlayedAt, order: .reverse)]
         )
-        descriptor.fetchLimit = limit
+        if let limit {
+            descriptor.fetchLimit = limit
+        }
         return (try? modelContext.fetch(descriptor)) ?? []
     }
 
