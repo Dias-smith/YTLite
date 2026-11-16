@@ -797,6 +797,10 @@ struct HomeView: View {
                 if pagerScrollId == nil {
                     pagerScrollId = viewModel.selectedCategoryId
                 }
+                AppAnalytics.homeSeen(category: viewModel.selectedCategoryId)
+            }
+            .onChange(of: viewModel.selectedCategoryId) { _, id in
+                AppAnalytics.homeSeen(category: id)
             }
             .task {
                 viewModel.libraryStore = libraryStore

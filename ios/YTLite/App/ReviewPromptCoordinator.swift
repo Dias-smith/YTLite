@@ -192,3 +192,110 @@ final class ReviewPromptCoordinator: ObservableObject {
         SKStoreReviewController.requestReview(in: scene)
     }
 }
+
+/// One-time “add this song to the library” offer after a song has actually been listened to.
+/// Shown once per install. A login wall, full-screen ad, or review sheet at that moment consumes the chance.
+@MainActor
+final class LibrarySavePromptStore: ObservableObject {
+    static let shared = LibrarySavePromptStore()
+
+    static let listenSeconds: Double = 30
+    static let listenFraction: Double = 0.25
+
+    @Published private(set) var offerVideoId: String?
+
+    private let consumedKey = "library_save_prompt.consumed.v1"
+    private var consumed: Bool
+    private var busyFlags: Set<String> = []
+    private var trackedVideoId: String?
+    private var accumulatedSeconds: Double = 0
+    private var lastPosition: Double?
+
+    private init() {
+        consumed = UserDefaults.standard.bool(forKey: consumedKey)
+    }
+
+    func setBusy(_ key: String, _ busy: Bool) {
+        if busy {
+            busyFlags.insert(key)
+            if offerVideoId != nil {
+                offerVideoId = nil
+            }
+        } else {
+            busyFlags.remove(key)
+        }
+    }
+
+    /// Continuous playback only. Seeks and pauses do not count toward the threshold.
+    func notePlayback(
+        videoId: String,
+        position: Double,
+        duration: Double,
+        isPlaying: Bool,
+        isFavorite: Bool
+    ) {
+        let id = videoId.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !id.isEmpty else { return }
+        if consumed {
+            if offerVideoId != nil, offerVideoId != id || isFavorite || isBlocked {
+                offerVideoId = nil
+            }
+            return
+        }
+        if isFavorite { return }
+        if trackedVideoId != id {
+            trackedVideoId = id
+            accumulatedSeconds = 0
+            lastPosition = nil
+        }
+        if isPlaying, let lastPosition {
+            let delta = position - lastPosition
+            if delta > 0, delta <= 3 {
+                accumulatedSeconds += delta
+            }
+        }
+        lastPosition = position
+
+        let threshold = duration > 1
+            ? min(Self.listenSeconds, duration * Self.listenFraction)
+            : Self.listenSeconds
+        guard accumulatedSeconds >= threshold else { return }
+        guard !isBlocked else {
+            consume()
+            AppAnalytics.librarySavePrompt(action: "abandoned")
+            return
+        }
+        consume()
+        withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) {
+            offerVideoId = id
+        }
+        AppAnalytics.librarySavePrompt(action: "show")
+    }
+
+    func accept() {
+        guard offerVideoId != nil else { return }
+        withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) {
+            offerVideoId = nil
+        }
+        AppAnalytics.librarySavePrompt(action: "add")
+    }
+
+    func dismiss() {
+        guard offerVideoId != nil else { return }
+        withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) {
+            offerVideoId = nil
+        }
+        AppAnalytics.librarySavePrompt(action: "dismiss")
+    }
+
+    private var isBlocked: Bool {
+        ReviewPromptCoordinator.shared.showSheet
+            || AdFullScreenCoordinator.isPresenting
+            || !busyFlags.isEmpty
+    }
+
+    private func consume() {
+        consumed = true
+        UserDefaults.standard.set(true, forKey: consumedKey)
+    }
+}

@@ -109,7 +109,6 @@ struct RootView: View {
                         Task {
                             await sync.pushAll(store: store)
                             AdEligibility.refreshInventoryIfEligible()
-                            await DailyListenNotificationScheduler.refresh(using: store)
                         }
                     }
                     WatchLibraryHost.shared.start(store: store, playback: playback, auth: auth)

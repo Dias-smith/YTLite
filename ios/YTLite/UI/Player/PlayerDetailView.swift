@@ -50,7 +50,6 @@ struct PlayerDetailView: View {
     @EnvironmentObject private var progressClock: PlaybackProgressModel
     @EnvironmentObject private var trackActions: TrackActionPresenter
     @EnvironmentObject private var appModel: AppModel
-    @EnvironmentObject private var auth: AuthService
     @EnvironmentObject private var playerPresentation: PlayerPresentation
     @Environment(\.libraryStore) private var store
     @Environment(\.dismiss) private var dismiss
@@ -78,7 +77,6 @@ struct PlayerDetailView: View {
     @State private var relatedVersion: Int = 0
     /// In-player toast (root `TrackActionHost` toast sits behind this sheet).
     @State private var playerToast: String?
-    @State private var showPlaybackSignIn = false
 
     @State private var showSortMenu = false
     @State private var listSort: PlayerListSort = .original
@@ -99,8 +97,7 @@ struct PlayerDetailView: View {
     private let dismissVelocityThreshold: CGFloat = 650
 
     private var isPresentingAdBlockingSheet: Bool {
-        showPlaybackSignIn
-            || showSpeedSheet
+        showSpeedSheet
             || showEqualizerSheet
             || showHLSQualitySheet
             || showSleepTimerSheet
@@ -113,25 +110,6 @@ struct PlayerDetailView: View {
             || channelSheetItem != nil
     }
 
-    /// Google OAuth with catalog scopes — required for some restricted streams.
-    private var hasCatalogGoogleAccess: Bool {
-        auth.googleAccessToken != nil
-    }
-
-    private var hasPlaybackFailure: Bool {
-        playback.lastError != nil && !playback.isPlaying
-    }
-
-    /// Guest / Apple-only: playback failed → prompt Google sign-in instead of generic error copy.
-    private var shouldPromptCatalogSignInForPlaybackFailure: Bool {
-        hasPlaybackFailure && !hasCatalogGoogleAccess
-    }
-
-    private var shouldShowPlaybackLoginPrompt: Bool {
-        !playback.isBuffering
-            && (playback.needsLoginForPlayback || shouldPromptCatalogSignInForPlaybackFailure)
-    }
-
     var body: some View {
         playerDetailRoot
             .background(PlayerDetailOrientationLockRepresentable())
@@ -140,14 +118,6 @@ struct PlayerDetailView: View {
                 playback.refreshFavoriteState()
                 if !playback.isBuffering {
                     bumpOverlayAutoHide()
-                }
-                if shouldShowPlaybackLoginPrompt {
-                    AppAnalytics.playbackLoginPrompt(hasGoogle: hasCatalogGoogleAccess)
-                }
-            }
-            .onChange(of: shouldShowPlaybackLoginPrompt) { _, show in
-                if show {
-                    AppAnalytics.playbackLoginPrompt(hasGoogle: hasCatalogGoogleAccess)
                 }
             }
             .onChange(of: isPresentingAdBlockingSheet) { _, blocked in
@@ -163,6 +133,8 @@ struct PlayerDetailView: View {
     /// Title, controls, and queue/related — shared by portrait stack and landscape split.
     private var playerSecondaryColumn: some View {
         VStack(spacing: 0) {
+            PlaybackLoginBanner()
+            LibrarySavePromptBanner()
             pinnedTitleRow
                 .padding(.horizontal, YTLiteLayout.screenPadding)
                 .padding(.top, YTLiteLayout.stackLoose)
@@ -178,7 +150,7 @@ struct PlayerDetailView: View {
                         channelRow
                         if let error = playback.lastError,
                            !playback.isPlaying,
-                           !shouldShowPlaybackLoginPrompt
+                           !playback.needsLoginForPlayback
                         {
                             Text(error)
                                 .font(YTLiteType.meta)
@@ -300,62 +272,6 @@ struct PlayerDetailView: View {
                 .ignoresSafeArea()
         )
         .navigationBarHidden(true)
-        .sheet(isPresented: $showPlaybackSignIn) {
-            NavigationStack {
-                VStack(spacing: 20) {
-                    Text(L("player.sign_in_to_play"))
-                        .font(YTLiteType.sectionTitle)
-                        .foregroundStyle(YTLiteColor.onSurface)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, YTLiteLayout.screenPadding)
-                        .padding(.top, 8)
-                    Text(L("player.sign_in_to_play_desc"))
-                        .font(YTLiteType.meta)
-                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, YTLiteLayout.screenPadding)
-                    Button {
-                        Task {
-                            AppAnalytics.playbackLoginContinue()
-                            await auth.signInWithGoogle(source: "player")
-                            if auth.isAuthenticated {
-                                appModel.syncAuth(auth)
-                                showPlaybackSignIn = false
-                                playback.retryCurrentAfterAuth()
-                            }
-                        }
-                    } label: {
-                        Text(auth.isBusy ? L("common.signing_in") : L("auth.continue_with_google"))
-                            .font(YTLiteType.labelEmphasized)
-                            .foregroundStyle(YTLiteColor.onAccent)
-                            .frame(maxWidth: 280)
-                            .frame(height: 44)
-                            .background(YTLiteColor.accent, in: Capsule())
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(auth.isBusy || !auth.isConfigured)
-                    if let err = auth.lastError, !err.isEmpty {
-                        Text(err)
-                            .font(YTLiteType.meta)
-                            .foregroundStyle(YTLiteColor.danger)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, YTLiteLayout.screenPadding)
-                    }
-                    Spacer(minLength: 0)
-                }
-                .background(YTLiteColor.surfaceElevated)
-                .navigationTitle(L("common.sign_in"))
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button(L("common.cancel")) { showPlaybackSignIn = false }
-                    }
-                }
-            }
-            .presentationDetents([.medium])
-            .presentationDragIndicator(.visible)
-            .presentationBackground(YTLiteColor.surfaceElevated)
-        }
         .sheet(isPresented: $showSpeedSheet) {
             SpeedPickerSheet(selected: $playback.playbackSpeed)
                 .presentationDetents([.medium])
@@ -478,6 +394,11 @@ struct PlayerDetailView: View {
         .onChange(of: trackActions.menuCloseToken) { _, _ in
             playerTrackMenu = nil
         }
+        .onChange(of: playback.playbackNotice) { _, message in
+            if let message, !message.isEmpty {
+                showPlayerToast(message)
+            }
+        }
         .onChange(of: trackActions.toastMessage) { _, message in
             // Mirror host toasts (save-to-playlist, track menu) onto this sheet.
             if let message, !message.isEmpty {
@@ -533,17 +454,7 @@ struct PlayerDetailView: View {
                     .background(.black.opacity(0.45), in: Circle())
             }
 
-            if shouldShowPlaybackLoginPrompt {
-                Button {
-                    openPlaybackSignInOrRetry()
-                } label: {
-                    playbackSignInCanvasPrompt
-                }
-                .buttonStyle(.plain)
-                .zIndex(2)
-            }
-
-            // Always keep a dismiss control — login / buffering / auto-hide hide the full overlay.
+            // Always keep a dismiss control — buffering / auto-hide hide the full overlay.
             VStack {
                 HStack {
                     overlayIconButton(systemName: "chevron.down") {
@@ -562,10 +473,9 @@ struct PlayerDetailView: View {
             Color.clear
                 .contentShape(Rectangle())
                 .onTapGesture { toggleOverlay() }
-                .allowsHitTesting(!shouldShowPlaybackLoginPrompt)
 
             // Hide controls while the loading spinner is up; reveal after buffering ends.
-            if overlayVisible && !playback.isBuffering && !shouldShowPlaybackLoginPrompt {
+            if overlayVisible && !playback.isBuffering {
                 canvasOverlay
                     .transition(.opacity)
             }
@@ -1356,33 +1266,6 @@ struct PlayerDetailView: View {
             items.insert(current, at: 0)
         }
         return items
-    }
-
-    private var playbackSignInCanvasPrompt: some View {
-        let showsRetry = hasCatalogGoogleAccess && playback.needsLoginForPlayback
-        return VStack(spacing: 10) {
-            Image(systemName: showsRetry
-                  ? "arrow.clockwise.circle"
-                  : "person.crop.circle.badge.exclamationmark")
-                .font(.system(size: 28, weight: .semibold))
-            Text(showsRetry ? L("player.playback_retry_title") : L("player.sign_in_to_play"))
-                .font(YTLiteType.labelEmphasized)
-            Text(showsRetry ? L("common.retry") : L("you.sign_in_with_google_for_catalog"))
-                .font(YTLiteType.meta)
-                .opacity(0.85)
-        }
-        .foregroundStyle(YTLiteColor.onMedia)
-        .padding(.horizontal, 22)
-        .padding(.vertical, 18)
-        .background(Color.black.opacity(0.62), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-    }
-
-    private func openPlaybackSignInOrRetry() {
-        if hasCatalogGoogleAccess {
-            playback.retryCurrentAfterAuth()
-        } else {
-            showPlaybackSignIn = true
-        }
     }
 
     private func openTrackMenu(from item: NowPlayingItem) {

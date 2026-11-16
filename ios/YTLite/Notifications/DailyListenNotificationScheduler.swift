@@ -11,7 +11,27 @@ enum DailyListenNotificationScheduler {
     private static let hourEvening = 21
     private static let daysAhead = 14
 
+    private static let askedKey = "daily_listen.permission_asked.v1"
+    private static let lastStatusKey = "notif_permission.last_status"
+
+    /// Reschedule only. Does not show the system permission dialog.
     static func refresh(using store: LibraryStore?) async {
+        await refresh(using: store, requestPermission: false)
+    }
+
+    /// One ask, after a song has finished, once the listener already has 4 successful plays.
+    static func askOnceAfterCompletedSong(using store: LibraryStore?) async {
+        let songs = store?.successfullyPlayedSongs() ?? []
+        guard songs.count >= minimumSongCount else { return }
+        guard !UserDefaults.standard.bool(forKey: askedKey) else { return }
+        guard AppPermissionPromptGate.canPresent else { return }
+        let center = UNUserNotificationCenter.current()
+        let settings = await center.notificationSettings()
+        guard settings.authorizationStatus == .notDetermined else { return }
+        await refresh(using: store, requestPermission: true)
+    }
+
+    private static func refresh(using store: LibraryStore?, requestPermission: Bool) async {
         let songs = store?.successfullyPlayedSongs() ?? []
         guard songs.count >= minimumSongCount else {
             await cancelAll()
@@ -21,25 +41,42 @@ enum DailyListenNotificationScheduler {
         let settings = await center.notificationSettings()
         switch settings.authorizationStatus {
         case .notDetermined:
-            guard AppPermissionPromptGate.canPresent else {
-                // Never prompt for notification permission while backgrounded (e.g. playback).
-                return
-            }
+            guard requestPermission, AppPermissionPromptGate.canPresent else { return }
+            UserDefaults.standard.set(true, forKey: askedKey)
             do {
                 let ok = try await center.requestAuthorization(options: [.alert, .sound, .badge])
-                AppAnalytics.notifPermission(status: ok ? "authorized" : "denied")
+                recordPermission(ok ? "authorized" : "denied", force: true)
                 guard ok else { return }
             } catch {
-                AppAnalytics.notifPermission(status: "error")
+                recordPermission("error", force: true)
                 return
             }
         case .denied:
-            AppAnalytics.notifPermission(status: "denied")
+            recordPermission("denied", force: false)
             return
         default:
-            break
+            recordPermission(statusLabel(settings.authorizationStatus), force: false)
         }
         await reschedule(songs: songs)
+    }
+
+    /// Dialog result always logs. Later refreshes log only when the status actually changes.
+    private static func recordPermission(_ status: String, force: Bool) {
+        let previous = UserDefaults.standard.string(forKey: lastStatusKey)
+        guard force || previous != status else { return }
+        UserDefaults.standard.set(status, forKey: lastStatusKey)
+        AppAnalytics.notifPermission(status: status)
+    }
+
+    private static func statusLabel(_ status: UNAuthorizationStatus) -> String {
+        switch status {
+        case .authorized: return "authorized"
+        case .denied: return "denied"
+        case .provisional: return "provisional"
+        case .ephemeral: return "ephemeral"
+        case .notDetermined: return "not_determined"
+        @unknown default: return "unknown"
+        }
     }
 
     static func cancelAll() async {
@@ -55,6 +92,7 @@ enum DailyListenNotificationScheduler {
         let calendar = Calendar.current
         let now = Date()
         guard let startDay = calendar.dateInterval(of: .day, for: now)?.start else { return }
+        var scheduled = 0
 
         for offset in 0..<daysAhead {
             guard let day = calendar.date(byAdding: .day, value: offset, to: startDay) else { continue }
@@ -89,7 +127,15 @@ enum DailyListenNotificationScheduler {
                 content: content,
                 trigger: trigger
             )
-            try? await center.add(request)
+            do {
+                try await center.add(request)
+                scheduled += 1
+            } catch {
+                continue
+            }
+        }
+        if scheduled > 0 {
+            AppAnalytics.dailyListenScheduled(count: scheduled)
         }
     }
 

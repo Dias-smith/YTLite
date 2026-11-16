@@ -10171,6 +10171,112 @@
         }
       }
     },
+    "library_save_prompt.add" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "أضف إلى الإعجابات"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add to Liked"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Añadir a Me gusta"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ajouter aux J’aime"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "पसंद में जोड़ें"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adicionar aos Curtidos"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "加入喜欢"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "加入喜歡"
+          }
+        }
+      }
+    },
+    "library_save_prompt.message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "أعجبتك هذه الأغنية؟"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Like this song?"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "¿Te gusta esta canción?"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vous aimez ce titre ?"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "यह गाना पसंद है?"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gostou desta música?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "喜欢这首？"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "喜歡這首？"
+          }
+        }
+      }
+    },
     "library.add_to_playlist" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -13453,6 +13559,45 @@
             "value" : "從列表中移除"
           }
         }
+      }
+    },
+    "player.error.resolve_failed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "تعذر تشغيل هذا المقطع" } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "This track can't be played" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "No se puede reproducir esta pista" } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Impossible de lire ce titre" } },
+        "hi" : { "stringUnit" : { "state" : "translated", "value" : "यह ट्रैक नहीं चल सका" } },
+        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Não foi possível reproduzir esta faixa" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "这首无法播放" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "這首無法播放" } }
+      }
+    },
+    "player.error.unplayable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "هذا المقطع غير قابل للتشغيل" } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "This track is unavailable" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Esta pista no está disponible" } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Ce titre n'est pas disponible" } },
+        "hi" : { "stringUnit" : { "state" : "translated", "value" : "यह ट्रैक उपलब्ध नहीं है" } },
+        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Esta faixa não está disponível" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "这首暂时不能播放" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "這首暫時不能播放" } }
+      }
+    },
+    "playback.skipped_reason" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "تم التخطي. %@" } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Skipped. %@" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Omitida. %@" } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Passé. %@" } },
+        "hi" : { "stringUnit" : { "state" : "translated", "value" : "छोड़ दिया। %@" } },
+        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Pulado. %@" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "已跳过。%@" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "已跳過。%@" } }
       }
     },
     "player.sign_in_to_play" : {

@@ -103,6 +103,11 @@ enum AppAnalytics {
         log("home_feed_load", ["ok": ok, "count": count, "category": category])
     }
 
+    /// Home tab was on screen, including a cached feed. `home_feed_load` stays network-only.
+    static func homeSeen(category: String) {
+        log("home_seen", ["category": category])
+    }
+
     static func searchSubmit(query: String) {
         log("search_submit", ["query": query, "query_len": query.count])
     }
@@ -119,6 +124,11 @@ enum AppAnalytics {
 
     static func libraryAdd(action: String) {
         log("library_add", ["action": action])
+    }
+
+    /// `show` / `add` / `dismiss` / `abandoned` for the one-time save prompt.
+    static func librarySavePrompt(action: String) {
+        log("library_save_prompt", ["action": action])
     }
 
     static func libraryRemove(action: String) {
@@ -166,6 +176,10 @@ enum AppAnalytics {
 
     static func dailyListenTap() {
         log("daily_listen_tap")
+    }
+
+    static func dailyListenScheduled(count: Int) {
+        log("daily_listen_scheduled", ["count": count])
     }
 
     static func playbackLoginPrompt(hasGoogle: Bool) {

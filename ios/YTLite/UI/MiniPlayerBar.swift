@@ -194,3 +194,210 @@ private extension Comparable {
         min(max(self, range.lowerBound), range.upperBound)
     }
 }
+
+/// Slim offer above the mini player, and under the video when the full player is open.
+struct LibrarySavePromptBanner: View {
+    static let reservedHeight: CGFloat = 44
+
+    @ObservedObject private var prompt = LibrarySavePromptStore.shared
+    @EnvironmentObject private var playback: PlaybackController
+    @EnvironmentObject private var trackActions: TrackActionPresenter
+    @Environment(\.displayScale) private var displayScale
+
+    private var isOffering: Bool {
+        guard let offer = prompt.offerVideoId, offer == playback.nowPlaying?.videoId else { return false }
+        return !playback.isFavorite
+    }
+
+    var body: some View {
+        if isOffering {
+            HStack(spacing: 8) {
+                Text(L("library_save_prompt.message"))
+                    .font(YTLiteType.meta.weight(.semibold))
+                    .foregroundStyle(YTLiteColor.onSurface)
+                    .lineLimit(1)
+                Spacer(minLength: 8)
+                Button(action: addToLiked) {
+                    Text(L("library_save_prompt.add"))
+                        .font(YTLiteType.meta.weight(.semibold))
+                        .foregroundStyle(YTLiteColor.accent)
+                        .lineLimit(1)
+                }
+                .buttonStyle(.plain)
+                Button(action: { prompt.dismiss() }) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                        .frame(width: 28, height: 28)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(L("common.close"))
+            }
+            .padding(.leading, YTLiteLayout.screenPadding)
+            .padding(.trailing, 8)
+            .frame(maxWidth: .infinity)
+            .frame(height: Self.reservedHeight)
+            .background(YTLiteColor.surfaceElevated)
+            .overlay(alignment: .bottom) {
+                Rectangle()
+                    .fill(YTLiteColor.chromeDivider)
+                    .frame(height: YTLiteLayout.hairlineHeight(displayScale: displayScale))
+            }
+            .gesture(dismissSwipe)
+            .accessibilityElement(children: .contain)
+        }
+    }
+
+    private func addToLiked() {
+        guard prompt.offerVideoId == playback.nowPlaying?.videoId, playback.libraryStore != nil else {
+            prompt.dismiss()
+            return
+        }
+        playback.toggleFavorite()
+        guard playback.isFavorite else { return }
+        prompt.accept()
+        trackActions.showToast(L("toast.liked"))
+    }
+
+    private var dismissSwipe: some Gesture {
+        DragGesture(minimumDistance: 16, coordinateSpace: .local)
+            .onEnded { value in
+                let travel = abs(value.translation.height) > 20 || abs(value.translation.width) > 48
+                if travel {
+                    prompt.dismiss()
+                }
+            }
+    }
+}
+
+/// Dismissible sign-in offer. Shown only while nothing is playing, so it does not cover the current song.
+struct PlaybackLoginBanner: View {
+    static let reservedHeight: CGFloat = 44
+
+    @EnvironmentObject private var playback: PlaybackController
+    @EnvironmentObject private var auth: AuthService
+    @EnvironmentObject private var appModel: AppModel
+    @Environment(\.displayScale) private var displayScale
+    @State private var showSignIn = false
+
+    private var isVisible: Bool {
+        playback.needsLoginForPlayback && !playback.isPlaying && !playback.isBuffering
+    }
+
+    var body: some View {
+        if isVisible {
+            HStack(spacing: 8) {
+                Text(L("player.sign_in_to_play"))
+                    .font(YTLiteType.meta.weight(.semibold))
+                    .foregroundStyle(YTLiteColor.onSurface)
+                    .lineLimit(1)
+                Spacer(minLength: 8)
+                Button {
+                    showSignIn = true
+                } label: {
+                    Text(L("common.sign_in"))
+                        .font(YTLiteType.meta.weight(.semibold))
+                        .foregroundStyle(YTLiteColor.accent)
+                        .lineLimit(1)
+                }
+                .buttonStyle(.plain)
+                Button {
+                    playback.dismissPlaybackLoginPrompt()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                        .frame(width: 28, height: 28)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(L("common.close"))
+            }
+            .padding(.leading, YTLiteLayout.screenPadding)
+            .padding(.trailing, 8)
+            .frame(maxWidth: .infinity)
+            .frame(height: Self.reservedHeight)
+            .background(YTLiteColor.surfaceElevated)
+            .overlay(alignment: .bottom) {
+                Rectangle()
+                    .fill(YTLiteColor.chromeDivider)
+                    .frame(height: YTLiteLayout.hairlineHeight(displayScale: displayScale))
+            }
+            .onAppear {
+                LibrarySavePromptStore.shared.setBusy("playback_login", true)
+                AppAnalytics.playbackLoginPrompt(hasGoogle: auth.googleAccessToken != nil)
+            }
+            .onDisappear {
+                LibrarySavePromptStore.shared.setBusy("playback_login", false)
+            }
+            .sheet(isPresented: $showSignIn) {
+                PlaybackSignInSheet(showSignIn: $showSignIn)
+            }
+        }
+    }
+}
+
+private struct PlaybackSignInSheet: View {
+    @Binding var showSignIn: Bool
+    @EnvironmentObject private var playback: PlaybackController
+    @EnvironmentObject private var auth: AuthService
+    @EnvironmentObject private var appModel: AppModel
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 20) {
+                Text(L("player.sign_in_to_play"))
+                    .font(YTLiteType.sectionTitle)
+                    .foregroundStyle(YTLiteColor.onSurface)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, YTLiteLayout.screenPadding)
+                    .padding(.top, 8)
+                Text(L("player.sign_in_to_play_desc"))
+                    .font(YTLiteType.meta)
+                    .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, YTLiteLayout.screenPadding)
+                Button {
+                    Task {
+                        AppAnalytics.playbackLoginContinue()
+                        await auth.signInWithGoogle(source: "player")
+                        if auth.isAuthenticated {
+                            appModel.syncAuth(auth)
+                            showSignIn = false
+                            playback.retryPlaybackAfterLogin()
+                        }
+                    }
+                } label: {
+                    Text(auth.isBusy ? L("common.signing_in") : L("auth.continue_with_google"))
+                        .font(YTLiteType.labelEmphasized)
+                        .foregroundStyle(YTLiteColor.onAccent)
+                        .frame(maxWidth: 280)
+                        .frame(height: 44)
+                        .background(YTLiteColor.accent, in: Capsule())
+                }
+                .buttonStyle(.plain)
+                .disabled(auth.isBusy || !auth.isConfigured)
+                if let err = auth.lastError, !err.isEmpty {
+                    Text(err)
+                        .font(YTLiteType.meta)
+                        .foregroundStyle(YTLiteColor.danger)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, YTLiteLayout.screenPadding)
+                }
+                Spacer(minLength: 0)
+            }
+            .background(YTLiteColor.surfaceElevated)
+            .navigationTitle(L("common.sign_in"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(L("common.cancel")) { showSignIn = false }
+                }
+            }
+        }
+        .presentationDetents([.medium])
+        .presentationDragIndicator(.visible)
+        .presentationBackground(YTLiteColor.surfaceElevated)
+    }
+}

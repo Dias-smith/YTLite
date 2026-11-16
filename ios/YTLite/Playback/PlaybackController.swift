@@ -35,6 +35,8 @@ final class PlaybackController: ObservableObject {
     @Published var lastError: String?
     /// True when resolve failed because catalog asked for a signed-in session.
     @Published private(set) var needsLoginForPlayback: Bool = false
+    /// Short reason shown after a resolve failure or an automatic skip.
+    @Published var playbackNotice: String?
     @Published private(set) var isFavorite: Bool = false
     /// Local Not interested (Android player dislike) — mutually exclusive with Like.
     @Published private(set) var isDisliked: Bool = false
@@ -157,6 +159,14 @@ final class PlaybackController: ObservableObject {
     private var playbackStoreThresholdMet = false
     /// Caps auto-skip loops when every track in the queue fails.
     private var consecutiveAutoSkipFailures = 0
+    /// User-visible resolve failures per video. The second one skips.
+    private var resolveFailureCounts: [String: Int] = [:]
+    /// Login-required failure happened; ask after the song now playing finishes.
+    private var loginPromptAfterSongEnds = false
+    /// Song ended and the queue is held until the login prompt is dismissed.
+    private var loginPromptPausedQueue = false
+    private var loginRequiredVideoId: String?
+    private var playbackNoticeTask: Task<Void, Never>?
 
     var hasNextInQueue: Bool {
         if queueIndex + 1 < queue.count { return true }
@@ -385,7 +395,6 @@ final class PlaybackController: ObservableObject {
     @discardableResult
     private func tryAutoSkipOnFailure(failedVideoId: String?) -> Bool {
         guard autoSkipOnFailure else { return false }
-        guard !needsLoginForPlayback else { return false }
         guard hasNextInQueue else { return false }
 
         consecutiveAutoSkipFailures += 1
@@ -419,6 +428,64 @@ final class PlaybackController: ObservableObject {
         analyticsPlaySource = "auto_skip_on_fail"
         playNext()
         return true
+    }
+
+    /// A song that needs sign-in should not cover a song that can play.
+    /// Skip to the next one, then offer sign-in after that song ends.
+    private func noteLoginRequiredFailure(videoId: String) {
+        loginRequiredVideoId = videoId
+        let reason = lastError ?? L("player.sign_in_to_play")
+        if autoSkipOnFailure, hasNextInQueue {
+            loginPromptAfterSongEnds = true
+            showPlaybackNotice(reason)
+            if tryAutoSkipOnFailure(failedVideoId: videoId) {
+                return
+            }
+            loginPromptAfterSongEnds = false
+        }
+        needsLoginForPlayback = true
+        showPlaybackNotice(reason)
+        updateNowPlayingInfo()
+        publishPhoneWidgetSnapshot(force: true)
+        refreshRemoteCommandEnabled()
+    }
+
+    func dismissPlaybackLoginPrompt() {
+        needsLoginForPlayback = false
+        let resume = loginPromptPausedQueue
+        loginPromptPausedQueue = false
+        loginPromptAfterSongEnds = false
+        guard resume else { return }
+        advanceAfterPlaybackEnded()
+    }
+
+    /// After Google sign-in, replay the track that asked for an account.
+    func retryPlaybackAfterLogin() {
+        needsLoginForPlayback = false
+        loginPromptPausedQueue = false
+        loginPromptAfterSongEnds = false
+        if let videoId = loginRequiredVideoId,
+           let index = queue.firstIndex(where: { $0.videoId == videoId }) {
+            loginRequiredVideoId = nil
+            resolveFailureCounts[videoId] = nil
+            playQueueIndex(index)
+            return
+        }
+        retryCurrentAfterAuth()
+    }
+
+    private func showPlaybackNotice(_ message: String) {
+        let trimmed = message.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        playbackNotice = trimmed
+        playbackNoticeTask?.cancel()
+        playbackNoticeTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 3_500_000_000)
+            guard !Task.isCancelled else { return }
+            if playbackNotice == trimmed {
+                playbackNotice = nil
+            }
+        }
     }
 
     /// Manual skip to the previous queue item (does not restart the current track).
@@ -1096,11 +1163,12 @@ final class PlaybackController: ObservableObject {
                 isBuffering = false
                 isPlaying = false
                 lastError = Self.userFacingResolveError(error)
-                needsLoginForPlayback = Self.isLoginRequiredResolveError(error)
+                let loginRequired = Self.isLoginRequiredResolveError(error)
+                needsLoginForPlayback = false
                 AppAnalytics.playResolveFail(
                     videoId: expectedVideoId,
                     error: lastError ?? error.localizedDescription,
-                    needsLogin: needsLoginForPlayback
+                    needsLogin: loginRequired
                 )
                 let isTimeout: Bool = {
                     if case StreamResolver.StreamResolverError.timeout = error { return true }
@@ -1110,11 +1178,20 @@ final class PlaybackController: ObservableObject {
                 PlayProbe.log(
                     isTimeout ? "play.fail.timeout" : "play.fail",
                     videoId: expectedVideoId,
-                    "raw=\(error.localizedDescription) ui=\(lastError ?? "-") needsLogin=\(needsLoginForPlayback) \(PlayProbe.concurrencySnapshot())"
+                    "raw=\(error.localizedDescription) ui=\(lastError ?? "-") needsLogin=\(loginRequired) \(PlayProbe.concurrencySnapshot())"
                 )
-                if tryAutoSkipOnFailure(failedVideoId: expectedVideoId) {
+                if loginRequired {
+                    noteLoginRequiredFailure(videoId: expectedVideoId)
                     return
                 }
+                let attempts = (resolveFailureCounts[expectedVideoId] ?? 0) + 1
+                resolveFailureCounts[expectedVideoId] = attempts
+                let reason = lastError ?? L("player.error.resolve_failed")
+                if attempts >= 2, tryAutoSkipOnFailure(failedVideoId: expectedVideoId) {
+                    showPlaybackNotice(Lf("playback.skipped_reason", reason))
+                    return
+                }
+                showPlaybackNotice(reason)
                 updateNowPlayingInfo()
                 publishPhoneWidgetSnapshot(force: true)
                 refreshRemoteCommandEnabled()
@@ -1180,15 +1257,15 @@ final class PlaybackController: ObservableObject {
             .trimmingCharacters(in: .whitespacesAndNewlines)
         let lower = raw.lowercased()
         if isLoginRequiredMessage(lower) {
-            return "Sign in required to play"
+            return L("player.sign_in_to_play")
         }
         if lower == "unplayable" || lower.contains("unplayable") {
-            return "This video can't be played"
+            return L("player.error.unplayable")
         }
         if raw.isEmpty {
-            return "Unable to resolve playable stream"
+            return L("player.error.resolve_failed")
         }
-        return raw
+        return L("player.error.resolve_failed")
     }
 
     private static func isLoginRequiredResolveError(_ error: Error) -> Bool {
@@ -2313,6 +2390,7 @@ final class PlaybackController: ObservableObject {
                     self.checkNextPrepareNearEnd(position: position, duration: duration)
                     self.checkPlaybackStoreThreshold(position: position, duration: duration)
                     self.persistHistoryProgressIfNeeded(force: false)
+                    self.noteLibrarySavePrompt(position: position, duration: duration)
                 }
                 self.checkSleepTimerExpired()
                 self.refreshNextPrepareIfNeeded()
@@ -2320,6 +2398,20 @@ final class PlaybackController: ObservableObject {
                 self.persistSession(immediate: false)
             }
         }
+    }
+
+    /// Offer a one-tap library save after this song has actually been playing.
+    private func noteLibrarySavePrompt(position: Double, duration: Double?) {
+        guard let videoId = nowPlaying?.videoId, !videoId.isEmpty else { return }
+        guard successfulPlaybackRecordedVideoId == videoId else { return }
+        let resolvedDuration = duration ?? durationSeconds
+        LibrarySavePromptStore.shared.notePlayback(
+            videoId: videoId,
+            position: position,
+            duration: resolvedDuration,
+            isPlaying: isPlaying,
+            isFavorite: isFavorite
+        )
     }
 
     /// Writes listen position into `UserTrackLastPlayed` for History progress bars.
@@ -2370,11 +2462,13 @@ final class PlaybackController: ObservableObject {
         let openMs = probeStreamElapsedMs()
         AppAnalytics.playStart(videoId: videoId, openMs: openMs)
 
+        let playedBefore = libraryStore?.successfullyPlayedSongCount() ?? 0
         libraryStore?.recordPlayback(
             playing,
             durationSeconds: pendingResolvedDurationSeconds,
             progressMs: Int64(max(0, positionSeconds) * 1000)
         )
+        resolveFailureCounts[videoId] = nil
         ReviewPromptCoordinator.shared.recordSuccessfulPlay(videoId: videoId)
         refreshFavoriteState()
         persistSession(immediate: true)
@@ -2382,7 +2476,11 @@ final class PlaybackController: ObservableObject {
         let store = libraryStore
         Task { @MainActor in
             AdEligibility.refreshInventoryIfEligible()
-            await DailyListenNotificationScheduler.refresh(using: store)
+            let playedAfter = store?.successfullyPlayedSongCount() ?? 0
+            if playedBefore < DailyListenNotificationScheduler.minimumSongCount,
+               playedAfter >= DailyListenNotificationScheduler.minimumSongCount {
+                await DailyListenNotificationScheduler.refresh(using: store)
+            }
         }
     }
 
@@ -2406,6 +2504,20 @@ final class PlaybackController: ObservableObject {
         if let videoId = nowPlaying?.videoId {
             AppAnalytics.playComplete(videoId: videoId)
         }
+        if loginPromptAfterSongEnds {
+            loginPromptAfterSongEnds = false
+            loginPromptPausedQueue = true
+            needsLoginForPlayback = true
+            isPlaying = false
+            updateNowPlayingInfo()
+            return
+        }
+        let store = libraryStore
+        Task { await DailyListenNotificationScheduler.askOnceAfterCompletedSong(using: store) }
+        advanceAfterPlaybackEnded()
+    }
+
+    private func advanceAfterPlaybackEnded() {
         if repeatMode == .one {
             seek(to: 0)
             player?.playImmediately(atRate: playbackSpeed)

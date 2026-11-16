@@ -13,6 +13,7 @@ struct AppChrome<Content: View>: View {
     @EnvironmentObject private var playback: PlaybackController
     @EnvironmentObject private var playerPresentation: PlayerPresentation
     @EnvironmentObject private var review: ReviewPromptCoordinator
+    @ObservedObject private var librarySavePrompt = LibrarySavePromptStore.shared
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.displayScale) private var displayScale
 
@@ -37,6 +38,7 @@ struct AppChrome<Content: View>: View {
                 AdSceneLifecycle.cancelPlayStartInterstitial()
             }
         }
+        .ytLiteToast(playback.playbackNotice, bottomPadding: 120)
     }
 
     private var compactChrome: some View {
@@ -91,16 +93,24 @@ struct AppChrome<Content: View>: View {
     @ViewBuilder
     private func miniPlayerSlot(docked: Bool) -> some View {
         if showsMiniPlayer {
-            MiniPlayerBar()
-                .frame(maxWidth: docked ? YTLiteAdaptive.miniPlayerDockWidth : .infinity)
-                .frame(maxWidth: .infinity)
-                .padding(.bottom, docked && !isKeyboardVisible ? 8 : 0)
-                .opacity(isKeyboardVisible ? 0 : 1)
-                .allowsHitTesting(!isKeyboardVisible)
-                .accessibilityHidden(isKeyboardVisible)
-                // Reserve height while keyboard is up so the sheet host stays mounted.
-                .frame(maxHeight: isKeyboardVisible ? 0 : nil)
-                .clipped()
+            VStack(spacing: 0) {
+                if showsPlaybackLoginPrompt {
+                    PlaybackLoginBanner()
+                }
+                if showsLibrarySavePrompt {
+                    LibrarySavePromptBanner()
+                }
+                MiniPlayerBar()
+            }
+            .frame(maxWidth: docked ? YTLiteAdaptive.miniPlayerDockWidth : .infinity)
+            .frame(maxWidth: .infinity)
+            .padding(.bottom, docked && !isKeyboardVisible ? 8 : 0)
+            .opacity(isKeyboardVisible ? 0 : 1)
+            .allowsHitTesting(!isKeyboardVisible)
+            .accessibilityHidden(isKeyboardVisible)
+            // Reserve height while keyboard is up so the sheet host stays mounted.
+            .frame(maxHeight: isKeyboardVisible ? 0 : nil)
+            .clipped()
         }
     }
 
@@ -108,9 +118,25 @@ struct AppChrome<Content: View>: View {
         playback.nowPlaying != nil
     }
 
+    private var showsLibrarySavePrompt: Bool {
+        guard showsMiniPlayer, !isKeyboardVisible, !playerPresentation.isPresented else { return false }
+        guard librarySavePrompt.offerVideoId == playback.nowPlaying?.videoId else { return false }
+        return !playback.isFavorite
+    }
+
+    private var showsPlaybackLoginPrompt: Bool {
+        guard showsMiniPlayer, !isKeyboardVisible, !playerPresentation.isPresented else { return false }
+        return playback.needsLoginForPlayback && !playback.isPlaying && !playback.isBuffering
+    }
+
     private var miniPlayerBottomInset: CGFloat {
         guard showsMiniPlayer, !isKeyboardVisible else { return 0 }
-        return YTLiteLayout.miniPlayerChromeHeight(displayScale: displayScale) + (isRegular ? 8 : 0)
+        let saveBanner = showsLibrarySavePrompt ? LibrarySavePromptBanner.reservedHeight : 0
+        let loginBanner = showsPlaybackLoginPrompt ? PlaybackLoginBanner.reservedHeight : 0
+        return YTLiteLayout.miniPlayerChromeHeight(displayScale: displayScale)
+            + saveBanner
+            + loginBanner
+            + (isRegular ? 8 : 0)
     }
 }
 
