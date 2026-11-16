@@ -135,7 +135,12 @@ enum DailyListenNotificationScheduler {
             }
         }
         if scheduled > 0 {
-            AppAnalytics.dailyListenScheduled(count: scheduled)
+            let day = Self.dayKey(for: now, calendar: calendar)
+            let loggedDayKey = "daily_listen.scheduled_logged_day"
+            if UserDefaults.standard.string(forKey: loggedDayKey) != day {
+                UserDefaults.standard.set(day, forKey: loggedDayKey)
+                AppAnalytics.dailyListenScheduled(count: scheduled)
+            }
         }
     }
 

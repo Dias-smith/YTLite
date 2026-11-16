@@ -233,6 +233,7 @@ final class SearchViewModel: ObservableObject {
                     errorMessage = "No results for \"\(q)\""
                 }
                 if reset {
+                    AppAnalytics.searchResults(ok: true, count: page.hits.count, tab: tab.rawValue)
                     presentSearchResultsAdIfNeeded(query: q)
                 }
             } catch {
@@ -241,6 +242,7 @@ final class SearchViewModel: ObservableObject {
                     errorMessage = error.localizedDescription
                     hits = []
                     resultsContinuation = nil
+                    AppAnalytics.searchResults(ok: false, count: 0, tab: tab.rawValue)
                     presentSearchResultsAdIfNeeded(query: q)
                 }
                 // Keep existing hits when a "load more" request fails.

@@ -800,7 +800,7 @@ struct HomeView: View {
                 AppAnalytics.homeSeen(category: viewModel.selectedCategoryId)
             }
             .onChange(of: viewModel.selectedCategoryId) { _, id in
-                AppAnalytics.homeSeen(category: id)
+                AppAnalytics.homeChip(category: id)
             }
             .task {
                 viewModel.libraryStore = libraryStore

@@ -333,7 +333,7 @@ final class PlaybackController: ObservableObject {
             return
         }
         let fromId = nowPlaying?.videoId ?? ""
-        AppAnalytics.playSkip(fromId: fromId, toId: item.videoId)
+        AppAnalytics.playSkip(fromId: fromId, toId: item.videoId, reason: "queue")
         analyticsPlaySource = "queue"
         queueIndex = target
         pendingSeekSeconds = 0
@@ -371,22 +371,26 @@ final class PlaybackController: ObservableObject {
     }
 
     /// Manual skip — advances even in Repeat One (Android detail `skipToNext`).
-    func playNext() {
+    func playNext(reason: String = "next") {
         guard !queue.isEmpty else { return }
         let fromId = nowPlaying?.videoId ?? ""
         if queueIndex + 1 < queue.count {
             queueIndex += 1
             let toId = queue[queueIndex].videoId
-            AppAnalytics.playSkip(fromId: fromId, toId: toId)
-            analyticsPlaySource = "queue"
+            AppAnalytics.playSkip(fromId: fromId, toId: toId, reason: reason)
+            if reason != "auto_fail" {
+                analyticsPlaySource = "queue"
+            }
             playCurrentQueueItem()
             return
         }
         if repeatMode == .all {
             queueIndex = 0
             let toId = queue[queueIndex].videoId
-            AppAnalytics.playSkip(fromId: fromId, toId: toId)
-            analyticsPlaySource = "queue"
+            AppAnalytics.playSkip(fromId: fromId, toId: toId, reason: reason)
+            if reason != "auto_fail" {
+                analyticsPlaySource = "queue"
+            }
             playCurrentQueueItem()
         }
     }
@@ -426,7 +430,7 @@ final class PlaybackController: ObservableObject {
         lastError = nil
         needsLoginForPlayback = false
         analyticsPlaySource = "auto_skip_on_fail"
-        playNext()
+        playNext(reason: "auto_fail")
         return true
     }
 
@@ -451,6 +455,9 @@ final class PlaybackController: ObservableObject {
     }
 
     func dismissPlaybackLoginPrompt() {
+        if needsLoginForPlayback {
+            AppAnalytics.playbackLoginDismiss()
+        }
         needsLoginForPlayback = false
         let resume = loginPromptPausedQueue
         loginPromptPausedQueue = false
@@ -495,7 +502,7 @@ final class PlaybackController: ObservableObject {
         if queueIndex > 0 {
             queueIndex -= 1
             let toId = queue[queueIndex].videoId
-            AppAnalytics.playSkip(fromId: fromId, toId: toId)
+            AppAnalytics.playSkip(fromId: fromId, toId: toId, reason: "previous")
             analyticsPlaySource = "queue"
             playCurrentQueueItem()
             return
@@ -503,7 +510,7 @@ final class PlaybackController: ObservableObject {
         if repeatMode == .all {
             queueIndex = queue.count - 1
             let toId = queue[queueIndex].videoId
-            AppAnalytics.playSkip(fromId: fromId, toId: toId)
+            AppAnalytics.playSkip(fromId: fromId, toId: toId, reason: "previous")
             analyticsPlaySource = "queue"
             playCurrentQueueItem()
         }
@@ -1165,10 +1172,12 @@ final class PlaybackController: ObservableObject {
                 lastError = Self.userFacingResolveError(error)
                 let loginRequired = Self.isLoginRequiredResolveError(error)
                 needsLoginForPlayback = false
+                let attempt = (resolveFailureCounts[expectedVideoId] ?? 0) + 1
                 AppAnalytics.playResolveFail(
                     videoId: expectedVideoId,
-                    error: lastError ?? error.localizedDescription,
-                    needsLogin: loginRequired
+                    error: Self.resolveErrorCode(error),
+                    needsLogin: loginRequired,
+                    attempt: attempt
                 )
                 let isTimeout: Bool = {
                     if case StreamResolver.StreamResolverError.timeout = error { return true }
@@ -1266,6 +1275,15 @@ final class PlaybackController: ObservableObject {
             return L("player.error.resolve_failed")
         }
         return L("player.error.resolve_failed")
+    }
+
+    private static func resolveErrorCode(_ error: Error) -> String {
+        let lower = error.localizedDescription.lowercased()
+        if isLoginRequiredMessage(lower) { return "login_required" }
+        if case StreamResolver.StreamResolverError.timeout = error { return "timeout" }
+        if lower.contains("timed out") || lower.contains("timeout") { return "timeout" }
+        if lower.contains("unplayable") { return "unplayable" }
+        return "resolve_failed"
     }
 
     private static func isLoginRequiredResolveError(_ error: Error) -> Bool {
@@ -2460,7 +2478,7 @@ final class PlaybackController: ObservableObject {
         guard let playing = nowPlaying else { return }
 
         let openMs = probeStreamElapsedMs()
-        AppAnalytics.playStart(videoId: videoId, openMs: openMs)
+        AppAnalytics.playStart(videoId: videoId, openMs: openMs, source: analyticsPlaySource)
 
         let playedBefore = libraryStore?.successfullyPlayedSongCount() ?? 0
         libraryStore?.recordPlayback(
@@ -2502,7 +2520,7 @@ final class PlaybackController: ObservableObject {
     /// Android `GlobalPlaybackViewModel.handlePlaybackEnded`.
     private func handlePlaybackEnded() {
         if let videoId = nowPlaying?.videoId {
-            AppAnalytics.playComplete(videoId: videoId)
+            AppAnalytics.playComplete(videoId: videoId, source: analyticsPlaySource)
         }
         if loginPromptAfterSongEnds {
             loginPromptAfterSongEnds = false
@@ -2527,11 +2545,13 @@ final class PlaybackController: ObservableObject {
         }
         if queueIndex + 1 < queue.count {
             queueIndex += 1
+            analyticsPlaySource = "auto_next"
             playCurrentQueueItem()
             return
         }
         if repeatMode == .all, !queue.isEmpty {
             queueIndex = 0
+            analyticsPlaySource = "auto_next"
             playCurrentQueueItem()
             return
         }

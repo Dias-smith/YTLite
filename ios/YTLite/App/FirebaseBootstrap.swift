@@ -8,6 +8,8 @@ import FirebaseRemoteConfig
 enum AppAnalytics {
     private static var pendingSignInSource = "unknown"
     private static var lastAdEligibilityKey: String?
+    private static var didLogColdOpen = false
+    private static var lastAppOpenAt: Date?
 
     static func log(_ name: String, _ params: [String: Any] = [:]) {
         var sanitized: [String: Any] = [:]
@@ -38,8 +40,28 @@ enum AppAnalytics {
 
     // MARK: - App
 
+    /// One cold open per process. A launch that also flips the scene to active
+    /// does not log a second foreground. Later foregrounds stay `cold_start=false`.
     static func appOpen(coldStart: Bool) {
-        log("app_open", ["cold_start": coldStart])
+        let now = Date()
+        if coldStart {
+            guard !didLogColdOpen else { return }
+            didLogColdOpen = true
+            lastAppOpenAt = now
+            log("app_open", ["cold_start": true])
+            return
+        }
+        if !didLogColdOpen {
+            didLogColdOpen = true
+            lastAppOpenAt = now
+            log("app_open", ["cold_start": true])
+            return
+        }
+        if let lastAppOpenAt, now.timeIntervalSince(lastAppOpenAt) < 1.5 {
+            return
+        }
+        lastAppOpenAt = now
+        log("app_open", ["cold_start": false])
     }
 
     static func appBackground() {
@@ -77,24 +99,29 @@ enum AppAnalytics {
         log("play_resolve_ok", ["video_id": videoId, "ms": ms, "source": source])
     }
 
-    static func playResolveFail(videoId: String, error: String, needsLogin: Bool) {
-        log("play_resolve_fail", ["video_id": videoId, "error": error, "needs_login": needsLogin])
+    static func playResolveFail(videoId: String, error: String, needsLogin: Bool, attempt: Int) {
+        log(
+            "play_resolve_fail",
+            ["video_id": videoId, "error": error, "needs_login": needsLogin, "attempt": attempt]
+        )
     }
 
-    static func playStart(videoId: String, openMs: Int) {
-        log("play_start", ["video_id": videoId, "open_ms": openMs])
+    static func playStart(videoId: String, openMs: Int, source: String) {
+        log("play_start", ["video_id": videoId, "open_ms": openMs, "source": source])
     }
 
     static func playFail(videoId: String, error: String, retried: Bool) {
         log("play_fail", ["video_id": videoId, "error": error, "retried": retried])
     }
 
-    static func playComplete(videoId: String) {
-        log("play_complete", ["video_id": videoId])
+    static func playComplete(videoId: String, source: String) {
+        log("play_complete", ["video_id": videoId, "source": source])
     }
 
-    static func playSkip(fromId: String, toId: String) {
-        log("play_skip", ["from_id": fromId, "to_id": toId])
+    /// `reason`: next, previous, queue, auto_fail.
+    static func playSkip(fromId: String, toId: String, reason: String) {
+        guard !fromId.isEmpty, fromId != toId else { return }
+        log("play_skip", ["from_id": fromId, "to_id": toId, "reason": reason])
     }
 
     // MARK: - Discovery
@@ -108,12 +135,22 @@ enum AppAnalytics {
         log("home_seen", ["category": category])
     }
 
+    /// Chip change after the home tab is already visible. Not a new home visit.
+    static func homeChip(category: String) {
+        log("home_chip", ["category": category])
+    }
+
     static func searchSubmit(query: String) {
         log("search_submit", ["query": query, "query_len": query.count])
     }
 
     static func searchResultTap(type: String) {
         log("search_result_tap", ["type": type])
+    }
+
+    /// First page of a search. `count` is 0 when the query returned nothing or failed.
+    static func searchResults(ok: Bool, count: Int, tab: String) {
+        log("search_results", ["ok": ok, "count": count, "tab": tab])
     }
 
     static func relatedTap() {
@@ -188,6 +225,10 @@ enum AppAnalytics {
 
     static func playbackLoginContinue() {
         log("playback_login_continue")
+    }
+
+    static func playbackLoginDismiss() {
+        log("playback_login_dismiss")
     }
 
     // MARK: - VIP
