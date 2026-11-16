@@ -105,6 +105,9 @@ struct RootView: View {
                     playback.consumePendingDailyListenIfNeeded()
                     let sync = LibrarySyncService(auth: auth)
                     syncService = sync
+                    store.onOfflinePlaylistChanged = {
+                        appModel.bumpLibraryRevision()
+                    }
                     store.onMutate = {
                         Task {
                             await sync.pushAll(store: store)

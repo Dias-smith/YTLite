@@ -1647,7 +1647,9 @@ final class PlaybackController: ObservableObject {
                 mimeType: mimeType,
                 thumbnailURL: thumbnailURL
             )
+            let cached = await PlaybackMediaStore.shared.cachedSnapshots()
             await MainActor.run {
+                self.libraryStore?.syncOfflinePlaylist(cached: cached)
                 self.applyCachedCoverToNowPlayingIfNeeded(videoId: videoId)
             }
         }

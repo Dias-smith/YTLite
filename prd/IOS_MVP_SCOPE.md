@@ -51,6 +51,7 @@
 | Grid/list + batch multi-select library | After basic library |
 | Cast stub | Low value |
 | Analytics product events | Optional |
+| **Music import (local-only)** | Files / Photos / Wi‑Fi / WebDAV NAS / iCloud / Google Drive / Baidu — see [`ios/IMPORT_MUSIC_SPEC.md`](ios/IMPORT_MUSIC_SPEC.md) |
 
 ## Skip
 

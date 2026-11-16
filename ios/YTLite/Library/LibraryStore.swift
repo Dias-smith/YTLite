@@ -16,6 +16,10 @@ final class LibraryStore {
     var onTracksRemovedFromPlaylist: ((String, [String]) -> Void)?
     /// Bumps when History rows change (order / progress / membership) so History UI can refresh.
     private(set) var historyEpoch: Int = 0
+    /// Fired when offline-playlist membership changes so Library can refresh without a cloud sync.
+    var onOfflinePlaylistChanged: (() -> Void)?
+    /// Byte sizes of playback-cached streams, keyed by video id.
+    private var offlineCachedBytes: [String: Int64] = [:]
 
     private func noteHistoryChanged() {
         historyEpoch &+= 1
@@ -48,7 +52,6 @@ final class LibraryStore {
 
     func ensureSystemPlaylists(for key: String) {
         ensureSystemPlaylist(for: key, name: "Liked videos", systemType: SystemPlaylistType.favorites)
-        ensureSystemPlaylist(for: key, name: "Watch later", systemType: SystemPlaylistType.watchLater)
         ensureSystemPlaylist(for: key, name: "Imported", systemType: SystemPlaylistType.imported)
         try? modelContext.save()
     }
@@ -427,18 +430,18 @@ final class LibraryStore {
         playlistsInLibraryOrder()
     }
 
-    /// Library tab / Save-to-library picker: Liked → Watch later → custom (oldest → newest).
+    /// Library tab / Save-to-library picker: Liked → custom (oldest → newest).
+    /// Watch later is no longer shown or offered.
     func playlistsInLibraryOrder() -> [LibraryPlaylist] {
         let key = ownerKey
         let all = (try? modelContext.fetch(
             FetchDescriptor<LibraryPlaylist>(predicate: #Predicate { $0.ownerKey == key })
         )) ?? []
         let liked = all.first { $0.systemType == SystemPlaylistType.favorites }
-        let watchLater = all.first { $0.systemType == SystemPlaylistType.watchLater }
         let custom = all
             .filter { $0.systemType == nil }
             .sorted { $0.sortCreatedAt < $1.sortCreatedAt }
-        return [liked, watchLater].compactMap { $0 } + custom
+        return [liked].compactMap { $0 } + custom
     }
 
     func historyVideos(limit: Int? = nil) -> [VideoItem] {
@@ -545,7 +548,11 @@ final class LibraryStore {
             uniquingKeysWith: { a, b in max(a, b) }
         )
 
-        for playlist in allPlaylists() {
+        var songPlaylists = allPlaylists()
+        if let watchLater = fetchPlaylist(systemType: SystemPlaylistType.watchLater) {
+            songPlaylists.append(watchLater)
+        }
+        for playlist in songPlaylists {
             for entry in playlist.entries {
                 guard let track = entry.track else { continue }
                 let id = track.trackId
@@ -635,6 +642,11 @@ final class LibraryStore {
            !playlistsToScan.contains(where: { $0.playlistId == imported.playlistId })
         {
             playlistsToScan.append(imported)
+        }
+        if let watchLater = fetchPlaylist(systemType: SystemPlaylistType.watchLater),
+           !playlistsToScan.contains(where: { $0.playlistId == watchLater.playlistId })
+        {
+            playlistsToScan.append(watchLater)
         }
         for playlist in playlistsToScan {
             let doomed = playlist.entries.filter { entry in
@@ -1288,6 +1300,95 @@ final class LibraryStore {
 
     func importedPlaylist() -> LibraryPlaylist? {
         fetchPlaylist(systemType: SystemPlaylistType.imported)
+    }
+
+    /// Imported files plus YouTube tracks that already have a finished offline copy.
+    func offlinePlaylistTracks() -> [LibraryTrack] {
+        let imported = importedTracks()
+        var seen = Set(imported.map(\.trackId))
+        var result = imported
+        for entry in importedPlaylist()?.entries ?? [] {
+            guard let track = entry.track, seen.insert(track.trackId).inserted else { continue }
+            result.append(track)
+        }
+        return result
+    }
+
+    func offlineCachedByteCount(trackId: String) -> Int64? {
+        offlineCachedBytes[trackId]
+    }
+
+    /// Pull the current playback cache into this playlist, and drop cache-only rows whose file is gone.
+    func refreshOfflinePlaylistFromCache() async {
+        let cached = await PlaybackMediaStore.shared.cachedSnapshots()
+        syncOfflinePlaylist(cached: cached)
+    }
+
+    func syncOfflinePlaylist(cached: [(videoId: String, fileSize: Int64)]) {
+        ensureSystemPlaylists()
+        guard let playlist = importedPlaylist() else { return }
+        let newSizes = Dictionary(cached.map { ($0.videoId, $0.fileSize) }, uniquingKeysWith: { first, _ in first })
+        let sizesChanged = newSizes != offlineCachedBytes
+        offlineCachedBytes = newSizes
+        let cachedIds = Set(newSizes.keys)
+        var changed = false
+
+        for videoId in cachedIds {
+            guard let track = track(id: videoId) else { continue }
+            if playlist.entries.contains(where: { $0.track?.trackId == videoId }) { continue }
+            let entry = LibraryPlaylistEntry(position: playlist.entries.count, track: track, isSynced: true)
+            playlist.entries.append(entry)
+            changed = true
+        }
+
+        let stale = playlist.entries.filter { entry in
+            guard let id = entry.track?.trackId else { return false }
+            if isImportedLocalTrack(id) { return false }
+            return !cachedIds.contains(id)
+        }
+        if !stale.isEmpty {
+            for entry in stale {
+                modelContext.delete(entry)
+            }
+            changed = true
+        }
+
+        if changed {
+            let live = playlist.entries.filter { !$0.isDeleted }
+            for (index, entry) in live.sorted(by: { $0.position < $1.position }).enumerated() {
+                entry.position = index
+            }
+            playlist.updatedAt = .now
+            playlist.isSynced = true
+            saveLocalOnly()
+        }
+        if changed || sizesChanged {
+            onOfflinePlaylistChanged?()
+        }
+    }
+
+    /// Removes an offline-playlist row. Imported files are deleted; cached streams only lose the cache copy.
+    func removeFromOfflinePlaylist(trackId: String) {
+        if isImportedLocalTrack(trackId) {
+            removeImportedTrack(trackId: trackId)
+            onOfflinePlaylistChanged?()
+            return
+        }
+        if let playlist = importedPlaylist() {
+            for entry in playlist.entries.filter({ $0.track?.trackId == trackId }) {
+                modelContext.delete(entry)
+            }
+            playlist.updatedAt = .now
+            playlist.isSynced = true
+            saveLocalOnly()
+        }
+        offlineCachedBytes.removeValue(forKey: trackId)
+        onOfflinePlaylistChanged?()
+        Task { await PlaybackMediaStore.shared.remove(videoId: trackId) }
+    }
+
+    private func isImportedLocalTrack(_ id: String) -> Bool {
+        LocalTrackID.isLocal(id) || track(id: id)?.isImportedLocally == true
     }
 
     func importedTracks() -> [LibraryTrack] {

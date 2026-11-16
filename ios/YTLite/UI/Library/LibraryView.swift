@@ -228,6 +228,7 @@ struct LibraryView: View {
             }
             .onAppear {
                 reload()
+                Task { await store?.refreshOfflinePlaylistFromCache() }
                 if appModel.isLibrarySyncing {
                     handleLibrarySyncingChange(true)
                 }
@@ -392,7 +393,6 @@ struct LibraryView: View {
                     playlists: playlists.filter {
                         $0.systemType == nil
                             || $0.systemType == SystemPlaylistType.favorites
-                            || $0.systemType == SystemPlaylistType.watchLater
                     },
                     title: L("library.add_to_playlist"),
                     displayName: { displayName(for: $0) },
@@ -1396,7 +1396,7 @@ struct LibraryView: View {
 
     private func orderedPlaylistItems() -> [PlaylistDisplayItem] {
         let mapped = playlists.map { PlaylistDisplayItem.playlist($0) }
-        let importedCount = store?.importedTracks().count ?? 0
+        let importedCount = store?.offlinePlaylistTracks().count ?? 0
         let importedItem = PlaylistDisplayItem.imported(songCount: importedCount)
         let historyItem = PlaylistDisplayItem.history(songCount: history.count)
         let all = mapped + [importedItem, historyItem]
@@ -1436,10 +1436,9 @@ struct LibraryView: View {
 
     private func defaultSystemBlock(_ items: [PlaylistDisplayItem]) -> [PlaylistDisplayItem] {
         let liked = items.filter { $0.systemType == SystemPlaylistType.favorites }
-        let watchLater = items.filter { $0.systemType == SystemPlaylistType.watchLater }
         let importedRows = items.filter { $0.id == LibraryRoute.imported }
         let historyRows = items.filter { $0.id == LibraryRoute.history }
-        return liked + watchLater + importedRows + historyRows
+        return liked + importedRows + historyRows
     }
 
     private func customPlaylistsAscending(_ items: [PlaylistDisplayItem]) -> [PlaylistDisplayItem] {
@@ -2117,7 +2116,6 @@ struct HistoryDetailView: View {
         (store?.allPlaylists() ?? []).filter {
             $0.systemType == nil
                 || $0.systemType == SystemPlaylistType.favorites
-                || $0.systemType == SystemPlaylistType.watchLater
         }
     }
 

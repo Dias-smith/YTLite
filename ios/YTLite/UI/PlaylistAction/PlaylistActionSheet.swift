@@ -190,7 +190,7 @@ struct PlaylistActionSheet: View {
             return
         }
         if context.isImported {
-            let imported = store?.importedTracks() ?? []
+            let imported = store?.offlinePlaylistTracks() ?? []
             trackCount = imported.count
             totalDurationSeconds = imported.map(\.durationSeconds).reduce(0, +)
             return
@@ -214,7 +214,7 @@ struct PlaylistActionSheet: View {
             let metaById = Dictionary(
                 uniqueKeysWithValues: (store?.allMetadata() ?? []).map { ($0.trackId, $0) }
             )
-            items = (store?.importedTracks() ?? []).map {
+            items = (store?.offlinePlaylistTracks() ?? []).map {
                 store?.displayItem(for: $0.asVideoItem, metaById: metaById) ?? $0.asVideoItem
             }
         } else if let playlist = store?.playlist(id: context.playlistId) {

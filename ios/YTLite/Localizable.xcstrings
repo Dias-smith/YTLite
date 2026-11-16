@@ -8057,49 +8057,49 @@
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Imported"
+            "value" : "دون اتصال (مستورد)"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Imported"
+            "value" : "Offline(Imported)"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Imported"
+            "value" : "Sin conexión (importado)"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Imported"
+            "value" : "Hors ligne (importé)"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Imported"
+            "value" : "ऑफ़लाइन (आयातित)"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Imported"
+            "value" : "Offline (importado)"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "已导入"
+            "value" : "离线(已导入)"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "已导入"
+            "value" : "離線(已匯入)"
           }
         }
       }

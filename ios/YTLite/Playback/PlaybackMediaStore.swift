@@ -59,6 +59,12 @@ actor PlaybackMediaStore {
     private var persistTasks: [String: Task<Void, Never>] = [:]
     private var loadedIndex = false
 
+    /// Completed offline copies. Partial downloads are not included.
+    func cachedSnapshots() -> [(videoId: String, fileSize: Int64)] {
+        loadIndexIfNeeded()
+        return index.values.map { ($0.videoId, $0.fileSize) }
+    }
+
     func localFileURL(videoId: String) -> URL? {
         loadIndexIfNeeded()
         guard let entry = index[videoId] else { return nil }

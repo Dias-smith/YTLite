@@ -29,6 +29,7 @@ struct ImportedTracksListView: View {
     @EnvironmentObject private var playerPresentation: PlayerPresentation
     @EnvironmentObject private var trackActions: TrackActionPresenter
     @Environment(\.libraryStore) private var store
+    @EnvironmentObject private var appModel: AppModel
 
     @State private var entries: [ImportedDisplayEntry] = []
     @State private var filter: ImportedListFilter = .all
@@ -50,7 +51,6 @@ struct ImportedTracksListView: View {
         (store?.allPlaylists() ?? []).filter {
             $0.systemType == nil
                 || $0.systemType == SystemPlaylistType.favorites
-                || $0.systemType == SystemPlaylistType.watchLater
         }
     }
 
@@ -78,9 +78,11 @@ struct ImportedTracksListView: View {
         .toolbarBackground(YTLiteColor.background, for: .navigationBar)
         .onAppear {
             reload()
+            Task { await store?.refreshOfflinePlaylistFromCache() }
             Task { await backfillCoversIfNeeded() }
         }
         .onChange(of: trackActions.listEpoch) { _, _ in reload() }
+        .onChange(of: appModel.libraryRevision) { _, _ in reload() }
         .onChange(of: filter) { _, _ in
             selectedIds = selectedIds.intersection(Set(filteredEntries.map(\.id)))
         }
@@ -361,7 +363,7 @@ struct ImportedTracksListView: View {
     private func deleteSelected() {
         guard let store else { return }
         for id in selectedIds {
-            store.removeImportedTrack(trackId: id)
+            store.removeFromOfflinePlaylist(trackId: id)
         }
         exitSelectionMode()
         reload()
@@ -398,10 +400,11 @@ struct ImportedDisplayEntry: Identifiable, Equatable {
         let metaById = Dictionary(
             uniqueKeysWithValues: store.allMetadata().map { ($0.trackId, $0) }
         )
-        return store.importedTracks().map { track in
+        return store.offlinePlaylistTracks().map { track in
             let item = store.displayItem(for: track.asVideoItem, metaById: metaById)
             let kind = ImportSourceKind(rawValue: track.sourceKind) ?? .local
             let bytes = byteCount(trackId: track.trackId, relativePath: track.localRelativePath)
+                ?? store.offlineCachedByteCount(trackId: track.trackId)
             return ImportedDisplayEntry(
                 id: track.trackId,
                 item: item,
