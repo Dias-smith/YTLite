@@ -5,6 +5,9 @@ import WidgetKit
 /// Writes Now Playing into the App Group for the iPhone Home Screen / Lock Screen widget.
 enum PhoneWidgetSnapshotBridge {
     private static var pendingReload: DispatchWorkItem?
+    /// Follow-up reload. The reload WidgetKit starts when an App Intent returns
+    /// is often coalesced with the in-app reload and keeps the old button image.
+    private static var retryReload: DispatchWorkItem?
     private static let reloadLock = NSLock()
 
     static func publish(
@@ -73,10 +76,21 @@ enum PhoneWidgetSnapshotBridge {
         reloadLock.lock()
         pendingReload?.cancel()
         pendingReload = nil
-        reloadLock.unlock()
-        DispatchQueue.main.async {
+        retryReload?.cancel()
+        let retry = DispatchWorkItem {
             WidgetCenter.shared.reloadTimelines(ofKind: PhoneWidgetShared.widgetKind)
         }
+        retryReload = retry
+        reloadLock.unlock()
+        let reload = {
+            WidgetCenter.shared.reloadTimelines(ofKind: PhoneWidgetShared.widgetKind)
+        }
+        if Thread.isMainThread {
+            reload()
+        } else {
+            DispatchQueue.main.async(execute: reload)
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: retry)
     }
 }
 

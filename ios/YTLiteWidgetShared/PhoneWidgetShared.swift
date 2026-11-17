@@ -210,6 +210,7 @@ struct PhoneWidgetTogglePlayIntent: AudioPlaybackIntent {
     func perform() async throws -> some IntentResult {
         await PhoneWidgetIntentDispatcher.dispatch(.togglePlayPause)
         // WidgetKit reloads the timeline after `perform` returns — flush App Group first.
+        // Do not reload timelines here. On iOS 26 that call from the intent opens the app.
         PhoneWidgetShared.defaults?.synchronize()
         return .result()
     }
