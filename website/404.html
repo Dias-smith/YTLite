@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Page not found — Mixtube</title>
+    <meta name="description" content="This page is not available on the Mixtube website." />
+    <meta name="robots" content="noindex" />
+    <link rel="canonical" href="https://www.ytlite.cc/" />
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="icon" href="assets/icon.png" type="image/png" sizes="1024x1024" />
+    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,600&family=Syne:wght@700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body>
+    <header class="site-header" style="position: relative">
+      <a class="brand-mark" href="/">
+        <img src="assets/logo.png" width="32" height="32" alt="Mixtube" />
+        Mixtube
+      </a>
+      <nav class="nav-links" aria-label="Site">
+        <a href="/">Home</a>
+        <a href="support.html">Support</a>
+        <a href="privacy.html">Privacy</a>
+      </nav>
+    </header>
+
+    <article class="page-shell">
+      <h1>Page not found</h1>
+      <p class="lead">That link does not exist. You can go back to the Mixtube homepage.</p>
+      <p><a class="btn btn-primary" href="/">Back to Mixtube</a></p>
+    </article>
+
+    <footer class="site-footer">
+      <p>© <span id="y"></span> Mixtube</p>
+      <nav aria-label="Legal">
+        <a href="privacy.html">Privacy</a>
+        <a href="terms.html">Terms</a>
+        <a href="support.html">Support</a>
+      </nav>
+    </footer>
+    <script>
+      document.getElementById("y").textContent = new Date().getFullYear();
+    </script>
+  </body>
+</html>
