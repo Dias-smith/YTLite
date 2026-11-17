@@ -23,8 +23,18 @@ private enum ImportedListFilter: Hashable {
     ]
 }
 
+/// What the Offline / Imported list should include.
+enum ImportedListScope: Equatable {
+    /// Import tab / Settings → Import Music: local imports only (no Online cache rows).
+    case importedOnly
+    /// Library → Offline (Imported): imports + finished Online offline caches.
+    case offlineAll
+}
+
 /// Imported tracks list pushed from Import hub / Library system playlist.
 struct ImportedTracksListView: View {
+    var scope: ImportedListScope = .offlineAll
+
     @EnvironmentObject private var playback: PlaybackController
     @EnvironmentObject private var playerPresentation: PlayerPresentation
     @EnvironmentObject private var trackActions: TrackActionPresenter
@@ -371,7 +381,7 @@ struct ImportedTracksListView: View {
     }
 
     private func reload() {
-        entries = ImportedDisplayEntry.loadAll(from: store)
+        entries = ImportedDisplayEntry.loadAll(from: store, scope: scope)
         selectedIds = selectedIds.intersection(Set(entries.map(\.id)))
     }
 
@@ -399,14 +409,26 @@ struct ImportedDisplayEntry: Identifiable, Equatable {
     }
 
     @MainActor
-    static func loadAll(from store: LibraryStore?) -> [ImportedDisplayEntry] {
+    static func loadAll(
+        from store: LibraryStore?,
+        scope: ImportedListScope = .offlineAll
+    ) -> [ImportedDisplayEntry] {
         guard let store else { return [] }
+        let tracks: [LibraryTrack] = {
+            switch scope {
+            case .importedOnly:
+                return store.importedTracks()
+            case .offlineAll:
+                return store.offlinePlaylistTracks()
+            }
+        }()
         let metaById = Dictionary(
             uniqueKeysWithValues: store.allMetadata().map { ($0.trackId, $0) }
         )
-        return store.offlinePlaylistTracks().map { track in
+        return tracks.map { track in
             let item = store.displayItem(for: track.asVideoItem, metaById: metaById)
-            let kind = ImportSourceKind(rawValue: track.sourceKind) ?? .local
+            let kind = ImportSourceKind(rawValue: track.sourceKind)
+                ?? (LocalTrackID.isLocal(track.trackId) ? .local : .youtube)
             let bytes = byteCount(trackId: track.trackId, relativePath: track.localRelativePath)
                 ?? store.offlineCachedByteCount(trackId: track.trackId)
             return ImportedDisplayEntry(

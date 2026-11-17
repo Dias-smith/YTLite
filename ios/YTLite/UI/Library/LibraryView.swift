@@ -221,7 +221,7 @@ struct LibraryView: View {
                 if destinationId == LibraryRoute.history {
                     HistoryDetailView { reload() }
                 } else if destinationId == LibraryRoute.imported {
-                    ImportedTracksListView()
+                    ImportedTracksListView(scope: .offlineAll)
                 } else if let playlist = playlists.first(where: { $0.playlistId == destinationId }) {
                     PlaylistDetailView(playlist: playlist) { reload() }
                 }

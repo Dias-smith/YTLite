@@ -219,7 +219,7 @@ struct ImportHubView: View {
 
     private var importedEntryLink: some View {
         NavigationLink {
-            ImportedTracksListView()
+            ImportedTracksListView(scope: .importedOnly)
         } label: {
             HStack(spacing: 4) {
                 Image(systemName: "music.note.list")
