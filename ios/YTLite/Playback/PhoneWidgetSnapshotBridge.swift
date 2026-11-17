@@ -9,6 +9,11 @@ enum PhoneWidgetSnapshotBridge {
     /// is often coalesced with the in-app reload and keeps the old button image.
     private static var retryReload: DispatchWorkItem?
     private static let reloadLock = NSLock()
+    /// Once audio stops, iOS suspends the process before WidgetKit reads the new
+    /// snapshot. This lease keeps the reload (and its short retry) alive.
+    private static var reloadBackgroundTask: UIBackgroundTaskIdentifier = .invalid
+    private static var endReloadLease: DispatchWorkItem?
+    private static let leaseLock = NSLock()
 
     static func publish(
         videoId: String?,
@@ -62,6 +67,7 @@ enum PhoneWidgetSnapshotBridge {
 
     /// Coalesce rapid title → cover publishes into one WidgetKit reload.
     private static func scheduleTimelineReload() {
+        leaseBackgroundTimeForWidgetReload()
         reloadLock.lock()
         pendingReload?.cancel()
         let work = DispatchWorkItem {
@@ -73,6 +79,7 @@ enum PhoneWidgetSnapshotBridge {
     }
 
     private static func reloadTimelinesNow() {
+        leaseBackgroundTimeForWidgetReload()
         reloadLock.lock()
         pendingReload?.cancel()
         pendingReload = nil
@@ -91,6 +98,54 @@ enum PhoneWidgetSnapshotBridge {
             DispatchQueue.main.async(execute: reload)
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: retry)
+    }
+
+    /// Keep the app runnable long enough for WidgetKit to consume a background reload.
+    static func leaseBackgroundTimeForWidgetReload() {
+        let start = {
+            leaseLock.lock()
+            let needsTask = reloadBackgroundTask == .invalid
+            endReloadLease?.cancel()
+            leaseLock.unlock()
+            if needsTask {
+                // Do not hold `leaseLock` across `beginBackgroundTask` — the expiration
+                // handler must end the task before it returns and may run immediately.
+                let id = UIApplication.shared.beginBackgroundTask(withName: "ytlite.widget.reload") {
+                    endReloadBackgroundLease()
+                }
+                leaseLock.lock()
+                if reloadBackgroundTask == .invalid {
+                    reloadBackgroundTask = id
+                } else if id != .invalid {
+                    UIApplication.shared.endBackgroundTask(id)
+                }
+                leaseLock.unlock()
+            }
+            let work = DispatchWorkItem {
+                endReloadBackgroundLease()
+            }
+            leaseLock.lock()
+            endReloadLease = work
+            leaseLock.unlock()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5, execute: work)
+        }
+        if Thread.isMainThread {
+            start()
+        } else {
+            DispatchQueue.main.async(execute: start)
+        }
+    }
+
+    private static func endReloadBackgroundLease() {
+        leaseLock.lock()
+        endReloadLease?.cancel()
+        endReloadLease = nil
+        let id = reloadBackgroundTask
+        reloadBackgroundTask = .invalid
+        leaseLock.unlock()
+        if id != .invalid {
+            UIApplication.shared.endBackgroundTask(id)
+        }
     }
 }
 

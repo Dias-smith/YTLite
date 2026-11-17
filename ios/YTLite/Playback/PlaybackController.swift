@@ -141,6 +141,10 @@ final class PlaybackController: ObservableObject {
     private var resumeAfterInterruption = false
     /// Resume after another app's audio ends (secondary-audio silence hint).
     private var resumeAfterSecondaryAudioSilence = false
+    /// Confirms a system pause (other app took audio) before flipping the widget.
+    private var externalPauseSyncTask: Task<Void, Never>?
+    /// Bumped when we explicitly ask AVPlayer to play, so a brief `.paused` is ignored.
+    private var intentionalPlayGeneration: Int = 0
     /// Avoid spamming WidgetKit reloads on every elapsed tick.
     private var lastPhoneWidgetSignature: String?
     /// Keeps Lock Screen / Home Screen widget aligned with `nowPlaying` + `isPlaying`.
@@ -1401,6 +1405,7 @@ final class PlaybackController: ObservableObject {
         // (see `readyToPlay` / `timeControlStatus == .playing`).
         applySpeed()
         if resumePlaying {
+            noteIntentionalPlay()
             player?.playImmediately(atRate: playbackSpeed)
             isPlaying = true
         } else {
@@ -1748,6 +1753,7 @@ final class PlaybackController: ObservableObject {
                 if let expectedVideoId, self.nowPlaying?.videoId != expectedVideoId { return }
                 switch player.timeControlStatus {
                 case .playing:
+                    self.externalPauseSyncTask?.cancel()
                     guard player.currentItem?.status == .readyToPlay else { return }
                     // First audible frames — hide the resolve/open spinner.
                     self.isBuffering = false
@@ -1756,8 +1762,11 @@ final class PlaybackController: ObservableObject {
                     if player.currentItem?.status == .readyToPlay, !self.isPlaying {
                         self.isBuffering = false
                     }
+                    // Another app (or the system) can stop AVPlayer without a clean
+                    // interruption. Confirm it stayed paused, then match `isPlaying`.
+                    self.scheduleExternalPauseWidgetSync()
                 case .waitingToPlayAtSpecifiedRate:
-                    break
+                    self.externalPauseSyncTask?.cancel()
                 @unknown default:
                     break
                 }
@@ -1974,6 +1983,7 @@ final class PlaybackController: ObservableObject {
             pause()
         } else {
             activatePlaybackAudioSession()
+            noteIntentionalPlay()
             player?.playImmediately(atRate: playbackSpeed)
             isPlaying = true
             updateNowPlayingInfo()
@@ -2681,8 +2691,34 @@ final class PlaybackController: ObservableObject {
         player.audiovisualBackgroundPlaybackPolicy = .continuesIfPossible
         guard isPlaying else { return }
         if player.timeControlStatus != .playing {
+            noteIntentionalPlay()
             player.playImmediately(atRate: playbackSpeed)
+            // playImmediately can no-op when another app owns the session and
+            // timeControlStatus stays `.paused` without a new KVO event.
+            scheduleExternalPauseWidgetSync()
         }
+    }
+
+    /// If playback is still stopped shortly after a pause signal, record it and
+    /// push the widget. Brief `.paused` during seek / startup is ignored.
+    private func scheduleExternalPauseWidgetSync() {
+        guard isPlaying, !isSeekInProgress, !isFullScreenAdAudioHold, !isBuffering else { return }
+        PhoneWidgetSnapshotBridge.leaseBackgroundTimeForWidgetReload()
+        let generation = intentionalPlayGeneration
+        externalPauseSyncTask?.cancel()
+        externalPauseSyncTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 600_000_000)
+            guard !Task.isCancelled else { return }
+            guard generation == intentionalPlayGeneration else { return }
+            guard isPlaying, !isSeekInProgress, !isFullScreenAdAudioHold, !isBuffering else { return }
+            guard player?.timeControlStatus == .paused else { return }
+            pause()
+        }
+    }
+
+    private func noteIntentionalPlay() {
+        intentionalPlayGeneration += 1
+        externalPauseSyncTask?.cancel()
     }
 
     private func activatePlaybackAudioSession(allowMixWithOthers: Bool = false) {
