@@ -391,7 +391,11 @@ struct ImportedDisplayEntry: Identifiable, Equatable {
     let fileSizeText: String
 
     var subtitleLine: String {
-        "\(fileSizeText) · \(L(sourceKind.displayKey))"
+        // Offline YouTube caches: size only — no "YouTube" source label.
+        if sourceKind == .youtube {
+            return fileSizeText
+        }
+        return "\(fileSizeText) · \(L(sourceKind.displayKey))"
     }
 
     @MainActor

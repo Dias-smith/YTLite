@@ -260,7 +260,7 @@ final class PlaybackController: ObservableObject {
         installPlaybackSurfaceSync()
     }
 
-    /// Any play/pause flip or track/metadata change → refresh MPNowPlaying + widget together.
+    /// Any play/pause flip or track/metadata change → MPNowPlaying + Home widget + Watch.
     private func installPlaybackSurfaceSync() {
         Publishers.CombineLatest(
             $nowPlaying.map { item -> String in
@@ -274,6 +274,7 @@ final class PlaybackController: ObservableObject {
         .sink { [weak self] _, _ in
             guard let self else { return }
             self.updateNowPlayingInfo()
+            // Force widget reload + Watch push (with retry) on every transport/track flip.
             self.publishPhoneWidgetSnapshot(force: true)
         }
         .store(in: &playbackSurfaceSyncCancellables)
@@ -2653,6 +2654,7 @@ final class PlaybackController: ObservableObject {
     }
 
     /// Push Now Playing into the Home Screen / Lock Screen widget App Group.
+    /// When `force` is true, also actively sync the same state to the Watch companion.
     func publishPhoneWidgetSnapshot(force: Bool = false) {
         // Include artwork presence + source URL so resolve/metadata swaps refresh the widget.
         let artworkToken = artworkImage == nil ? "0" : "1"
@@ -2669,6 +2671,9 @@ final class PlaybackController: ObservableObject {
             isPlaying: isPlaying,
             reloadImmediately: force
         )
+        if force {
+            WatchPlaybackHost.shared.syncFromPhone(force: true, retry: true)
+        }
     }
 
     /// Keep AVAudioSession + AVPlayer alive when the app backgrounds (App Review checks this).

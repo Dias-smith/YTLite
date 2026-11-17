@@ -28,6 +28,15 @@ final class WatchPlaybackHost {
         pushAll(force: true)
     }
 
+    /// Phone-driven push after play / pause / skip / metadata changes.
+    /// Always attempts delivery; retries briefly so a short reachability window still lands.
+    func syncFromPhone(force: Bool = true, retry: Bool = true) {
+        pushAll(force: force)
+        if force, retry {
+            schedulePushRetry()
+        }
+    }
+
     private func bindBridgeIfNeeded() {
         guard !didBindBridge else { return }
         didBindBridge = true
@@ -92,7 +101,7 @@ final class WatchPlaybackHost {
         }
         .store(in: &playbackCancellables)
 
-        // Track / title changes must not wait on the debounce coalescer.
+        // Track / title / play-pause / queue index — push immediately (no debounce).
         playback.$nowPlaying
             .map { item -> String in
                 guard let item else { return "|" }
@@ -101,14 +110,24 @@ final class WatchPlaybackHost {
             .removeDuplicates()
             .dropFirst()
             .sink { [weak self] _ in
-                self?.pushAll(force: true)
+                self?.syncFromPhone(force: true, retry: true)
             }
             .store(in: &playbackCancellables)
 
         playback.$isPlaying
             .removeDuplicates()
+            .dropFirst()
             .sink { [weak self] playing in
                 self?.configurePositionTimer(playing: playing)
+                self?.syncFromPhone(force: true, retry: true)
+            }
+            .store(in: &playbackCancellables)
+
+        playback.$queueIndex
+            .removeDuplicates()
+            .dropFirst()
+            .sink { [weak self] _ in
+                self?.syncFromPhone(force: true, retry: true)
             }
             .store(in: &playbackCancellables)
     }
