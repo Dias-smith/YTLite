@@ -1,4 +1,3 @@
-import AuthenticationServices
 import SwiftUI
 
 /// Equal-prominence Google + Sign in with Apple (App Store Guideline 4.8).
@@ -11,31 +10,32 @@ struct SignInOptionsView: View {
     var onSignedIn: (() async -> Void)?
 
     @Environment(\.colorScheme) private var colorScheme
-    @State private var appleNonce: String?
 
     var body: some View {
         VStack(spacing: 12) {
             if showsAppleSignIn {
-                SignInWithAppleButton(.signIn) { request in
-                    let nonce = AuthNonce.random()
-                    appleNonce = nonce
-                    request.requestedScopes = [.fullName, .email]
-                    request.nonce = AuthNonce.sha256(nonce)
-                } onCompletion: { result in
+                Button {
                     Task {
-                        await auth.completeAppleSignIn(
-                            result: result,
-                            rawNonce: appleNonce,
-                            source: analyticsSource
-                        )
+                        await auth.signInWithApple(source: analyticsSource)
                         if auth.isAuthenticated {
                             await onSignedIn?()
                         }
                     }
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "apple.logo")
+                        Text(L("auth.sign_in_with_apple"))
+                    }
+                    .font(YTLiteType.labelEmphasized)
+                    .foregroundStyle(colorScheme == .dark ? Color.black : Color.white)
+                    .frame(maxWidth: 280)
+                    .frame(height: 44)
+                    .background(
+                        colorScheme == .dark ? Color.white : Color.black,
+                        in: Capsule()
+                    )
                 }
-                .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
-                .frame(maxWidth: 280)
-                .frame(height: 44)
+                .buttonStyle(.plain)
                 .disabled(auth.isBusy || !auth.isConfigured)
             }
 

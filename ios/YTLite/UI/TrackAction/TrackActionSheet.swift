@@ -31,7 +31,7 @@ struct TrackActionSheet: View {
                 VStack(spacing: 0) {
                     actionRow(
                         systemImage: isLiked ? "hand.thumbsup.fill" : "hand.thumbsup",
-                        title: isLiked ? "Unlike" : L("player.like")
+                        title: isLiked ? L("player.unlike") : L("player.like")
                     ) { toggleLike() }
 
                     actionRow(systemImage: "text.insert", title: L("action.play_next")) {
@@ -65,7 +65,7 @@ struct TrackActionSheet: View {
 
                     actionRow(
                         systemImage: isNotInterested ? "eye" : "eye.slash",
-                        title: isNotInterested ? "Undo not interested" : "Not interested"
+                        title: isNotInterested ? L("action.undo_not_interested") : L("action.not_interested")
                     ) { toggleNotInterested() }
 
                     if context.canRemoveFromQueue

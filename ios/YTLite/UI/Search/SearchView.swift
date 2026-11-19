@@ -392,7 +392,7 @@ struct SearchView: View {
             HStack(spacing: 10) {
                 Image(systemName: "magnifyingglass")
                     .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                TextField("Search videos, channels...", text: $viewModel.query)
+                TextField(L("search.placeholder"), text: $viewModel.query)
                     .foregroundStyle(YTLiteColor.onSurface)
                     .focused($searchFocused)
                     .submitLabel(.search)
