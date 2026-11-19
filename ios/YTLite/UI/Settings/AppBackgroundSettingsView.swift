@@ -3,12 +3,21 @@ import SwiftUI
 
 struct AppBackgroundSettingsView: View {
     @ObservedObject private var store = AppBackgroundStore.shared
+    @ObservedObject private var vip = VipStore.shared
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var photoItem: PhotosPickerItem?
+    @State private var showPhotoPicker = false
+    @State private var showVip = false
     @State private var draftColor: Color = YTLiteColor.background
+
+    private var visibleKind: AppBackgroundKind {
+        if store.preference.kind == .image, !vip.isVipActive { return .theme }
+        return store.preference.kind
+    }
 
     var body: some View {
         let _ = store.revision
+        let _ = vip.revision
         Form {
             Section {
                 previewCard
@@ -23,7 +32,7 @@ struct AppBackgroundSettingsView: View {
                 } label: {
                     sourceRow(
                         title: L("background.use_theme"),
-                        selected: store.preference.kind == .theme
+                        selected: visibleKind == .theme
                     )
                 }
                 .buttonStyle(.plain)
@@ -34,26 +43,29 @@ struct AppBackgroundSettingsView: View {
                 ) {
                     sourceRow(
                         title: L("background.solid_color"),
-                        selected: store.preference.kind == .color
+                        selected: visibleKind == .color
                     )
                 }
                 .onChange(of: draftColor) { _, color in
                     store.useSolidColor(color)
                 }
 
-                PhotosPicker(selection: $photoItem, matching: .images) {
+                Button {
+                    if vip.isVipActive {
+                        showPhotoPicker = true
+                    } else {
+                        showVip = true
+                    }
+                } label: {
                     sourceRow(
                         title: store.image == nil
                             ? L("background.choose_photo")
                             : L("background.change_photo"),
-                        selected: store.preference.kind == .image
+                        selected: visibleKind == .image,
+                        locked: !vip.isVipActive
                     )
                 }
                 .buttonStyle(.plain)
-                .onChange(of: photoItem) { _, item in
-                    guard let item else { return }
-                    Task { await applyPhoto(item) }
-                }
 
                 if store.preference.kind == .image || store.image != nil {
                     Button(role: .destructive) {
@@ -67,7 +79,7 @@ struct AppBackgroundSettingsView: View {
                 Text(L("background.section_source"))
             }
 
-            if store.preference.kind == .image {
+            if visibleKind == .image {
                 Section {
                     Picker(selection: imageModeBinding) {
                         ForEach(AppBackgroundImageMode.allCases) { mode in
@@ -107,6 +119,15 @@ struct AppBackgroundSettingsView: View {
                 draftColor = YTLiteColor.background
             }
         }
+        .photosPicker(isPresented: $showPhotoPicker, selection: $photoItem, matching: .images)
+        .onChange(of: photoItem) { _, item in
+            guard let item else { return }
+            photoItem = nil
+            Task { await applyPhoto(item) }
+        }
+        .fullScreenCover(isPresented: $showVip) {
+            VipView()
+        }
     }
 
     private var imageModeBinding: Binding<AppBackgroundImageMode> {
@@ -128,11 +149,16 @@ struct AppBackgroundSettingsView: View {
             .listRowBackground(Color.clear)
     }
 
-    private func sourceRow(title: String, selected: Bool) -> some View {
+    private func sourceRow(title: String, selected: Bool, locked: Bool = false) -> some View {
         HStack(spacing: 12) {
             Text(title)
                 .foregroundStyle(YTLiteColor.onSurface)
             Spacer(minLength: 0)
+            if locked {
+                Image(systemName: "lock.fill")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(YTLiteColor.onSurfaceVariant)
+            }
             if selected {
                 Image(systemName: "checkmark")
                     .font(.system(size: 14, weight: .semibold))

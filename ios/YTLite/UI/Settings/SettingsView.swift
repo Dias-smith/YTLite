@@ -447,6 +447,7 @@ struct VipView: View {
             benefitRow(icon: "nosign", text: L("vip.benefit_ad_free"))
             benefitRow(icon: "play.circle", text: L("vip.benefit_playback"))
             benefitRow(icon: "paintpalette", text: L("vip.benefit_themes"))
+            benefitRow(icon: "photo", text: L("vip.benefit_photo_background"))
         }
         .frame(maxWidth: 320, alignment: .leading)
         .frame(maxWidth: .infinity)

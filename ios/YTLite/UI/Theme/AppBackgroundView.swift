@@ -3,12 +3,19 @@ import SwiftUI
 /// Shared screen backdrop for Home / Search / Account / Library.
 struct AppBackgroundCanvas: View {
     @ObservedObject private var store = AppBackgroundStore.shared
+    @ObservedObject private var vip = VipStore.shared
+
+    private var visibleKind: AppBackgroundKind {
+        if store.preference.kind == .image, !vip.isVipActive { return .theme }
+        return store.preference.kind
+    }
 
     var body: some View {
         let _ = store.revision
+        let _ = vip.revision
         ZStack {
             YTLiteColor.background
-            switch store.preference.kind {
+            switch visibleKind {
             case .theme:
                 EmptyView()
             case .color:

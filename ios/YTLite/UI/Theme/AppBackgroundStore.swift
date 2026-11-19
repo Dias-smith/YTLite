@@ -93,6 +93,7 @@ final class AppBackgroundStore: ObservableObject {
     }
 
     func setImage(_ uiImage: UIImage) {
+        guard VipStore.shared.isVipActive else { return }
         guard let data = uiImage.jpegData(compressionQuality: 0.92) else { return }
         do {
             let url = try Self.imageURL(createDirectory: true)
