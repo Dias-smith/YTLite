@@ -44,6 +44,14 @@ enum PlaybackStorePolicy {
         return RemoteConfigStore.allowKickoff
     }
 
+    /// Wipe cached media only after a remote `allow_kickoff` value is active and resolves off.
+    static var shouldClearMediaCache: Bool {
+        #if DEBUG
+        if DebugPlaybackCacheStore.forceEnableMediaCache { return false }
+        #endif
+        return RemoteConfigStore.hasRemoteAllowKickoff && !RemoteConfigStore.allowKickoff
+    }
+
     /// ***
     static var allowsDirectKickoffPlayback: Bool {
         isMediaCachePolicyEnabled && !NetworkVpnStatus.isActive

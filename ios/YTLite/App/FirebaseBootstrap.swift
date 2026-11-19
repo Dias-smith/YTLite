@@ -342,11 +342,19 @@ enum RemoteConfigStore {
         }
     }
 
+    /// True only when an activated remote `allow_kickoff` value is present.
+    /// A missing or default value is not a decision to wipe the media cache.
+    static var hasRemoteAllowKickoff: Bool {
+        guard isFirebaseAvailable else { return false }
+        return RemoteConfig.remoteConfig()
+            .configValue(forKey: allowKickoffKey)
+            .source == .remote
+    }
+
     /// ***
     static var allowKickoff: Bool {
-        guard isFirebaseAvailable else { return false }
+        guard hasRemoteAllowKickoff else { return false }
         let value = RemoteConfig.remoteConfig().configValue(forKey: allowKickoffKey)
-        guard value.source == .remote else { return false }
         return resolveAllowKickoff(from: value.stringValue)
     }
 

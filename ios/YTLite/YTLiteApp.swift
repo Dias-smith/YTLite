@@ -63,8 +63,8 @@ struct YTLiteApp: App {
 
                     ResolverRemoteConfigStore.restoreFromDisk()
                     await RemoteConfigStore.fetchAndActivate()
-                    // ***
-                    if !PlaybackStorePolicy.isMediaCachePolicyEnabled {
+                    // Clear only after remote allow_kickoff is known and off.
+                    if PlaybackStorePolicy.shouldClearMediaCache {
                         await PlaybackMediaStore.shared.clearAll()
                     }
                     await VipStore.shared.refresh()
