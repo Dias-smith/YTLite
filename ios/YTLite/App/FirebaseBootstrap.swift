@@ -299,8 +299,8 @@ enum RemoteConfigStore {
     private static let allowKickoffDefaultJSON =
         "{\"enable\":false,\"version\":\"0.0.0\"}"
 
-    /// Local fallback when Remote Config is unavailable or misconfigured.
-    private static let adsIntervalDefaultSeconds: TimeInterval = AdMobConfig.interstitialCooldown
+    /// Local fallback when Remote Config is unavailable or misconfigured. Console unit is minutes.
+    private static let adsIntervalDefaultMinutes: Double = AdMobConfig.interstitialCooldownMinutes
 
     /// Local fallback: percent of duration before local media caching may start.
     private static let kickoffIntervalDefaultPercent: Double = 100
@@ -322,7 +322,7 @@ enum RemoteConfigStore {
         remoteConfig.configSettings = settings
         remoteConfig.setDefaults([
             allowKickoffKey: allowKickoffDefaultJSON as NSString,
-            adsIntervalKey: NSNumber(value: adsIntervalDefaultSeconds),
+            adsIntervalKey: NSNumber(value: adsIntervalDefaultMinutes),
             kickoffIntervalKey: NSNumber(value: kickoffIntervalDefaultPercent),
         ])
     }
@@ -333,7 +333,10 @@ enum RemoteConfigStore {
         guard isFirebaseAvailable else { return false }
         do {
             let status = try await RemoteConfig.remoteConfig().fetchAndActivate()
-            AdProbe.log("remote_config.ads_interval", "\(Int(adsInterval))s")
+            AdProbe.log(
+                "remote_config.ads_interval",
+                "\(Int(adsIntervalMinutes))min (\(Int(adsInterval))s)"
+            )
             AdProbe.log("remote_config.kickoff_interval", "\(Int(kickoffIntervalPercent))%")
             AdProbe.log("remote_config.media_policy", "\(allowKickoff)")
             return status != .error
@@ -358,16 +361,21 @@ enum RemoteConfigStore {
         return resolveAllowKickoff(from: value.stringValue)
     }
 
-    /// Minimum seconds between two ordinary full-screen ads (app open / interstitial).
-    static var adsInterval: TimeInterval {
-        guard isFirebaseAvailable else { return adsIntervalDefaultSeconds }
+    /// `ads_interval` from Remote Config, in minutes. Zero means no cooldown.
+    static var adsIntervalMinutes: Double {
+        guard isFirebaseAvailable else { return adsIntervalDefaultMinutes }
         let raw = RemoteConfig.remoteConfig()
             .configValue(forKey: adsIntervalKey)
             .numberValue
             .doubleValue
         // Negative / NaN → default. Zero means no cooldown.
-        guard raw.isFinite, raw >= 0 else { return adsIntervalDefaultSeconds }
+        guard raw.isFinite, raw >= 0 else { return adsIntervalDefaultMinutes }
         return raw
+    }
+
+    /// Minimum seconds between two ordinary full-screen ads (app open / interstitial).
+    static var adsInterval: TimeInterval {
+        adsIntervalMinutes * 60
     }
 
     /// Percent of track duration (0…100) before local media caching may start.

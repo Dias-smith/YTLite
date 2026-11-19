@@ -3,8 +3,22 @@ import Foundation
 /// Serializes all full-screen ad formats and owns their shared cooldown.
 @MainActor
 enum AdFullScreenCoordinator {
+    private static let finishedAtKey = "ads_ordinary_finished_at"
     private static var activeReason: String?
-    private static var lastOrdinaryAdFinishedAt: Date?
+    private static var lastOrdinaryAdFinishedAt: Date? {
+        get {
+            let stored = UserDefaults.standard.double(forKey: finishedAtKey)
+            guard stored > 0 else { return nil }
+            return Date(timeIntervalSince1970: stored)
+        }
+        set {
+            if let newValue {
+                UserDefaults.standard.set(newValue.timeIntervalSince1970, forKey: finishedAtKey)
+            } else {
+                UserDefaults.standard.removeObject(forKey: finishedAtKey)
+            }
+        }
+    }
 
     static var isPresenting: Bool { activeReason != nil }
 

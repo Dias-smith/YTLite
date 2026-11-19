@@ -11,8 +11,8 @@ nonisolated enum AdMobConfig {
     static let rewardedInterstitialAdUnitID = infoValue("YTLiteAdMobRewardedInterstitialAdUnitID")
 
     static let appOpenAdTimeout: TimeInterval = 4 * 60 * 60
-    /// Default for Remote Config `ads_interval` (seconds between ordinary full-screen ads).
-    static let interstitialCooldown: TimeInterval = 120
+    /// Default for Remote Config `ads_interval` (minutes between ordinary full-screen ads).
+    static let interstitialCooldownMinutes: Double = 30
     static let playStartInterstitialDelay: TimeInterval = 2
     static let playStartInterstitialSessionLimit = 2
     static let hotStartMinBackground: TimeInterval = 30
