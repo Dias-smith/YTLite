@@ -76,6 +76,7 @@ struct YTLiteApp: App {
                         _ = try? await StreamResolver.shared.ensureReady()
                     }
                     await AdBootstrap.startIfNeeded()
+                    ColdStartVipOffer.shared.noteLaunchFlowReady()
                 }
                 .adSceneLifecycle()
                 .onOpenURL { url in

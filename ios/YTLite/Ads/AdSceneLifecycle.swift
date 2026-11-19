@@ -67,6 +67,12 @@ enum AdSceneLifecycle {
     /// Ads must not present while backgrounded — it interrupts AVAudioSession and breaks review checks.
     static var isAppActiveForAds: Bool { isAppActive }
 
+    /// Player, consent, or another sheet is up. Launch sheets are tracked separately.
+    static var hasBlockingForegroundUI: Bool {
+        if ReviewPromptCoordinator.shared.showSheet { return true }
+        return !uiBlockers.isEmpty
+    }
+
     /// Ordinary ads wait until sheets / full-screen UX have closed.
     static func isAdUIBlocked(for reason: String? = nil) -> Bool {
         if ReviewPromptCoordinator.shared.showSheet { return true }
@@ -90,6 +96,9 @@ enum AdSceneLifecycle {
 
     static func handleScenePhase(_ phase: ScenePhase) {
         isAppActive = phase == .active
+        if phase == .background {
+            ColdStartVipOffer.shared.noteColdLaunchEnded()
+        }
         guard AdMobConfig.adsEnabled else { return }
         switch phase {
         case .active:
@@ -143,6 +152,7 @@ enum AdSceneLifecycle {
 
     /// Consent, inventory, UI, or another full-screen ad became ready.
     static func adEnvironmentDidBecomeReady(source: String) {
+        ColdStartVipOffer.shared.consider()
         attemptPendingPresentation(source: source)
     }
 
@@ -171,6 +181,10 @@ enum AdSceneLifecycle {
         }
         guard !isAdUIBlocked(for: nil) else {
             AdProbe.log("lifecycle.pending.blocked", source)
+            return
+        }
+        if case .cold = p, ColdStartVipOffer.shared.holdsColdAd {
+            AdProbe.log("lifecycle.pending.hold", "cold_vip source=\(source)")
             return
         }
         let didPresent: Bool
@@ -294,6 +308,102 @@ extension View {
     /// Backward-compatible alias — prefer `playerDetailPresentation` at the app chrome host.
     func playerDetailSheet(isPresented: Binding<Bool>) -> some View {
         playerDetailPresentation(isPresented: isPresented)
+    }
+}
+
+/// Cold start: library has more than 5 saved songs → VIP paywall, then the cold ad.
+@MainActor
+final class ColdStartVipOffer: ObservableObject {
+    static let shared = ColdStartVipOffer()
+    /// Show when the saved library is strictly larger than this.
+    static let songThreshold = 5
+
+    @Published var isPresented = false {
+        didSet {
+            LaunchSheetGate.vip = isPresented
+            if oldValue, !isPresented {
+                AdSceneLifecycle.adEnvironmentDidBecomeReady(source: "cold_vip_dismissed")
+            }
+        }
+    }
+
+    private var coldLaunchOpen = true
+    private var didDecide = false
+
+    /// Cold app-open stays queued until this launch decides to show or skip the paywall.
+    var holdsColdAd: Bool {
+        isPresented || (coldLaunchOpen && !didDecide)
+    }
+    private var isConsidering = false
+    private var libraryReady = false
+    private var sessionResolved = false
+    private var awaitingInitialSync = true
+    private var initialSyncFinished = false
+    private var launchFlowReady = false
+    private var songCount = 0
+
+    private init() {}
+
+    func updateLibrary(count: Int, sessionResolved: Bool, isAuthenticated: Bool) {
+        songCount = count
+        libraryReady = true
+        self.sessionResolved = sessionResolved
+        if sessionResolved {
+            awaitingInitialSync = isAuthenticated && !initialSyncFinished
+        } else {
+            awaitingInitialSync = true
+        }
+        consider()
+    }
+
+    func noteInitialSyncFinished(count: Int) {
+        songCount = count
+        libraryReady = true
+        sessionResolved = true
+        initialSyncFinished = true
+        awaitingInitialSync = false
+        consider()
+    }
+
+    /// ATT / UMP for this launch have finished, so the paywall is not stacked on them.
+    func noteLaunchFlowReady() {
+        launchFlowReady = true
+        consider()
+    }
+
+    /// Background ends the cold-start window. A paywall already on screen stays up.
+    func noteColdLaunchEnded() {
+        coldLaunchOpen = false
+        guard !isPresented else { return }
+        finishWithoutPaywall()
+    }
+
+    func consider() {
+        guard !isConsidering else { return }
+        isConsidering = true
+        defer { isConsidering = false }
+        guard coldLaunchOpen, !didDecide else { return }
+        guard libraryReady, sessionResolved, !awaitingInitialSync else { return }
+        guard launchFlowReady, VipStore.shared.hasResolvedEntitlement else { return }
+        guard !LaunchSheetGate.locale, !LaunchSheetGate.featureIntro else { return }
+        guard !AdSceneLifecycle.hasBlockingForegroundUI else { return }
+        if VipStore.shared.isVipActive || songCount <= Self.songThreshold {
+            finishWithoutPaywall()
+            return
+        }
+        didDecide = true
+        isPresented = true
+        AdProbe.log("cold_vip.present", "songs=\(songCount)")
+    }
+
+    private func finishWithoutPaywall() {
+        guard !didDecide else { return }
+        didDecide = true
+        AdProbe.log(
+            "cold_vip.skip",
+            "songs=\(songCount) vip=\(VipStore.shared.isVipActive)"
+        )
+        AdSceneLifecycle.adEnvironmentDidBecomeReady(source: "cold_vip_skipped")
     }
 }
 

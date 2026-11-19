@@ -516,6 +516,18 @@ final class LibraryStore {
         ))) ?? 0
     }
 
+    /// Distinct tracks saved in this account's library playlists (liked, custom, imported, watch later).
+    func savedLibrarySongCount() -> Int {
+        var ids = Set<String>()
+        for playlist in fetchPlaylists(ownerKey: ownerKey) {
+            for entry in playlist.entries {
+                guard let id = entry.track?.trackId, !id.isEmpty else { continue }
+                ids.insert(id)
+            }
+        }
+        return ids.count
+    }
+
     private func tracks(ids: [String]) -> [LibraryTrack] {
         guard !ids.isEmpty else { return [] }
         let wanted = ids

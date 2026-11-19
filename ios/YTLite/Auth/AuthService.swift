@@ -11,6 +11,8 @@ enum AuthProviderKind: String {
 final class AuthService: ObservableObject {
     @Published private(set) var session: Session?
     @Published private(set) var isBusy = false
+    /// First launch session restore has finished (signed in or guest).
+    @Published private(set) var hasResolvedSession = false
     @Published var lastError: String?
 
     private var client: SupabaseClient?
@@ -205,7 +207,10 @@ final class AuthService: ObservableObject {
     init(config: AppConfig) {
         guard config.isConfigured,
               let url = URL(string: config.supabaseURL)
-        else { return }
+        else {
+            hasResolvedSession = true
+            return
+        }
         client = SupabaseClient(supabaseURL: url, supabaseKey: config.supabaseAnonKey)
         Task { await refreshSession() }
     }
@@ -215,12 +220,16 @@ final class AuthService: ObservableObject {
     }
 
     func refreshSession() async {
-        guard let client else { return }
+        guard let client else {
+            hasResolvedSession = true
+            return
+        }
         do {
             session = try await client.auth.session
         } catch {
             session = nil
         }
+        hasResolvedSession = true
     }
 
     func signInWithGoogle(source: String = "unknown") async {

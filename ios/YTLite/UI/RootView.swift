@@ -9,6 +9,7 @@ struct RootView: View {
     @EnvironmentObject private var review: ReviewPromptCoordinator
     @Environment(\.modelContext) private var modelContext
     @StateObject private var playerPresentation = PlayerPresentation()
+    @ObservedObject private var coldStartVip = ColdStartVipOffer.shared
     @State private var selectedTab: AppTab = .restored
     @State private var libraryStore: LibraryStore?
     @State private var syncService: LibrarySyncService?
@@ -99,6 +100,11 @@ struct RootView: View {
                     libraryStore = store
                     playback.libraryStore = store
                     AdEligibility.bind(libraryStore: store)
+                    ColdStartVipOffer.shared.updateLibrary(
+                        count: store.savedLibrarySongCount(),
+                        sessionResolved: auth.hasResolvedSession,
+                        isAuthenticated: auth.isAuthenticated
+                    )
                     // Notify Library / other tabs that waited on a nil store during first appear.
                     appModel.bumpLibraryRevision()
                     Task { await DailyListenNotificationScheduler.refresh(using: store) }
@@ -142,6 +148,9 @@ struct RootView: View {
                                 SyncProbe.logTrace("sync.end", "source=root_appear total_ms=\(ms)")
                                 AppAnalytics.librarySyncEnd(ok: true, ms: ms)
                                 appModel.endLibrarySync()
+                                ColdStartVipOffer.shared.noteInitialSyncFinished(
+                                    count: store.savedLibrarySongCount()
+                                )
                             }
                             await sync.syncBidirectional(store: store)
                             // Cloud may still hold real titles for rows we couldn't fix locally.
@@ -156,6 +165,14 @@ struct RootView: View {
                         }
                     }
                 }
+            }
+            .onChange(of: auth.hasResolvedSession) { _, resolved in
+                guard resolved, let libraryStore else { return }
+                ColdStartVipOffer.shared.updateLibrary(
+                    count: libraryStore.savedLibrarySongCount(),
+                    sessionResolved: true,
+                    isAuthenticated: auth.isAuthenticated
+                )
             }
             .onChange(of: auth.session?.user.id) { previous, next in
                 appModel.syncAuth(auth)
@@ -184,6 +201,9 @@ struct RootView: View {
                         SyncProbe.logTrace("sync.end", "source=\(source) total_ms=\(ms)")
                         AppAnalytics.librarySyncEnd(ok: true, ms: ms)
                         appModel.endLibrarySync()
+                        ColdStartVipOffer.shared.noteInitialSyncFinished(
+                            count: libraryStore.savedLibrarySongCount()
+                        )
                     }
 
                     guard let next else {
@@ -240,6 +260,15 @@ struct RootView: View {
             .sheet(isPresented: $appModel.showFeatureIntroSheet) {
                 FeatureIntroSheet()
                     .environmentObject(appModel)
+            }
+            .onChange(of: appModel.showLocaleSetupSheet) { _, showing in
+                if !showing { ColdStartVipOffer.shared.consider() }
+            }
+            .onChange(of: appModel.showFeatureIntroSheet) { _, showing in
+                if !showing { ColdStartVipOffer.shared.consider() }
+            }
+            .fullScreenCover(isPresented: $coldStartVip.isPresented) {
+                VipView()
             }
         }
         // Must wrap TrackActionHost so AppChrome itself (not only its children) receives it.

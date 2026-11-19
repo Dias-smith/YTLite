@@ -195,7 +195,9 @@ final class AppModel: ObservableObject {
 enum LaunchSheetGate {
     static var locale = false
     static var featureIntro = false
-    static var isBlocking: Bool { locale || featureIntro }
+    /// Cold-start VIP paywall is on screen.
+    static var vip = false
+    static var isBlocking: Bool { locale || featureIntro || vip }
 }
 
 struct AppConfig: Sendable {

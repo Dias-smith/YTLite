@@ -21,6 +21,8 @@ final class VipStore: ObservableObject {
     @Published private(set) var isPurchasing = false
     @Published var lastErrorMessage: String?
     @Published private(set) var revision = 0
+    /// First entitlement read of this process has finished.
+    @Published private(set) var hasResolvedEntitlement = false
     /// Per-product intro eligibility (App Store introductory offers).
     @Published private(set) var introEligibleByProductID: [String: Bool] = [:]
 
@@ -216,7 +218,9 @@ final class VipStore: ObservableObject {
         } else {
             VipProbe.log("entitlement.refresh.ok", "unchanged active=\(isVipActive)")
         }
+        hasResolvedEntitlement = true
         AdEligibility.refreshInventoryIfEligible()
+        ColdStartVipOffer.shared.consider()
     }
 
     private func applyEntitlementState() {
