@@ -23,7 +23,8 @@ object RemoteConfigRepository {
     private const val ALLOW_KICKOFF_DEFAULT_JSON =
         """{"enable":false,"version":"0.0.0"}"""
 
-    private const val ADS_INTERVAL_DEFAULT_SECONDS = 120L
+    /** Console unit for `ads_interval` is minutes. */
+    private const val ADS_INTERVAL_DEFAULT_MINUTES = 30L
 
     /** Local fallback: percent of duration before local media caching may start. */
     private const val KICKOFF_INTERVAL_DEFAULT_PERCENT = 100L
@@ -77,7 +78,7 @@ object RemoteConfigRepository {
 
     private fun defaultValues(): Map<String, Any> = mapOf(
         Keys.ALLOW_KICKOFF to ALLOW_KICKOFF_DEFAULT_JSON,
-        Keys.ADS_INTERVAL to ADS_INTERVAL_DEFAULT_SECONDS,
+        Keys.ADS_INTERVAL to ADS_INTERVAL_DEFAULT_MINUTES,
         Keys.KICKOFF_INTERVAL to KICKOFF_INTERVAL_DEFAULT_PERCENT,
     )
 
@@ -88,7 +89,7 @@ object RemoteConfigRepository {
          */
         const val ALLOW_KICKOFF = "allow_kickoff"
 
-        /** Seconds between two ordinary full-screen ads (app open / interstitial). */
+        /** Minutes between two ordinary full-screen ads (app open / interstitial). */
         const val ADS_INTERVAL = "ads_interval"
 
         /** Percent of track duration (0…100) before local media caching may start. */
@@ -111,11 +112,12 @@ object RemoteConfigRepository {
 
     /**
      * Minimum seconds between two ordinary full-screen ads.
-     * Negative / missing → default 120. Zero means no cooldown.
+     * Remote `ads_interval` is minutes. Negative → default 30 minutes. Zero means no cooldown.
      */
     fun adsIntervalSeconds(): Long {
         val raw = getLong(Keys.ADS_INTERVAL)
-        return if (raw < 0L) ADS_INTERVAL_DEFAULT_SECONDS else raw
+        val minutes = if (raw < 0L) ADS_INTERVAL_DEFAULT_MINUTES else raw
+        return minutes * 60L
     }
 
     /**
