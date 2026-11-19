@@ -143,8 +143,12 @@ final class PlaybackController: ObservableObject {
     private var resumeAfterSecondaryAudioSilence = false
     /// Confirms a system pause (other app took audio) before flipping the widget.
     private var externalPauseSyncTask: Task<Void, Never>?
+    /// One resume attempt per pause streak, so an app switch does not loop setActive.
+    private var didAttemptBackgroundResume = false
     /// Rechecks after backgrounding, once the other app has had time to start.
     private var otherAppYieldTask: Task<Void, Never>?
+    /// Defers releasing the session until an interruption is clearly sustained.
+    private var interruptionYieldTask: Task<Void, Never>?
     /// First moment `isOtherAudioPlaying` stayed true while we were backgrounded.
     private var otherAudioPlayingSince: Date?
     /// Ignore other-app audio briefly after the user explicitly starts playback.
@@ -1778,6 +1782,7 @@ final class PlaybackController: ObservableObject {
                 switch player.timeControlStatus {
                 case .playing:
                     self.externalPauseSyncTask?.cancel()
+                    self.didAttemptBackgroundResume = false
                     guard player.currentItem?.status == .readyToPlay else { return }
                     // First audible frames — hide the resolve/open spinner.
                     self.isBuffering = false
@@ -2329,8 +2334,18 @@ final class PlaybackController: ObservableObject {
             if isFullScreenAdAudioHold {
                 endFullScreenAdPlaybackHold()
             }
-            yieldToOtherApp()
+            // A game can interrupt just by opening. Don't release the session
+            // until its audio has actually stayed in front of ours.
+            interruptionYieldTask?.cancel()
+            interruptionYieldTask = Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 1_500_000_000)
+                guard !Task.isCancelled else { return }
+                guard resumeAfterInterruption || isPlaying else { return }
+                guard AVAudioSession.sharedInstance().secondaryAudioShouldBeSilencedHint else { return }
+                yieldToOtherApp()
+            }
         case .ended:
+            interruptionYieldTask?.cancel()
             if isFullScreenAdAudioHold, AdFullScreenCoordinator.isPresenting {
                 if resumeAfterInterruption || isPlaying {
                     isPlaying = true
@@ -2340,12 +2355,11 @@ final class PlaybackController: ObservableObject {
                 resumeAfterInterruption = false
                 return
             }
-            let optionsValue = note.userInfo?[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0
-            let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
-            if options.contains(.shouldResume),
-               resumeAfterInterruption,
-               !AVAudioSession.sharedInstance().secondaryAudioShouldBeSilencedHint,
-               !AVAudioSession.sharedInstance().isOtherAudioPlaying
+            let session = AVAudioSession.sharedInstance()
+            // Games often interrupt on launch and never set `.shouldResume`.
+            // Resume when they are not still asking us to stay silent.
+            if resumeAfterInterruption,
+               !session.secondaryAudioShouldBeSilencedHint
             {
                 resumeAfterInterruption = false
                 if player != nil, !isPlaying {
@@ -2374,9 +2388,10 @@ final class PlaybackController: ObservableObject {
         switch type {
         case .begin:
             // Never yield to secondary silence during our muted ad hold.
+            // A launch sound can set this hint for a moment; the background
+            // watcher releases the session only if the hint stays.
             guard !isFullScreenAdAudioHold else { return }
             resumeAfterSecondaryAudioSilence = isPlaying
-            yieldToOtherApp()
         case .end:
             guard resumeAfterSecondaryAudioSilence else { return }
             resumeAfterSecondaryAudioSilence = false
@@ -2715,35 +2730,20 @@ final class PlaybackController: ObservableObject {
             }
             return
         }
-        // Another app already owns audio. Never `setActive` over that.
-        if shouldYieldToOtherAppImmediately() {
-            yieldToOtherApp()
-            return
-        }
         // Already paused, including a yield while resigning active. Re-activating
         // here takes the session back, so the video app never gets it.
         guard isPlaying else { return }
         player?.audiovisualBackgroundPlaybackPolicy = .continuesIfPossible
         // Already playing: do not call `setActive` again. That races the other
         // app and both stay audible, with no interruption delivered to us.
-        if player?.timeControlStatus != .playing {
-            if shouldYieldToOtherAppImmediately() {
-                yieldToOtherApp()
-                return
-            }
+        if player?.timeControlStatus != .playing,
+           !AVAudioSession.sharedInstance().secondaryAudioShouldBeSilencedHint
+        {
             activatePlaybackAudioSession(allowMixWithOthers: isFullScreenAdAudioHold)
             player?.playImmediately(atRate: playbackSpeed)
         }
         publishNowPlaying()
         scheduleOtherAppYieldWatch()
-    }
-
-    /// Silence hint, or another app already playing as we leave the foreground.
-    private func shouldYieldToOtherAppImmediately() -> Bool {
-        if isFullScreenAdAudioHold, AdFullScreenCoordinator.isPresenting { return false }
-        if let until = ignoreOtherAudioUntil, Date() < until { return false }
-        let session = AVAudioSession.sharedInstance()
-        return session.secondaryAudioShouldBeSilencedHint || session.isOtherAudioPlaying
     }
 
     /// Pause locally, push that paused state, then release the session.
@@ -2791,18 +2791,16 @@ final class PlaybackController: ObservableObject {
         }
         if isFullScreenAdAudioHold, AdFullScreenCoordinator.isPresenting { return }
         let session = AVAudioSession.sharedInstance()
-        if session.secondaryAudioShouldBeSilencedHint {
-            otherAudioPlayingSince = nil
-            yieldToOtherApp()
-            return
-        }
-        guard session.isOtherAudioPlaying else {
+        // `isOtherAudioPlaying` is also true for a game that only opens an audio
+        // session. Release only after the silence hint has stayed, which is the
+        // signal that the other app's audio should replace ours.
+        guard session.secondaryAudioShouldBeSilencedHint else {
             otherAudioPlayingSince = nil
             return
         }
         let started = otherAudioPlayingSince ?? Date()
         otherAudioPlayingSince = started
-        guard Date().timeIntervalSince(started) >= 0.8 else { return }
+        guard Date().timeIntervalSince(started) >= 1.5 else { return }
         otherAudioPlayingSince = nil
         yieldToOtherApp()
     }
@@ -2820,15 +2818,24 @@ final class PlaybackController: ObservableObject {
             guard generation == intentionalPlayGeneration else { return }
             guard isPlaying, !isSeekInProgress, !isFullScreenAdAudioHold, !isBuffering else { return }
             guard player?.timeControlStatus == .paused else { return }
-            // The system stopped AVPlayer without a session interruption. Release
-            // the session only after the paused state is synced.
-            yieldToOtherApp()
+            guard UIApplication.shared.applicationState != .active else { return }
+            if AVAudioSession.sharedInstance().secondaryAudioShouldBeSilencedHint {
+                yieldToOtherApp()
+                return
+            }
+            // Switching apps often pauses AVPlayer for a moment. Releasing the
+            // session here stops music that should keep playing in the background.
+            guard !didAttemptBackgroundResume else { return }
+            didAttemptBackgroundResume = true
+            syncPlayingState()
+            player?.playImmediately(atRate: playbackSpeed)
         }
     }
 
     private func noteIntentionalPlay() {
         intentionalPlayGeneration += 1
         externalPauseSyncTask?.cancel()
+        interruptionYieldTask?.cancel()
         otherAudioPlayingSince = nil
         // A background yield must not undo a play or skip the user just started.
         ignoreOtherAudioUntil = Date().addingTimeInterval(2)
