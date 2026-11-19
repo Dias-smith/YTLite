@@ -318,17 +318,11 @@ final class ColdStartVipOffer: ObservableObject {
     /// Show when the saved library is strictly larger than this.
     static let songThreshold = 5
 
-    @Published var isPresented = false {
-        didSet {
-            LaunchSheetGate.vip = isPresented
-            if oldValue, !isPresented {
-                AdSceneLifecycle.adEnvironmentDidBecomeReady(source: "cold_vip_dismissed")
-            }
-        }
-    }
+    @Published var isPresented = false
 
     private var coldLaunchOpen = true
     private var didDecide = false
+    private var didSchedulePostDismissAd = false
 
     /// Cold app-open stays queued until this launch decides to show or skip the paywall.
     var holdsColdAd: Bool {
@@ -392,8 +386,23 @@ final class ColdStartVipOffer: ObservableObject {
             return
         }
         didDecide = true
+        LaunchSheetGate.vip = true
         isPresented = true
         AdProbe.log("cold_vip.present", "songs=\(songCount)")
+    }
+
+    /// Cover dismiss has finished. Presenting sooner attaches the ad to the
+    /// disappearing cover, so the ad is torn down with it.
+    func paywallDidFinishDismissing() {
+        guard !didSchedulePostDismissAd else { return }
+        didSchedulePostDismissAd = true
+        Task { @MainActor in
+            try? await Task.sleep(
+                nanoseconds: UInt64(AdMobConfig.leavePlayerPresentationDelay * 1_000_000_000)
+            )
+            LaunchSheetGate.vip = false
+            AdSceneLifecycle.adEnvironmentDidBecomeReady(source: "cold_vip_dismissed")
+        }
     }
 
     private func finishWithoutPaywall() {

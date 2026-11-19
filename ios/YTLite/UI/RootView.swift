@@ -267,7 +267,9 @@ struct RootView: View {
             .onChange(of: appModel.showFeatureIntroSheet) { _, showing in
                 if !showing { ColdStartVipOffer.shared.consider() }
             }
-            .fullScreenCover(isPresented: $coldStartVip.isPresented) {
+            .fullScreenCover(isPresented: $coldStartVip.isPresented, onDismiss: {
+                ColdStartVipOffer.shared.paywallDidFinishDismissing()
+            }) {
                 VipView()
             }
         }

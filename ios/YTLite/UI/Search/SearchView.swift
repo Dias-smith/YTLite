@@ -388,26 +388,37 @@ struct SearchView: View {
     }
 
     private var searchBar: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "magnifyingglass")
-                .foregroundStyle(YTLiteColor.onSurfaceVariant)
-            TextField("Search videos, channels...", text: $viewModel.query)
-                .foregroundStyle(YTLiteColor.onSurface)
-                .focused($searchFocused)
-                .submitLabel(.search)
-                .onSubmit { viewModel.submit(memory: memory) }
-            if !viewModel.query.isEmpty {
-                Button {
-                    viewModel.clearQuery()
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
+        HStack(spacing: YTLiteLayout.stackLoose) {
+            HStack(spacing: 10) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                TextField("Search videos, channels...", text: $viewModel.query)
+                    .foregroundStyle(YTLiteColor.onSurface)
+                    .focused($searchFocused)
+                    .submitLabel(.search)
+                    .onSubmit { viewModel.submit(memory: memory) }
+                if !viewModel.query.isEmpty {
+                    Button {
+                        viewModel.clearQuery()
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                    }
                 }
             }
+            .padding(.horizontal, YTLiteLayout.screenPadding)
+            .padding(.vertical, YTLiteLayout.stackLoose)
+            .background(YTLiteColor.searchField, in: Capsule())
+
+            NavigationLink {
+                SettingsView()
+            } label: {
+                Image(systemName: "gearshape")
+                    .font(.system(size: 20))
+                    .foregroundStyle(YTLiteColor.onSurfaceVariant)
+            }
+            .accessibilityLabel(L("settings.title"))
         }
-        .padding(.horizontal, YTLiteLayout.screenPadding)
-        .padding(.vertical, YTLiteLayout.stackLoose)
-        .background(YTLiteColor.searchField, in: Capsule())
     }
 
     private var resultsPane: some View {
