@@ -59,6 +59,27 @@ private enum ImportHubSource: Identifiable {
         }
     }
 
+    /// Product mark shown in original colors. `nil` uses `systemImage`.
+    var brandAsset: String? {
+        switch self {
+        case .local: return "AppleFiles"
+        case .photos: return "ApplePhotos"
+        case .icloud: return "iCloudDrive"
+        case .gdrive: return "GoogleDrive"
+        default: return nil
+        }
+    }
+
+    var brandSize: CGSize {
+        switch self {
+        case .local: return CGSize(width: 40, height: 31)
+        case .photos: return CGSize(width: 36, height: 36)
+        case .icloud: return CGSize(width: 40, height: 26)
+        case .gdrive: return CGSize(width: 36, height: 32)
+        default: return CGSize(width: 36, height: 32)
+        }
+    }
+
     static let all: [ImportHubSource] = [
         // Baidu temporarily hidden — keep `.baidu` case / sheet for easy restore.
         .local, .photos, .wifi, .webdav, .icloud, .gdrive,
@@ -265,9 +286,16 @@ struct ImportHubView: View {
             HStack(spacing: 14) {
                 ZStack {
                     YTLiteColor.surfaceVariant
-                    Image(systemName: source.systemImage)
-                        .font(.system(size: 22, weight: .semibold))
-                        .foregroundStyle(YTLiteColor.accent)
+                    if let brandAsset = source.brandAsset {
+                        Image(brandAsset)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: source.brandSize.width, height: source.brandSize.height)
+                    } else {
+                        Image(systemName: source.systemImage)
+                            .font(.system(size: 22, weight: .semibold))
+                            .foregroundStyle(YTLiteColor.accent)
+                    }
                 }
                 .frame(width: 64, height: 64)
                 .clipShape(RoundedRectangle(cornerRadius: YTLiteLayout.thumbRadius))
