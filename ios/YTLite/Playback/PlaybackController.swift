@@ -143,6 +143,8 @@ final class PlaybackController: ObservableObject {
     private var resumeAfterSecondaryAudioSilence = false
     /// Confirms a system pause (other app took audio) before flipping the widget.
     private var externalPauseSyncTask: Task<Void, Never>?
+    /// Rechecks after backgrounding, once the other app has had time to start.
+    private var otherAppYieldTask: Task<Void, Never>?
     /// Bumped when we explicitly ask AVPlayer to play, so a brief `.paused` is ignored.
     private var intentionalPlayGeneration: Int = 0
     /// Avoid spamming WidgetKit reloads on every elapsed tick.
@@ -265,19 +267,27 @@ final class PlaybackController: ObservableObject {
         Publishers.CombineLatest(
             $nowPlaying.map { item -> String in
                 guard let item else { return "|" }
-                return "\(item.videoId)|\(item.title)|\(item.channelName)"
+                return "\(item.videoId)|\(item.title)|\(item.channelName)|\(item.thumbnailURL?.absoluteString ?? "")"
             },
             $isPlaying
         )
         .removeDuplicates { $0.0 == $1.0 && $0.1 == $1.1 }
         .dropFirst()
         .sink { [weak self] _, _ in
-            guard let self else { return }
-            self.updateNowPlayingInfo()
-            // Force widget reload + Watch push (with retry) on every transport/track flip.
-            self.publishPhoneWidgetSnapshot(force: true)
+            self?.syncExternalPlaybackSurfaces()
         }
         .store(in: &playbackSurfaceSyncCancellables)
+    }
+
+    /// Lock screen / Control Center, Home Screen widget, and Watch.
+    /// Reactivates the session first when playing — after a yield, `setActive(false)`
+    /// makes the system drop Now Playing until the session is current again.
+    private func syncExternalPlaybackSurfaces() {
+        if isPlaying {
+            activatePlaybackAudioSession(allowMixWithOthers: isFullScreenAdAudioHold)
+        }
+        updateNowPlayingInfo()
+        publishPhoneWidgetSnapshot(force: true)
     }
 
     func play(items: [VideoItem], startAt index: Int = 0, sourcePlaylistId: String? = nil, analyticsSource: String = "unknown") {
@@ -364,9 +374,11 @@ final class PlaybackController: ObservableObject {
             guard nowPlaying != nil, !queue.isEmpty else { return }
             playCurrentQueueItem()
         } else {
+            noteIntentionalPlay()
+            activatePlaybackAudioSession()
             player?.playImmediately(atRate: playbackSpeed)
             isPlaying = true
-            updateNowPlayingInfo()
+            syncExternalPlaybackSurfaces()
             persistSession(immediate: true)
         }
     }
@@ -813,6 +825,7 @@ final class PlaybackController: ObservableObject {
             successfulPlaybackRecordedVideoId = nil
             pendingResolvedDurationSeconds = 0
         }
+        noteIntentionalPlay()
         lastError = nil
         needsLoginForPlayback = false
         captionTracks = []
@@ -1417,7 +1430,7 @@ final class PlaybackController: ObservableObject {
             seek(to: seekTo)
         }
         attachEqualizer(to: avItem, streamURL: streamURL ?? (avItem.asset as? AVURLAsset)?.url)
-        updateNowPlayingInfo()
+        syncExternalPlaybackSurfaces()
     }
 
     /// Re-apply EQ after preset / slider / toggle changes.
@@ -1983,11 +1996,11 @@ final class PlaybackController: ObservableObject {
         if isPlaying {
             pause()
         } else {
-            activatePlaybackAudioSession()
             noteIntentionalPlay()
+            activatePlaybackAudioSession()
             player?.playImmediately(atRate: playbackSpeed)
             isPlaying = true
-            updateNowPlayingInfo()
+            syncExternalPlaybackSurfaces()
             persistSession(immediate: true)
         }
     }
@@ -2173,7 +2186,9 @@ final class PlaybackController: ObservableObject {
             object: AVAudioSession.sharedInstance(),
             queue: .main
         ) { [weak self] note in
-            Task { @MainActor in
+            // Handle on this main-queue turn. A later `Task` loses the race with
+            // `prepareForBackgroundPlayback`, which would `setActive` and keep playing.
+            MainActor.assumeIsolated {
                 self?.handleAudioInterruption(note)
             }
         }
@@ -2192,7 +2207,7 @@ final class PlaybackController: ObservableObject {
             object: AVAudioSession.sharedInstance(),
             queue: .main
         ) { [weak self] note in
-            Task { @MainActor in
+            MainActor.assumeIsolated {
                 self?.handleSecondaryAudioHint(note)
             }
         }
@@ -2307,8 +2322,7 @@ final class PlaybackController: ObservableObject {
             if isFullScreenAdAudioHold {
                 endFullScreenAdPlaybackHold()
             }
-            pause()
-            updateNowPlayingInfo()
+            yieldToOtherApp()
         case .ended:
             if isFullScreenAdAudioHold, AdFullScreenCoordinator.isPresenting {
                 activatePlaybackAudioSession(allowMixWithOthers: true)
@@ -2320,14 +2334,15 @@ final class PlaybackController: ObservableObject {
                 updateNowPlayingInfo()
                 return
             }
-            activatePlaybackAudioSession(allowMixWithOthers: false)
             let optionsValue = note.userInfo?[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0
             let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
             if options.contains(.shouldResume),
                resumeAfterInterruption,
-               !AVAudioSession.sharedInstance().secondaryAudioShouldBeSilencedHint
+               !AVAudioSession.sharedInstance().secondaryAudioShouldBeSilencedHint,
+               !AVAudioSession.sharedInstance().isOtherAudioPlaying
             {
                 resumeAfterInterruption = false
+                activatePlaybackAudioSession(allowMixWithOthers: false)
                 if player != nil, !isPlaying {
                     player?.playImmediately(atRate: playbackSpeed)
                     isPlaying = true
@@ -2351,8 +2366,7 @@ final class PlaybackController: ObservableObject {
             // Never yield to secondary silence during our muted ad hold.
             guard !isFullScreenAdAudioHold else { return }
             resumeAfterSecondaryAudioSilence = isPlaying
-            pause()
-            updateNowPlayingInfo()
+            yieldToOtherApp()
         case .end:
             guard resumeAfterSecondaryAudioSilence else { return }
             resumeAfterSecondaryAudioSilence = false
@@ -2680,13 +2694,16 @@ final class PlaybackController: ObservableObject {
     /// When Picture in Picture is off, playback continues as audio-only (no floating video).
     func prepareForBackgroundPlayback() {
         guard nowPlaying != nil else { return }
-        // Another app owns audible media — do not re-activate and steal the session back.
-        if AVAudioSession.sharedInstance().secondaryAudioShouldBeSilencedHint {
-            if isPlaying {
-                resumeAfterSecondaryAudioSilence = true
-                pause()
-            }
-            publishNowPlaying()
+        let session = AVAudioSession.sharedInstance()
+        // Silence hint means we are secondary audio. Never `setActive` over that.
+        if session.secondaryAudioShouldBeSilencedHint {
+            yieldToOtherApp()
+            return
+        }
+        // Another video app already paused us. `playImmediately` here steals the
+        // session back, so both apps stay audible.
+        if isPlaying, player?.timeControlStatus != .playing, session.isOtherAudioPlaying {
+            yieldToOtherApp()
             return
         }
         activatePlaybackAudioSession(allowMixWithOthers: isFullScreenAdAudioHold)
@@ -2696,11 +2713,39 @@ final class PlaybackController: ObservableObject {
         player.audiovisualBackgroundPlaybackPolicy = .continuesIfPossible
         guard isPlaying else { return }
         if player.timeControlStatus != .playing {
-            noteIntentionalPlay()
+            if session.secondaryAudioShouldBeSilencedHint || session.isOtherAudioPlaying {
+                yieldToOtherApp()
+                return
+            }
             player.playImmediately(atRate: playbackSpeed)
-            // playImmediately can no-op when another app owns the session and
-            // timeControlStatus stays `.paused` without a new KVO event.
-            scheduleExternalPauseWidgetSync()
+        }
+        scheduleOtherAppYieldRecheck()
+    }
+
+    /// Pause locally, push that paused state, then release the session.
+    /// Now Playing is ignored if the session is already inactive, so sync comes first.
+    private func yieldToOtherApp() {
+        if isFullScreenAdAudioHold, AdFullScreenCoordinator.isPresenting { return }
+        if isPlaying {
+            resumeAfterSecondaryAudioSilence = true
+            player?.pause()
+            isPlaying = false
+            persistHistoryProgressIfNeeded(force: true)
+            persistSession(immediate: true)
+        }
+        syncExternalPlaybackSurfaces()
+        deactivatePlaybackAudioSession()
+    }
+
+    /// Video apps often start a moment after we background, too late for the first check.
+    private func scheduleOtherAppYieldRecheck() {
+        otherAppYieldTask?.cancel()
+        otherAppYieldTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            guard !Task.isCancelled else { return }
+            let session = AVAudioSession.sharedInstance()
+            guard session.secondaryAudioShouldBeSilencedHint || session.isOtherAudioPlaying else { return }
+            yieldToOtherApp()
         }
     }
 
@@ -2724,6 +2769,8 @@ final class PlaybackController: ObservableObject {
     private func noteIntentionalPlay() {
         intentionalPlayGeneration += 1
         externalPauseSyncTask?.cancel()
+        // A background yield recheck must not pause a play or skip the user just started.
+        otherAppYieldTask?.cancel()
     }
 
     private func activatePlaybackAudioSession(allowMixWithOthers: Bool = false) {
@@ -2746,9 +2793,23 @@ final class PlaybackController: ObservableObject {
         }
     }
 
+    /// Release the session so the other app can take exclusive playback.
+    private func deactivatePlaybackAudioSession() {
+        guard !isFullScreenAdAudioHold else { return }
+        do {
+            try AVAudioSession.sharedInstance().setActive(false, options: [.notifyOthersOnDeactivation])
+        } catch {
+            #if DEBUG
+            print("[YTLite.Playback] AVAudioSession deactivate failed: \(error)")
+            #endif
+        }
+    }
+
     private func updateNowPlayingInfo() {
         guard let nowPlaying else {
-            MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+            let center = MPNowPlayingInfoCenter.default()
+            center.nowPlayingInfo = nil
+            center.playbackState = .stopped
             refreshRemoteCommandEnabled()
             publishPhoneWidgetSnapshot()
             return
@@ -2767,7 +2828,9 @@ final class PlaybackController: ObservableObject {
                 artworkImage
             }
         }
-        MPNowPlayingInfoCenter.default().nowPlayingInfo = info
+        let center = MPNowPlayingInfoCenter.default()
+        center.nowPlayingInfo = info
+        center.playbackState = isPlaying ? .playing : .paused
         refreshRemoteCommandEnabled()
         publishPhoneWidgetSnapshot()
     }
@@ -2781,7 +2844,9 @@ final class PlaybackController: ObservableObject {
         info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = positionSeconds
         info[MPMediaItemPropertyPlaybackDuration] = durationSeconds
         info[MPNowPlayingInfoPropertyPlaybackRate] = isPlaying ? Double(playbackSpeed) : 0
-        MPNowPlayingInfoCenter.default().nowPlayingInfo = info
+        let centerInfo = MPNowPlayingInfoCenter.default()
+        centerInfo.nowPlayingInfo = info
+        centerInfo.playbackState = isPlaying ? .playing : .paused
         // Duration may become available after readyToPlay; keep scrub command in sync.
         let center = MPRemoteCommandCenter.shared()
         let seekEnabled = durationSeconds > 0
