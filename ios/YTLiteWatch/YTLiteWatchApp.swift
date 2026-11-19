@@ -3,7 +3,6 @@ import SwiftUI
 @main
 struct YTLiteWatchApp: App {
     init() {
-        WatchL10n.configureAtLaunch()
         // Hydrate Now Playing before the first frame so home shows the current track immediately.
         WatchPlaybackClient.shared.preloadCachedNowPlaying()
         WatchConnectivityBridge.shared.activate()
@@ -26,10 +25,6 @@ struct YTLiteWatchApp: App {
                 WatchPlaybackClient.shared.start()
                 WatchLibraryClient.shared.start()
             }
-        #if DEBUG
-        content.environment(\.locale, Locale(identifier: "en"))
-        #else
         content
-        #endif
     }
 }

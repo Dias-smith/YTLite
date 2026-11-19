@@ -12,7 +12,25 @@
             "value" : "%1$@ - %2$@"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ - %2$@"
+          }
+        },
         "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ - %2$@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ - %2$@"
+          }
+        },
+        "hi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "%1$@ - %2$@"
@@ -24,9 +42,15 @@
             "value" : "%1$@ - %2$@"
           }
         },
-        "en" : {
+        "zh-Hans" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
+            "value" : "%1$@ - %2$@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
             "value" : "%1$@ - %2$@"
           }
         }
@@ -40,7 +64,25 @@
             "value" : "%1$@ · %2$@"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ · %2$@"
+          }
+        },
         "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ · %2$@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ · %2$@"
+          }
+        },
+        "hi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "%1$@ · %2$@"
@@ -52,9 +94,15 @@
             "value" : "%1$@ · %2$@"
           }
         },
-        "en" : {
+        "zh-Hans" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
+            "value" : "%1$@ · %2$@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
             "value" : "%1$@ · %2$@"
           }
         }
@@ -68,7 +116,25 @@
             "value" : "%1$@: %2$@"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@: %2$@"
+          }
+        },
         "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@: %2$@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@: %2$@"
+          }
+        },
+        "hi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "%1$@: %2$@"
@@ -80,9 +146,15 @@
             "value" : "%1$@: %2$@"
           }
         },
-        "en" : {
+        "zh-Hans" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
+            "value" : "%1$@: %2$@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
             "value" : "%1$@: %2$@"
           }
         }
@@ -153,6 +225,59 @@
         }
       }
     },
+    "account.delete_confirm" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "حذف الحساب؟"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete account?"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "¿Eliminar la cuenta?"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supprimer le compte ?"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "खाता हटाएँ?"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Excluir a conta?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "删除账号？"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "刪除帳號？"
+          }
+        }
+      }
+    },
     "account.delete_failed" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -202,6 +327,59 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "無法刪除帳號"
+          }
+        }
+      }
+    },
+    "account.delete_message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يؤدي هذا إلى حذف حساب Mixtube وبيانات المكتبة السحابية (قوائم التشغيل والسجل والاشتراكات والبيانات الوصفية) نهائيًا. لا يمكن التراجع عن هذا الإجراء."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This permanently deletes your Mixtube account and cloud library data (playlists, history, subscriptions, and metadata). This can't be undone."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esto elimina de forma permanente tu cuenta de Mixtube y los datos de la biblioteca en la nube (listas, historial, suscripciones y metadatos). No se puede deshacer."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cela supprime définitivement votre compte Mixtube et les données cloud de la bibliothèque (playlists, historique, abonnements et métadonnées). Cette action est irréversible."
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "इससे आपका Mixtube खाता और क्लाउड लाइब्रेरी डेटा (प्लेलिस्ट, इतिहास, सब्सक्रिप्शन और मेटाडेटा) स्थायी रूप से हट जाएगा। इसे वापस नहीं किया जा सकता।"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Isso exclui permanentemente sua conta Mixtube e os dados da biblioteca na nuvem (playlists, histórico, inscrições e metadados). Não é possível desfazer."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这将永久删除你的 Mixtube 账号以及云端媒体库数据（播放列表、历史记录、订阅和元数据）。此操作无法撤销。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "這會永久刪除你的 Mixtube 帳號以及雲端媒體庫資料（播放清單、歷史記錄、訂閱和中繼資料）。此操作無法復原。"
           }
         }
       }
@@ -407,13 +585,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "从 Library 中删除"
+            "value" : "从媒体库中删除"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "從 Library 中刪除"
+            "value" : "從媒體庫中刪除"
           }
         }
       }
@@ -1169,10 +1347,28 @@
             "value" : "شاهد إعلانًا بمكافأة لفتح حفظ معلومات الأغاني بلا حدود لهذا اليوم."
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Watch one rewarded ad to unlock unlimited Edit info saves for today."
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Mira un anuncio bonificado para guardar la información de las canciones sin límite durante hoy."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Regardez une annonce récompensée pour enregistrer les infos sans limite aujourd’hui."
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "आज बिना सीमा गाने की जानकारी सहेजने के लिए एक रिवॉर्ड विज्ञापन देखें।"
           }
         },
         "pt-BR" : {
@@ -1181,16 +1377,16 @@
             "value" : "Assista a um anúncio premiado para salvar as informações das músicas sem limite hoje."
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Watch one rewarded ad to unlock unlimited Edit info saves for today."
-          }
-        },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "观看一条奖励广告，即可在今天无限次保存歌曲信息。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "觀看一條獎勵廣告，即可在今天無限次儲存歌曲資訊。"
           }
         }
       }
@@ -1204,10 +1400,28 @@
             "value" : "هل تشاهد إعلانًا للحفظ؟"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Watch an ad to save?"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "¿Ver un anuncio para guardar?"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Regarder une annonce pour enregistrer ?"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "सहेजने के लिए विज्ञापन देखें?"
           }
         },
         "pt-BR" : {
@@ -1216,16 +1430,16 @@
             "value" : "Assistir a um anúncio para salvar?"
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Watch an ad to save?"
-          }
-        },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "观看广告后保存？"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "觀看廣告後儲存？"
           }
         }
       }
@@ -1239,10 +1453,28 @@
             "value" : "أكمل الإعلان بمكافأة لفتح هذا الإجراء."
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Finish the rewarded ad to unlock this action."
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Termina el anuncio bonificado para desbloquear esta acción."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Terminez l’annonce récompensée pour débloquer cette action."
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "यह कार्रवाई अनलॉक करने के लिए रिवॉर्ड विज्ञापन पूरा देखें।"
           }
         },
         "pt-BR" : {
@@ -1251,16 +1483,16 @@
             "value" : "Termine o anúncio premiado para desbloquear esta ação."
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Finish the rewarded ad to unlock this action."
-          }
-        },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "请完整观看奖励广告以解锁此操作。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "請完整觀看獎勵廣告以解鎖此操作。"
           }
         }
       }
@@ -1274,10 +1506,28 @@
             "value" : "الإعلان بمكافأة غير جاهز بعد. حاول مرة أخرى بعد قليل."
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The rewarded ad isn't ready. Please try again shortly."
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "El anuncio bonificado aún no está listo. Inténtalo de nuevo en unos instantes."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L’annonce récompensée n’est pas prête. Réessayez dans un instant."
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "रिवॉर्ड विज्ञापन अभी तैयार नहीं है। कृपया थोड़ी देर बाद कोशिश करें।"
           }
         },
         "pt-BR" : {
@@ -1286,16 +1536,16 @@
             "value" : "O anúncio premiado ainda não está pronto. Tente de novo em instantes."
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The rewarded ad isn't ready. Please try again shortly."
-          }
-        },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "奖励广告尚未准备好，请稍后再试。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "獎勵廣告尚未準備好，請稍後再試。"
           }
         }
       }
@@ -1309,10 +1559,28 @@
             "value" : "افتح اليوم كل السمات غير الأساسية والسمات المخصصة."
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unlock all non-basic and custom themes for today."
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Desbloquea hoy todos los temas que no son básicos y los temas personalizados."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Débloquez aujourd’hui tous les thèmes autres que les thèmes de base, y compris les thèmes personnalisés."
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "आज सभी गैर-बुनियादी और कस्टम थीम अनलॉक करें।"
           }
         },
         "pt-BR" : {
@@ -1321,16 +1589,16 @@
             "value" : "Desbloqueie hoje todos os temas que não são básicos e os temas personalizados."
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Unlock all non-basic and custom themes for today."
-          }
-        },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "观看后可在今天解锁全部非基础主题和自定义主题。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "觀看後可在今天解鎖全部非基礎主題和自訂主題。"
           }
         }
       }
@@ -1344,10 +1612,28 @@
             "value" : "هل تشاهد إعلانًا لفتح السمات؟"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Watch an ad to unlock themes?"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "¿Ver un anuncio para desbloquear temas?"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Regarder une annonce pour débloquer les thèmes ?"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "थीम अनलॉक करने के लिए विज्ञापन देखें?"
           }
         },
         "pt-BR" : {
@@ -1356,16 +1642,16 @@
             "value" : "Assistir a um anúncio para desbloquear temas?"
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Watch an ad to unlock themes?"
-          }
-        },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "观看广告解锁主题？"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "觀看廣告解鎖主題？"
           }
         }
       }
@@ -1379,10 +1665,28 @@
             "value" : "مشاهدة الإعلان"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Watch Ad"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ver anuncio"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Voir l’annonce"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "विज्ञापन देखें"
           }
         },
         "pt-BR" : {
@@ -1391,16 +1695,16 @@
             "value" : "Ver anúncio"
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Watch Ad"
-          }
-        },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "观看广告"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "觀看廣告"
           }
         }
       }
@@ -1414,10 +1718,28 @@
             "value" : "المتابعة باستخدام Google"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continue with Google"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Continuar con Google"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continuer avec Google"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Google के साथ जारी रखें"
           }
         },
         "pt-BR" : {
@@ -1426,16 +1748,16 @@
             "value" : "Continuar com o Google"
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Continue with Google"
-          }
-        },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "使用 Google 继续"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用 Google 繼續"
           }
         }
       }
@@ -1449,10 +1771,28 @@
             "value" : "سجّل الدخول لمزامنة مكتبتك بين الأجهزة."
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign in to sync your library across devices."
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Inicia sesión para sincronizar tu biblioteca entre dispositivos."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connectez-vous pour synchroniser votre bibliothèque entre vos appareils."
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "अपनी लाइब्रेरी सभी डिवाइस पर सिंक करने के लिए साइन इन करें।"
           }
         },
         "pt-BR" : {
@@ -1461,16 +1801,16 @@
             "value" : "Entre para sincronizar sua biblioteca entre dispositivos."
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sign in to sync your library across devices."
-          }
-        },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "登录后即可在多设备间同步媒体库。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "登入後即可在多設備間同步媒體庫。"
           }
         }
       }
@@ -1499,13 +1839,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Change photo"
+            "value" : "Changer la photo"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Change photo"
+            "value" : "फ़ोटो बदलें"
           }
         },
         "pt-BR" : {
@@ -1552,13 +1892,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Choose photo"
+            "value" : "Choisir une photo"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Choose photo"
+            "value" : "फ़ोटो चुनें"
           }
         },
         "pt-BR" : {
@@ -1605,13 +1945,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Fill"
+            "value" : "Remplir"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Fill"
+            "value" : "भरें"
           }
         },
         "pt-BR" : {
@@ -1658,13 +1998,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Fit"
+            "value" : "Ajuster"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Fit"
+            "value" : "फ़िट करें"
           }
         },
         "pt-BR" : {
@@ -1711,13 +2051,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Stretch"
+            "value" : "Étirer"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Stretch"
+            "value" : "खींचें"
           }
         },
         "pt-BR" : {
@@ -1764,13 +2104,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tile"
+            "value" : "Mosaïque"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tile"
+            "value" : "टाइल"
           }
         },
         "pt-BR" : {
@@ -1817,13 +2157,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Preview"
+            "value" : "Aperçu"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Preview"
+            "value" : "पूर्वावलोकन"
           }
         },
         "pt-BR" : {
@@ -1870,13 +2210,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Remove photo"
+            "value" : "Retirer la photo"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Remove photo"
+            "value" : "फ़ोटो हटाएँ"
           }
         },
         "pt-BR" : {
@@ -1923,13 +2263,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Reset background"
+            "value" : "Réinitialiser l’arrière-plan"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Reset background"
+            "value" : "पृष्ठभूमि रीसेट करें"
           }
         },
         "pt-BR" : {
@@ -1976,13 +2316,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Image mode"
+            "value" : "Mode d’image"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Image mode"
+            "value" : "छवि मोड"
           }
         },
         "pt-BR" : {
@@ -2029,13 +2369,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Background"
+            "value" : "Arrière-plan"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Background"
+            "value" : "पृष्ठभूमि"
           }
         },
         "pt-BR" : {
@@ -2082,13 +2422,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Solid color"
+            "value" : "Couleur unie"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Solid color"
+            "value" : "एकल रंग"
           }
         },
         "pt-BR" : {
@@ -2135,13 +2475,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "App background"
+            "value" : "Arrière-plan de l’app"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "App background"
+            "value" : "ऐप पृष्ठभूमि"
           }
         },
         "pt-BR" : {
@@ -2188,13 +2528,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Match theme"
+            "value" : "Suivre le thème"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Match theme"
+            "value" : "थीम के अनुसार"
           }
         },
         "pt-BR" : {
@@ -4591,13 +4931,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Flat"
+            "value" : "平坦"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Flat"
+            "value" : "平坦"
           }
         }
       }
@@ -4909,13 +5249,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "重置为 Flat"
+            "value" : "重置为平坦"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "重設為 Flat"
+            "value" : "重設為平坦"
           }
         }
       }
@@ -5247,10 +5587,28 @@
             "value" : "ابدأ"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Get Started"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Empezar"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Commencer"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "शुरू करें"
           }
         },
         "pt-BR" : {
@@ -5259,16 +5617,16 @@
             "value" : "Começar"
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Get Started"
-          }
-        },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "开始使用"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "開始使用"
           }
         }
       }
@@ -5282,10 +5640,28 @@
             "value" : "التالي"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Next"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Siguiente"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Suivant"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "आगे"
           }
         },
         "pt-BR" : {
@@ -5294,13 +5670,13 @@
             "value" : "Próximo"
           }
         },
-        "en" : {
+        "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Next"
+            "value" : "下一步"
           }
         },
-        "zh-Hans" : {
+        "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "下一步"
@@ -5317,10 +5693,28 @@
             "value" : "يستمر الصوت في الخلفية عند مغادرة التطبيق، ويمكنك الاستماع دون اتصال عند الحاجة."
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Background audio when you leave the app, plus offline listening when you need it."
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "El audio sigue en segundo plano al salir de la app, y puedes escuchar sin conexión cuando lo necesites."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L’audio continue en arrière-plan, et hors ligne quand vous en avez besoin."
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ऐप छोड़ने पर ऑडियो जारी रहता है, और ज़रूरत पड़ने पर ऑफ़लाइन भी सुन सकते हैं।"
           }
         },
         "pt-BR" : {
@@ -5329,16 +5723,16 @@
             "value" : "O áudio continua em segundo plano ao sair do app, e você pode ouvir offline quando precisar."
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Background audio when you leave the app, plus offline listening when you need it."
-          }
-        },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "切到后台也能继续播，需要时还能离线收听。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "切到背景也能繼續播，需要時還能離線收聽。"
           }
         }
       }
@@ -5352,10 +5746,28 @@
             "value" : "واصل التشغيل أينما كنت"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keep playing, anywhere"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sigue sonando, estés donde estés"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Écoutez partout"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "कहीं भी सुनते रहें"
           }
         },
         "pt-BR" : {
@@ -5364,16 +5776,16 @@
             "value" : "Continue ouvindo, onde estiver"
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Keep playing, anywhere"
-          }
-        },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "随时随地畅听"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "隨時隨地暢聽"
           }
         }
       }
@@ -5387,10 +5799,28 @@
             "value" : "اكتشف مقاطع تناسب ما تحب تشغيله."
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Discover tracks that fit what you love to play."
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Descubre canciones que encajan con lo que te gusta escuchar."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Découvrez des titres qui correspondent à ce que vous aimez."
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "आपकी पसंद के हिसाब से अगला गाना खोजें।"
           }
         },
         "pt-BR" : {
@@ -5399,16 +5829,16 @@
             "value" : "Descubra faixas que combinam com o que você gosta de ouvir."
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Discover tracks that fit what you love to play."
-          }
-        },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "根据你的口味，发现下一首想听的歌。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "根據你的口味，發現下一首想聽的歌。"
           }
         }
       }
@@ -5422,10 +5852,28 @@
             "value" : "اقتراحات ذكية"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Smart recommendations"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Recomendaciones inteligentes"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recommandations intelligentes"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "स्मार्ट सुझाव"
           }
         },
         "pt-BR" : {
@@ -5434,16 +5882,16 @@
             "value" : "Recomendações inteligentes"
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Smart recommendations"
-          }
-        },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "智能推荐"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "智能推薦"
           }
         }
       }
@@ -5457,10 +5905,28 @@
             "value" : "استكشف أكثر من 10 ملايين أغنية وفيديو في ثوانٍ."
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Explore 10M+ songs and videos in seconds."
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Explora más de 10 millones de canciones y vídeos en segundos."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Explorez plus de 10 millions de titres et de vidéos en quelques secondes."
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "एक करोड़ से ज़्यादा गाने और वीडियो, कुछ सेकंड में।"
           }
         },
         "pt-BR" : {
@@ -5469,16 +5935,16 @@
             "value" : "Explore mais de 10 milhões de músicas e vídeos em segundos."
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Explore 10M+ songs and videos in seconds."
-          }
-        },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "超过一千万首歌曲与视频，一键即达。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "超過一千萬首歌曲與影片，一鍵即達。"
           }
         }
       }
@@ -5492,10 +5958,28 @@
             "value" : "ابحث في ملايين الأغاني"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search millions of songs"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Busca millones de canciones"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Des millions de titres"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "लाखों गाने खोजें"
           }
         },
         "pt-BR" : {
@@ -5504,16 +5988,16 @@
             "value" : "Pesquise milhões de músicas"
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Search millions of songs"
-          }
-        },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "海量歌曲随心搜"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "海量歌曲隨心搜"
           }
         }
       }
@@ -5527,10 +6011,28 @@
             "value" : "تخطي"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skip"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Omitir"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ignorer"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "छोड़ें"
           }
         },
         "pt-BR" : {
@@ -5539,16 +6041,16 @@
             "value" : "Pular"
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Skip"
-          }
-        },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "跳过"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "跳過"
           }
         }
       }
@@ -5562,10 +6064,28 @@
             "value" : "سجّل الدخول مرة واحدة، وتبقى مكتبتك آمنة ومحدّثة."
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign in once—your library stays safe and up to date."
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Inicia sesión una vez: tu biblioteca se mantiene a salvo y al día."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connectez-vous une fois : votre bibliothèque reste à jour sur tous vos appareils."
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "एक बार साइन इन करें, प्लेलिस्ट अपने आप सिंक होती है और डिवाइस बदलने पर भी गाने रह जाते हैं।"
           }
         },
         "pt-BR" : {
@@ -5574,16 +6094,16 @@
             "value" : "Entre uma vez: sua biblioteca fica segura e atualizada."
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sign in once—your library stays safe and up to date."
-          }
-        },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "登录后歌单自动同步，换设备也不丢歌。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "登入後歌單自動同步，換設備也不丟歌。"
           }
         }
       }
@@ -5597,10 +6117,28 @@
             "value" : "قوائم تشغيل متزامنة سحابيًا"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cloud-synced playlists"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Listas sincronizadas en la nube"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Playlists synchronisées"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "क्लाउड पर सिंक प्लेलिस्ट"
           }
         },
         "pt-BR" : {
@@ -5609,16 +6147,16 @@
             "value" : "Playlists sincronizadas na nuvem"
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cloud-synced playlists"
-          }
-        },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "云端同步歌单"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "雲端同步歌單"
           }
         }
       }
@@ -5632,10 +6170,28 @@
             "value" : "تحكم في التشغيل من شاشة القفل أو الشاشة الرئيسية أو معصمك، دون فتح قفل الـ iPhone."
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Control playback from your Lock Screen, Home Screen, or wrist—without unlocking your phone."
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Controla la reproducción desde la pantalla de bloqueo, la pantalla de inicio o la muñeca, sin desbloquear el iPhone."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contrôlez la lecture depuis l’écran verrouillé, l’écran d’accueil ou la montre, sans déverrouiller le téléphone."
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "लॉक स्क्रीन, होम स्क्रीन या घड़ी से प्लेबैक नियंत्रित करें, फ़ोन खोले बिना।"
           }
         },
         "pt-BR" : {
@@ -5644,16 +6200,16 @@
             "value" : "Controle a reprodução pela Tela Bloqueada, pela Tela de Início ou pelo pulso, sem desbloquear o iPhone."
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Control playback from your Lock Screen, Home Screen, or wrist—without unlocking your phone."
-          }
-        },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "锁屏、主屏幕或手腕上即可控制播放，无需打开手机。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "鎖屏、主屏幕或手腕上即可控制播放，無需打開手機。"
           }
         }
       }
@@ -5667,10 +6223,28 @@
             "value" : "الأدوات و Apple Watch"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Widgets & Apple Watch"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Widgets y Apple Watch"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Widgets et Apple Watch"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "विजेट और Apple Watch"
           }
         },
         "pt-BR" : {
@@ -5679,16 +6253,16 @@
             "value" : "Widgets e Apple Watch"
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Widgets & Apple Watch"
-          }
-        },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "小组件与 Apple Watch"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "小組件與 Apple Watch"
           }
         }
       }
@@ -5823,13 +6397,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Swipe to change songs"
+            "value" : "Balayez pour changer de titre"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Swipe to change songs"
+            "value" : "गाना बदलने के लिए स्वाइप करें"
           }
         },
         "pt-BR" : {
@@ -5914,22 +6488,34 @@
             "value" : "الألبومات"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Albums"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Álbumes"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Albums"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "एल्बम"
+          }
+        },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Álbuns"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Albums"
           }
         },
         "zh-Hans" : {
@@ -6008,22 +6594,34 @@
             "value" : "التصنيفات"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charts"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Listas"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Classements"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "चार्ट"
+          }
+        },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Paradas"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Charts"
           }
         },
         "zh-Hans" : {
@@ -6155,19 +6753,31 @@
             "value" : "إلكتروبوب"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Electropop"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Electropop"
           }
         },
-        "pt-BR" : {
+        "fr" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Electropop"
           }
         },
-        "en" : {
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "इलेक्ट्रोपॉप"
+          }
+        },
+        "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Electropop"
@@ -6355,22 +6965,34 @@
             "value" : "مباشر"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Live"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "En directo"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En direct"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "लाइव"
+          }
+        },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ao vivo"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Live"
           }
         },
         "zh-Hans" : {
@@ -6396,19 +7018,31 @@
             "value" : "ماندوبوب"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mandopop"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Mandopop"
           }
         },
-        "pt-BR" : {
+        "fr" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Mandopop"
           }
         },
-        "en" : {
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "मैंडोपॉप"
+          }
+        },
+        "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Mandopop"
@@ -6437,22 +7071,34 @@
             "value" : "ميكسات"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mixes"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Mezclas"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mix"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "मिक्स"
+          }
+        },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Mixagens"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Mixes"
           }
         },
         "zh-Hans" : {
@@ -6584,22 +7230,34 @@
             "value" : "الأخبار"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "News"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Noticias"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Actualités"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "समाचार"
+          }
+        },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Notícias"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "News"
           }
         },
         "zh-Hans" : {
@@ -6731,22 +7389,34 @@
             "value" : "إعادة ترتيب الفئات"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reorder categories"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Reordenar categorías"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Réordonner les catégories"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "श्रेणियाँ क्रमबद्ध करें"
+          }
+        },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Reordenar categorias"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Reorder categories"
           }
         },
         "zh-Hans" : {
@@ -6772,19 +7442,31 @@
             "value" : "R&B"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "R&B"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "R&B"
           }
         },
-        "pt-BR" : {
+        "fr" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "R&B"
           }
         },
-        "en" : {
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "R&B"
+          }
+        },
+        "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "R&B"
@@ -7078,22 +7760,34 @@
             "value" : "المدة"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Duration"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Duración"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Durée"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "अवधि"
+          }
+        },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Duração"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Duration"
           }
         },
         "zh-Hans" : {
@@ -7119,22 +7813,34 @@
             "value" : "3 – 10 دقائق"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "3 – 10 minutes"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "3 – 10 minutos"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "3 à 10 minutes"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "3–10 मिनट"
+          }
+        },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "3 – 10 minutos"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "3 – 10 minutes"
           }
         },
         "zh-Hans" : {
@@ -7160,22 +7866,34 @@
             "value" : "10 – 30 دقيقة"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "10 – 30 minutes"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "10 – 30 minutos"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "10 à 30 minutes"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "10–30 मिनट"
+          }
+        },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "10 – 30 minutos"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "10 – 30 minutes"
           }
         },
         "zh-Hans" : {
@@ -7201,22 +7919,34 @@
             "value" : "30 دقيقة – ساعة"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "30 minutes – 1 hour"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "30 minutos – 1 hora"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "30 minutes à 1 heure"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "30 मिनट–1 घंटा"
+          }
+        },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "30 minutos – 1 hora"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "30 minutes – 1 hour"
           }
         },
         "zh-Hans" : {
@@ -7242,22 +7972,34 @@
             "value" : "أي مدة"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Any"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Cualquiera"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toutes"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "कोई भी"
+          }
+        },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Qualquer"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Any"
           }
         },
         "zh-Hans" : {
@@ -7283,22 +8025,34 @@
             "value" : "أكثر من ساعة"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Over 1 hour"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Más de 1 hora"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plus d’1 heure"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 घंटे से अधिक"
+          }
+        },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Mais de 1 hora"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Over 1 hour"
           }
         },
         "zh-Hans" : {
@@ -7324,22 +8078,34 @@
             "value" : "أقل من 3 دقائق"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Under 3 minutes"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Menos de 3 minutos"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Moins de 3 minutes"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "3 मिनट से कम"
+          }
+        },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Menos de 3 minutos"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Under 3 minutes"
           }
         },
         "zh-Hans" : {
@@ -7365,22 +8131,34 @@
             "value" : "لا توجد نتائج تطابق هذه التصفية"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No results match this filter"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ningún resultado coincide con este filtro"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucun résultat pour ce filtre"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "इस फ़िल्टर से कोई परिणाम नहीं"
+          }
+        },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Nenhum resultado corresponde a este filtro"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No results match this filter"
           }
         },
         "zh-Hans" : {
@@ -7406,22 +8184,34 @@
             "value" : "إعادة تعيين"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Restablecer"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Réinitialiser"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "रीसेट"
+          }
+        },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Redefinir"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Reset"
           }
         },
         "zh-Hans" : {
@@ -7447,22 +8237,34 @@
             "value" : "تصفية"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Filter"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Filtrar"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Filtrer"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "फ़िल्टर"
+          }
+        },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Filtrar"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Filter"
           }
         },
         "zh-Hans" : {
@@ -7488,22 +8290,34 @@
             "value" : "المشاهدات"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Views"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Visualizaciones"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vues"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "व्यू"
+          }
+        },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Visualizações"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Views"
           }
         },
         "zh-Hans" : {
@@ -7529,19 +8343,31 @@
             "value" : "10K – 1M"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "10K – 1M"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "10K – 1M"
           }
         },
-        "pt-BR" : {
+        "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "10K – 1M"
+            "value" : "10 k à 1 M"
           }
         },
-        "en" : {
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "10K–1M"
+          }
+        },
+        "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "10K – 1M"
@@ -7570,22 +8396,34 @@
             "value" : "أكثر من 1M"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Over 1M"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Más de 1M"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plus de 1 M"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1M से अधिक"
+          }
+        },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Mais de 1M"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Over 1M"
           }
         },
         "zh-Hans" : {
@@ -7611,22 +8449,34 @@
             "value" : "أقل من 10K"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Under 10K"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Menos de 10K"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Moins de 10 k"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "10K से कम"
+          }
+        },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Menos de 10K"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Under 10K"
           }
         },
         "zh-Hans" : {
@@ -7720,13 +8570,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Unknown artist"
+            "value" : "Artiste inconnu"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Unknown artist"
+            "value" : "अज्ञात कलाकार"
           }
         },
         "pt-BR" : {
@@ -7773,13 +8623,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No files in this folder"
+            "value" : "Aucun fichier dans ce dossier"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No files in this folder"
+            "value" : "इस फ़ोल्डर में कोई फ़ाइल नहीं"
           }
         },
         "pt-BR" : {
@@ -7797,7 +8647,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "此文件夹为空"
+            "value" : "此文件夾為空"
           }
         }
       }
@@ -7826,13 +8676,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sign in with Baidu"
+            "value" : "Se connecter avec Baidu"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sign in with Baidu"
+            "value" : "Baidu से साइन इन करें"
           }
         },
         "pt-BR" : {
@@ -7850,7 +8700,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "使用百度账号登录"
+            "value" : "使用百度帳號登入"
           }
         }
       }
@@ -7879,13 +8729,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sign out"
+            "value" : "Se déconnecter"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sign out"
+            "value" : "साइन आउट"
           }
         },
         "pt-BR" : {
@@ -7903,7 +8753,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "退出登录"
+            "value" : "退出登入"
           }
         }
       }
@@ -7932,13 +8782,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Baidu Pan keys are not configured"
+            "value" : "Les clés Baidu Pan ne sont pas configurées"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Baidu Pan keys are not configured"
+            "value" : "Baidu Pan कुंजियाँ कॉन्फ़िगर नहीं हैं"
           }
         },
         "pt-BR" : {
@@ -7956,7 +8806,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "未配置百度网盘密钥"
+            "value" : "未配置百度網盤密鑰"
           }
         }
       }
@@ -7985,13 +8835,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Imported file is missing"
+            "value" : "Le fichier importé est introuvable"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Imported file is missing"
+            "value" : "आयात की गई फ़ाइल मौजूद नहीं है"
           }
         },
         "pt-BR" : {
@@ -8009,7 +8859,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "导入的文件已丢失"
+            "value" : "匯入的文件已丟失"
           }
         }
       }
@@ -8038,13 +8888,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Google client ID is not configured"
+            "value" : "L’identifiant client Google n’est pas configuré"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Google client ID is not configured"
+            "value" : "Google क्लाइंट आईडी कॉन्फ़िगर नहीं है"
           }
         },
         "pt-BR" : {
@@ -8091,13 +8941,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sign-in failed"
+            "value" : "Échec de la connexion"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sign-in failed"
+            "value" : "साइन-इन विफल"
           }
         },
         "pt-BR" : {
@@ -8115,7 +8965,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "登录失败"
+            "value" : "登入失敗"
           }
         }
       }
@@ -8144,13 +8994,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Imported"
+            "value" : "Importés"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Imported"
+            "value" : "आयात किए गए"
           }
         },
         "pt-BR" : {
@@ -8203,7 +9053,7 @@
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sources"
+            "value" : "स्रोत"
           }
         },
         "pt-BR" : {
@@ -8222,165 +9072,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "來源"
-          }
-        }
-      }
-    },
-    "import.gdrive.empty" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "لم يتم العثور على ملفات صوتية"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No audio files found"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No se encontraron archivos de audio"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No audio files found"
-          }
-        },
-        "hi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No audio files found"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nenhum arquivo de áudio encontrado"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "未找到音频文件"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "未找到音频文件"
-          }
-        }
-      }
-    },
-    "import.gdrive.sign_in" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "تسجيل الدخول باستخدام Google"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sign in with Google"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Iniciar sesión con Google"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sign in with Google"
-          }
-        },
-        "hi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sign in with Google"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Entrar com o Google"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "使用 Google 登录"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "使用 Google 登录"
-          }
-        }
-      }
-    },
-    "import.gdrive.sign_out" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "تسجيل الخروج"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sign out"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cerrar sesión"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sign out"
-          }
-        },
-        "hi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sign out"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sair"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "退出登录"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "退出登录"
           }
         }
       }
@@ -8438,6 +9129,165 @@
         }
       }
     },
+    "import.gdrive.empty" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "لم يتم العثور على ملفات صوتية"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No audio files found"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se encontraron archivos de audio"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucun fichier audio"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "कोई ऑडियो फ़ाइल नहीं मिली"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nenhum arquivo de áudio encontrado"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未找到音频文件"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未找到音频文件"
+          }
+        }
+      }
+    },
+    "import.gdrive.sign_in" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تسجيل الدخول باستخدام Google"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign in with Google"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Iniciar sesión con Google"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se connecter avec Google"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Google से साइन इन करें"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entrar com o Google"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用 Google 登录"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用 Google 登入"
+          }
+        }
+      }
+    },
+    "import.gdrive.sign_out" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تسجيل الخروج"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign out"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cerrar sesión"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se déconnecter"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "साइन आउट"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sair"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "退出登录"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "退出登入"
+          }
+        }
+      }
+    },
     "import.hub.count" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -8462,13 +9312,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%lld imported"
+            "value" : "%lld importés"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%lld imported"
+            "value" : "%lld आयात किए गए"
           }
         },
         "pt-BR" : {
@@ -8486,7 +9336,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "已导入 %lld 首"
+            "value" : "已匯入 %lld 首"
           }
         }
       }
@@ -8515,13 +9365,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No imported tracks yet"
+            "value" : "Aucun titre importé"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No imported tracks yet"
+            "value" : "अभी कोई आयात किया गाना नहीं"
           }
         },
         "pt-BR" : {
@@ -8539,7 +9389,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "还没有导入的歌曲"
+            "value" : "還沒有匯入的歌曲"
           }
         }
       }
@@ -8568,13 +9418,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Size unknown"
+            "value" : "Taille inconnue"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Size unknown"
+            "value" : "आकार अज्ञात"
           }
         },
         "pt-BR" : {
@@ -8627,7 +9477,7 @@
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sources"
+            "value" : "स्रोत"
           }
         },
         "pt-BR" : {
@@ -8645,7 +9495,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "来源"
+            "value" : "來源"
           }
         }
       }
@@ -8674,13 +9524,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Files, Wi‑Fi, NAS & cloud"
+            "value" : "Fichiers, Wi‑Fi, NAS et cloud"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Files, Wi‑Fi, NAS & cloud"
+            "value" : "फ़ाइलें, Wi‑Fi, NAS और क्लाउड"
           }
         },
         "pt-BR" : {
@@ -8698,7 +9548,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "本地、Wi‑Fi、NAS 与云盘"
+            "value" : "本地、Wi‑Fi、NAS 與雲盤"
           }
         }
       }
@@ -8727,13 +9577,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Import music"
+            "value" : "Importer de la musique"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Import music"
+            "value" : "संगीत आयात करें"
           }
         },
         "pt-BR" : {
@@ -8751,7 +9601,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "导入音乐"
+            "value" : "匯入音樂"
           }
         }
       }
@@ -8780,13 +9630,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No tracks from this source"
+            "value" : "Aucun titre de cette source"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No tracks from this source"
+            "value" : "इस स्रोत से कोई गाना नहीं"
           }
         },
         "pt-BR" : {
@@ -8804,7 +9654,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "该来源暂无歌曲"
+            "value" : "該來源暫無歌曲"
           }
         }
       }
@@ -8833,13 +9683,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "All"
+            "value" : "Tout"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "All"
+            "value" : "सभी"
           }
         },
         "pt-BR" : {
@@ -8886,13 +9736,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Delete %lld imported track(s)?"
+            "value" : "Supprimer %lld titre(s) importé(s) ?"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Delete %lld imported track(s)?"
+            "value" : "%lld आयात किए गाने हटाएँ?"
           }
         },
         "pt-BR" : {
@@ -8910,7 +9760,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "删除 %lld 首已导入曲目？"
+            "value" : "刪除 %lld 首已匯入曲目？"
           }
         }
       }
@@ -8992,13 +9842,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Back"
+            "value" : "Retour"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Back"
+            "value" : "वापस"
           }
         },
         "pt-BR" : {
@@ -9045,13 +9895,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "NAS/cloud cache limit"
+            "value" : "Limite de cache NAS/cloud"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "NAS/cloud cache limit"
+            "value" : "NAS/क्लाउड कैश सीमा"
           }
         },
         "pt-BR" : {
@@ -9069,7 +9919,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "NAS/云盘缓存上限"
+            "value" : "NAS/雲盤緩存上限"
           }
         }
       }
@@ -9098,13 +9948,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Imported music stays on this device and is not synced to your account."
+            "value" : "La musique importée reste sur cet appareil et n’est pas synchronisée avec votre compte."
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Imported music stays on this device and is not synced to your account."
+            "value" : "आयात किया संगीत इसी डिवाइस पर रहता है और आपके खाते से सिंक नहीं होता।"
           }
         },
         "pt-BR" : {
@@ -9122,7 +9972,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "导入的音乐仅保存在本机，不会同步到云端账号。"
+            "value" : "匯入的音樂僅儲存在本機，不會同步到雲端帳號。"
           }
         }
       }
@@ -9151,13 +10001,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Music import"
+            "value" : "Importation"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Music import"
+            "value" : "संगीत आयात"
           }
         },
         "pt-BR" : {
@@ -9175,7 +10025,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "音乐导入"
+            "value" : "音樂匯入"
           }
         }
       }
@@ -9204,13 +10054,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Wi‑Fi only auto-cache"
+            "value" : "Cache auto en Wi‑Fi uniquement"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Wi‑Fi only auto-cache"
+            "value" : "केवल Wi‑Fi पर ऑटो-कैश"
           }
         },
         "pt-BR" : {
@@ -9281,7 +10131,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "百度网盘"
+            "value" : "百度網盤"
           }
         }
       }
@@ -9310,13 +10160,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Download from Baidu Netdisk"
+            "value" : "Télécharger depuis Baidu Netdisk"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Download from Baidu Netdisk"
+            "value" : "Baidu Netdisk से डाउनलोड करें"
           }
         },
         "pt-BR" : {
@@ -9334,7 +10184,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "从百度网盘下载"
+            "value" : "從百度網盤下載"
           }
         }
       }
@@ -9387,7 +10237,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Google 云端硬盘"
+            "value" : "Google 雲端硬碟"
           }
         }
       }
@@ -9416,13 +10266,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Download from Google Drive"
+            "value" : "Télécharger depuis Google Drive"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Download from Google Drive"
+            "value" : "Google Drive से डाउनलोड करें"
           }
         },
         "pt-BR" : {
@@ -9493,7 +10343,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "iCloud 云盘"
+            "value" : "iCloud 雲盤"
           }
         }
       }
@@ -9522,13 +10372,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Copy from iCloud Drive"
+            "value" : "Copier depuis iCloud Drive"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Copy from iCloud Drive"
+            "value" : "iCloud Drive से कॉपी करें"
           }
         },
         "pt-BR" : {
@@ -9546,7 +10396,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "从 iCloud 云盘拷贝"
+            "value" : "從 iCloud 雲盤拷貝"
           }
         }
       }
@@ -9575,13 +10425,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Files"
+            "value" : "Fichiers"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Files"
+            "value" : "फ़ाइलें"
           }
         },
         "pt-BR" : {
@@ -9628,13 +10478,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Browse audio from Files"
+            "value" : "Parcourir l’audio dans Fichiers"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Browse audio from Files"
+            "value" : "फ़ाइलें से ऑडियो चुनें"
           }
         },
         "pt-BR" : {
@@ -9652,7 +10502,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "从「文件」选择音频"
+            "value" : "從「文件」選擇音頻"
           }
         }
       }
@@ -9687,7 +10537,7 @@
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Photos"
+            "value" : "फ़ोटो"
           }
         },
         "pt-BR" : {
@@ -9734,13 +10584,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Extract audio from videos"
+            "value" : "Extraire l’audio des vidéos"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Extract audio from videos"
+            "value" : "वीडियो से ऑडियो निकालें"
           }
         },
         "pt-BR" : {
@@ -9758,7 +10608,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "从相册视频提取音频"
+            "value" : "從相冊影片提取音頻"
           }
         }
       }
@@ -9840,13 +10690,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "NAS, Nutstore and WebDAV"
+            "value" : "NAS, Nutstore et WebDAV"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "NAS, Nutstore and WebDAV"
+            "value" : "NAS, Nutstore और WebDAV"
           }
         },
         "pt-BR" : {
@@ -9864,7 +10714,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "NAS、坚果云与 WebDAV"
+            "value" : "NAS、堅果雲與 WebDAV"
           }
         }
       }
@@ -9893,13 +10743,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Wi‑Fi transfer"
+            "value" : "Transfert Wi‑Fi"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Wi‑Fi transfer"
+            "value" : "Wi‑Fi ट्रांसफ़र"
           }
         },
         "pt-BR" : {
@@ -9917,7 +10767,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Wi‑Fi 导入"
+            "value" : "Wi‑Fi 匯入"
           }
         }
       }
@@ -9946,13 +10796,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Upload from computer on LAN"
+            "value" : "Envoyer depuis un ordinateur sur le réseau local"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Upload from computer on LAN"
+            "value" : "लोकल नेटवर्क के कंप्यूटर से अपलोड करें"
           }
         },
         "pt-BR" : {
@@ -9970,7 +10820,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "同一局域网电脑上传"
+            "value" : "同一區域網電腦上傳"
           }
         }
       }
@@ -9999,13 +10849,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Online"
+            "value" : "En ligne"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Online"
+            "value" : "ऑनलाइन"
           }
         },
         "pt-BR" : {
@@ -10052,13 +10902,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Imported %lld"
+            "value" : "%lld importés"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Imported %lld"
+            "value" : "%lld आयात किए गए"
           }
         },
         "pt-BR" : {
@@ -10076,7 +10926,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "已导入 %lld 首"
+            "value" : "已匯入 %lld 首"
           }
         }
       }
@@ -10105,13 +10955,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Add WebDAV"
+            "value" : "Ajouter un WebDAV"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Add WebDAV"
+            "value" : "WebDAV जोड़ें"
           }
         },
         "pt-BR" : {
@@ -10158,13 +11008,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Server URL"
+            "value" : "URL du serveur"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Server URL"
+            "value" : "सर्वर URL"
           }
         },
         "pt-BR" : {
@@ -10182,7 +11032,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "服务器地址"
+            "value" : "伺服器地址"
           }
         }
       }
@@ -10211,13 +11061,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Display name"
+            "value" : "Nom affiché"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Display name"
+            "value" : "प्रदर्शित नाम"
           }
         },
         "pt-BR" : {
@@ -10264,13 +11114,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Add a NAS or Nutstore WebDAV account"
+            "value" : "Ajoutez un compte NAS ou Nutstore WebDAV"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Add a NAS or Nutstore WebDAV account"
+            "value" : "NAS या Nutstore WebDAV खाता जोड़ें"
           }
         },
         "pt-BR" : {
@@ -10288,7 +11138,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "添加 NAS 或坚果云 WebDAV 账号"
+            "value" : "添加 NAS 或堅果雲 WebDAV 帳號"
           }
         }
       }
@@ -10317,13 +11167,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Nutstore preset"
+            "value" : "Préréglage Nutstore"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Nutstore preset"
+            "value" : "Nutstore प्रीसेट"
           }
         },
         "pt-BR" : {
@@ -10341,7 +11191,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "坚果云预设"
+            "value" : "堅果雲預設"
           }
         }
       }
@@ -10370,13 +11220,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Password"
+            "value" : "Mot de passe"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Password"
+            "value" : "पासवर्ड"
           }
         },
         "pt-BR" : {
@@ -10423,13 +11273,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Username"
+            "value" : "Nom d’utilisateur"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Username"
+            "value" : "उपयोगकर्ता नाम"
           }
         },
         "pt-BR" : {
@@ -10476,13 +11326,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Close & Stop Transfer"
+            "value" : "Fermer et arrêter le transfert"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Close & Stop Transfer"
+            "value" : "बंद करें और ट्रांसफ़र रोकें"
           }
         },
         "pt-BR" : {
@@ -10500,7 +11350,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "关闭并停止传输"
+            "value" : "關閉並停止傳輸"
           }
         }
       }
@@ -10529,13 +11379,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Copy address"
+            "value" : "Copier l’adresse"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Copy address"
+            "value" : "पता कॉपी करें"
           }
         },
         "pt-BR" : {
@@ -10582,13 +11432,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Failed %lld"
+            "value" : "%lld échec(s)"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Failed %lld"
+            "value" : "%lld विफल"
           }
         },
         "pt-BR" : {
@@ -10635,13 +11485,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "On a computer on the same Wi‑Fi, open the address below (or scan the QR). Allow Local Network when iOS asks."
+            "value" : "Sur un ordinateur connecté au même Wi‑Fi, ouvrez l’adresse ci-dessous (ou scannez le QR). Autorisez le réseau local si iOS le demande."
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "On a computer on the same Wi‑Fi, open the address below (or scan the QR). Allow Local Network when iOS asks."
+            "value" : "उसी Wi‑Fi के कंप्यूटर पर नीचे दिया पता खोलें (या QR स्कैन करें)। यदि सिस्टम लोकल नेटवर्क की अनुमति माँगे, तो अनुमति दें।"
           }
         },
         "pt-BR" : {
@@ -10659,7 +11509,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "在同一 Wi‑Fi 的电脑上打开下方地址（或扫码）。若系统询问本地网络权限，请点允许。"
+            "value" : "在同一 Wi‑Fi 的電腦上打開下方地址（或掃碼）。若系統詢問區域網路權限，請點允許。"
           }
         }
       }
@@ -10688,13 +11538,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Imported %lld"
+            "value" : "%lld importés"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Imported %lld"
+            "value" : "%lld आयात किए गए"
           }
         },
         "pt-BR" : {
@@ -10712,7 +11562,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "已导入 %lld 首"
+            "value" : "已匯入 %lld 首"
           }
         }
       }
@@ -10741,13 +11591,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No Wi‑Fi address found. Connect this iPhone to Wi‑Fi, allow Local Network access, then retry."
+            "value" : "Aucune adresse Wi‑Fi. Connectez cet iPhone au Wi‑Fi, autorisez le réseau local, puis réessayez."
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No Wi‑Fi address found. Connect this iPhone to Wi‑Fi, allow Local Network access, then retry."
+            "value" : "Wi‑Fi पता नहीं मिला। iPhone को Wi‑Fi से जोड़ें, लोकल नेटवर्क की अनुमति दें, फिर पुनः प्रयास करें।"
           }
         },
         "pt-BR" : {
@@ -10765,7 +11615,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "未找到 Wi‑Fi 地址。请让 iPhone 连上 Wi‑Fi，允许“本地网络”权限后重试。"
+            "value" : "未找到 Wi‑Fi 地址。請讓 iPhone 連上 Wi‑Fi，允許「區域網路」權限後重試。"
           }
         }
       }
@@ -10794,13 +11644,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Received %lld file(s)"
+            "value" : "%lld fichier(s) reçu(s)"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Received %lld file(s)"
+            "value" : "%lld फ़ाइलें मिलीं"
           }
         },
         "pt-BR" : {
@@ -10818,7 +11668,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "已接收 %lld 个文件"
+            "value" : "已接收 %lld 個文件"
           }
         }
       }
@@ -10847,13 +11697,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Retry"
+            "value" : "Réessayer"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Retry"
+            "value" : "पुनः प्रयास"
           }
         },
         "pt-BR" : {
@@ -10900,13 +11750,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Server running"
+            "value" : "Serveur démarré"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Server running"
+            "value" : "सर्वर चल रहा है"
           }
         },
         "pt-BR" : {
@@ -10924,7 +11774,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "服务已启动"
+            "value" : "服務已啟動"
           }
         }
       }
@@ -10953,13 +11803,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Waiting for Wi‑Fi address…"
+            "value" : "En attente de l’adresse Wi‑Fi…"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Waiting for Wi‑Fi address…"
+            "value" : "Wi‑Fi पते की प्रतीक्षा…"
           }
         },
         "pt-BR" : {
@@ -13432,10 +14282,28 @@
             "value" : "منطقة المحتوى"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Content region"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Región del contenido"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Région du contenu"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "सामग्री क्षेत्र"
           }
         },
         "pt-BR" : {
@@ -13444,16 +14312,16 @@
             "value" : "Região do conteúdo"
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Content region"
-          }
-        },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "内容地区"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "內容地區"
           }
         }
       }
@@ -13467,10 +14335,28 @@
             "value" : "متابعة"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continue"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Continuar"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continuer"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "जारी रखें"
           }
         },
         "pt-BR" : {
@@ -13479,16 +14365,16 @@
             "value" : "Continuar"
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Continue"
-          }
-        },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "继续"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "繼續"
           }
         }
       }
@@ -13502,10 +14388,28 @@
             "value" : "لغة التطبيق"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "App language"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Idioma de la app"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Langue de l’app"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ऐप भाषा"
           }
         },
         "pt-BR" : {
@@ -13514,16 +14418,16 @@
             "value" : "Idioma do app"
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "App language"
-          }
-        },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "应用语言"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "應用語言"
           }
         }
       }
@@ -13537,10 +14441,28 @@
             "value" : "اختر لغتك والمنطقة التي تريد تخصيص الاقتراحات ومحتوى الصفحة الرئيسية منها."
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose your language and where you want recommendations and home feed content tailored from."
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Elige el idioma y la región de la que quieres las recomendaciones y el contenido de inicio."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choisissez la langue de l’app et la région utilisée pour l’accueil et les recommandations."
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ऐप की भाषा और वह क्षेत्र चुनें जिसके लिए होम और सुझाव दिखाए जाएँ।"
           }
         },
         "pt-BR" : {
@@ -13549,16 +14471,16 @@
             "value" : "Escolha o idioma e a região de onde quer as recomendações e o conteúdo da página inicial."
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Choose your language and where you want recommendations and home feed content tailored from."
-          }
-        },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "请选择应用语言以及首页与推荐内容所针对的地区。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "請選擇應用語言以及首頁與推薦內容所針對的地區。"
           }
         }
       }
@@ -13572,10 +14494,28 @@
             "value" : "مرحبًا بك في Mixtube"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Welcome to Mixtube"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Te damos la bienvenida a Mixtube"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bienvenue sur Mixtube"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mixtube में आपका स्वागत है"
           }
         },
         "pt-BR" : {
@@ -13584,16 +14524,16 @@
             "value" : "Boas-vindas ao Mixtube"
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Welcome to Mixtube"
-          }
-        },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "欢迎使用 Mixtube"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "歡迎使用 Mixtube"
           }
         }
       }
@@ -13704,6 +14644,59 @@
         }
       }
     },
+    "playback.skipped_reason" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تم التخطي. %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skipped. %@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Omitida. %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Passé. %@"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "छोड़ दिया। %@"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pulado. %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已跳过。%@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已跳過。%@"
+          }
+        }
+      }
+    },
     "player.add_to_current_queue" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -13713,22 +14706,34 @@
             "value" : "إضافة إلى قائمة الانتظار الحالية"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add to current queue"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Añadir a la cola actual"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ajouter à la file en cours"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "मौजूदा कतार में जोड़ें"
+          }
+        },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Adicionar à fila atual"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Add to current queue"
           }
         },
         "zh-Hans" : {
@@ -13807,19 +14812,31 @@
             "value" : "AirPlay"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AirPlay"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "AirPlay"
           }
         },
-        "pt-BR" : {
+        "fr" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "AirPlay"
           }
         },
-        "en" : {
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AirPlay"
+          }
+        },
+        "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "AirPlay"
@@ -13888,6 +14905,112 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "不喜歡"
+          }
+        }
+      }
+    },
+    "player.error.resolve_failed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تعذر تشغيل هذا المقطع"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This track can't be played"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se puede reproducir esta pista"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible de lire ce titre"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "यह ट्रैक नहीं चल सका"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Não foi possível reproduzir esta faixa"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这首无法播放"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "這首無法播放"
+          }
+        }
+      }
+    },
+    "player.error.unplayable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "هذا المقطع غير قابل للتشغيل"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This track is unavailable"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esta pista no está disponible"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ce titre n'est pas disponible"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "यह ट्रैक उपलब्ध नहीं है"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esta faixa não está disponível"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这首暂时不能播放"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "這首暫時不能播放"
           }
         }
       }
@@ -14219,22 +15342,34 @@
             "value" : "فشل التشغيل"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Playback failed"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Error de reproducción"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Échec de la lecture"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "प्लेबैक विफल"
+          }
+        },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Falha na reprodução"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Playback failed"
           }
         },
         "zh-Hans" : {
@@ -14569,45 +15704,6 @@
         }
       }
     },
-    "player.error.resolve_failed" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "تعذر تشغيل هذا المقطع" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "This track can't be played" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "No se puede reproducir esta pista" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Impossible de lire ce titre" } },
-        "hi" : { "stringUnit" : { "state" : "translated", "value" : "यह ट्रैक नहीं चल सका" } },
-        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Não foi possível reproduzir esta faixa" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "这首无法播放" } },
-        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "這首無法播放" } }
-      }
-    },
-    "player.error.unplayable" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "هذا المقطع غير قابل للتشغيل" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "This track is unavailable" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "Esta pista no está disponible" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Ce titre n'est pas disponible" } },
-        "hi" : { "stringUnit" : { "state" : "translated", "value" : "यह ट्रैक उपलब्ध नहीं है" } },
-        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Esta faixa não está disponível" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "这首暂时不能播放" } },
-        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "這首暫時不能播放" } }
-      }
-    },
-    "playback.skipped_reason" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "تم التخطي. %@" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Skipped. %@" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "Omitida. %@" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Passé. %@" } },
-        "hi" : { "stringUnit" : { "state" : "translated", "value" : "छोड़ दिया। %@" } },
-        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Pulado. %@" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "已跳过。%@" } },
-        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "已跳過。%@" } }
-      }
-    },
     "player.sign_in_to_play" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -14617,22 +15713,34 @@
             "value" : "سجّل الدخول للتشغيل"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign in to play"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Inicia sesión para reproducir"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connectez-vous pour lire"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "चलाने के लिए साइन इन करें"
+          }
+        },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Entre para reproduzir"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sign in to play"
           }
         },
         "zh-Hans" : {
@@ -14658,22 +15766,34 @@
             "value" : "يحتاج هذا الفيديو إلى حساب Google. تسجيل الدخول يفتح أيضًا مزامنة الاشتراكات والمكتبة."
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This video needs a Google account. Signing in also unlocks Subs and Library sync."
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Este vídeo necesita una cuenta de Google. Al iniciar sesión también se desbloquea la sincronización de suscripciones y de la biblioteca."
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cette vidéo nécessite un compte Google. La connexion débloque aussi la synchro des abonnements et de la bibliothèque."
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "इस वीडियो के लिए Google खाता चाहिए। साइन इन करने पर सब्सक्रिप्शन और लाइब्रेरी भी सिंक होते हैं।"
+          }
+        },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Este vídeo precisa de uma conta Google. Ao entrar, a sincronização de inscrições e da biblioteca também é liberada."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This video needs a Google account. Signing in also unlocks Subs and Library sync."
           }
         },
         "zh-Hans" : {
@@ -14979,13 +16099,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your feedback helps us improve."
+            "value" : "Vos retours nous aident à nous améliorer."
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your feedback helps us improve."
+            "value" : "आपकी प्रतिक्रिया से हमें बेहतर बनाने में मदद मिलती है।"
           }
         },
         "pt-BR" : {
@@ -15032,13 +16152,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Enjoying Mixtube?"
+            "value" : "Vous aimez Mixtube ?"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Enjoying Mixtube?"
+            "value" : "Mixtube पसंद आ रहा है?"
           }
         },
         "pt-BR" : {
@@ -15085,13 +16205,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Maybe later"
+            "value" : "Plus tard"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Maybe later"
+            "value" : "बाद में"
           }
         },
         "pt-BR" : {
@@ -15138,13 +16258,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Love it"
+            "value" : "J’adore"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Love it"
+            "value" : "पसंद है"
           }
         },
         "pt-BR" : {
@@ -15191,13 +16311,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Not really"
+            "value" : "Pas vraiment"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Not really"
+            "value" : "ज़्यादा नहीं"
           }
         },
         "pt-BR" : {
@@ -15388,22 +16508,34 @@
             "value" : "لا توجد نتائج"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No results"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sin resultados"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucun résultat"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "कोई परिणाम नहीं"
+          }
+        },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Nenhum resultado"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No results"
           }
         },
         "zh-Hans" : {
@@ -15868,13 +17000,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "App background"
+            "value" : "Arrière-plan de l’app"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "App background"
+            "value" : "ऐप पृष्ठभूमि"
           }
         },
         "pt-BR" : {
@@ -16080,7 +17212,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Bundle"
+            "value" : "Identifiant"
           }
         },
         "hi" : {
@@ -16171,10 +17303,28 @@
             "value" : "منطقة المحتوى"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Content region"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Región del contenido"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Région du contenu"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "सामग्री क्षेत्र"
           }
         },
         "pt-BR" : {
@@ -16183,16 +17333,16 @@
             "value" : "Região do conteúdo"
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Content region"
-          }
-        },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "内容地区"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "內容地區"
           }
         }
       }
@@ -16203,19 +17353,7 @@
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "يؤثر على الصفحة الرئيسية واقتراحات Account. لغة التطبيق تغيّر نص الواجهة فقط."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Afecta al inicio y a las recomendaciones de Account. El idioma de la app solo cambia el texto de la interfaz."
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Afeta a página inicial e as recomendações do Account. O idioma do app muda apenas o texto da interface."
+            "value" : "يؤثر على الصفحة الرئيسية واقتراحات الحساب. لغة التطبيق تغيّر نص الواجهة فقط."
           }
         },
         "en" : {
@@ -16224,10 +17362,40 @@
             "value" : "Affects home feed and Account recommendations. App language controls UI text only."
           }
         },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Afecta al inicio y a las recomendaciones de la cuenta. El idioma de la app solo cambia el texto de la interfaz."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Affecte l’accueil et les recommandations du compte. La langue de l’app ne change que le texte de l’interface."
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "होम फ़ीड और खाते के सुझावों पर असर डालता है। ऐप की भाषा केवल इंटरफ़ेस का पाठ बदलती है।"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Afeta a página inicial e as recomendações da conta. O idioma do app muda apenas o texto da interface."
+          }
+        },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "影响首页与 Account 推荐内容。应用语言仅改变界面文字。"
+            "value" : "影响首页与账户推荐内容。应用语言仅改变界面文字。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "影響首頁與帳戶推薦內容。應用語言僅改變介面文字。"
           }
         }
       }
@@ -16256,13 +17424,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Help & Support"
+            "value" : "Aide et assistance"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Help & Support"
+            "value" : "सहायता और समर्थन"
           }
         },
         "pt-BR" : {
@@ -16453,10 +17621,28 @@
             "value" : "صورة داخل صورة"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Picture in Picture"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Imagen dentro de imagen"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Image dans l’image"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "पिक्चर इन पिक्चर"
           }
         },
         "pt-BR" : {
@@ -16465,16 +17651,16 @@
             "value" : "Imagem em imagem"
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Picture in Picture"
-          }
-        },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "画中画"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "畫中畫"
           }
         }
       }
@@ -16488,10 +17674,28 @@
             "value" : "فيديو عائم أثناء التصفح"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Float video while browsing"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Vídeo flotante mientras navegas"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lire la vidéo en flottant pendant la navigation"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ब्राउज़ करते समय वीडियो फ़्लोटिंग चलाएँ"
           }
         },
         "pt-BR" : {
@@ -16500,16 +17704,16 @@
             "value" : "Vídeo flutuante enquanto você navega"
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Float video while browsing"
-          }
-        },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "浏览时悬浮播放视频"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "瀏覽時懸浮播放影片"
           }
         }
       }
@@ -17315,7 +18519,7 @@
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Account"
+            "value" : "الحساب"
           }
         },
         "en" : {
@@ -17327,37 +18531,37 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Account"
+            "value" : "Cuenta"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Account"
+            "value" : "Compte"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Account"
+            "value" : "खाता"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Account"
+            "value" : "Conta"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Account"
+            "value" : "账户"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Account"
+            "value" : "帳戶"
           }
         }
       }
@@ -17439,13 +18643,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Import"
+            "value" : "Importer"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Import"
+            "value" : "आयात"
           }
         },
         "pt-BR" : {
@@ -17636,22 +18840,34 @@
             "value" : "داكن"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dark"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Oscuro"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sombre"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "गहरा"
+          }
+        },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Escuro"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Dark"
           }
         },
         "zh-Hans" : {
@@ -17677,22 +18893,34 @@
             "value" : "فاتح"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Light"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Claro"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clair"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "हल्का"
+          }
+        },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Claro"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Light"
           }
         },
         "zh-Hans" : {
@@ -17718,22 +18946,34 @@
             "value" : "إنشاء سمة مخصصة"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Create custom theme"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Crear tema personalizado"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Créer un thème personnalisé"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "कस्टम थीम बनाएँ"
+          }
+        },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Criar tema personalizado"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Create custom theme"
           }
         },
         "zh-Hans" : {
@@ -17745,7 +18985,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "创建自定义主题"
+            "value" : "建立自訂主題"
           }
         }
       }
@@ -17759,22 +18999,34 @@
             "value" : "سمة مخصصة"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Custom theme"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tema personalizado"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Thème personnalisé"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "कस्टम थीम"
+          }
+        },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tema personalizado"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Custom theme"
           }
         },
         "zh-Hans" : {
@@ -17786,7 +19038,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "自定义主题"
+            "value" : "自訂主題"
           }
         }
       }
@@ -17800,22 +19052,34 @@
             "value" : "لا توجد سمات مخصصة بعد"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No custom themes yet"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Aún no hay temas personalizados"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucun thème personnalisé"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "अभी कोई कस्टम थीम नहीं"
+          }
+        },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ainda não há temas personalizados"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No custom themes yet"
           }
         },
         "zh-Hans" : {
@@ -17827,7 +19091,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "暂无自定义主题"
+            "value" : "暫無自訂主題"
           }
         }
       }
@@ -17841,22 +19105,34 @@
             "value" : "أسود AMOLED"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AMOLED Black"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Negro AMOLED"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Noir AMOLED"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AMOLED काला"
+          }
+        },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Preto AMOLED"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "AMOLED Black"
           }
         },
         "zh-Hans" : {
@@ -17882,22 +19158,34 @@
             "value" : "داكن كلاسيكي"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Classic Dark"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Oscuro clásico"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sombre classique"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "क्लासिक गहरा"
+          }
+        },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Escuro clássico"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Classic Dark"
           }
         },
         "zh-Hans" : {
@@ -17909,7 +19197,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "经典深色"
+            "value" : "經典深色"
           }
         }
       }
@@ -17923,22 +19211,34 @@
             "value" : "بنفسجي"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Violet"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Violeta"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Violet"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "बैंगनी"
+          }
+        },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Violeta"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Violet"
           }
         },
         "zh-Hans" : {
@@ -17964,22 +19264,34 @@
             "value" : "جمر"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ember"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Brasa"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Braise"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "अंगारे"
+          }
+        },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Brasa"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ember"
           }
         },
         "zh-Hans" : {
@@ -18005,22 +19317,34 @@
             "value" : "أردوازي"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Slate"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Pizarra"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ardoise"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "स्लेट"
+          }
+        },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ardósia"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Slate"
           }
         },
         "zh-Hans" : {
@@ -18046,22 +19370,34 @@
             "value" : "المظهر"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Appearance"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Apariencia"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apparence"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "रूप"
+          }
+        },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Aparência"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Appearance"
           }
         },
         "zh-Hans" : {
@@ -18087,22 +19423,34 @@
             "value" : "الأساسيات"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Basics"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Datos básicos"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Informations"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "मूल बातें"
+          }
+        },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Básico"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Basics"
           }
         },
         "zh-Hans" : {
@@ -18128,22 +19476,34 @@
             "value" : "الألوان"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Colors"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Colores"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couleurs"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "रंग"
+          }
+        },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Cores"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Colors"
           }
         },
         "zh-Hans" : {
@@ -18169,22 +19529,34 @@
             "value" : "تعديل السمة"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Edit theme"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Editar tema"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Modifier le thème"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "थीम संपादित करें"
+          }
+        },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Editar tema"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Edit theme"
           }
         },
         "zh-Hans" : {
@@ -18196,7 +19568,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "编辑主题"
+            "value" : "編輯主題"
           }
         }
       }
@@ -18210,22 +19582,34 @@
             "value" : "الاسم"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Name"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Nombre"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nom"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "नाम"
+          }
+        },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Nome"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Name"
           }
         },
         "zh-Hans" : {
@@ -18251,22 +19635,34 @@
             "value" : "معاينة"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preview"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Vista previa"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aperçu"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "पूर्वावलोकन"
+          }
+        },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Pré-visualização"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Preview"
           }
         },
         "zh-Hans" : {
@@ -18292,22 +19688,34 @@
             "value" : "شارة"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chip"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Etiqueta"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Puce"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "चिप"
+          }
+        },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Etiqueta"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Chip"
           }
         },
         "zh-Hans" : {
@@ -18333,22 +19741,34 @@
             "value" : "نص تجريبي على هذه السمة"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sample text on this theme"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Texto de ejemplo con este tema"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exemple de texte sur ce thème"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "इस थीम पर नमूना पाठ"
+          }
+        },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Texto de exemplo neste tema"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sample text on this theme"
           }
         },
         "zh-Hans" : {
@@ -18360,7 +19780,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "当前主题下的示例文字"
+            "value" : "當前主題下的示例文字"
           }
         }
       }
@@ -18374,22 +19794,34 @@
             "value" : "البدء من سمة مدمجة"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Start from built-in"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Empezar desde un tema integrado"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Partir d’un thème intégré"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "बिल्ट-इन थीम से शुरू करें"
+          }
+        },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Começar de um tema integrado"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Start from built-in"
           }
         },
         "zh-Hans" : {
@@ -18401,7 +19833,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "从内置主题开始"
+            "value" : "從內置主題開始"
           }
         }
       }
@@ -18415,22 +19847,34 @@
             "value" : "فاتح كلاسيكي"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Classic Light"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Claro clásico"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clair classique"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "क्लासिक हल्का"
+          }
+        },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Claro clássico"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Classic Light"
           }
         },
         "zh-Hans" : {
@@ -18442,7 +19886,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "经典浅色"
+            "value" : "經典淺色"
           }
         }
       }
@@ -18456,22 +19900,34 @@
             "value" : "تباين عالٍ"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "High Contrast"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Alto contraste"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contraste élevé"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "उच्च कंट्रास्ट"
+          }
+        },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Alto contraste"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "High Contrast"
           }
         },
         "zh-Hans" : {
@@ -18483,7 +19939,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "高对比"
+            "value" : "高對比"
           }
         }
       }
@@ -18497,22 +19953,34 @@
             "value" : "سماوي جليدي"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ice Cyan"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Cian hielo"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cyan givré"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "बर्फीला सियान"
+          }
+        },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ciano gelo"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ice Cyan"
           }
         },
         "zh-Hans" : {
@@ -18538,22 +20006,34 @@
             "value" : "مرج"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Meadow"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Pradera"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prairie"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "घास का मैदान"
+          }
+        },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Prado"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Meadow"
           }
         },
         "zh-Hans" : {
@@ -18579,22 +20059,34 @@
             "value" : "وردي"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Blush"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Rubor"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rose tendre"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "गुलाबी"
+          }
+        },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Rosado"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Blush"
           }
         },
         "zh-Hans" : {
@@ -18620,22 +20112,34 @@
             "value" : "سماتي"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "My themes"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Mis temas"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mes thèmes"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "मेरी थीम"
+          }
+        },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Meus temas"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "My themes"
           }
         },
         "zh-Hans" : {
@@ -18647,7 +20151,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "我的主题"
+            "value" : "我的主題"
           }
         }
       }
@@ -18661,22 +20165,34 @@
             "value" : "سمات داكنة"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dark themes"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Temas oscuros"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Thèmes sombres"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "गहरी थीम"
+          }
+        },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Temas escuros"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Dark themes"
           }
         },
         "zh-Hans" : {
@@ -18688,7 +20204,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "深色主题"
+            "value" : "深色主題"
           }
         }
       }
@@ -18702,22 +20218,34 @@
             "value" : "سمات فاتحة"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Light themes"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Temas claros"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Thèmes clairs"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "हल्की थीम"
+          }
+        },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Temas claros"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Light themes"
           }
         },
         "zh-Hans" : {
@@ -18729,7 +20257,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "浅色主题"
+            "value" : "淺色主題"
           }
         }
       }
@@ -18743,22 +20271,34 @@
             "value" : "السمة"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Theme"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tema"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Thème"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "थीम"
+          }
+        },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tema"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Theme"
           }
         },
         "zh-Hans" : {
@@ -18770,7 +20310,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "主题"
+            "value" : "主題"
           }
         }
       }
@@ -18784,22 +20324,34 @@
             "value" : "لون التمييز"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Accent"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Acento"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Accent"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ऐक्सेंट"
+          }
+        },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Destaque"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Accent"
           }
         },
         "zh-Hans" : {
@@ -18825,22 +20377,34 @@
             "value" : "الخلفية"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Background"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Fondo"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Arrière-plan"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "पृष्ठभूमि"
+          }
+        },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Fundo"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Background"
           }
         },
         "zh-Hans" : {
@@ -18866,22 +20430,34 @@
             "value" : "النص الأساسي"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Primary text"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Texto principal"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Texte principal"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "मुख्य पाठ"
+          }
+        },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Texto principal"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Primary text"
           }
         },
         "zh-Hans" : {
@@ -18907,22 +20483,34 @@
             "value" : "النص الثانوي"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Secondary text"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Texto secundario"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Texte secondaire"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "द्वितीयक पाठ"
+          }
+        },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Texto secundário"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Secondary text"
           }
         },
         "zh-Hans" : {
@@ -18948,22 +20536,34 @@
             "value" : "السطح"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Surface"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Superficie"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Surface"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "सतह"
+          }
+        },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Superfície"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Surface"
           }
         },
         "zh-Hans" : {
@@ -18989,22 +20589,34 @@
             "value" : "سطح مرتفع"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elevated surface"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Superficie elevada"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Surface élevée"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "उठी हुई सतह"
+          }
+        },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Superfície elevada"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Elevated surface"
           }
         },
         "zh-Hans" : {
@@ -19030,22 +20642,34 @@
             "value" : "سطح ثانوي"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Variant surface"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Superficie secundaria"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Surface secondaire"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "द्वितीयक सतह"
+          }
+        },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Superfície secundária"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Variant surface"
           }
         },
         "zh-Hans" : {
@@ -19061,9 +20685,6 @@
           }
         }
       }
-    },
-    "This permanently deletes your Mixtube account and cloud library data (playlists, history, subscriptions, and metadata). This can't be undone." : {
-
     },
     "toast.added_to_queue" : {
       "extractionState" : "manual",
@@ -20897,7 +22518,7 @@
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Mixtube Premium"
+            "value" : "Mixtube प्रीमियम"
           }
         },
         "pt-BR" : {
@@ -22063,7 +23684,7 @@
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "VIP"
+            "value" : "वीआईपी"
           }
         },
         "pt-BR" : {
@@ -22092,7 +23713,7 @@
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "بدّل الحساب أو سجّل الدخول مجددًا لمنح وصول Account للقراءة فقط للاشتراكات."
+            "value" : "بدّل الحساب أو سجّل الدخول مجددًا لمنح صلاحية القراءة فقط للاشتراكات."
           }
         },
         "en" : {
@@ -22104,37 +23725,37 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Cambia de cuenta o inicia sesión de nuevo para conceder acceso de solo lectura de Account a las suscripciones."
+            "value" : "Cambia de cuenta o vuelve a iniciar sesión para conceder acceso de solo lectura a las suscripciones."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Changez de compte ou reconnectez-vous pour accorder l'accès Account en lecture seule aux abonnements."
+            "value" : "Changez de compte ou reconnectez-vous pour accorder l’accès en lecture seule aux abonnements."
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "सब्सक्रिप्शन के लिए Account रीडओनली ऐक्सेस देने हेतु खाता बदलें या फिर से साइन इन करें।"
+            "value" : "सब्सक्रिप्शन के लिए केवल-पढ़ने की अनुमति देने हेतु खाता बदलें या फिर से साइन इन करें।"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Troque de conta ou entre novamente para conceder acesso somente leitura do Account às inscrições."
+            "value" : "Troque de conta ou entre novamente para conceder acesso somente leitura às inscrições."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "请切换账号或重新登录，以授予订阅所需的 Account 只读权限。"
+            "value" : "请切换账号或重新登录，以授予订阅所需的只读权限。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "請切換帳號或重新登入，以授予訂閱所需的 Account 唯讀權限。"
+            "value" : "請切換帳號或重新登入，以授予訂閱所需的唯讀權限。"
           }
         }
       }
@@ -22145,7 +23766,7 @@
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "يلزم الوصول إلى Account"
+            "value" : "يلزم الوصول إلى الحساب"
           }
         },
         "en" : {
@@ -22157,37 +23778,37 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Se necesita acceso a Account"
+            "value" : "Se necesita acceso a la cuenta"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Accès Account requis"
+            "value" : "Accès au compte requis"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Account ऐक्सेस आवश्यक"
+            "value" : "खाते की ऐक्सेस आवश्यक"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Acesso ao Account necessário"
+            "value" : "Acesso à conta necessário"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "需要 Account 访问权限"
+            "value" : "需要账户访问权限"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "需要 Account 存取權限"
+            "value" : "需要帳戶存取權限"
           }
         }
       }
@@ -22198,19 +23819,7 @@
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "الاشتراكات والفيديوهات التي أعجبت بها تأتي من حساب Account. سجّل الدخول باستخدام Google لتحميل هذا التبويب. تبقى مكتبة تسجيل الدخول عبر Apple منفصلة."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Las suscripciones y los vídeos que te gustan vienen de tu cuenta de Account. Inicia sesión con Google para cargar esta pestaña. La biblioteca con la que entraste mediante Apple sigue siendo independiente."
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "As inscrições e os vídeos curtidos vêm da sua conta Account. Entre com o Google para carregar esta aba. A biblioteca da sessão com a Apple continua separada."
+            "value" : "الاشتراكات والفيديوهات التي أعجبت بها تأتي من حسابك. سجّل الدخول باستخدام Google لتحميل هذا التبويب. تبقى مكتبة تسجيل الدخول عبر Apple منفصلة."
           }
         },
         "en" : {
@@ -22219,10 +23828,40 @@
             "value" : "Subscriptions and Liked videos come from your Account account. Sign in with Google to load this tab. Your Apple-signed-in library stays separate."
           }
         },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Las suscripciones y los vídeos que te gustan vienen de tu cuenta. Inicia sesión con Google para cargar esta pestaña. La biblioteca con la que entraste mediante Apple sigue siendo independiente."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les abonnements et les vidéos aimées viennent de votre compte. Connectez-vous avec Google pour charger cet onglet. La bibliothèque de la session Apple reste séparée."
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "सब्सक्रिप्शन और पसंद किए वीडियो आपके खाते से आते हैं। यह टैब लोड करने के लिए Google से साइन इन करें। Apple से साइन-इन की लाइब्रेरी अलग रहती है।"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "As inscrições e os vídeos curtidos vêm da sua conta. Entre com o Google para carregar esta aba. A biblioteca da sessão com a Apple continua separada."
+          }
+        },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "订阅与赞过的视频来自你的 Account 账号。请使用 Google 登录以加载此页。通过 Apple 登录的媒体库账号相互独立。"
+            "value" : "订阅与赞过的视频来自你的账户。请使用 Google 登录以加载此页。通过 Apple 登录的媒体库账号相互独立。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "訂閱與讚過的影片來自你的帳戶。請使用 Google 登入以載入此頁。透過 Apple 登入的媒體庫帳號彼此獨立。"
           }
         }
       }
@@ -22233,19 +23872,7 @@
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "يلزم الوصول إلى Account"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Se necesita acceso a Account"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Acesso ao Account necessário"
+            "value" : "يلزم الوصول إلى الحساب"
           }
         },
         "en" : {
@@ -22254,10 +23881,40 @@
             "value" : "Account access required"
           }
         },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se necesita acceso a la cuenta"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Accès au compte requis"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "खाते की ऐक्सेस आवश्यक"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Acesso à conta necessário"
+          }
+        },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "需要 Account 访问权限"
+            "value" : "需要账户访问权限"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "需要帳戶存取權限"
           }
         }
       }
@@ -22321,7 +23978,7 @@
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "تظهر هنا القنوات من حساب Account لديك"
+            "value" : "تظهر هنا القنوات من حسابك"
           }
         },
         "en" : {
@@ -22333,37 +23990,37 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Aquí aparecen los canales de tu cuenta de Account"
+            "value" : "Aquí aparecen los canales de tu cuenta"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Les chaînes de votre compte Account apparaissent ici"
+            "value" : "Les chaînes de votre compte apparaissent ici"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "आपके Account खाते के चैनल यहाँ दिखते हैं"
+            "value" : "आपके खाते के चैनल यहाँ दिखते हैं"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Canais da sua conta do Account aparecem aqui"
+            "value" : "Os canais da sua conta aparecem aqui"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "来自 Account 账号的频道会显示在这里"
+            "value" : "来自你账户的频道会显示在这里"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "來自 Account 帳號的頻道會顯示在這裡"
+            "value" : "來自你帳戶的頻道會顯示在這裡"
           }
         }
       }
@@ -22692,7 +24349,7 @@
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "تظهر هنا قوائم التشغيل من حساب Account لديك"
+            "value" : "تظهر هنا قوائم التشغيل من حسابك"
           }
         },
         "en" : {
@@ -22704,37 +24361,37 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Aquí aparecen las listas de tu cuenta de Account"
+            "value" : "Aquí aparecen las listas de tu cuenta"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Les playlists de votre compte Account apparaissent ici"
+            "value" : "Les playlists de votre compte apparaissent ici"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "आपके Account खाते की प्लेलिस्ट यहाँ दिखती हैं"
+            "value" : "आपके खाते की प्लेलिस्ट यहाँ दिखती हैं"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Playlists da sua conta do Account aparecem aqui"
+            "value" : "As playlists da sua conta aparecem aqui"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "来自 Account 账号的播放列表会显示在这里"
+            "value" : "来自你账户的播放列表会显示在这里"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "來自 Account 帳號的播放清單會顯示在這裡"
+            "value" : "來自你帳戶的播放清單會顯示在這裡"
           }
         }
       }
@@ -22745,7 +24402,7 @@
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "سجّل الدخول لرؤية تحديثات قنواتك المفضلة على Account"
+            "value" : "سجّل الدخول لرؤية تحديثات قنواتك المفضلة"
           }
         },
         "en" : {
@@ -22757,25 +24414,25 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Inicia sesión para ver novedades de tus canales favoritos de Account"
+            "value" : "Inicia sesión para ver novedades de tus canales favoritos"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Connectez-vous pour voir les nouveautés de vos chaînes Account préférées"
+            "value" : "Connectez-vous pour voir les nouveautés de vos chaînes préférées"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "अपने पसंदीदा Account चैनलों के अपडेट देखने के लिए साइन इन करें"
+            "value" : "अपने पसंदीदा चैनलों के अपडेट देखने के लिए साइन इन करें"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Entre para ver atualizações dos seus canais favoritos do Account"
+            "value" : "Entre para ver atualizações dos seus canais favoritos"
           }
         },
         "zh-Hans" : {
@@ -22798,19 +24455,7 @@
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "تسجيل الدخول باستخدام Google للوصول إلى Account"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Iniciar sesión con Google para Account"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Entrar com o Google para o Account"
+            "value" : "تسجيل الدخول باستخدام Google للوصول إلى الحساب"
           }
         },
         "en" : {
@@ -22819,10 +24464,40 @@
             "value" : "Sign in with Google for Account"
           }
         },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Iniciar sesión con Google para la cuenta"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se connecter avec Google pour le compte"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "खाते के लिए Google से साइन इन करें"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entrar com o Google para a conta"
+          }
+        },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "使用 Google 登录以访问 Account"
+            "value" : "使用 Google 登录以访问账户"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用 Google 登入以存取帳戶"
           }
         }
       }

@@ -485,7 +485,7 @@ struct LibraryView: View {
                 .presentationBackground(YTLiteColor.surfaceElevated)
             }
             .alert(
-                "Delete account?",
+                L("account.delete_confirm"),
                 isPresented: $showDeleteAccountConfirm
             ) {
                 Button(L("account.delete"), role: .destructive) {
@@ -493,9 +493,7 @@ struct LibraryView: View {
                 }
                 Button(L("common.cancel"), role: .cancel) {}
             } message: {
-                Text(
-                    "This permanently deletes your Mixtube account and cloud library data (playlists, history, subscriptions, and metadata). This can't be undone."
-                )
+                Text(L("account.delete_message"))
             }
             .alert(
                 L("account.delete_failed"),
