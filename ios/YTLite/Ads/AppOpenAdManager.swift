@@ -1,3 +1,4 @@
+#if !targetEnvironment(macCatalyst)
 import GoogleMobileAds
 import UIKit
 
@@ -108,3 +109,18 @@ extension AppOpenAdManager: FullScreenContentDelegate {
         loadAd()
     }
 }
+#else
+import Foundation
+
+@MainActor
+final class AppOpenAdManager: NSObject {
+    static let shared = AppOpenAdManager()
+
+    var isReady: Bool { false }
+
+    func loadAd() {}
+
+    @discardableResult
+    func showAdIfAvailable(reason: String) -> Bool { false }
+}
+#endif

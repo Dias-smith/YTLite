@@ -1,5 +1,8 @@
 import AVFoundation
 import Foundation
+#if targetEnvironment(macCatalyst)
+import CoreAudio
+#endif
 
 /// Real-time peaking EQ for AVPlayer audio tap (10-band cascade).
 final class PlaybackEqualizerProcessor: @unchecked Sendable {

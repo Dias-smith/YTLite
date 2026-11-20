@@ -37,6 +37,7 @@ supabase/.temp/
 ios/**/xcuserdata/
 ios/**/DerivedData/
 ios/DerivedData/
+ios/build/
 ios/.derivedData/
 ios/.spm/
 ios/*.xcworkspace/xcuserdata/

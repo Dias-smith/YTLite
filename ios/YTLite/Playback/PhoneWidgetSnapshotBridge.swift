@@ -1,6 +1,8 @@
 import Foundation
 import UIKit
+#if !targetEnvironment(macCatalyst)
 import WidgetKit
+#endif
 
 /// Writes Now Playing into the App Group for the iPhone Home Screen / Lock Screen widget.
 enum PhoneWidgetSnapshotBridge {
@@ -71,7 +73,9 @@ enum PhoneWidgetSnapshotBridge {
         reloadLock.lock()
         pendingReload?.cancel()
         let work = DispatchWorkItem {
+            #if !targetEnvironment(macCatalyst)
             WidgetCenter.shared.reloadTimelines(ofKind: PhoneWidgetShared.widgetKind)
+            #endif
         }
         pendingReload = work
         reloadLock.unlock()
@@ -85,12 +89,16 @@ enum PhoneWidgetSnapshotBridge {
         pendingReload = nil
         retryReload?.cancel()
         let retry = DispatchWorkItem {
+            #if !targetEnvironment(macCatalyst)
             WidgetCenter.shared.reloadTimelines(ofKind: PhoneWidgetShared.widgetKind)
+            #endif
         }
         retryReload = retry
         reloadLock.unlock()
         let reload = {
+            #if !targetEnvironment(macCatalyst)
             WidgetCenter.shared.reloadTimelines(ofKind: PhoneWidgetShared.widgetKind)
+            #endif
         }
         if Thread.isMainThread {
             reload()

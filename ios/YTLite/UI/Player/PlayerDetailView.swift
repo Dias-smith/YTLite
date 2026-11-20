@@ -1510,7 +1510,10 @@ private struct PlayerQueueTabPane: View, Equatable {
                     },
                     onMore: { onOpenTrackMenu(item) }
                 )
-                .equatable()
+                    .equatable()
+            }
+            if !queue.isEmpty {
+                queueEndCaption(L("player.list_end"))
             }
         case .related:
             if relatedLoading && related.isEmpty {
@@ -1561,8 +1564,27 @@ private struct PlayerQueueTabPane: View, Equatable {
                     )
                     .equatable()
                 }
+                queueEndCaption(L("player.list_end"))
             }
         }
+    }
+
+    private func queueEndCaption(_ text: String) -> some View {
+        HStack(spacing: 12) {
+            Rectangle()
+                .fill(YTLiteColor.onSurfaceVariant.opacity(0.35))
+                .frame(height: 1)
+            Text(text)
+                .font(YTLiteType.meta)
+                .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
+            Rectangle()
+                .fill(YTLiteColor.onSurfaceVariant.opacity(0.35))
+                .frame(height: 1)
+        }
+        .padding(.top, YTLiteLayout.stackLoose)
+        .padding(.bottom, YTLiteLayout.sectionGap)
     }
 }
 

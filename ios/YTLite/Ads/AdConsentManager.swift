@@ -1,3 +1,4 @@
+#if !targetEnvironment(macCatalyst)
 import AppTrackingTransparency
 import Combine
 import Foundation
@@ -193,3 +194,47 @@ enum AppPermissionPromptGate {
         UIApplication.shared.applicationState == .active
     }
 }
+#else
+import Combine
+import Foundation
+import UIKit
+
+@MainActor
+final class AdConsentStatus: ObservableObject {
+    static let shared = AdConsentStatus()
+    @Published private(set) var revision = 0
+
+    private init() {}
+
+    func refresh() {
+        revision += 1
+    }
+}
+
+@MainActor
+enum AdConsentManager {
+    static var canRequestAds: Bool { false }
+    static var isPrivacyOptionsRequired: Bool { false }
+
+    static func requestTrackingAuthorizationAtLaunch() async {}
+    static func resumeDeferredPromptsIfNeeded() async {}
+
+    @discardableResult
+    static func gatherConsentIfNeeded() async -> Bool { false }
+
+    static func presentPrivacyOptions() async {}
+
+    #if DEBUG
+    static func resetForTesting() {
+        AdConsentStatus.shared.refresh()
+    }
+    #endif
+}
+
+@MainActor
+enum AppPermissionPromptGate {
+    static var canPresent: Bool {
+        UIApplication.shared.applicationState == .active
+    }
+}
+#endif

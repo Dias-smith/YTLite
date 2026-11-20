@@ -44,6 +44,9 @@ targets:
         VALIDATE_PRODUCT: NO
         DEVELOPMENT_LANGUAGE: en
         TARGETED_DEVICE_FAMILY: "1,2"
+        # pbxproj already ships the iPhone app at 1.2.0. Keep that when regenerating,
+        # so the Mac target does not bump the iOS marketing version back to 1.3.0.
+        MARKETING_VERSION: "1.2.0"
     entitlements:
       path: YTLite/YTLite.entitlements
       properties:
@@ -323,6 +326,49 @@ targets:
       - sdk: SwiftUI.framework
       - sdk: AppIntents.framework
 
+  YTLite Mac:
+    type: application
+    platform: iOS
+    supportedDestinations: [macCatalyst]
+    sources:
+      - path: YTLite
+      - path: YTLiteWatchConnectivity
+      - path: YTLiteWidgetShared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ytlite.player.mac
+        PRODUCT_NAME: Mixtube
+        PRODUCT_MODULE_NAME: YTLiteMac
+        INFOPLIST_FILE: YTLite/Info.plist
+        GENERATE_INFOPLIST_FILE: false
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_ENTITLEMENTS: YTLiteMac/YTLiteMac.entitlements
+        DEVELOPMENT_TEAM: "8S748AQ4H7"
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited)"
+        VALIDATE_PRODUCT: NO
+        DEVELOPMENT_LANGUAGE: en
+        TARGETED_DEVICE_FAMILY: "2"
+        SUPPORTS_MACCATALYST: YES
+        DERIVE_MACCATALYST_PRODUCT_BUNDLE_IDENTIFIER: NO
+        SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
+        SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: NO
+        IPHONEOS_DEPLOYMENT_TARGET: "17.0"
+        ENABLE_APP_SANDBOX: YES
+    configFiles:
+      Debug: Config/Debug.xcconfig
+      Release: Config/Release.xcconfig
+    dependencies:
+      - package: supabase-swift
+        product: Supabase
+      - package: firebase-ios-sdk
+        product: FirebaseAnalytics
+      - package: firebase-ios-sdk
+        product: FirebaseCrashlytics
+      - package: firebase-ios-sdk
+        product: FirebaseRemoteConfig
+      - sdk: AppIntents.framework
+
 schemes:
   YTLite:
     build:
@@ -343,3 +389,10 @@ schemes:
     run:
       config: Debug
       executable: YTLite Watch App
+  YTLite Mac:
+    build:
+      targets:
+        YTLite Mac: all
+    run:
+      config: Release
+      executable: YTLite Mac

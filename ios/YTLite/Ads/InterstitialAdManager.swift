@@ -1,3 +1,4 @@
+#if !targetEnvironment(macCatalyst)
 import GoogleMobileAds
 import UIKit
 
@@ -144,3 +145,19 @@ extension InterstitialAdManager: FullScreenContentDelegate {
         loadAd()
     }
 }
+#else
+import Foundation
+
+@MainActor
+final class InterstitialAdManager: NSObject {
+    static let hot = InterstitialAdManager()
+    static let inApp = InterstitialAdManager()
+
+    static func loadAll() {}
+
+    func loadAd() {}
+
+    @discardableResult
+    func showIfAppropriate(reason: String) -> Bool { false }
+}
+#endif

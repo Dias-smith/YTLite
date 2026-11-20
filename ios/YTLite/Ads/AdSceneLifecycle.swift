@@ -1,4 +1,6 @@
+#if !targetEnvironment(macCatalyst)
 import GoogleMobileAds
+#endif
 import SwiftUI
 import UIKit
 
@@ -9,7 +11,9 @@ enum AdBootstrap {
     /// All AdMob formats (app open / interstitial / rewarded) stay muted by default.
     static func enforceMutedAds() {
         guard AdMobConfig.adsEnabled else { return }
+        #if !targetEnvironment(macCatalyst)
         MobileAds.shared.isApplicationMuted = true
+        #endif
     }
 
     /// Call once after first interactive frame: UMP → Mobile Ads → preload.
@@ -26,6 +30,9 @@ enum AdBootstrap {
     }
 
     private static func startMobileAdsIfNeeded() {
+        #if targetEnvironment(macCatalyst)
+        return
+        #else
         guard AdMobConfig.adsEnabled, AdConsentManager.canRequestAds else { return }
         enforceMutedAds()
         guard !didStartSDK else {
@@ -42,6 +49,7 @@ enum AdBootstrap {
                 AdSceneLifecycle.adEnvironmentDidBecomeReady(source: "sdk_ready")
             }
         }
+        #endif
     }
 }
 

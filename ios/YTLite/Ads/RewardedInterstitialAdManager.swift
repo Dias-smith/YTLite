@@ -1,3 +1,4 @@
+#if !targetEnvironment(macCatalyst)
 import GoogleMobileAds
 import UIKit
 
@@ -154,3 +155,25 @@ extension RewardedInterstitialAdManager: FullScreenContentDelegate {
         finishPresentation(earned: false)
     }
 }
+#else
+import Foundation
+
+@MainActor
+final class RewardedInterstitialAdManager: NSObject {
+    static let shared = RewardedInterstitialAdManager()
+
+    func loadAd() {}
+
+    func waitUntilReady(timeout: TimeInterval = 12) async -> Bool { false }
+
+    @discardableResult
+    func showWhenReady(
+        reason: String,
+        timeout: TimeInterval = 12,
+        completion: @escaping (Bool) -> Void
+    ) async -> Bool { false }
+
+    @discardableResult
+    func show(reason: String, completion: @escaping (Bool) -> Void) -> Bool { false }
+}
+#endif

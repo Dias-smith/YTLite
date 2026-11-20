@@ -1,3 +1,48 @@
+#if targetEnvironment(macCatalyst)
+import Combine
+import Foundation
+
+/// Mac builds have no paired Watch. Same surface the phone hosts call, with delivery always off.
+@MainActor
+final class WatchConnectivityBridge: NSObject, ObservableObject {
+    static let shared = WatchConnectivityBridge()
+
+    enum ActivationState: Equatable {
+        case notActivated
+        case activated
+    }
+
+    @Published private(set) var activationState: ActivationState = .notActivated
+    @Published private(set) var isReachable = false
+    @Published private(set) var isWatchAppInstalled = false
+    var isWatchDeliveryAvailable: Bool { false }
+
+    private override init() {
+        super.init()
+    }
+
+    func activate() {}
+
+    func onEnvelope(_ handler: @escaping @MainActor (WatchConnectivityProtocol.Envelope) -> Void) {}
+
+    @discardableResult
+    func send(
+        _ envelope: WatchConnectivityProtocol.Envelope,
+        reply: ((Result<WatchConnectivityProtocol.Envelope, Error>) -> Void)? = nil
+    ) -> Bool {
+        false
+    }
+
+    func enqueueLatest(_ envelope: WatchConnectivityProtocol.Envelope) {}
+
+    @discardableResult
+    func updateApplicationContext(_ envelope: WatchConnectivityProtocol.Envelope) -> Bool {
+        false
+    }
+
+    func transferUserInfo(_ envelope: WatchConnectivityProtocol.Envelope) {}
+}
+#else
 import Foundation
 import WatchConnectivity
 #if os(iOS)
@@ -785,4 +830,5 @@ final class SimulatorWatchLocalLink {
         }
     }
 }
+#endif
 #endif

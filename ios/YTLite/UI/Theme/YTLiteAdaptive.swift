@@ -85,9 +85,11 @@ enum YTLiteAdaptive {
     /// Skip the query on compact width — columns are already 1.
     static func prefersEvenColumns(in proxy: GeometryProxy, sizeClass: UserInterfaceSizeClass?) -> Bool {
         guard isRegularWidth(sizeClass) else { return false }
+        #if !targetEnvironment(macCatalyst)
         if #available(iOS 27.1, *) {
             return !proxy.reservedRegions(kind: .division, options: .includeInactive).isEmpty
         }
+        #endif
         return false
     }
 

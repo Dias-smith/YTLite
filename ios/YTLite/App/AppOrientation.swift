@@ -98,10 +98,14 @@ enum AppOrientation {
     }
 
     private static func request(_ orientations: UIInterfaceOrientationMask) {
+        #if targetEnvironment(macCatalyst)
+        return
+        #else
         let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
         let scene = scenes.first(where: { $0.activationState == .foregroundActive }) ?? scenes.first
         guard let scene else { return }
         scene.requestGeometryUpdate(.iOS(interfaceOrientations: orientations)) { _ in }
+        #endif
     }
 }
 
