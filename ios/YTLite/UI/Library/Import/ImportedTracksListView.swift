@@ -398,14 +398,16 @@ struct ImportedDisplayEntry: Identifiable, Equatable {
     let id: String
     let item: VideoItem
     let sourceKind: ImportSourceKind
-    let fileSizeText: String
+    let durationText: String
 
     var subtitleLine: String {
-        // Offline YouTube caches: size only — no "YouTube" source label.
+        // Offline catalogue caches: duration only — no source label.
         if sourceKind == .youtube {
-            return fileSizeText
+            return durationText
         }
-        return "\(fileSizeText) · \(L(sourceKind.displayKey))"
+        let source = L(sourceKind.displayKey)
+        if durationText.isEmpty { return source }
+        return "\(durationText) · \(source)"
     }
 
     @MainActor
@@ -429,27 +431,20 @@ struct ImportedDisplayEntry: Identifiable, Equatable {
             let item = store.displayItem(for: track.asVideoItem, metaById: metaById)
             let kind = ImportSourceKind(rawValue: track.sourceKind)
                 ?? (LocalTrackID.isLocal(track.trackId) ? .local : .youtube)
-            let bytes = byteCount(trackId: track.trackId, relativePath: track.localRelativePath)
-                ?? store.offlineCachedByteCount(trackId: track.trackId)
             return ImportedDisplayEntry(
                 id: track.trackId,
                 item: item,
                 sourceKind: kind,
-                fileSizeText: formatFileSize(bytes)
+                durationText: durationLabel(track: track, item: item)
             )
         }
     }
 
-    @MainActor
-    private static func byteCount(trackId: String, relativePath: String?) -> Int64? {
-        guard let url = LocalMediaStore.shared.audioURL(trackId: trackId, relativePath: relativePath),
-              let size = try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize
-        else { return nil }
-        return Int64(size)
-    }
-
-    private static func formatFileSize(_ bytes: Int64?) -> String {
-        guard let bytes, bytes >= 0 else { return L("import.hub.size_unknown") }
-        return ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
+    private static func durationLabel(track: LibraryTrack, item: VideoItem) -> String {
+        let fromItem = item.durationText?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if !fromItem.isEmpty { return fromItem }
+        let fromTrack = track.durationText?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if !fromTrack.isEmpty { return fromTrack }
+        return DurationFormat.text(seconds: track.durationSeconds) ?? ""
     }
 }

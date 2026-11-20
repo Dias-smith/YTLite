@@ -196,6 +196,8 @@ struct LibraryView: View {
                     ZStack {
                         Color.black.opacity(0.35)
                             .ignoresSafeArea()
+                            .contentShape(Rectangle())
+                            .onTapGesture { dismissLibrarySyncModal() }
                         VStack(spacing: 12) {
                             ProgressView()
                                 .tint(YTLiteColor.accent)
@@ -206,10 +208,26 @@ struct LibraryView: View {
                         }
                         .padding(.horizontal, 28)
                         .padding(.vertical, 22)
+                        .padding(.top, 8)
+                        .frame(minWidth: 180)
                         .background(
                             YTLiteColor.surfaceElevated,
                             in: RoundedRectangle(cornerRadius: 14, style: .continuous)
                         )
+                        .overlay(alignment: .topTrailing) {
+                            Button {
+                                dismissLibrarySyncModal()
+                            } label: {
+                                Image(systemName: "xmark")
+                                    .font(.system(size: 12, weight: .bold))
+                                    .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                                    .frame(width: 28, height: 28)
+                                    .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .padding(6)
+                            .accessibilityLabel(L("common.close"))
+                        }
                     }
                     .allowsHitTesting(true)
                 }
@@ -1292,6 +1310,13 @@ struct LibraryView: View {
 
     private func moveReorderItems(from source: IndexSet, to destination: Int) {
         reorderItems.move(fromOffsets: source, toOffset: destination)
+    }
+
+    /// Hide the blocking card. Sync keeps running and the filter-bar chip stays visible.
+    private func dismissLibrarySyncModal() {
+        promoteCompactSyncTask?.cancel()
+        promoteCompactSyncTask = nil
+        preferCompactLibrarySync = true
     }
 
     private func handleLibrarySyncingChange(_ syncing: Bool) {
