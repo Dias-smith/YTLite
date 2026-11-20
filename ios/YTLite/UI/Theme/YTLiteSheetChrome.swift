@@ -11,13 +11,36 @@ enum YTLiteSheetChrome {
 }
 
 struct YTLiteSheetGrabHandle: View {
+    @Environment(\.dismiss) private var dismiss
+
     var body: some View {
+        #if targetEnvironment(macCatalyst)
+        HStack {
+            Spacer(minLength: 0)
+            Button {
+                dismiss()
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                    .frame(width: 28, height: 28)
+                    .background(YTLiteColor.surfaceVariant, in: Circle())
+            }
+            .buttonStyle(.plain)
+            .keyboardShortcut(.cancelAction)
+            .accessibilityLabel(L("common.close"))
+        }
+        .padding(.top, 10)
+        .padding(.trailing, YTLiteLayout.screenPadding)
+        .padding(.bottom, 4)
+        #else
         Capsule()
             .fill(YTLiteColor.onSurfaceVariant.opacity(0.45))
             .frame(width: YTLiteSheetChrome.grabWidth, height: YTLiteSheetChrome.grabHeight)
             .padding(.top, 10)
             .padding(.bottom, 12)
             .frame(maxWidth: .infinity)
+        #endif
     }
 }
 

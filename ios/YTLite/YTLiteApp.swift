@@ -139,7 +139,20 @@ struct YTLiteApp: App {
             UserSubscribedChannel.self,
             NotInterestedItem.self,
         ])
+        #if targetEnvironment(macCatalyst)
+        // The default store URL follows an App Group when one is present. The Mac
+        // sandbox cannot write the iOS group container, so keep the library in this app.
+        let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+            ?? URL.applicationSupportDirectory
+        let directory = support.appendingPathComponent("MixtubeLibrary", isDirectory: true)
+        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let configuration = ModelConfiguration(
+            schema: schema,
+            url: directory.appendingPathComponent("library.store")
+        )
+        #else
         let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+        #endif
         do {
             return try ModelContainer(for: schema, configurations: [configuration])
         } catch {

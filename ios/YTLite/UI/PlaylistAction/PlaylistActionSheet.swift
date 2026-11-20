@@ -13,11 +13,7 @@ struct PlaylistActionSheet: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Capsule()
-                .fill(YTLiteColor.onSurfaceVariant.opacity(0.45))
-                .frame(width: 36, height: 4)
-                .padding(.top, 10)
-                .padding(.bottom, 12)
+            YTLiteSheetGrabHandle()
 
             header
                 .padding(.horizontal, YTLiteLayout.screenPadding)
