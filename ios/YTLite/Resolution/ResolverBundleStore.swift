@@ -1,7 +1,7 @@
 import Foundation
 import CryptoKit
 
-/// Installed / remote resolver knobs (from Supabase Storage `manifest.json` `config`).
+/// Resolver knobs shipped with the app bundle.
 struct ResolverRemoteConfig: Codable, Equatable, Sendable {
     var androidClientVersion: String
     var signatureTimestamp: Int
@@ -18,7 +18,7 @@ struct ResolverRemoteConfig: Codable, Equatable, Sendable {
     )
 }
 
-/// Thread-safe snapshot of the last successfully installed resolver config.
+/// Thread-safe snapshot of the resolver config shipped in the app bundle.
 enum ResolverRemoteConfigStore {
     private static let lock = NSLock()
     private static var _current = ResolverRemoteConfig.defaults
@@ -34,33 +34,20 @@ enum ResolverRemoteConfigStore {
         lock.lock()
         _current = config
         lock.unlock()
-        if let data = try? JSONEncoder().encode(config) {
-            UserDefaults.standard.set(data, forKey: defaultsKey)
-        }
+        UserDefaults.standard.removeObject(forKey: defaultsKey)
         CatalogConstants.applyPreferredVideoItags(config.preferItags)
-    }
-
-    static func restoreFromDisk() {
-        guard let data = UserDefaults.standard.data(forKey: defaultsKey),
-              let config = try? JSONDecoder().decode(ResolverRemoteConfig.self, from: data)
-        else { return }
-        apply(config)
     }
 }
 
-/// Ships a resolver bundle in the app, and replaces it when Supabase Storage has a newer one.
+/// Loads the resolver scripts shipped in the app bundle. Does not download or replace them.
 actor ResolverBundleStore {
-    /// Remote Storage bucket + asset names — must match published Supabase objects.
     private enum RemoteContract {
-        static let storageBucket = "resolution"
         static var scriptFile: String { SaltedLiteral.scriptResolution }
         static let bridgeHTML = "bridge.html"
         static let bridgeIOSHTML = "bridge-ios.html"
     }
 
     enum BundleError: LocalizedError {
-        case supabaseNotConfigured
-        case fetchFailed(String)
         case checksumMismatch(String)
         case incompleteBundle
         case appVersionTooLow(required: String, current: String)
@@ -69,10 +56,6 @@ actor ResolverBundleStore {
 
         var errorDescription: String? {
             switch self {
-            case .supabaseNotConfigured:
-                return "Supabase URL is not configured; cannot fetch stream resolver"
-            case .fetchFailed(let msg):
-                return "Stream resolver fetch failed: \(msg)"
             case .checksumMismatch(let file):
                 return "Stream resolver checksum mismatch: \(file)"
             case .incompleteBundle:
@@ -140,47 +123,26 @@ actor ResolverBundleStore {
     static let shared = ResolverBundleStore()
 
     private let fileManager = FileManager.default
-    private var lastBackgroundCheck: Date?
 
-    func ensureBundle(backgroundRefresh: Bool = true) async throws -> URL {
-        ResolverRemoteConfigStore.restoreFromDisk()
-        try seedFromAppBundleIfNewer()
-        let dir = try storeDirectory()
-        if isComplete(dir: dir) {
-            if let installed = try? loadInstalledManifest(dir: dir) {
-                ResolverRemoteConfigStore.apply(installed.config ?? .defaults)
-            }
-            if backgroundRefresh {
-                scheduleBackgroundRefreshIfNeeded()
-            }
-            return dir
-        }
-        try await fetchAndInstall()
+    /// Copy the shipped scripts over any previously stored copy, then return that directory.
+    func ensureBundle() async throws -> URL {
+        let manifest = try installBundledCopy()
+        ResolverRemoteConfigStore.apply(manifest.config ?? .defaults)
         return try storeDirectory()
-    }
-
-    func storeDirectoryURL() throws -> URL {
-        try storeDirectory()
-    }
-
-    func installedManifest() throws -> Manifest? {
-        let dir = try storeDirectory()
-        guard isComplete(dir: dir) else { return nil }
-        return try loadInstalledManifest(dir: dir)
     }
 
     // MARK: - Private
 
-    /// Copy the shipped bundle when Application Support has nothing newer.
-    /// A remote hotfix with a higher `version` is left in place.
-    private func seedFromAppBundleIfNewer() throws {
+    /// Always replace the on-disk copy with the scripts in the app bundle.
+    private func installBundledCopy() throws -> Manifest {
         guard let manifestURL = bundledResourceURL(name: "bundled-manifest.json"),
               let manifestData = try? Data(contentsOf: manifestURL),
               let manifest = try? JSONDecoder().decode(Manifest.self, from: manifestData)
-        else { return }
-        guard Self.isCompatible(manifest) else { return }
-        let current = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0"
-        guard Self.compareSemver(current, manifest.minAppVersion) != .orderedAscending else { return }
+        else { throw BundleError.incompleteBundle }
+        guard Self.isCompatible(manifest) else {
+            throw BundleError.incompatibleNativeApi(remote: manifest.nativeApi, local: Self.nativeApi)
+        }
+        try checkMinAppVersion(manifest.minAppVersion)
 
         let required = [
             RemoteContract.scriptFile,
@@ -188,27 +150,20 @@ actor ResolverBundleStore {
             RemoteContract.bridgeIOSHTML,
         ]
         for name in required where manifest.files[name] == nil {
-            return
+            throw BundleError.invalidManifest
         }
 
         let dir = try storeDirectory()
-        if isComplete(dir: dir),
-           let installed = try? loadInstalledManifest(dir: dir),
-           installed.version >= manifest.version {
-            return
-        }
-
         var payloads: [(String, Data)] = []
         for name in required {
             guard let entry = manifest.files[name],
                   let url = bundledResourceURL(name: name),
                   let bytes = try? Data(contentsOf: url)
-            else { return }
+            else { throw BundleError.incompleteBundle }
             let digest = SHA256.hash(data: bytes)
             let hex = digest.map { String(format: "%02x", $0) }.joined()
             guard hex.caseInsensitiveCompare(entry.sha256) == .orderedSame else {
-                PlayProbe.log("resolver.bundle.seed_skip", "checksum=\(name)")
-                return
+                throw BundleError.checksumMismatch(name)
             }
             payloads.append((name, bytes))
         }
@@ -237,6 +192,7 @@ actor ResolverBundleStore {
                 "resolver.bundle.seeded",
                 "version=\(manifest.version) nativeApi=\(manifest.nativeApi)"
             )
+            return manifest
         } catch {
             try? fileManager.removeItem(at: staging)
             throw error
@@ -258,163 +214,8 @@ actor ResolverBundleStore {
         return Bundle.main.url(forResource: base, withExtension: fileExtension)
     }
 
-    private func scheduleBackgroundRefreshIfNeeded() {
-        let now = Date()
-        if let last = lastBackgroundCheck, now.timeIntervalSince(last) < 60 {
-            return
-        }
-        lastBackgroundCheck = now
-        Task { try? await self.refreshIfNewer() }
-    }
-
-    private func refreshIfNewer() async throws {
-        let remote: Manifest
-        do {
-            remote = try await fetchCompatibleManifest()
-        } catch {
-            PlayProbe.log(
-                "resolver.bundle.compat_skip",
-                "keepInstalled=1 err=\(error.localizedDescription)"
-            )
-            return
-        }
-        let dir = try storeDirectory()
-        let installedVersion = (try? loadInstalledManifest(dir: dir))?.version ?? 0
-        guard remote.version > installedVersion else { return }
-        guard Self.isCompatible(remote) else { return }
-        do {
-            try await install(manifest: remote)
-        } catch let BundleError.appVersionTooLow(required, _) {
-            PlayProbe.log(
-                "resolver.bundle.min_app_skip",
-                "keepInstalled=1 required=\(required)"
-            )
-        }
-    }
-
-    private func fetchAndInstall() async throws {
-        let remote = try await fetchCompatibleManifest()
-        try await install(manifest: remote)
-    }
-
-    private func install(manifest: Manifest) async throws {
-        guard Self.isCompatible(manifest) else {
-            throw BundleError.incompatibleNativeApi(remote: manifest.nativeApi, local: Self.nativeApi)
-        }
-        try checkMinAppVersion(manifest.minAppVersion)
-        let required = [
-            RemoteContract.scriptFile,
-            RemoteContract.bridgeHTML,
-            RemoteContract.bridgeIOSHTML,
-        ]
-        for name in required {
-            guard manifest.files[name] != nil else { throw BundleError.invalidManifest }
-        }
-
-        let dir = try storeDirectory()
-        let staging = dir.appendingPathComponent(".staging-\(UUID().uuidString)", isDirectory: true)
-        try? fileManager.removeItem(at: staging)
-        try fileManager.createDirectory(at: staging, withIntermediateDirectories: true)
-
-        do {
-            for name in required {
-                let entry = manifest.files[name]!
-                let bytes = try await fetchPublicObject(relativePath: entry.path)
-                let digest = SHA256.hash(data: bytes)
-                let hex = digest.map { String(format: "%02x", $0) }.joined()
-                guard hex.caseInsensitiveCompare(entry.sha256) == .orderedSame else {
-                    throw BundleError.checksumMismatch(name)
-                }
-                let dest = staging.appendingPathComponent(name)
-                try bytes.write(to: dest, options: .atomic)
-            }
-            let manifestData = try JSONEncoder().encode(manifest)
-            try manifestData.write(
-                to: staging.appendingPathComponent("installed-manifest.json"),
-                options: .atomic
-            )
-
-            for name in required + ["installed-manifest.json"] {
-                let src = staging.appendingPathComponent(name)
-                let dest = dir.appendingPathComponent(name)
-                if fileManager.fileExists(atPath: dest.path) {
-                    try fileManager.removeItem(at: dest)
-                }
-                try fileManager.moveItem(at: src, to: dest)
-            }
-            try? fileManager.removeItem(at: staging)
-            ResolverRemoteConfigStore.apply(manifest.config ?? .defaults)
-            PlayProbe.log(
-                "resolver.bundle.installed",
-                "version=\(manifest.version) nativeApi=\(manifest.nativeApi) sts=\(ResolverRemoteConfigStore.current.signatureTimestamp)"
-            )
-        } catch {
-            try? fileManager.removeItem(at: staging)
-            throw error
-        }
-    }
-
-    private func fetchCompatibleManifest() async throws -> Manifest {
-        let latest = try await fetchManifest(relativePath: "manifest.json")
-        if Self.isCompatible(latest) {
-            return latest
-        }
-        let channelPath = "compat/api-\(Self.nativeApi)/manifest.json"
-        do {
-            let channel = try await fetchManifest(relativePath: channelPath)
-            if Self.isCompatible(channel) {
-                PlayProbe.log(
-                    "resolver.bundle.compat_channel",
-                    "nativeApi=\(Self.nativeApi) version=\(channel.version)"
-                )
-                return channel
-            }
-        } catch {
-            PlayProbe.log(
-                "resolver.bundle.compat_miss",
-                "path=\(channelPath) err=\(error.localizedDescription)"
-            )
-        }
-        throw BundleError.incompatibleNativeApi(remote: latest.nativeApi, local: Self.nativeApi)
-    }
-
-    private func fetchManifest(relativePath: String = "manifest.json") async throws -> Manifest {
-        let url = try publicURL(relativePath: relativePath)
-        let (data, response) = try await URLSession.shared.data(from: url)
-        let code = (response as? HTTPURLResponse)?.statusCode ?? -1
-        guard (200..<300).contains(code) else {
-            throw BundleError.fetchFailed("\(relativePath) HTTP \(code)")
-        }
-        do {
-            return try JSONDecoder().decode(Manifest.self, from: data)
-        } catch {
-            throw BundleError.invalidManifest
-        }
-    }
-
     nonisolated private static func isCompatible(_ manifest: Manifest) -> Bool {
         nativeApi >= manifest.minNativeApi && nativeApi <= manifest.nativeApi
-    }
-
-    private func fetchPublicObject(relativePath: String) async throws -> Data {
-        let url = try publicURL(relativePath: relativePath)
-        let (data, response) = try await URLSession.shared.data(from: url)
-        let code = (response as? HTTPURLResponse)?.statusCode ?? -1
-        guard (200..<300).contains(code), !data.isEmpty else {
-            throw BundleError.fetchFailed("\(relativePath) HTTP \(code)")
-        }
-        return data
-    }
-
-    private func publicURL(relativePath: String) throws -> URL {
-        let base = AppConfig.fromBundle().supabaseURL
-            .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-        guard !base.isEmpty else { throw BundleError.supabaseNotConfigured }
-        let path = relativePath.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-        guard let url = URL(string: "\(base)/storage/v1/object/public/\(RemoteContract.storageBucket)/\(path)") else {
-            throw BundleError.fetchFailed("bad url \(path)")
-        }
-        return url
     }
 
     private func storeDirectory() throws -> URL {
@@ -429,24 +230,6 @@ actor ResolverBundleStore {
             try fileManager.createDirectory(at: dir, withIntermediateDirectories: true)
         }
         return dir
-    }
-
-    private func isComplete(dir: URL) -> Bool {
-        let required = [
-            RemoteContract.scriptFile,
-            RemoteContract.bridgeHTML,
-            RemoteContract.bridgeIOSHTML,
-            "installed-manifest.json",
-        ]
-        return required.allSatisfy {
-            fileManager.fileExists(atPath: dir.appendingPathComponent($0).path)
-        }
-    }
-
-    private func loadInstalledManifest(dir: URL) throws -> Manifest {
-        let url = dir.appendingPathComponent("installed-manifest.json")
-        let data = try Data(contentsOf: url)
-        return try JSONDecoder().decode(Manifest.self, from: data)
     }
 
     private func checkMinAppVersion(_ required: String) throws {

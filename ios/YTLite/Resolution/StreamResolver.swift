@@ -70,7 +70,7 @@ final class StreamResolver: NSObject, WKScriptMessageHandler {
             isPreparing = true
             Task { @MainActor in
                 do {
-                    try await self.prepareWebViewFromRemoteBundle()
+                    try await self.prepareWebViewFromBundle()
                 } catch {
                     self.markFailed(error.localizedDescription)
                 }
@@ -467,7 +467,7 @@ final class StreamResolver: NSObject, WKScriptMessageHandler {
 
     // MARK: - Private
 
-    private func prepareWebViewFromRemoteBundle() async throws {
+    private func prepareWebViewFromBundle() async throws {
         PlayProbe.log("resolver.bundle.ensure")
         let dir: URL
         do {

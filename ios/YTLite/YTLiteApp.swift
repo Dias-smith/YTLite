@@ -61,7 +61,6 @@ struct YTLiteApp: App {
                     // ATT / UMP only while foreground-active (deferred if launched into background).
                     await AdConsentManager.requestTrackingAuthorizationAtLaunch()
 
-                    ResolverRemoteConfigStore.restoreFromDisk()
                     await RemoteConfigStore.fetchAndActivate()
                     await VipStore.shared.refresh()
                     appModel.syncAuth(authService)
