@@ -162,6 +162,7 @@ final class PlaybackController: ObservableObject {
     /// Throttle History progress writes (Android ticks every 1s; SwiftData is coarser).
     private var lastHistoryProgressPersistAt: Date = .distantPast
     private var lastHistoryProgressVideoId: String?
+    #if DEBUG
     /// Progressive stream eligible for local persistence after the watch threshold.
     private struct PlaybackStoreContext {
         let videoId: String
@@ -171,6 +172,7 @@ final class PlaybackController: ObservableObject {
     }
     private var playbackStoreContext: PlaybackStoreContext?
     private var playbackStoreThresholdMet = false
+    #endif
     /// Caps auto-skip loops when every track in the queue fails.
     private var consecutiveAutoSkipFailures = 0
     /// User-visible resolve failures per video. The second one skips.
@@ -856,8 +858,10 @@ final class PlaybackController: ObservableObject {
         AppAnalytics.playRequest(videoId: item.videoId, source: analyticsPlaySource)
         analyticsResolveStartedAt = PlayProbe.now()
         clearHLSQualityState()
+        #if DEBUG
         playbackStoreContext = nil
         playbackStoreThresholdMet = false
+        #endif
         cancelScheduledNextPrepare()
         AdSceneLifecycle.cancelPlayStartInterstitial()
         AdSceneLifecycle.recordFirstInteraction(source: "play_request")
@@ -937,8 +941,10 @@ final class PlaybackController: ObservableObject {
                     }
                     lastError = nil
                     playingFromPrepare = false
+                    #if DEBUG
                     playbackStoreContext = nil
                     playbackStoreThresholdMet = true
+                    #endif
                     PlayProbe.log("play.import", videoId: expectedVideoId, importURL.lastPathComponent)
                     play(url: importURL)
                     let seekTo = pendingSeekSeconds
@@ -960,6 +966,7 @@ final class PlaybackController: ObservableObject {
                     PlayProbe.log("play.ok", videoId: expectedVideoId, "source=import")
                     return
                 }
+                #if DEBUG
                 if !preferLiveHLS,
                    PlaybackStorePolicy.allowsDirectKickoffPlayback,
                    let localFileURL = await PlaybackMediaStore.shared.localFileURL(videoId: expectedVideoId)
@@ -1001,6 +1008,7 @@ final class PlaybackController: ObservableObject {
                     PlayProbe.log("play.ok", videoId: expectedVideoId, "source=\(SaltedLiteral.probeLocalSource)")
                     return
                 }
+                #endif
                 let playback: VideoPlayback
                 var usedPrepare = false
                 var primedPlayerItem: AVPlayerItem?
@@ -1066,6 +1074,7 @@ final class PlaybackController: ObservableObject {
                 captionTracks = playback.captionTracks
                 refreshSubscribeState()
 
+                #if DEBUG
                 // A stored file is only a playback source in DEBUG. Release uses the URL just resolved.
                 if !preferLiveHLS,
                    PlaybackStorePolicy.allowsDirectKickoffPlayback,
@@ -1101,6 +1110,7 @@ final class PlaybackController: ObservableObject {
                     PlayProbe.log("play.ok", videoId: expectedVideoId, "source=\(SaltedLiteral.probeLocalSource)")
                     return
                 }
+                #endif
 
                 guard let url = playback.preferredStreamURL(preferVideo: true)
                     ?? playback.preferredStreamURL(preferVideo: false)
@@ -1118,6 +1128,7 @@ final class PlaybackController: ObservableObject {
                     videoId: expectedVideoId,
                     "\(playback.preferredStreamDescription()) \(PlayProbe.streamSummary(url: url)) prepare=\(usedPrepare) prime=\(primedPlayerItem != nil)"
                 )
+                #if DEBUG
                 if let fmt = PlaybackFormatSelector.select(formats: playback.formats, preferVideo: true),
                    url == fmt.url
                 {
@@ -1132,6 +1143,7 @@ final class PlaybackController: ObservableObject {
                     playbackStoreContext = nil
                     playbackStoreThresholdMet = false
                 }
+                #endif
                 guard generation == resolveGeneration, isCurrentResolveTarget(expectedVideoId) else { return }
                 lastError = nil
                 playingFromPrepare = usedPrepare
@@ -1647,6 +1659,7 @@ final class PlaybackController: ObservableObject {
         }
     }
 
+    #if DEBUG
     /// ***
     private func checkPlaybackStoreThreshold(position: Double, duration: Double?) {
         guard PlaybackStorePolicy.allowsDirectKickoffPlayback,
@@ -1715,6 +1728,7 @@ final class PlaybackController: ObservableObject {
     private static func hasMetKickoffCacheGate(position: Double, duration: Double) -> Bool {
         position / duration >= 0.1
     }
+    #endif
 
     /// During the final minute, ensure next resolve is fresh and its AVPlayerItem is primed.
     private func checkNextPrepareNearEnd(position: Double, duration: Double?) {
@@ -2457,7 +2471,9 @@ final class PlaybackController: ObservableObject {
                     let position = time.seconds.isFinite ? time.seconds : 0
                     self.progress.setPosition(position)
                     self.checkNextPrepareNearEnd(position: position, duration: duration)
+                    #if DEBUG
                     self.checkPlaybackStoreThreshold(position: position, duration: duration)
+                    #endif
                     self.persistHistoryProgressIfNeeded(force: false)
                     self.noteLibrarySavePrompt(position: position, duration: duration)
                 }

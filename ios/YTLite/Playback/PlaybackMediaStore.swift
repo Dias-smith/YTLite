@@ -65,6 +65,7 @@ actor PlaybackMediaStore {
         return index.values.map { ($0.videoId, $0.fileSize) }
     }
 
+    #if DEBUG
     func localFileURL(videoId: String) -> URL? {
         loadIndexIfNeeded()
         guard let entry = index[videoId] else { return nil }
@@ -77,10 +78,6 @@ actor PlaybackMediaStore {
         return url
     }
 
-    func localCoverURL(videoId: String) -> URL? {
-        PlaybackCachedCover.resolveURL(videoId: videoId)
-    }
-
     func touchLastPlayed(videoId: String) {
         loadIndexIfNeeded()
         guard var entry = index[videoId] else { return }
@@ -88,7 +85,13 @@ actor PlaybackMediaStore {
         index[videoId] = entry
         persistIndex()
     }
+    #endif
 
+    func localCoverURL(videoId: String) -> URL? {
+        PlaybackCachedCover.resolveURL(videoId: videoId)
+    }
+
+    #if DEBUG
     func schedulePersist(
         videoId: String,
         sourceURL: URL,
@@ -131,6 +134,7 @@ actor PlaybackMediaStore {
         persistTasks[videoId] = task
         await task.value
     }
+    #endif
 
     func cancelPersist(videoId: String) {
         persistTasks[videoId]?.cancel()
@@ -212,6 +216,7 @@ actor PlaybackMediaStore {
         if changed { persistIndex() }
     }
 
+    #if DEBUG
     private func destinationRelativePath(videoId: String, itag: Int, mimeType: String) -> String {
         let ext = PlaybackStorePolicy.fileExtension(for: mimeType)
         return "\(videoId)/\(itag).\(ext)"
@@ -402,4 +407,5 @@ actor PlaybackMediaStore {
         }
         persistIndex()
     }
+    #endif
 }
