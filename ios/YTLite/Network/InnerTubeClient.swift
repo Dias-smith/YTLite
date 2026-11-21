@@ -153,6 +153,195 @@ enum InnerTubeClient {
         return try await searchVideosPage(query: "news")
     }
 
+    /// Podcasts destination page (`/podcasts`). The browse id on that page is rejected by InnerTube.
+    static let podcastsPageURL = "\(SaltedLiteral.hostWWW)/podcasts"
+    /// Gaming destination page (`/gaming`).
+    static let gamingPageURL = "\(SaltedLiteral.hostWWW)/gaming"
+
+    static func fetchPodcastsVideosPage(continuation: String? = nil) async throws -> HomeFeedPageResult {
+        try await fetchCatalogHTMLPage(
+            url: podcastsPageURL,
+            label: "podcasts",
+            continuation: continuation
+        )
+    }
+
+    static func fetchGamingVideosPage(continuation: String? = nil) async throws -> HomeFeedPageResult {
+        try await fetchCatalogHTMLPage(
+            url: gamingPageURL,
+            label: "gaming",
+            continuation: continuation
+        )
+    }
+
+    /// First page comes from the public HTML document. A later page uses the continuation token.
+    private static func fetchCatalogHTMLPage(
+        url: String,
+        label: String,
+        continuation: String?
+    ) async throws -> HomeFeedPageResult {
+        if let continuation, !continuation.isEmpty {
+            let body: [String: Any] = [
+                "context": clientContext(),
+                "continuation": continuation,
+            ]
+            let json = try await postJSON(url: browseURL, body: body, label: "\(label)_cont")
+            nonisolated(unsafe) let payload = json
+            return await parseOffMain {
+                HomeFeedPageResult(
+                    videos: VideoJSONParser.parseVideos(from: payload),
+                    continuation: VideoJSONParser.parseContinuation(from: payload)
+                )
+            }
+        }
+        let result = await CatalogHTTPClient.shared.request(
+            url: url,
+            method: "GET",
+            headers: [
+                "User-Agent": CatalogConstants.userAgent,
+                "Referer": SaltedLiteral.refererSlash,
+                "Accept-Language": "\(CatalogConstants.hl),en;q=0.9",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            ],
+            body: nil
+        )
+        if result.isCancellation {
+            throw CancellationError()
+        }
+        guard result.success, !result.body.isEmpty,
+              let root = Self.extractInitialData(from: result.body)
+        else {
+            throw StreamResolver.StreamResolverError.resolveFailed(
+                result.errMsg.isEmpty ? "\(label) page failed" : result.errMsg
+            )
+        }
+        nonisolated(unsafe) let payload = root
+        return await parseOffMain {
+            let videos = VideoJSONParser.parseVideos(from: payload)
+            let token = VideoJSONParser.parseContinuation(from: payload)
+            HomeFeedProbe.log(
+                "net.\(label)",
+                "videos=\(videos.count) nextCont=\(token != nil)"
+            )
+            return HomeFeedPageResult(videos: videos, continuation: token)
+        }
+    }
+
+    /// `ytInitialData` from a catalog HTML page, either a raw object or a JS-escaped string.
+    private static func extractInitialData(from html: String) -> [String: Any]? {
+        let marker = "ytInitialData"
+        var searchStart = html.startIndex
+        while let markerRange = html.range(of: marker, range: searchStart..<html.endIndex) {
+            let afterMarker = html[markerRange.upperBound...]
+            guard let eq = afterMarker.firstIndex(of: "=") else { break }
+            let afterEq = html[html.index(after: eq)...].drop(while: { $0.isWhitespace })
+            if afterEq.first == "{" ,
+               let jsonText = extractBalancedObject(from: html, startingAt: afterEq.startIndex),
+               let obj = jsonObject(from: jsonText)
+            {
+                return obj
+            }
+            if let quote = afterEq.first, quote == "'" || quote == "\"",
+               let decoded = decodeJSString(from: html, openingQuoteAt: afterEq.startIndex),
+               let obj = jsonObject(from: decoded)
+            {
+                return obj
+            }
+            searchStart = markerRange.upperBound
+        }
+        return nil
+    }
+
+    private static func jsonObject(from text: String) -> [String: Any]? {
+        guard let data = text.data(using: .utf8) else { return nil }
+        return try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+    }
+
+    /// Decodes a single- or double-quoted JS string, including `\xHH` escapes.
+    private static func decodeJSString(from text: String, openingQuoteAt start: String.Index) -> String? {
+        let quote = text[start]
+        var index = text.index(after: start)
+        var output = ""
+        while index < text.endIndex {
+            let ch = text[index]
+            if ch == "\\" {
+                let next = text.index(after: index)
+                guard next < text.endIndex else { return nil }
+                let escaped = text[next]
+                if escaped == "x" {
+                    let hexStart = text.index(after: next)
+                    guard let hexEnd = text.index(hexStart, offsetBy: 2, limitedBy: text.endIndex),
+                          let value = UInt32(text[hexStart..<hexEnd], radix: 16),
+                          let scalar = Unicode.Scalar(value)
+                    else { return nil }
+                    output.append(Character(scalar))
+                    index = hexEnd
+                    continue
+                }
+                if escaped == "u" {
+                    let hexStart = text.index(after: next)
+                    guard let hexEnd = text.index(hexStart, offsetBy: 4, limitedBy: text.endIndex),
+                          let value = UInt32(text[hexStart..<hexEnd], radix: 16),
+                          let scalar = Unicode.Scalar(value)
+                    else { return nil }
+                    output.append(Character(scalar))
+                    index = hexEnd
+                    continue
+                }
+                switch escaped {
+                case "n": output.append("\n")
+                case "r": output.append("\r")
+                case "t": output.append("\t")
+                case "\\", "'", "\"": output.append(escaped)
+                default: output.append(escaped)
+                }
+                index = text.index(after: next)
+                continue
+            }
+            if ch == quote {
+                return output
+            }
+            output.append(ch)
+            index = text.index(after: index)
+        }
+        return nil
+    }
+
+    private static func extractBalancedObject(from text: String, startingAt start: String.Index) -> String? {
+        var depth = 0
+        var inString = false
+        var escaped = false
+        var index = start
+        while index < text.endIndex {
+            let ch = text[index]
+            if inString {
+                if escaped {
+                    escaped = false
+                } else if ch == "\\" {
+                    escaped = true
+                } else if ch == "\"" {
+                    inString = false
+                }
+            } else {
+                switch ch {
+                case "\"":
+                    inString = true
+                case "{":
+                    depth += 1
+                case "}":
+                    depth -= 1
+                    if depth == 0 {
+                        return String(text[start...index])
+                    }
+                default:
+                    break
+                }
+            }
+            index = text.index(after: index)
+        }
+        return nil
+    }
+
     /// Tabbed search.
     /// - All: videos from catalog Music songs; channels / playlists from www
     /// - Videos: www catalog video search
@@ -1799,9 +1988,11 @@ enum VideoJSONParser {
         let channel = extractText(renderer["ownerText"])
             ?? extractText(renderer["shortBylineText"])
             ?? extractText(renderer["longBylineText"])
+            ?? extractText(renderer["bylineText"])
             ?? ""
         let views = extractText(renderer["shortViewCountText"])
             ?? extractText(renderer["viewCountText"])
+            ?? extractText(renderer["metadataText"])
         let published = extractText(renderer["publishedTimeText"])
         let thumb = pickThumbnail(renderer["thumbnail"] as? [String: Any])
         let avatar = pickChannelAvatar(from: renderer)

@@ -17,6 +17,8 @@ enum HomeCategorySource: Hashable {
     case innerTube(HomeChipEndpoint)
     case live
     case catalogNews
+    case podcasts
+    case gaming
 }
 
 /// Region-aware search queries for static Home chips (Content Region `gl`).
@@ -30,7 +32,6 @@ enum HomeLocalizedQuery {
         if sinosphere.contains(code) {
             switch chipId {
             case "music": return "华语流行"
-            case "podcasts": return "播客"
             case "charts": return "音乐排行榜"
             case "mixes": return "华语歌单"
             case "albums": return "华语专辑"
@@ -52,7 +53,6 @@ enum HomeLocalizedQuery {
         } else if japanese.contains(code) {
             switch chipId {
             case "music": return "J-POP"
-            case "podcasts": return "ポッドキャスト"
             case "charts": return "音楽チャート"
             case "mixes": return "プレイリスト"
             case "albums": return "アルバム"
@@ -72,7 +72,6 @@ enum HomeLocalizedQuery {
         } else if korean.contains(code) {
             switch chipId {
             case "music": return "K-POP"
-            case "podcasts": return "팟캐스트"
             case "charts": return "음악 차트"
             case "mixes": return "플레이리스트"
             case "albums": return "앨범"
@@ -93,7 +92,6 @@ enum HomeLocalizedQuery {
 
         switch chipId {
         case "music": return "music"
-        case "podcasts": return "podcasts"
         case "charts": return "top songs chart"
         case "mixes": return "music mixes"
         case "albums": return "music albums"
@@ -127,6 +125,7 @@ struct HomeCategory: Identifiable, Hashable {
         case "music": return L("home.category.music")
         case "new_release": return L("home.category.new_release")
         case "podcasts": return L("home.category.podcasts")
+        case "gaming": return L("home.category.gaming")
         case "news": return L("home.category.news")
         case "live": return L("home.category.live")
         case "charts": return L("home.category.charts")
@@ -155,7 +154,8 @@ struct HomeCategory: Identifiable, Hashable {
             HomeCategory(id: "all", source: .homeBrowse),
             HomeCategory(id: "music", source: .search(HomeLocalizedQuery.resolve("music", region: gl))),
             HomeCategory(id: "new_release", source: .musicNewReleaseAlbums),
-            HomeCategory(id: "podcasts", source: .search(HomeLocalizedQuery.resolve("podcasts", region: gl))),
+            HomeCategory(id: "podcasts", source: .podcasts),
+            HomeCategory(id: "gaming", source: .gaming),
             HomeCategory(id: "news", source: .catalogNews),
             HomeCategory(id: "live", source: .live),
             HomeCategory(id: "charts", source: .search(HomeLocalizedQuery.resolve("charts", region: gl))),
@@ -187,12 +187,18 @@ struct HomeCategory: Identifiable, Hashable {
             let matchingStatic = catalog.dropFirst().first {
                 categoryAlias($0.id.replacingOccurrences(of: "_", with: "")) == key
             }
+            let source: HomeCategorySource
+            switch key {
+            case "live": source = .live
+            case "news": source = .catalogNews
+            case "podcasts": source = .podcasts
+            case "gaming": source = .gaming
+            default: source = .innerTube(chip.endpoint)
+            }
             result.append(
                 HomeCategory(
                     id: matchingStatic?.id ?? chip.id,
-                    source: key == "live"
-                        ? .live
-                        : (key == "news" ? .catalogNews : .innerTube(chip.endpoint)),
+                    source: source,
                     customTitle: chip.title
                 )
             )
@@ -327,6 +333,7 @@ final class HomeViewModel: ObservableObject {
 
     func appear() {
         Self.migrateAlbumsChipSourceIfNeeded()
+        Self.migratePodcastsChipSourceIfNeeded()
         applyStoredFeed(for: selectedCategoryId)
         refreshIfNeeded()
         refreshDynamicChipsIfNeeded()
@@ -337,6 +344,14 @@ final class HomeViewModel: ObservableObject {
         let key = "home.albums.source.music_new_release.v1"
         guard !UserDefaults.standard.bool(forKey: key) else { return }
         HomeFeedStore.clearCategory("albums")
+        UserDefaults.standard.set(true, forKey: key)
+    }
+
+    /// Podcasts chip used to search a keyword; wipe stale rows once after switching to the podcasts page.
+    private static func migratePodcastsChipSourceIfNeeded() {
+        let key = "home.podcasts.source.page.v1"
+        guard !UserDefaults.standard.bool(forKey: key) else { return }
+        HomeFeedStore.clearCategory("podcasts")
         UserDefaults.standard.set(true, forKey: key)
     }
 
@@ -721,6 +736,18 @@ final class HomeViewModel: ObservableObject {
             )
         case .catalogNews:
             let page = try await InnerTubeClient.fetchNewsVideosPage(continuation: token)
+            return FeedPage(
+                entries: page.videos.map { .track($0) },
+                continuation: page.continuation
+            )
+        case .podcasts:
+            let page = try await InnerTubeClient.fetchPodcastsVideosPage(continuation: token)
+            return FeedPage(
+                entries: page.videos.map { .track($0) },
+                continuation: page.continuation
+            )
+        case .gaming:
+            let page = try await InnerTubeClient.fetchGamingVideosPage(continuation: token)
             return FeedPage(
                 entries: page.videos.map { .track($0) },
                 continuation: page.continuation
