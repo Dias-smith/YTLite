@@ -264,7 +264,7 @@ struct SettingsView: View {
                         get: { DebugPlaybackCacheStore.forceEnableMediaCache },
                         set: { enabled in
                             DebugPlaybackCacheStore.forceEnableMediaCache = enabled
-                            if !enabled, !RemoteConfigStore.allowKickoff {
+                            if !enabled {
                                 Task { await PlaybackMediaStore.shared.clearAll() }
                             }
                         }
@@ -272,11 +272,7 @@ struct SettingsView: View {
                 ) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Enable media cache (debug)")
-                        Text(
-                            RemoteConfigStore.allowKickoff
-                                ? "Remote Config already allows cache"
-                                : "Overrides Remote Config allowKickoff"
-                        )
+                        Text("Release builds never store streams")
                         .font(YTLiteType.meta)
                         .foregroundStyle(YTLiteColor.onSurfaceVariant)
                     }
@@ -285,7 +281,7 @@ struct SettingsView: View {
             } header: {
                 Text("Debug")
             } footer: {
-                Text("Debug-only. Media cache writes local stream files after the kickoff threshold.")
+                Text("Debug-only. Media cache writes a local file after playback passes 10%.")
             }
             #endif
         }

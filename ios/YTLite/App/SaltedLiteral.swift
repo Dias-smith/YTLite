@@ -1,7 +1,7 @@
 import Foundation
 
 /// Request paths, hosts, and the resolver script name are plain text.
-/// The remote-config key and the catalog API Info.plist key stay XOR-salted.
+/// The catalog API Info.plist key stays XOR-salted.
 enum SaltedLiteral {
     private static let salt: UInt8 = 0xA7
 
@@ -36,12 +36,6 @@ enum SaltedLiteral {
     static var hostGooglevideoShort: String { "googlevideo" }
 
     static var markerPlayerResponse: String { "ytInitialPlayerResponse = " }
-
-    static var rcAllowKickoff: String {
-        reveal([
-            0xC6, 0xCB, 0xCB, 0xC8, 0xD0, 0xF8, 0xCC, 0xCE, 0xC4, 0xCC, 0xC8, 0xC1, 0xC1,
-        ])
-    }
 
     static var scriptResolution: String { "resolution.js" }
 

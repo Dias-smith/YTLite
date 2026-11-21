@@ -36,23 +36,16 @@ enum PlaybackStorePolicy {
         return "bin"
     }
 
-    /// Remote Config `allowKickoff`, optionally forced on in DEBUG Settings.
+    /// Debug builds can store a finished stream from Settings. Release never does.
     static var isMediaCachePolicyEnabled: Bool {
         #if DEBUG
-        if DebugPlaybackCacheStore.forceEnableMediaCache { return true }
+        return DebugPlaybackCacheStore.forceEnableMediaCache
+        #else
+        return false
         #endif
-        return RemoteConfigStore.allowKickoff
     }
 
-    /// Wipe cached media only after a remote `allow_kickoff` value is active and resolves off.
-    static var shouldClearMediaCache: Bool {
-        #if DEBUG
-        if DebugPlaybackCacheStore.forceEnableMediaCache { return false }
-        #endif
-        return RemoteConfigStore.hasRemoteAllowKickoff && !RemoteConfigStore.allowKickoff
-    }
-
-    /// ***
+    /// Release always resolves a fresh stream. DEBUG may play an already stored file.
     static var allowsDirectKickoffPlayback: Bool {
         isMediaCachePolicyEnabled && !NetworkVpnStatus.isActive
     }

@@ -290,25 +290,10 @@ enum FirebaseBootstrap {
 
 /// Thin wrapper around Firebase Remote Config (parity with Android `RemoteConfigRepository`).
 enum RemoteConfigStore {
-    private static var allowKickoffKey: String { SaltedLiteral.rcAllowKickoff }
     private static let adsIntervalKey = "ads_interval"
-    private static let kickoffIntervalKey = "kickoff_interval"
-
-    /// Local fallback JSON when Remote Config is unavailable.
-    /// ***
-    private static let allowKickoffDefaultJSON =
-        "{\"enable\":false,\"version\":\"0.0.0\"}"
 
     /// Local fallback when Remote Config is unavailable or misconfigured. Console unit is minutes.
     private static let adsIntervalDefaultMinutes: Double = AdMobConfig.interstitialCooldownMinutes
-
-    /// Local fallback: percent of duration before local media caching may start.
-    private static let kickoffIntervalDefaultPercent: Double = 100
-
-    private struct AllowKickoffConfig: Decodable {
-        var enable: Bool
-        var version: String
-    }
 
     static func configure() {
         guard isFirebaseAvailable else { return }
@@ -321,9 +306,7 @@ enum RemoteConfigStore {
         #endif
         remoteConfig.configSettings = settings
         remoteConfig.setDefaults([
-            allowKickoffKey: allowKickoffDefaultJSON as NSString,
             adsIntervalKey: NSNumber(value: adsIntervalDefaultMinutes),
-            kickoffIntervalKey: NSNumber(value: kickoffIntervalDefaultPercent),
         ])
     }
 
@@ -337,28 +320,10 @@ enum RemoteConfigStore {
                 "remote_config.ads_interval",
                 "\(Int(adsIntervalMinutes))min (\(Int(adsInterval))s)"
             )
-            AdProbe.log("remote_config.kickoff_interval", "\(Int(kickoffIntervalPercent))%")
-            AdProbe.log("remote_config.media_policy", "\(allowKickoff)")
             return status != .error
         } catch {
             return false
         }
-    }
-
-    /// True only when an activated remote `allow_kickoff` value is present.
-    /// A missing or default value is not a decision to wipe the media cache.
-    static var hasRemoteAllowKickoff: Bool {
-        guard isFirebaseAvailable else { return false }
-        return RemoteConfig.remoteConfig()
-            .configValue(forKey: allowKickoffKey)
-            .source == .remote
-    }
-
-    /// ***
-    static var allowKickoff: Bool {
-        guard hasRemoteAllowKickoff else { return false }
-        let value = RemoteConfig.remoteConfig().configValue(forKey: allowKickoffKey)
-        return resolveAllowKickoff(from: value.stringValue)
     }
 
     /// `ads_interval` from Remote Config, in minutes. Zero means no cooldown.
@@ -376,48 +341,6 @@ enum RemoteConfigStore {
     /// Minimum seconds between two ordinary full-screen ads (app open / interstitial).
     static var adsInterval: TimeInterval {
         adsIntervalMinutes * 60
-    }
-
-    /// Percent of track duration (0…100) before local media caching may start.
-    /// Default / invalid → `100` (only after the track has fully played).
-    static var kickoffIntervalPercent: Double {
-        guard isFirebaseAvailable else { return kickoffIntervalDefaultPercent }
-        let raw = RemoteConfig.remoteConfig()
-            .configValue(forKey: kickoffIntervalKey)
-            .numberValue
-            .doubleValue
-        guard raw.isFinite, raw >= 0 else { return kickoffIntervalDefaultPercent }
-        return min(raw, 100)
-    }
-
-    private static func resolveAllowKickoff(from raw: String) -> Bool {
-        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty,
-              let data = trimmed.data(using: .utf8),
-              let cfg = try? JSONDecoder().decode(AllowKickoffConfig.self, from: data)
-        else {
-            return false
-        }
-        let current = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0"
-        // ***
-        if compareSemver(current, cfg.version) == .orderedAscending {
-            return true
-        }
-        return cfg.enable
-    }
-
-    /// Numeric semver compare: `1.2.0` vs `1.10.0`.
-    private static func compareSemver(_ a: String, _ b: String) -> ComparisonResult {
-        let pa = a.split(separator: ".").map { Int($0) ?? 0 }
-        let pb = b.split(separator: ".").map { Int($0) ?? 0 }
-        let n = max(pa.count, pb.count)
-        for i in 0..<n {
-            let x = i < pa.count ? pa[i] : 0
-            let y = i < pb.count ? pb[i] : 0
-            if x < y { return .orderedAscending }
-            if x > y { return .orderedDescending }
-        }
-        return .orderedSame
     }
 
     private static var isFirebaseAvailable: Bool {

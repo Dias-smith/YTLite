@@ -1066,8 +1066,9 @@ final class PlaybackController: ObservableObject {
                 captionTracks = playback.captionTracks
                 refreshSubscribeState()
 
-                // ***
+                // A stored file is only a playback source in DEBUG. Release uses the URL just resolved.
                 if !preferLiveHLS,
+                   PlaybackStorePolicy.allowsDirectKickoffPlayback,
                    let localFileURL = await PlaybackMediaStore.shared.localFileURL(videoId: expectedVideoId)
                 {
                     guard generation == resolveGeneration,
@@ -1710,10 +1711,9 @@ final class PlaybackController: ObservableObject {
         publishPhoneWidgetSnapshot(force: true)
     }
 
-    /// Remote `kickoff_interval` is a percent of duration (default 100%).
+    /// Debug cache starts once playback has passed 10% of the track.
     private static func hasMetKickoffCacheGate(position: Double, duration: Double) -> Bool {
-        let percent = RemoteConfigStore.kickoffIntervalPercent
-        return position / duration >= percent / 100.0
+        position / duration >= 0.1
     }
 
     /// During the final minute, ensure next resolve is fresh and its AVPlayerItem is primed.
