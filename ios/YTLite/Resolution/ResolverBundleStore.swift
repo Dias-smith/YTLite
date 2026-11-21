@@ -48,7 +48,7 @@ enum ResolverRemoteConfigStore {
     }
 }
 
-/// Fetches / stores remote resolver assets from Supabase Storage (no in-app bundle).
+/// Ships a resolver bundle in the app, and replaces it when Supabase Storage has a newer one.
 actor ResolverBundleStore {
     /// Remote Storage bucket + asset names — must match published Supabase objects.
     private enum RemoteContract {
@@ -144,6 +144,7 @@ actor ResolverBundleStore {
 
     func ensureBundle(backgroundRefresh: Bool = true) async throws -> URL {
         ResolverRemoteConfigStore.restoreFromDisk()
+        try seedFromAppBundleIfNewer()
         let dir = try storeDirectory()
         if isComplete(dir: dir) {
             if let installed = try? loadInstalledManifest(dir: dir) {
@@ -169,6 +170,93 @@ actor ResolverBundleStore {
     }
 
     // MARK: - Private
+
+    /// Copy the shipped bundle when Application Support has nothing newer.
+    /// A remote hotfix with a higher `version` is left in place.
+    private func seedFromAppBundleIfNewer() throws {
+        guard let manifestURL = bundledResourceURL(name: "bundled-manifest.json"),
+              let manifestData = try? Data(contentsOf: manifestURL),
+              let manifest = try? JSONDecoder().decode(Manifest.self, from: manifestData)
+        else { return }
+        guard Self.isCompatible(manifest) else { return }
+        let current = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0"
+        guard Self.compareSemver(current, manifest.minAppVersion) != .orderedAscending else { return }
+
+        let required = [
+            RemoteContract.scriptFile,
+            RemoteContract.bridgeHTML,
+            RemoteContract.bridgeIOSHTML,
+        ]
+        for name in required where manifest.files[name] == nil {
+            return
+        }
+
+        let dir = try storeDirectory()
+        if isComplete(dir: dir),
+           let installed = try? loadInstalledManifest(dir: dir),
+           installed.version >= manifest.version {
+            return
+        }
+
+        var payloads: [(String, Data)] = []
+        for name in required {
+            guard let entry = manifest.files[name],
+                  let url = bundledResourceURL(name: name),
+                  let bytes = try? Data(contentsOf: url)
+            else { return }
+            let digest = SHA256.hash(data: bytes)
+            let hex = digest.map { String(format: "%02x", $0) }.joined()
+            guard hex.caseInsensitiveCompare(entry.sha256) == .orderedSame else {
+                PlayProbe.log("resolver.bundle.seed_skip", "checksum=\(name)")
+                return
+            }
+            payloads.append((name, bytes))
+        }
+
+        let staging = dir.appendingPathComponent(".staging-\(UUID().uuidString)", isDirectory: true)
+        try? fileManager.removeItem(at: staging)
+        try fileManager.createDirectory(at: staging, withIntermediateDirectories: true)
+        do {
+            for (name, bytes) in payloads {
+                try bytes.write(to: staging.appendingPathComponent(name), options: .atomic)
+            }
+            try manifestData.write(
+                to: staging.appendingPathComponent("installed-manifest.json"),
+                options: .atomic
+            )
+            for name in required + ["installed-manifest.json"] {
+                let src = staging.appendingPathComponent(name)
+                let dest = dir.appendingPathComponent(name)
+                if fileManager.fileExists(atPath: dest.path) {
+                    try fileManager.removeItem(at: dest)
+                }
+                try fileManager.moveItem(at: src, to: dest)
+            }
+            try? fileManager.removeItem(at: staging)
+            PlayProbe.log(
+                "resolver.bundle.seeded",
+                "version=\(manifest.version) nativeApi=\(manifest.nativeApi)"
+            )
+        } catch {
+            try? fileManager.removeItem(at: staging)
+            throw error
+        }
+    }
+
+    nonisolated private func bundledResourceURL(name: String) -> URL? {
+        let ns = name as NSString
+        let base = ns.deletingPathExtension
+        let ext = ns.pathExtension
+        let fileExtension: String? = ext.isEmpty ? nil : ext
+        if let url = Bundle.main.url(
+            forResource: base,
+            withExtension: fileExtension,
+            subdirectory: "resolver"
+        ) {
+            return url
+        }
+        return Bundle.main.url(forResource: base, withExtension: fileExtension)
+    }
 
     private func scheduleBackgroundRefreshIfNeeded() {
         let now = Date()

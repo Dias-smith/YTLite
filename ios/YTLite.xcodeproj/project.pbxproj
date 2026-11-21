@@ -169,6 +169,10 @@
 		80224AD5FB5C41B030B811BB /* AdEligibility.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11567CB3A3CED4C251F885D /* AdEligibility.swift */; };
 		8108E99F1BAF25464AF2031D /* MiniPlayerBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 810DCEABC066DAF9AA39EB6B /* MiniPlayerBar.swift */; };
 		84353DB26225F89292FD738F /* playback_equalizer_presets.json in Resources */ = {isa = PBXBuildFile; fileRef = 600528C6F65FDCE50209D758 /* playback_equalizer_presets.json */; };
+		F1A0C011A1B2C3D4E5F60718 /* resolution.js in Resources */ = {isa = PBXBuildFile; fileRef = F1A0C001A1B2C3D4E5F60718 /* resolution.js */; };
+		F1A0C012A1B2C3D4E5F60718 /* bridge.html in Resources */ = {isa = PBXBuildFile; fileRef = F1A0C002A1B2C3D4E5F60718 /* bridge.html */; };
+		F1A0C013A1B2C3D4E5F60718 /* bridge-ios.html in Resources */ = {isa = PBXBuildFile; fileRef = F1A0C003A1B2C3D4E5F60718 /* bridge-ios.html */; };
+		F1A0C014A1B2C3D4E5F60718 /* bundled-manifest.json in Resources */ = {isa = PBXBuildFile; fileRef = F1A0C004A1B2C3D4E5F60718 /* bundled-manifest.json */; };
 		84CA5F7EE32DD6BC97368BF7 /* ThemePalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B8C50C2E560547F7D394FCF /* ThemePalette.swift */; };
 		84CEB04446E705C0D3F63EE6 /* InnerTubeClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8FF10C05E51CE4916A20549 /* InnerTubeClient.swift */; };
 		84D8DE39F576160942A97F16 /* WatchWidgetSnapshotBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 252C8FA67C8FD5674983327B /* WatchWidgetSnapshotBridge.swift */; };
@@ -317,6 +321,10 @@
 		F7E276B1EA8B5110ECCF2730 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 824746E8D8A7940021B02206 /* Supabase */; };
 		F8131DDA7BE5A7D8F96CFF4D /* PlaybackPreparer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 014EA0AB1CC882ADD438EA9B /* PlaybackPreparer.swift */; };
 		F93E9919D6190C5184F483B2 /* playback_equalizer_presets.json in Resources */ = {isa = PBXBuildFile; fileRef = 600528C6F65FDCE50209D758 /* playback_equalizer_presets.json */; };
+		F1A0C021A1B2C3D4E5F60718 /* resolution.js in Resources */ = {isa = PBXBuildFile; fileRef = F1A0C001A1B2C3D4E5F60718 /* resolution.js */; };
+		F1A0C022A1B2C3D4E5F60718 /* bridge.html in Resources */ = {isa = PBXBuildFile; fileRef = F1A0C002A1B2C3D4E5F60718 /* bridge.html */; };
+		F1A0C023A1B2C3D4E5F60718 /* bridge-ios.html in Resources */ = {isa = PBXBuildFile; fileRef = F1A0C003A1B2C3D4E5F60718 /* bridge-ios.html */; };
+		F1A0C024A1B2C3D4E5F60718 /* bundled-manifest.json in Resources */ = {isa = PBXBuildFile; fileRef = F1A0C004A1B2C3D4E5F60718 /* bundled-manifest.json */; };
 		F9CFFBFCABAA60C51EB9B697 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 544D2CE3812330069EAA5F43 /* WidgetKit.framework */; };
 /* End PBXBuildFile section */
 
@@ -446,6 +454,10 @@
 		5F60984D6226BFEC61765B98 /* StreamResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamResolver.swift; sourceTree = "<group>"; };
 		5FD1210B08F78331A292AAFB /* ThemeStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeStore.swift; sourceTree = "<group>"; };
 		600528C6F65FDCE50209D758 /* playback_equalizer_presets.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = playback_equalizer_presets.json; sourceTree = "<group>"; };
+		F1A0C001A1B2C3D4E5F60718 /* resolution.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = resolution.js; sourceTree = "<group>"; };
+		F1A0C002A1B2C3D4E5F60718 /* bridge.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = bridge.html; sourceTree = "<group>"; };
+		F1A0C003A1B2C3D4E5F60718 /* bridge-ios.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = "bridge-ios.html"; sourceTree = "<group>"; };
+		F1A0C004A1B2C3D4E5F60718 /* bundled-manifest.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "bundled-manifest.json"; sourceTree = "<group>"; };
 		609838468E137FB22CF6746E /* ImportSourceStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportSourceStore.swift; sourceTree = "<group>"; };
 		60A6BFA68E47ED7E47B8664C /* EqualizerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EqualizerSheet.swift; sourceTree = "<group>"; };
 		62C485D587E09BF45EE29C1A /* AppOrientation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppOrientation.swift; sourceTree = "<group>"; };
@@ -1028,8 +1040,20 @@
 			isa = PBXGroup;
 			children = (
 				600528C6F65FDCE50209D758 /* playback_equalizer_presets.json */,
+				F1A0C005A1B2C3D4E5F60718 /* resolver */,
 			);
 			path = Resources;
+			sourceTree = "<group>";
+		};
+		F1A0C005A1B2C3D4E5F60718 /* resolver */ = {
+			isa = PBXGroup;
+			children = (
+				F1A0C003A1B2C3D4E5F60718 /* bridge-ios.html */,
+				F1A0C002A1B2C3D4E5F60718 /* bridge.html */,
+				F1A0C004A1B2C3D4E5F60718 /* bundled-manifest.json */,
+				F1A0C001A1B2C3D4E5F60718 /* resolution.js */,
+			);
+			path = resolver;
 			sourceTree = "<group>";
 		};
 		EDD43CEC0E54387460E95522 /* Theme */ = {
@@ -1295,7 +1319,11 @@
 				B1E22E0A0E88381A7926E3B8 /* InfoPlist.xcstrings in Resources */,
 				575E084B0BD8FE5EAC0730FE /* Localizable.xcstrings in Resources */,
 				782027D6AD9C0F605EFE2002 /* PrivacyInfo.xcprivacy in Resources */,
+				F1A0C013A1B2C3D4E5F60718 /* bridge-ios.html in Resources */,
+				F1A0C012A1B2C3D4E5F60718 /* bridge.html in Resources */,
+				F1A0C014A1B2C3D4E5F60718 /* bundled-manifest.json in Resources */,
 				84353DB26225F89292FD738F /* playback_equalizer_presets.json in Resources */,
+				F1A0C011A1B2C3D4E5F60718 /* resolution.js in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1324,7 +1352,11 @@
 				D2F3519557BF0747FF4A5699 /* InfoPlist.xcstrings in Resources */,
 				C51704BD3190BB63AA376DA7 /* Localizable.xcstrings in Resources */,
 				CA6F392059E163936F670236 /* PrivacyInfo.xcprivacy in Resources */,
+				F1A0C023A1B2C3D4E5F60718 /* bridge-ios.html in Resources */,
+				F1A0C022A1B2C3D4E5F60718 /* bridge.html in Resources */,
+				F1A0C024A1B2C3D4E5F60718 /* bundled-manifest.json in Resources */,
 				F93E9919D6190C5184F483B2 /* playback_equalizer_presets.json in Resources */,
+				F1A0C021A1B2C3D4E5F60718 /* resolution.js in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

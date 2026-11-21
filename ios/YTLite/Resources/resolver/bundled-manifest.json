@@ -1,0 +1,31 @@
+{
+  "version": 2,
+  "minAppVersion": "1.0.0",
+  "nativeApi": 1,
+  "minNativeApi": 1,
+  "files": {
+    "resolution.js": {
+      "path": "bundled/resolution.js",
+      "sha256": "19b006a6433f22a54024f26bfbcd930e23743892a97d36c70d7d55589ba6c37b"
+    },
+    "bridge.html": {
+      "path": "bundled/bridge.html",
+      "sha256": "75b5efe46918bdfac4ecc510a2b007d71a842483c5d45c8b1660ab080653edc9"
+    },
+    "bridge-ios.html": {
+      "path": "bundled/bridge-ios.html",
+      "sha256": "47c22ae31c13cd58a1a7f6e1c1c0028aba5f8605f40ae9a62b516ffd9d88d66c"
+    }
+  },
+  "config": {
+    "androidClientVersion": "20.10.38",
+    "signatureTimestamp": 20646,
+    "preferItags": [
+      18,
+      22,
+      37
+    ],
+    "enableAndroidPlayerFallback": true,
+    "enableWatchPageFallback": true
+  }
+}
