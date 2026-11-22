@@ -160,6 +160,9 @@
         }
       }
     },
+    "%@%%" : {
+
+    },
     "1 GB" : {
 
     },
@@ -861,59 +864,6 @@
         }
       }
     },
-    "action.paste_image_link" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "الصق رابطًا مباشرًا لصورة (https://…)"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Paste a direct link to an image (https://…)"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pega un enlace directo a una imagen (https://…)"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Collez un lien direct vers une image (https://…)"
-          }
-        },
-        "hi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "छवि का सीधा लिंक चिपकाएँ (https://…)"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cole um link direto para uma imagem (https://…)"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "粘贴图片直链（https://…）"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "貼上圖片直連（https://…）"
-          }
-        }
-      }
-    },
     "action.not_interested" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -963,6 +913,59 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "不感興趣"
+          }
+        }
+      }
+    },
+    "action.paste_image_link" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "الصق رابطًا مباشرًا لصورة (https://…)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paste a direct link to an image (https://…)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pega un enlace directo a una imagen (https://…)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Collez un lien direct vers une image (https://…)"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "छवि का सीधा लिंक चिपकाएँ (https://…)"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cole um link direto para uma imagem (https://…)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "粘贴图片直链（https://…）"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "貼上圖片直連（https://…）"
           }
         }
       }
@@ -1868,59 +1871,6 @@
         }
       }
     },
-    "auth.sign_in_with_apple" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "تسجيل الدخول باستخدام Apple"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sign in with Apple"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Iniciar sesión con Apple"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Se connecter avec Apple"
-          }
-        },
-        "hi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Apple के साथ साइन इन करें"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Iniciar sessão com a Apple"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "通过 Apple 登录"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "透過 Apple 登入"
-          }
-        }
-      }
-    },
     "auth.sign_in_to_sync" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1970,6 +1920,59 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "登入後即可在多設備間同步媒體庫。"
+          }
+        }
+      }
+    },
+    "auth.sign_in_with_apple" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تسجيل الدخول باستخدام Apple"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign in with Apple"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Iniciar sesión con Apple"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se connecter avec Apple"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple के साथ साइन इन करें"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Iniciar sessão com a Apple"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "通过 Apple 登录"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "透過 Apple 登入"
           }
         }
       }
@@ -7115,6 +7118,59 @@
         }
       }
     },
+    "home.category.gaming" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "الألعاب"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gaming"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Videojuegos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jeux vidéo"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "गेमिंग"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jogos"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "游戏"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "遊戲"
+          }
+        }
+      }
+    },
     "home.category.live" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -7482,59 +7538,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "派對"
-          }
-        }
-      }
-    },
-    "home.category.gaming" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "الألعاب"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Gaming"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Videojuegos"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Jeux vidéo"
-          }
-        },
-        "hi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "गेमिंग"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Jogos"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "游戏"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "遊戲"
           }
         }
       }
@@ -10030,6 +10033,907 @@
         }
       }
     },
+    "import.mac.address_hint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "أدخل هذا العنوان في Mixtube على iPhone"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter this address in Mixtube on iPhone"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Introduce esta dirección en Mixtube en el iPhone"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saisis cette adresse dans Mixtube sur l’iPhone"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "iPhone पर Mixtube में यह पता दर्ज करें"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Digite este endereço no Mixtube no iPhone"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在 iPhone 上填写这个地址"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在 iPhone 上填寫這個地址"
+          }
+        }
+      }
+    },
+    "import.mac.cached_count" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld أغنية جاهزة للإرسال"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld ready to send"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld listas para enviar"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld prêts à envoyer"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld भेजने के लिए तैयार"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld prontas para enviar"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "可发送 %lld 首"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "可傳送 %lld 首"
+          }
+        }
+      }
+    },
+    "import.mac.camera_denied" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "اسمح بالوصول إلى الكاميرا في الإعدادات لمسح رمز QR."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Allow camera access in Settings to scan the QR code."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Permite el acceso a la cámara en Ajustes para escanear el código QR."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Autorise l’accès à l’appareil photo dans Réglages pour scanner le code QR."
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QR कोड स्कैन करने के लिए सेटिंग्स में कैमरा एक्सेस की अनुमति दें।"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Permita o acesso à câmera nos Ajustes para escanear o código QR."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请在系统设置中允许使用相机，以便扫描二维码。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "請在系統設定中允許使用相機，以便掃描二維碼。"
+          }
+        }
+      }
+    },
+    "import.mac.code_hint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "أدخل هذا الرمز في Mixtube على iPhone"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter this code in Mixtube on iPhone"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Introduce este código en Mixtube en el iPhone"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saisis ce code dans Mixtube sur l’iPhone"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "iPhone पर Mixtube में यह कोड दर्ज करें"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Digite este código no Mixtube no iPhone"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在 iPhone 上的 Mixtube 输入这个配对码"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在 iPhone 上的 Mixtube 輸入這個配對碼"
+          }
+        }
+      }
+    },
+    "import.mac.enter_address" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "عنوان IP لجهاز Mac"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mac IP address"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dirección IP del Mac"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adresse IP du Mac"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mac का IP पता"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Endereço IP do Mac"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mac 的 IP 地址"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mac 的 IP 位址"
+          }
+        }
+      }
+    },
+    "import.mac.enter_code" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "رمز الاقتران"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pairing code"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Código de emparejamiento"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Code d’association"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "पेयरिंग कोड"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Código de pareamento"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "配对码"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "配對碼"
+          }
+        }
+      }
+    },
+    "import.mac.import_songs" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "استيراد"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Import"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Importar"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Importer"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "आयात करें"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Importar"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "导入"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "匯入"
+          }
+        }
+      }
+    },
+    "import.mac.no_address" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "صِل جهاز Mac بشبكة Wi-Fi"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect this Mac to Wi-Fi"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conecta este Mac a una red Wi-Fi"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connecte ce Mac au Wi-Fi"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "इस Mac को Wi-Fi से कनेक्ट करें"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conecte este Mac ao Wi-Fi"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请把这台 Mac 连上 Wi-Fi"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "請把這台 Mac 連上 Wi-Fi"
+          }
+        }
+      }
+    },
+    "import.mac.no_devices" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "لا يوجد Mac على شبكة Wi-Fi هذه"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No Mac on this Wi-Fi"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No hay ningún Mac en esta Wi-Fi"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucun Mac sur ce Wi-Fi"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "इस Wi-Fi पर कोई Mac नहीं मिला"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nenhum Mac neste Wi-Fi"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "同一 Wi-Fi 下没有发现 Mac"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "同一 Wi-Fi 下沒有發現 Mac"
+          }
+        }
+      }
+    },
+    "import.mac.no_songs" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "لا توجد أغاني محفوظة"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No saved songs"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No hay canciones guardadas"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucun titre enregistré"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "कोई सहेजा गया गाना नहीं"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nenhuma música salva"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有已保存的歌曲"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "沒有已儲存的歌曲"
+          }
+        }
+      }
+    },
+    "import.mac.pair" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "اتصال"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conectar"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connecter"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "कनेक्ट करें"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conectar"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "连接"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "連接"
+          }
+        }
+      }
+    },
+    "import.mac.pair_failed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "رمز الاقتران غير صحيح"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Incorrect pairing code"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Código de emparejamiento incorrecto"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Code d’association incorrect"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "पेयरिंग कोड गलत है"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Código de pareamento incorreto"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "配对码不正确"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "配對碼不正確"
+          }
+        }
+      }
+    },
+    "import.mac.progress" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "جارٍ الاستيراد %lld / %lld"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Importing %lld of %lld"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Importando %lld de %lld"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Importation %lld sur %lld"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld में से %lld आयात हो रहा है"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Importando %lld de %lld"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在导入 %lld / %lld"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在匯入 %lld / %lld"
+          }
+        }
+      }
+    },
+    "import.mac.qr_hint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "أو امسح رمز QR هذا في Mixtube على iPhone"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Or scan this QR code in Mixtube on iPhone"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O escanea este código QR en Mixtube en el iPhone"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ou scanne ce code QR dans Mixtube sur l’iPhone"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "या iPhone पर Mixtube में यह QR कोड स्कैन करें"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ou escaneie este código QR no Mixtube no iPhone"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "或用 iPhone 上的 Mixtube 扫描这个二维码"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "或用 iPhone 上的 Mixtube 掃描這個二維碼"
+          }
+        }
+      }
+    },
+    "import.mac.scan" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "مسح رمز QR"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scan QR Code"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escanear código QR"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scanner le code QR"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QR कोड स्कैन करें"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escanear código QR"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "扫描二维码"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "掃描二維碼"
+          }
+        }
+      }
+    },
+    "import.mac.sent_count" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تم الإرسال: %lld"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sent %lld"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enviadas %lld"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Envoyés %lld"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld भेजे गए"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enviadas %lld"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已发送 %lld"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已傳送 %lld"
+          }
+        }
+      }
+    },
+    "import.mac.waiting" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "في انتظار iPhone"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waiting for iPhone"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esperando al iPhone"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En attente de l’iPhone"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "iPhone की प्रतीक्षा"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aguardando o iPhone"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "等待 iPhone"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "等待 iPhone"
+          }
+        }
+      }
+    },
     "import.nav.back" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -10719,6 +11623,271 @@
         }
       }
     },
+    "import.source.mac" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mac"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mac"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mac"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mac"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mac"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mac"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mac"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mac"
+          }
+        }
+      }
+    },
+    "import.source.mac_receive" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "من Mac"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "From Mac"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desde el Mac"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Depuis le Mac"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mac से"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Do Mac"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "从 Mac 接收"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "從 Mac 接收"
+          }
+        }
+      }
+    },
+    "import.source.mac_receive.hint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "استلم الأغاني من Mixtube Mac"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Receive songs from Mixtube Mac"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recibe canciones de Mixtube Mac"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recevoir des titres depuis Mixtube Mac"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mixtube Mac से गाने प्राप्त करें"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Receber músicas do Mixtube Mac"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "从 Mixtube Mac 接收歌曲"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "從 Mixtube Mac 接收歌曲"
+          }
+        }
+      }
+    },
+    "import.source.mac_send" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "إرسال إلى iPhone"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Send to iPhone"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enviar al iPhone"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Envoyer vers l’iPhone"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "iPhone पर भेजें"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enviar para o iPhone"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "发送到 iPhone"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "傳送到 iPhone"
+          }
+        }
+      }
+    },
+    "import.source.mac_send.hint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "أرسل الأغاني المحفوظة إلى Mixtube على iPhone"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Send saved songs to Mixtube on iPhone"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Envía las canciones guardadas a Mixtube en el iPhone"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Envoyer les titres enregistrés à Mixtube sur iPhone"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "सहेजे गए गाने iPhone पर Mixtube को भेजें"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enviar músicas salvas para o Mixtube no iPhone"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "把已保存的歌曲发给手机上的 Mixtube"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "把已儲存的歌曲傳給手機上的 Mixtube"
+          }
+        }
+      }
+    },
     "import.source.photos" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -10929,214 +12098,6 @@
             "value" : "NAS、堅果雲與 WebDAV"
           }
         }
-      }
-    },
-    "import.mac.cached_count" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "%lld أغنية محفوظة" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "%lld saved songs" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "%lld canciones guardadas" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "%lld titres enregistrés" } },
-        "hi" : { "stringUnit" : { "state" : "translated", "value" : "%lld सहेजे गए गाने" } },
-        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "%lld músicas salvas" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "已保存 %lld 首" } },
-        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "已儲存 %lld 首" } }
-      }
-    },
-    "import.mac.code_hint" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "أدخل هذا الرمز في Mixtube على iPhone" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Enter this code in Mixtube on iPhone" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "Introduce este código en Mixtube en el iPhone" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Saisis ce code dans Mixtube sur l’iPhone" } },
-        "hi" : { "stringUnit" : { "state" : "translated", "value" : "iPhone पर Mixtube में यह कोड दर्ज करें" } },
-        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Digite este código no Mixtube no iPhone" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "在 iPhone 上的 Mixtube 输入这个配对码" } },
-        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "在 iPhone 上的 Mixtube 輸入這個配對碼" } }
-      }
-    },
-    "import.mac.enter_code" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "رمز الاقتران" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Pairing code" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "Código de emparejamiento" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Code d’association" } },
-        "hi" : { "stringUnit" : { "state" : "translated", "value" : "पेयरिंग कोड" } },
-        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Código de pareamento" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "配对码" } },
-        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "配對碼" } }
-      }
-    },
-    "import.mac.import_songs" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "استيراد" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Import" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "Importar" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Importer" } },
-        "hi" : { "stringUnit" : { "state" : "translated", "value" : "आयात करें" } },
-        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Importar" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "导入" } },
-        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "匯入" } }
-      }
-    },
-    "import.mac.no_devices" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "لا يوجد Mac على شبكة Wi-Fi هذه" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "No Mac on this Wi-Fi" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "No hay ningún Mac en esta Wi-Fi" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Aucun Mac sur ce Wi-Fi" } },
-        "hi" : { "stringUnit" : { "state" : "translated", "value" : "इस Wi-Fi पर कोई Mac नहीं मिला" } },
-        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Nenhum Mac neste Wi-Fi" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "同一 Wi-Fi 下没有发现 Mac" } },
-        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "同一 Wi-Fi 下沒有發現 Mac" } }
-      }
-    },
-    "import.mac.no_songs" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "لا توجد أغاني محفوظة" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "No saved songs" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "No hay canciones guardadas" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Aucun titre enregistré" } },
-        "hi" : { "stringUnit" : { "state" : "translated", "value" : "कोई सहेजा गया गाना नहीं" } },
-        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Nenhuma música salva" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "没有已保存的歌曲" } },
-        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "沒有已儲存的歌曲" } }
-      }
-    },
-    "import.mac.pair" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "اتصال" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Connect" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "Conectar" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Connecter" } },
-        "hi" : { "stringUnit" : { "state" : "translated", "value" : "कनेक्ट करें" } },
-        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Conectar" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "连接" } },
-        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "連接" } }
-      }
-    },
-    "import.mac.pair_failed" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "رمز الاقتران غير صحيح" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Incorrect pairing code" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "Código de emparejamiento incorrecto" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Code d’association incorrect" } },
-        "hi" : { "stringUnit" : { "state" : "translated", "value" : "पेयरिंग कोड गलत है" } },
-        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Código de pareamento incorreto" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "配对码不正确" } },
-        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "配對碼不正確" } }
-      }
-    },
-    "import.mac.progress" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "جارٍ الاستيراد %lld / %lld" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Importing %lld of %lld" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "Importando %lld de %lld" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Importation %lld sur %lld" } },
-        "hi" : { "stringUnit" : { "state" : "translated", "value" : "%lld में से %lld आयात हो रहा है" } },
-        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Importando %lld de %lld" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "正在导入 %lld / %lld" } },
-        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "正在匯入 %lld / %lld" } }
-      }
-    },
-    "import.mac.sent_count" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "تم الإرسال: %lld" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Sent %lld" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "Enviadas %lld" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Envoyés %lld" } },
-        "hi" : { "stringUnit" : { "state" : "translated", "value" : "%lld भेजे गए" } },
-        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Enviadas %lld" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "已发送 %lld" } },
-        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "已傳送 %lld" } }
-      }
-    },
-    "import.mac.waiting" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "في انتظار iPhone" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Waiting for iPhone" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "Esperando al iPhone" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "En attente de l’iPhone" } },
-        "hi" : { "stringUnit" : { "state" : "translated", "value" : "iPhone की प्रतीक्षा" } },
-        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Aguardando o iPhone" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "等待 iPhone" } },
-        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "等待 iPhone" } }
-      }
-    },
-    "import.source.mac" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "Mac" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Mac" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "Mac" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Mac" } },
-        "hi" : { "stringUnit" : { "state" : "translated", "value" : "Mac" } },
-        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Mac" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "Mac" } },
-        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "Mac" } }
-      }
-    },
-    "import.source.mac_receive" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "من Mac" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "From Mac" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "Desde el Mac" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Depuis le Mac" } },
-        "hi" : { "stringUnit" : { "state" : "translated", "value" : "Mac से" } },
-        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Do Mac" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "从 Mac 接收" } },
-        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "從 Mac 接收" } }
-      }
-    },
-    "import.source.mac_receive.hint" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "استلم الأغاني المحفوظة في Mixtube على Mac" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Receive songs saved in Mixtube on Mac" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "Recibe canciones guardadas en Mixtube para Mac" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Recevoir les titres enregistrés dans Mixtube sur Mac" } },
-        "hi" : { "stringUnit" : { "state" : "translated", "value" : "Mac पर Mixtube में सहेजे गाने प्राप्त करें" } },
-        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Receber músicas salvas no Mixtube para Mac" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "接收 Mac 版已保存的歌曲" } },
-        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "接收 Mac 版已儲存的歌曲" } }
-      }
-    },
-    "import.source.mac_send" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "إرسال إلى iPhone" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Send to iPhone" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "Enviar al iPhone" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Envoyer vers l’iPhone" } },
-        "hi" : { "stringUnit" : { "state" : "translated", "value" : "iPhone पर भेजें" } },
-        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Enviar para o iPhone" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "发送到 iPhone" } },
-        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "傳送到 iPhone" } }
-      }
-    },
-    "import.source.mac_send.hint" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "أرسل الأغاني المحفوظة إلى Mixtube على iPhone" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Send saved songs to Mixtube on iPhone" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "Envía las canciones guardadas a Mixtube en el iPhone" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Envoyer les titres enregistrés à Mixtube sur iPhone" } },
-        "hi" : { "stringUnit" : { "state" : "translated", "value" : "सहेजे गए गाने iPhone पर Mixtube को भेजें" } },
-        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Enviar músicas salvas para o Mixtube no iPhone" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "把已保存的歌曲发给手机上的 Mixtube" } },
-        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "把已儲存的歌曲傳給手機上的 Mixtube" } }
       }
     },
     "import.source.wifi" : {
@@ -15488,55 +16449,55 @@
         }
       }
     },
-    "player.unlike" : {
+    "player.list_end" : {
       "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "إلغاء الإعجاب"
+            "value" : "هذا أدنى ما أصل إليه."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Unlike"
+            "value" : "That’s as low as I go."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ya no me gusta"
+            "value" : "Hasta aquí llego."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Je n'aime plus"
+            "value" : "C’est aussi bas que je descends."
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "पसंद हटाएँ"
+            "value" : "मैं यहीं तक ही जाता हूँ."
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Descurtir"
+            "value" : "É até aqui que eu desço."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "取消喜欢"
+            "value" : "我也是有底线的"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "取消喜歡"
+            "value" : "我也是有底線的"
           }
         }
       }
@@ -15696,59 +16657,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "新增播放清單"
-          }
-        }
-      }
-    },
-    "player.list_end" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "هذا أدنى ما أصل إليه."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "That’s as low as I go."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hasta aquí llego."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "C’est aussi bas que je descends."
-          }
-        },
-        "hi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "मैं यहीं तक ही जाता हूँ."
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "É até aqui que eu desço."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "我也是有底线的"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "我也是有底線的"
           }
         }
       }
@@ -16495,6 +17403,59 @@
         }
       }
     },
+    "player.unlike" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "إلغاء الإعجاب"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unlike"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ya no me gusta"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Je n'aime plus"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "पसंद हटाएँ"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Descurtir"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "取消喜欢"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "取消喜歡"
+          }
+        }
+      }
+    },
     "player.unsubscribed" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -17025,59 +17986,6 @@
         }
       }
     },
-    "search.placeholder" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ابحث عن فيديوهات وقنوات..."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Search videos, channels..."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Buscar vídeos, canales..."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Rechercher des vidéos, des chaînes…"
-          }
-        },
-        "hi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "वीडियो, चैनल खोजें..."
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pesquisar vídeos, canais..."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "搜索视频、频道…"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "搜尋影片、頻道…"
-          }
-        }
-      }
-    },
     "search.no_results" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -17127,6 +18035,59 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "暫無結果"
+          }
+        }
+      }
+    },
+    "search.placeholder" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ابحث عن فيديوهات وقنوات..."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search videos, channels..."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Buscar vídeos, canales..."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rechercher des vidéos, des chaînes…"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "वीडियो, चैनल खोजें..."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pesquisar vídeos, canais..."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "搜索视频、频道…"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "搜尋影片、頻道…"
           }
         }
       }
@@ -17447,32 +18408,6 @@
             "value" : "熱門搜尋"
           }
         }
-      }
-    },
-    "settings.mac_media_cache" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "حفظ الأغاني التي تم تشغيلها" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Save played songs" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "Guardar canciones reproducidas" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Enregistrer les titres lus" } },
-        "hi" : { "stringUnit" : { "state" : "translated", "value" : "चलाए गए गाने सहेजें" } },
-        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Salvar músicas reproduzidas" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "保存播放过的歌曲" } },
-        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "儲存播放過的歌曲" } }
-      }
-    },
-    "settings.mac_media_cache.hint" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "يبدأ الحفظ بعد 10٪ من التشغيل. يمكن إرسال هذه الملفات فقط إلى Mixtube على iPhone." } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Saving starts after 10% of playback. These files can only be sent to Mixtube on iPhone." } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "El guardado empieza tras el 10 % de la reproducción. Estos archivos solo se pueden enviar a Mixtube en el iPhone." } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "L’enregistrement commence après 10 % de la lecture. Ces fichiers ne peuvent être envoyés qu’à Mixtube sur iPhone." } },
-        "hi" : { "stringUnit" : { "state" : "translated", "value" : "प्लेबैक के 10% के बाद सहेजना शुरू होता है। ये फ़ाइलें केवल iPhone पर Mixtube को भेजी जा सकती हैं।" } },
-        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "A gravação começa após 10% da reprodução. Estes arquivos só podem ser enviados ao Mixtube no iPhone." } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "播放超过 10% 后开始保存。这些文件只能发送到 Mixtube 手机版。" } },
-        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "播放超過 10% 後開始儲存。這些檔案只能傳送到 Mixtube 手機版。" } }
       }
     },
     "settings.about" : {
@@ -18107,6 +19042,112 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "語言"
+          }
+        }
+      }
+    },
+    "settings.mac_media_cache" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "حفظ الأغاني التي تم تشغيلها"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save played songs"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Guardar canciones reproducidas"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enregistrer les titres lus"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "चलाए गए गाने सहेजें"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Salvar músicas reproduzidas"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保存播放过的歌曲"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "儲存播放過的歌曲"
+          }
+        }
+      }
+    },
+    "settings.mac_media_cache.hint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يبدأ الحفظ بعد 10٪ من التشغيل. يمكن إرسال هذه الملفات فقط إلى Mixtube على iPhone."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saving starts after 10% of playback. These files can only be sent to Mixtube on iPhone."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El guardado empieza tras el 10 % de la reproducción. Estos archivos solo se pueden enviar a Mixtube en el iPhone."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L’enregistrement commence après 10 % de la lecture. Ces fichiers ne peuvent être envoyés qu’à Mixtube sur iPhone."
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "प्लेबैक के 10% के बाद सहेजना शुरू होता है। ये फ़ाइलें केवल iPhone पर Mixtube को भेजी जा सकती हैं।"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A gravação começa após 10% da reprodução. Estes arquivos só podem ser enviados ao Mixtube no iPhone."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "播放超过 10% 后开始保存。这些文件只能发送到 Mixtube 手机版。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "播放超過 10% 後開始儲存。這些檔案只能傳送到 Mixtube 手機版。"
           }
         }
       }
@@ -22616,59 +23657,6 @@
         }
       }
     },
-    "vip.benefit_playback" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "تشغيل دون انقطاع"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Uninterrupted playback"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Reproducción sin interrupciones"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Lecture ininterrompue"
-          }
-        },
-        "hi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "बिना रुकावट चलाएँ"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Reprodução sem interrupções"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "不间断播放"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "不間斷播放"
-          }
-        }
-      }
-    },
     "vip.benefit_photo_background" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -22718,6 +23706,59 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "將照片用作背景"
+          }
+        }
+      }
+    },
+    "vip.benefit_playback" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تشغيل دون انقطاع"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uninterrupted playback"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reproducción sin interrupciones"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lecture ininterrompue"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "बिना रुकावट चलाएँ"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reprodução sem interrupções"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不间断播放"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不間斷播放"
           }
         }
       }

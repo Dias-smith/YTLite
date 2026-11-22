@@ -74,6 +74,8 @@
 	</array>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Mixtube uses the local network to transfer saved songs between Mixtube on your Mac and Mixtube on your iPhone, and to import music from a computer on the same Wi-Fi.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Mixtube uses the camera to scan a QR code from Mixtube on your Mac and connect for song transfer.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Mixtube needs photo library access to import videos and audio from your album.</string>
 	<key>NSUserTrackingUsageDescription</key>

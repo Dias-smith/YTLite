@@ -1,4 +1,6 @@
+import AVFoundation
 import CoreImage.CIFilterBuiltins
+import Network
 import SwiftUI
 
 struct WiFiImportSheet: View {
@@ -36,7 +38,7 @@ struct WiFiImportSheet: View {
                                         UIPasteboard.general.string = url.absoluteString
                                     }
                                 }
-                            if let qr = qrImage(for: url.absoluteString) {
+                            if let qr = mixtubeQRImage(for: url.absoluteString) {
                                 Image(uiImage: qr)
                                     .interpolation(.none)
                                     .resizable()
@@ -139,17 +141,17 @@ struct WiFiImportSheet: View {
         server.onFileReceived = nil
         dismiss()
     }
+}
 
-    private func qrImage(for string: String) -> UIImage? {
-        let filter = CIFilter.qrCodeGenerator()
-        filter.message = Data(string.utf8)
-        filter.correctionLevel = "M"
-        guard let output = filter.outputImage else { return nil }
-        let scaled = output.transformed(by: CGAffineTransform(scaleX: 10, y: 10))
-        let context = CIContext()
-        guard let cg = context.createCGImage(scaled, from: scaled.extent) else { return nil }
-        return UIImage(cgImage: cg)
-    }
+func mixtubeQRImage(for string: String) -> UIImage? {
+    let filter = CIFilter.qrCodeGenerator()
+    filter.message = Data(string.utf8)
+    filter.correctionLevel = "M"
+    guard let output = filter.outputImage else { return nil }
+    let scaled = output.transformed(by: CGAffineTransform(scaleX: 10, y: 10))
+    let context = CIContext()
+    guard let cg = context.createCGImage(scaled, from: scaled.extent) else { return nil }
+    return UIImage(cgImage: cg)
 }
 
 #if targetEnvironment(macCatalyst)
@@ -172,31 +174,74 @@ struct MacCacheSendSheet: View {
                         .multilineTextAlignment(.center)
                         .padding(.horizontal)
                 } else {
-                    Text(L("import.mac.code_hint"))
-                        .font(YTLiteType.body)
-                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal)
-                    Text(server.pairingCode)
-                        .font(YTLiteType.pageTitle)
-                        .monospacedDigit()
-                        .foregroundStyle(YTLiteColor.onSurface)
-                    Text(L("import.mac.waiting"))
-                        .font(YTLiteType.meta)
-                        .foregroundStyle(YTLiteColor.accent)
-                    Text(Lf("import.mac.cached_count", songCount))
-                        .font(YTLiteType.meta)
-                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                    if server.servedCount > 0 {
-                        Text(Lf("import.mac.sent_count", server.servedCount))
-                            .font(YTLiteType.meta)
-                            .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                    }
-                    if let lastError = server.lastError {
-                        Text(lastError)
-                            .font(YTLiteType.meta)
-                            .foregroundStyle(.red)
-                            .multilineTextAlignment(.center)
+                    ScrollView {
+                        VStack(spacing: 16) {
+                            Text(L("import.mac.code_hint"))
+                                .font(YTLiteType.body)
+                                .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                                .multilineTextAlignment(.center)
+                            Text(server.pairingCode)
+                                .font(YTLiteType.pageTitle)
+                                .monospacedDigit()
+                                .foregroundStyle(YTLiteColor.onSurface)
+                            if let address = server.listenAddress {
+                                Text(L("import.mac.address_hint"))
+                                    .font(YTLiteType.body)
+                                    .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                                    .multilineTextAlignment(.center)
+                                Text(address)
+                                    .font(YTLiteType.sectionTitle)
+                                    .monospacedDigit()
+                                    .foregroundStyle(YTLiteColor.onSurface)
+                                Text(L("import.mac.qr_hint"))
+                                    .font(YTLiteType.body)
+                                    .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                                    .multilineTextAlignment(.center)
+                                if let qr = mixtubeQRImage(for: MacCacheLink.payload(host: address, code: server.pairingCode)) {
+                                    Image(uiImage: qr)
+                                        .interpolation(.none)
+                                        .resizable()
+                                        .scaledToFit()
+                                        .frame(width: 200, height: 200)
+                                        .padding()
+                                        .background(Color.white, in: RoundedRectangle(cornerRadius: 12))
+                                }
+                            }
+                            Text(L("import.mac.waiting"))
+                                .font(YTLiteType.meta)
+                                .foregroundStyle(YTLiteColor.accent)
+                            Text(Lf("import.mac.cached_count", songCount))
+                                .font(YTLiteType.meta)
+                                .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                            if let progress = server.sendProgress, progress.totalBytes > 0 {
+                                Text(progress.title)
+                                    .font(YTLiteType.rowTitle)
+                                    .foregroundStyle(YTLiteColor.onSurface)
+                                    .lineLimit(1)
+                                ProgressView(
+                                    value: Double(progress.sentBytes),
+                                    total: Double(progress.totalBytes)
+                                )
+                                .tint(YTLiteColor.accent)
+                                Text("\(min(100, Int((Double(progress.sentBytes) / Double(progress.totalBytes) * 100).rounded())))%")
+                                    .font(YTLiteType.meta)
+                                    .monospacedDigit()
+                                    .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                            }
+                            if server.servedCount > 0 {
+                                Text(Lf("import.mac.sent_count", server.servedCount))
+                                    .font(YTLiteType.meta)
+                                    .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                            }
+                            if let lastError = server.lastError {
+                                Text(lastError)
+                                    .font(YTLiteType.meta)
+                                    .foregroundStyle(.red)
+                                    .multilineTextAlignment(.center)
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.horizontal, YTLiteLayout.screenPadding)
                     }
                 }
                 Spacer(minLength: 0)
@@ -242,6 +287,34 @@ struct MacCacheSendSheet: View {
             audio[snapshot.videoId] = file
             if hasCover { covers[snapshot.videoId] = cover }
         }
+        var seen = Set(records.map(\.videoId))
+        for track in store?.importedTracks() ?? [] {
+            guard seen.insert(track.trackId).inserted else { continue }
+            guard MacCacheHTTP.isSafeTrackID(track.trackId) else { continue }
+            guard let file = LocalMediaStore.shared.audioURL(
+                trackId: track.trackId,
+                relativePath: track.localRelativePath
+            ) else { continue }
+            let size = (try? file.resourceValues(forKeys: [.fileSizeKey]).fileSize).map(Int64.init) ?? 0
+            guard size > 0 else { continue }
+            let ext = file.pathExtension.isEmpty ? "m4a" : file.pathExtension.lowercased()
+            let cover = ImportCoverStorage.fileURL(trackId: track.trackId)
+            let hasCover = FileManager.default.fileExists(atPath: cover.path)
+            let title = track.title.trimmingCharacters(in: .whitespacesAndNewlines)
+            records.append(
+                MacCacheTrackRecord(
+                    videoId: track.trackId,
+                    title: title.isEmpty ? track.trackId : title,
+                    artist: track.primaryArtistName ?? "",
+                    durationSeconds: track.durationSeconds,
+                    byteCount: size,
+                    fileExtension: ext,
+                    hasCover: hasCover
+                )
+            )
+            audio[track.trackId] = file
+            if hasCover { covers[track.trackId] = cover }
+        }
         songCount = records.count
         loaded = true
         if records.isEmpty {
@@ -261,6 +334,7 @@ struct MacCacheReceiveSheet: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var browser = MacCacheTransferBrowser()
     @State private var selectedDeviceID: String?
+    @State private var address = ""
     @State private var code = ""
     @State private var session: MacCacheTransferSession?
     @State private var tracks: [MacCacheTrackRecord] = []
@@ -268,6 +342,9 @@ struct MacCacheReceiveSheet: View {
     @State private var message: String?
     @State private var isBusy = false
     @State private var progressText: String?
+    @StateObject private var transfer = MacCacheImportProgress()
+    @State private var importTask: Task<Void, Never>?
+    @State private var showScanner = false
 
     var body: some View {
         NavigationStack {
@@ -289,6 +366,18 @@ struct MacCacheReceiveSheet: View {
                                 .font(YTLiteType.meta)
                                 .foregroundStyle(YTLiteColor.onSurfaceVariant)
                         }
+                        if isBusy, !transfer.title.isEmpty {
+                            Text(transfer.title)
+                                .font(YTLiteType.rowTitle)
+                                .foregroundStyle(YTLiteColor.onSurface)
+                                .lineLimit(1)
+                            ProgressView(value: transfer.fraction)
+                                .tint(YTLiteColor.accent)
+                            Text("\(transfer.percent)%")
+                                .font(YTLiteType.meta)
+                                .monospacedDigit()
+                                .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                        }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, YTLiteLayout.screenPadding)
@@ -300,13 +389,32 @@ struct MacCacheReceiveSheet: View {
                 }
                 .padding(.top, 12)
                 .padding(.bottom, 28)
-                .disabled(isBusy)
             }
             .ytLiteAppBackground()
             .navigationBarHidden(true)
-            .interactiveDismissDisabled(true)
+            .interactiveDismissDisabled(isBusy)
             .onAppear { browser.start() }
-            .onDisappear { browser.stop() }
+            .onDisappear {
+                importTask?.cancel()
+                browser.stop()
+            }
+            .sheet(isPresented: $showScanner) {
+                MacCacheQRScanner { raw in
+                    guard let link = MacCacheLink.parse(raw) else { return false }
+                    address = link.host
+                    code = link.code
+                    showScanner = false
+                    importTask = Task { await pair() }
+                    return true
+                }
+                .ignoresSafeArea()
+                .overlay(alignment: .bottom) {
+                    YTLiteSheetPrimaryButton(title: L("common.close")) {
+                        showScanner = false
+                    }
+                    .padding(.bottom, 28)
+                }
+            }
         }
     }
 
@@ -339,6 +447,11 @@ struct MacCacheReceiveSheet: View {
                     .buttonStyle(.plain)
                 }
             }
+            TextField(L("import.mac.enter_address"), text: $address)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .keyboardType(.numbersAndPunctuation)
+                .textFieldStyle(.roundedBorder)
             TextField(L("import.mac.enter_code"), text: $code)
                 .keyboardType(.numberPad)
                 .textFieldStyle(.roundedBorder)
@@ -347,7 +460,13 @@ struct MacCacheReceiveSheet: View {
             }
             .font(YTLiteType.labelEmphasized)
             .foregroundStyle(YTLiteColor.accent)
-            .disabled(isBusy || selectedDevice == nil || code.trimmingCharacters(in: .whitespaces).count < 4)
+            .disabled(isBusy || pairEndpoint == nil || code.trimmingCharacters(in: .whitespaces).count < 4)
+            Button(L("import.mac.scan")) {
+                Task { await openScanner() }
+            }
+            .font(YTLiteType.labelEmphasized)
+            .foregroundStyle(YTLiteColor.accent)
+            .disabled(isBusy)
         }
     }
 
@@ -389,7 +508,8 @@ struct MacCacheReceiveSheet: View {
                     .disabled(isBusy)
                 }
                 Button(L("import.mac.import_songs")) {
-                    Task { await importSelected() }
+                    importTask?.cancel()
+                    importTask = Task { await importSelected() }
                 }
                 .font(YTLiteType.labelEmphasized)
                 .foregroundStyle(YTLiteColor.accent)
@@ -402,14 +522,32 @@ struct MacCacheReceiveSheet: View {
         browser.devices.first { $0.id == selectedDeviceID } ?? browser.devices.first
     }
 
+    /// A typed address wins, so a Bonjour miss does not block the transfer.
+    private var pairEndpoint: NWEndpoint? {
+        let host = address.trimmingCharacters(in: .whitespacesAndNewlines)
+        if Self.isIPv4(host) {
+            return .hostPort(host: NWEndpoint.Host(host), port: NWEndpoint.Port(rawValue: MacCacheHTTP.port)!)
+        }
+        return selectedDevice?.endpoint
+    }
+
+    private static func isIPv4(_ raw: String) -> Bool {
+        let parts = raw.split(separator: ".", omittingEmptySubsequences: false)
+        guard parts.count == 4 else { return false }
+        return parts.allSatisfy { part in
+            guard let value = Int(part), (0...255).contains(value), part.count <= 3 else { return false }
+            return true
+        }
+    }
+
     private func pair() async {
-        guard let device = selectedDevice else { return }
+        guard let endpoint = pairEndpoint else { return }
         isBusy = true
         message = nil
         defer { isBusy = false }
         do {
             let paired = try await MacCacheTransferSession.pair(
-                endpoint: device.endpoint,
+                endpoint: endpoint,
                 code: code.trimmingCharacters(in: .whitespacesAndNewlines)
             )
             let listed = try await paired.tracks()
@@ -438,6 +576,7 @@ struct MacCacheReceiveSheet: View {
             if Task.isCancelled { break }
             done += 1
             progressText = Lf("import.mac.progress", Int64(done), Int64(chosen.count))
+            transfer.begin(title: track.title)
             let uri = "mac-cache:\(track.videoId)"
             if store.importedTrack(remoteURI: uri) != nil { continue }
             let ext = track.fileExtension.filter { $0.isLetter || $0.isNumber }
@@ -446,7 +585,13 @@ struct MacCacheReceiveSheet: View {
                 .appendingPathComponent(UUID().uuidString)
                 .appendingPathExtension(safeExt)
             do {
-                try await session.download(videoId: track.videoId, kind: "audio", to: audioURL)
+                try Task.checkCancellation()
+                try await session.download(videoId: track.videoId, kind: "audio", to: audioURL) { received, total in
+                    transfer.note(received: received, total: total)
+                }
+                try Task.checkCancellation()
+                transfer.flush()
+                MacCacheProbe.log("ingest-start", "title=\(track.title) pct=\(transfer.percent)")
                 let result = try await ImportIngestService.shared.ingestFileURL(
                     audioURL,
                     sourceKind: .mac,
@@ -476,12 +621,21 @@ struct MacCacheReceiveSheet: View {
                     try? FileManager.default.removeItem(at: coverURL)
                 }
                 try? FileManager.default.removeItem(at: audioURL)
+            } catch is CancellationError {
+                try? FileManager.default.removeItem(at: audioURL)
+                break
             } catch {
+                if Task.isCancelled {
+                    try? FileManager.default.removeItem(at: audioURL)
+                    break
+                }
                 failed += 1
                 try? FileManager.default.removeItem(at: audioURL)
             }
         }
         progressText = nil
+        transfer.begin(title: "")
+        if Task.isCancelled { return }
         if failed > 0 {
             message = Lf("import.wifi.failed_count", failed)
         }
@@ -489,8 +643,144 @@ struct MacCacheReceiveSheet: View {
     }
 
     private func close() {
+        importTask?.cancel()
         browser.stop()
         dismiss()
+    }
+
+    private func openScanner() async {
+        let allowed = await AVCaptureDevice.requestAccess(for: .video)
+        if allowed {
+            showScanner = true
+        } else {
+            message = L("import.mac.camera_denied")
+        }
+    }
+}
+#endif
+
+/// Phone-side transfer meter. Socket callbacks publish through this object.
+/// Writing `@State` from those callbacks captured a view copy that stayed at 0%.
+final class MacCacheImportProgress: ObservableObject, @unchecked Sendable {
+    @MainActor @Published private(set) var fraction: Double = 0
+    @MainActor @Published private(set) var title = ""
+    @MainActor var percent: Int { Int((fraction * 100).rounded()) }
+
+    private let lock = NSLock()
+    private var latestReceived: Int64 = 0
+    private var latestTotal: Int64 = 0
+
+    @MainActor
+    func begin(title: String) {
+        self.title = title
+        fraction = 0
+        lock.lock()
+        latestReceived = 0
+        latestTotal = 0
+        lock.unlock()
+        MacCacheProbe.reset()
+        MacCacheProbe.log("ui-reset", "title=\(title)")
+    }
+
+    /// Called from the socket queue. The sample is stored immediately and published on the main queue.
+    func note(received: Int64, total: Int64) {
+        lock.lock()
+        latestReceived = received
+        latestTotal = total
+        lock.unlock()
+        MacCacheProbe.logProgress("cb", received: received, total: total)
+        DispatchQueue.main.async { [weak self] in
+            self?.publish(received: received, total: total, stage: "ui")
+        }
+    }
+
+    /// Paint the latest sample before the main actor starts the slow local save.
+    @MainActor
+    func flush() {
+        lock.lock()
+        let received = latestReceived
+        let total = latestTotal
+        lock.unlock()
+        guard total > 0 else {
+            MacCacheProbe.log("ui-flush", "no samples — callback never reported a length")
+            return
+        }
+        publish(received: received, total: total, stage: "ui-flush")
+    }
+
+    @MainActor
+    private func publish(received: Int64, total: Int64, stage: String) {
+        let next = total > 0 ? min(1, Double(received) / Double(total)) : 0
+        fraction = next
+        MacCacheProbe.logProgress(stage, received: received, total: total)
+    }
+}
+
+#if !targetEnvironment(macCatalyst)
+private struct MacCacheQRScanner: UIViewControllerRepresentable {
+    var onCode: (String) -> Bool
+
+    func makeUIViewController(context: Context) -> MacCacheQRScannerController {
+        let controller = MacCacheQRScannerController()
+        controller.onCode = onCode
+        return controller
+    }
+
+    func updateUIViewController(_ controller: MacCacheQRScannerController, context: Context) {
+        controller.onCode = onCode
+    }
+}
+
+private final class MacCacheQRScannerController: UIViewController, AVCaptureMetadataOutputObjectsDelegate {
+    var onCode: ((String) -> Bool)?
+    private let session = AVCaptureSession()
+    private let preview = AVCaptureVideoPreviewLayer()
+    private var didEmit = false
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        view.backgroundColor = .black
+        preview.session = session
+        preview.videoGravity = .resizeAspectFill
+        view.layer.addSublayer(preview)
+        guard let device = AVCaptureDevice.default(for: .video),
+              let input = try? AVCaptureDeviceInput(device: device),
+              session.canAddInput(input)
+        else { return }
+        session.addInput(input)
+        let output = AVCaptureMetadataOutput()
+        guard session.canAddOutput(output) else { return }
+        session.addOutput(output)
+        output.setMetadataObjectsDelegate(self, queue: .main)
+        output.metadataObjectTypes = [.qr]
+        DispatchQueue.global(qos: .userInitiated).async { [session] in
+            session.startRunning()
+        }
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        preview.frame = view.bounds
+    }
+
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        if session.isRunning {
+            session.stopRunning()
+        }
+    }
+
+    func metadataOutput(
+        _ output: AVCaptureMetadataOutput,
+        didOutput metadataObjects: [AVMetadataObject],
+        from connection: AVCaptureConnection
+    ) {
+        guard !didEmit,
+              let value = metadataObjects.compactMap({ $0 as? AVMetadataMachineReadableCodeObject }).first?.stringValue,
+              onCode?(value) == true
+        else { return }
+        didEmit = true
+        session.stopRunning()
     }
 }
 #endif

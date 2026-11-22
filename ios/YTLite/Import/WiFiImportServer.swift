@@ -472,7 +472,7 @@ final class WiFiImportServer: ObservableObject {
     """#
 
     /// Prefer Wi‑Fi (en0), then other en* / bridge / personal hotspot interfaces.
-    private static func primaryLANAddress() -> String? {
+    static func primaryLANAddress() -> String? {
         var candidates: [(priority: Int, ip: String)] = []
         var ifaddr: UnsafeMutablePointer<ifaddrs>?
         guard getifaddrs(&ifaddr) == 0, let first = ifaddr else { return nil }
@@ -533,15 +533,99 @@ private struct MacCachePairResponse: Codable {
     let token: String
 }
 
+enum MacCacheProbe {
+    static let tag = "YTLite.MacCache"
+    private static let lock = NSLock()
+    private static var lastLoggedPercent = -1
+
+    static func reset() {
+        #if DEBUG
+        lock.lock()
+        lastLoggedPercent = -1
+        lock.unlock()
+        #endif
+    }
+
+    static func log(_ stage: String, _ detail: String = "") {
+        #if DEBUG
+        let suffix = detail.isEmpty ? "" : " \(detail)"
+        print("[\(tag)] [\(stage)]\(suffix)")
+        #endif
+    }
+
+    /// Logs the first sample, each +10%, and 100%. Avoids a line per socket chunk.
+    static func logProgress(_ stage: String, received: Int64, total: Int64) {
+        #if DEBUG
+        let percent = total > 0 ? Int((Double(received) * 100 / Double(total)).rounded()) : -1
+        lock.lock()
+        let should = percent < 0 || lastLoggedPercent < 0 || percent >= 100 || percent >= lastLoggedPercent + 10
+        if should { lastLoggedPercent = percent }
+        lock.unlock()
+        guard should else { return }
+        log(stage, "received=\(received) total=\(total) pct=\(percent)")
+        #endif
+    }
+}
+
 enum MacCacheTransferError: Error {
     case unauthorized
     case failed
 }
 
+enum MacCacheLink {
+    static func payload(host: String, code: String) -> String {
+        var parts = URLComponents()
+        parts.scheme = "ytlite"
+        parts.host = "mac-cache"
+        parts.queryItems = [
+            URLQueryItem(name: "host", value: host),
+            URLQueryItem(name: "port", value: String(MacCacheHTTP.port)),
+            URLQueryItem(name: "code", value: code),
+        ]
+        return parts.string ?? ""
+    }
+
+    static func parse(_ raw: String) -> (host: String, code: String)? {
+        guard let components = URLComponents(string: raw),
+              components.scheme == "ytlite",
+              components.host == "mac-cache"
+        else { return nil }
+        let items = components.queryItems ?? []
+        let host = items.first { $0.name == "host" }?.value ?? ""
+        let code = items.first { $0.name == "code" }?.value ?? ""
+        guard MacCacheHTTP.isIPv4(host),
+              (4...8).contains(code.count),
+              code.allSatisfy(\.isNumber)
+        else { return nil }
+        return (host, code)
+    }
+}
+
 enum MacCacheHTTP {
+    static let port: UInt16 = 8788
+
+    static func isSafeTrackID(_ id: String) -> Bool {
+        guard (6...64).contains(id.count) else { return false }
+        return id.allSatisfy { ch in
+            ch.isASCII && (ch.isLetter || ch.isNumber || ch == "-" || ch == "_")
+        }
+    }
+
+    static func isIPv4(_ raw: String) -> Bool {
+        let parts = raw.split(separator: ".", omittingEmptySubsequences: false)
+        guard parts.count == 4 else { return false }
+        return parts.allSatisfy { part in
+            guard let value = Int(part), (0...255).contains(value), part.count <= 3 else { return false }
+            return true
+        }
+    }
+
     static func peerParameters() -> NWParameters {
         let params = NWParameters.tcp
-        params.includePeerToPeer = true
+        // AWDL / peer-to-peer needs the restricted multicast entitlement.
+        // Without it, Bonjour registration fails with kDNSServiceErr_NoAuth (-65555).
+        // Mac and iPhone on the same Wi-Fi discover each other over infrastructure mDNS.
+        params.includePeerToPeer = false
         params.allowLocalEndpointReuse = true
         return params
     }
@@ -549,14 +633,15 @@ enum MacCacheHTTP {
     static func exchange(
         endpoint: NWEndpoint,
         requestData: Data,
-        fileDestination: URL?
+        fileDestination: URL?,
+        onProgress: (@Sendable (Int64, Int64) -> Void)? = nil
     ) async throws -> (status: Int, data: Data) {
         let connection = NWConnection(to: endpoint, using: peerParameters())
         let queue = DispatchQueue(label: "ytlite.mac-cache.client")
         try await waitUntilReady(connection, queue: queue)
         defer { connection.cancel() }
         try await send(connection, data: requestData)
-        return try await readResponse(connection, fileDestination: fileDestination)
+        return try await readResponse(connection, fileDestination: fileDestination, onProgress: onProgress)
     }
 
     static func requestData(method: String, path: String, token: String?, body: Data?) -> Data {
@@ -610,20 +695,36 @@ enum MacCacheHTTP {
     }
 
     private static func receive(_ connection: NWConnection) async throws -> (Data?, Bool) {
-        try await withCheckedThrowingContinuation { continuation in
-            connection.receive(minimumIncompleteLength: 1, maximumLength: 64 * 1024) { data, _, isComplete, error in
-                if let error {
-                    continuation.resume(throwing: error)
-                } else {
-                    continuation.resume(returning: (data, isComplete))
+        try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<(Data?, Bool), Error>) in
+                let gate = ResumeOnce()
+                connection.stateUpdateHandler = { state in
+                    switch state {
+                    case .failed(let error):
+                        gate.run { continuation.resume(throwing: error) }
+                    case .cancelled:
+                        gate.run { continuation.resume(returning: (nil, true)) }
+                    default:
+                        break
+                    }
+                }
+                connection.receive(minimumIncompleteLength: 1, maximumLength: 64 * 1024) { data, _, isComplete, error in
+                    if let error {
+                        gate.run { continuation.resume(throwing: error) }
+                    } else {
+                        gate.run { continuation.resume(returning: (data, isComplete)) }
+                    }
                 }
             }
+        } onCancel: {
+            connection.cancel()
         }
     }
 
     private static func readResponse(
         _ connection: NWConnection,
-        fileDestination: URL?
+        fileDestination: URL?,
+        onProgress: (@Sendable (Int64, Int64) -> Void)?
     ) async throws -> (status: Int, data: Data) {
         let marker = Data("\r\n\r\n".utf8)
         var buffer = Data()
@@ -647,17 +748,38 @@ enum MacCacheHTTP {
                 let headerText = String(data: buffer.subdata(in: buffer.startIndex..<headerEnd.lowerBound), encoding: .utf8) ?? ""
                 status = statusCode(from: headerText)
                 contentLength = lengthValue(from: headerText)
+                MacCacheProbe.log(
+                    "hdr",
+                    "status=\(status) contentLength=\(contentLength) prefix=\(prefixCount(buffer, headerEnd: headerEnd)) head=\(headerText.replacingOccurrences(of: "\r", with: "⏎"))"
+                )
                 guard contentLength <= 512 * 1024 * 1024 else { throw MacCacheTransferError.failed }
                 headerParsed = true
                 let prefix = buffer.subdata(in: headerEnd.upperBound..<buffer.endIndex)
                 buffer.removeAll(keepingCapacity: false)
                 receivedBody += try appendBody(prefix, file: file, memory: &body)
+                if contentLength > 0 {
+                    onProgress?(Int64(receivedBody), Int64(contentLength))
+                    MacCacheProbe.logProgress("rx", received: Int64(receivedBody), total: Int64(contentLength))
+                } else {
+                    MacCacheProbe.log("rx-skip", "contentLength=0 received=\(receivedBody)")
+                }
             } else if headerParsed, !buffer.isEmpty {
                 receivedBody += try appendBody(buffer, file: file, memory: &body)
                 buffer.removeAll(keepingCapacity: false)
+                if contentLength > 0 {
+                    onProgress?(Int64(receivedBody), Int64(contentLength))
+                    MacCacheProbe.logProgress("rx", received: Int64(receivedBody), total: Int64(contentLength))
+                }
+            } else if let chunk {
+                MacCacheProbe.log("rx-hold", "chunk=\(chunk.count) headerParsed=\(headerParsed) complete=\(isComplete)")
             }
             if headerParsed, receivedBody >= contentLength { break }
-            if isComplete { break }
+            if isComplete {
+                if headerParsed, receivedBody < contentLength {
+                    throw MacCacheTransferError.failed
+                }
+                break
+            }
         }
         return (status, body)
     }
@@ -670,6 +792,10 @@ enum MacCacheHTTP {
             memory.append(data)
         }
         return data.count
+    }
+
+    private static func prefixCount(_ buffer: Data, headerEnd: Range<Data.Index>) -> Int {
+        buffer.distance(from: headerEnd.upperBound, to: buffer.endIndex)
     }
 
     private static func statusCode(from header: String) -> Int {
@@ -689,12 +815,23 @@ enum MacCacheHTTP {
 }
 
 private final class ResumeOnce: @unchecked Sendable {
+    private let lock = NSLock()
     private var done = false
     func run(_ body: () -> Void) {
-        guard !done else { return }
+        lock.lock()
+        let first = !done
         done = true
+        lock.unlock()
+        guard first else { return }
         body()
     }
+}
+
+struct MacCacheSendProgress: Equatable {
+    var title: String
+    var sentBytes: Int64
+    var totalBytes: Int64
+    var completed: Int
 }
 
 #if targetEnvironment(macCatalyst)
@@ -704,17 +841,20 @@ final class MacCacheTransferServer: ObservableObject {
     static let shared = MacCacheTransferServer()
 
     @Published private(set) var pairingCode = ""
+    @Published private(set) var listenAddress: String?
+    @Published private(set) var sendProgress: MacCacheSendProgress?
     @Published private(set) var isRunning = false
     @Published private(set) var lastError: String?
     @Published private(set) var servedCount = 0
 
     private var listener: NWListener?
+    /// Bonjour is optional. A failed advertisement must not take down the TCP listener.
+    private var publisher: NetService?
     private var token = ""
     private var tracks: [MacCacheTrackRecord] = []
     private var audioFiles: [String: URL] = [:]
     private var coverFiles: [String: URL] = [:]
-    private let port: UInt16 = 8788
-    private let bonjourType = "_mixtube-cache._tcp"
+    private let bonjourType = "_mixtube-cache._tcp."
 
     private init() {}
 
@@ -727,9 +867,11 @@ final class MacCacheTransferServer: ObservableObject {
         token = UUID().uuidString
         servedCount = 0
         lastError = nil
+        listenAddress = nil
         do {
-            let listener = try NWListener(using: MacCacheHTTP.peerParameters(), on: NWEndpoint.Port(rawValue: port)!)
-            listener.service = NWListener.Service(name: "Mixtube Mac", type: bonjourType)
+            // Do not set `listener.service`. On this Mac, Bonjour registration returns
+            // kDNSServiceErr_NoAuth (-65555) and that failure closes the whole listener.
+            let listener = try NWListener(using: MacCacheHTTP.peerParameters(), on: NWEndpoint.Port(rawValue: MacCacheHTTP.port)!)
             listener.newConnectionHandler = { [weak self] connection in
                 Self.accept(connection) { request in
                     await self?.handle(request, connection: connection)
@@ -741,6 +883,11 @@ final class MacCacheTransferServer: ObservableObject {
                     switch state {
                     case .ready:
                         self.isRunning = true
+                        self.listenAddress = WiFiImportServer.primaryLANAddress()
+                        if self.listenAddress == nil {
+                            self.lastError = L("import.mac.no_address")
+                        }
+                        self.publishBonjour()
                     case .failed(let error):
                         self.lastError = error.localizedDescription
                         self.isRunning = false
@@ -760,13 +907,31 @@ final class MacCacheTransferServer: ObservableObject {
     }
 
     func stop() {
+        publisher?.stop()
+        publisher = nil
         listener?.cancel()
         listener = nil
         isRunning = false
+        listenAddress = nil
+        sendProgress = nil
         token = ""
         tracks = []
         audioFiles = [:]
         coverFiles = [:]
+    }
+
+    private func publishBonjour() {
+        publisher?.stop()
+        let service = NetService(
+            domain: "local.",
+            type: bonjourType,
+            name: "Mixtube Mac",
+            port: Int32(MacCacheHTTP.port)
+        )
+        service.includesPeerToPeer = false
+        service.schedule(in: .main, forMode: .common)
+        service.publish()
+        publisher = service
     }
 
     private nonisolated static func accept(
@@ -827,15 +992,44 @@ final class MacCacheTransferServer: ObservableObject {
             return
         }
         if request.method == "GET", parts.count == 4, parts[0] == "v1", parts[1] == "tracks",
-           Self.isSafeVideoID(parts[2]) {
+           MacCacheHTTP.isSafeTrackID(parts[2]) {
             let videoId = parts[2]
             if parts[3] == "audio", let url = audioFiles[videoId] {
-                servedCount += 1
-                Self.respondFile(connection, url: url, type: Self.audioType(for: url))
+                let record = tracks.first { $0.videoId == videoId }
+                let title = record?.title ?? videoId
+                let total = record?.byteCount ?? 0
+                Self.respondFile(
+                    connection,
+                    url: url,
+                    type: Self.audioType(for: url),
+                    onProgress: { sent in
+                        Task { @MainActor [weak self] in
+                            guard let self else { return }
+                            self.sendProgress = MacCacheSendProgress(
+                                title: title,
+                                sentBytes: sent,
+                                totalBytes: total,
+                                completed: self.servedCount
+                            )
+                        }
+                    },
+                    onFinished: { [weak self] in
+                        Task { @MainActor in
+                            guard let self else { return }
+                            self.servedCount += 1
+                            self.sendProgress = MacCacheSendProgress(
+                                title: title,
+                                sentBytes: total,
+                                totalBytes: total,
+                                completed: self.servedCount
+                            )
+                        }
+                    }
+                )
                 return
             }
             if parts[3] == "cover", let url = coverFiles[videoId] {
-                Self.respondFile(connection, url: url, type: "image/jpeg")
+                Self.respondFile(connection, url: url, type: "image/jpeg", onFinished: {})
                 return
             }
         }
@@ -851,13 +1045,6 @@ final class MacCacheTransferServer: ObservableObject {
             return String(value.dropFirst("bearer ".count)).trimmingCharacters(in: .whitespaces)
         }
         return nil
-    }
-
-    private static func isSafeVideoID(_ id: String) -> Bool {
-        guard (6...64).contains(id.count) else { return false }
-        return id.allSatisfy { ch in
-            ch.isASCII && (ch.isLetter || ch.isNumber || ch == "-" || ch == "_")
-        }
     }
 
     private static func audioType(for url: URL) -> String {
@@ -878,12 +1065,18 @@ final class MacCacheTransferServer: ObservableObject {
         let header = "HTTP/1.1 \(status) \(reason)\r\nContent-Type: \(type)\r\nContent-Length: \(body.count)\r\nConnection: close\r\n\r\n"
         var payload = Data(header.utf8)
         payload.append(body)
-        connection.send(content: payload, completion: .contentProcessed { _ in
+        connection.send(content: payload, isComplete: true, completion: .contentProcessed { _ in
             connection.cancel()
         })
     }
 
-    private nonisolated static func respondFile(_ connection: NWConnection, url: URL, type: String) {
+    private nonisolated static func respondFile(
+        _ connection: NWConnection,
+        url: URL,
+        type: String,
+        onProgress: (@Sendable (Int64) -> Void)? = nil,
+        onFinished: @escaping @Sendable () -> Void
+    ) {
         guard let handle = try? FileHandle(forReadingFrom: url) else {
             respond(connection, status: 404, body: Data())
             return
@@ -891,40 +1084,77 @@ final class MacCacheTransferServer: ObservableObject {
         let size = (try? handle.seekToEnd()) ?? 0
         try? handle.seek(toOffset: 0)
         let header = Data("HTTP/1.1 200 OK\r\nContent-Type: \(type)\r\nContent-Length: \(size)\r\nConnection: close\r\n\r\n".utf8)
-        FileSender(connection: connection, handle: handle).send(next: header, readingFileAfter: true)
+        let sender = FileSender(connection: connection, handle: handle, onProgress: onProgress, onFinished: onFinished)
+        MacCacheProbe.log("tx-header", "bytes=\(size) type=\(type)")
+        sender.send(next: header, readingFileAfter: true, countsAsFile: false)
     }
 }
 
 private final class FileSender: @unchecked Sendable {
     private let connection: NWConnection
     private let handle: FileHandle
+    private let onProgress: (@Sendable (Int64) -> Void)?
+    private let onFinished: @Sendable () -> Void
     private let chunkSize = 64 * 1024
+    private var fileBytes: Int64 = 0
+    private var finished = false
+    /// The send completion is async. Without this, the sender is released after the header is queued and the file is never read.
+    private var selfRetain: FileSender?
 
-    init(connection: NWConnection, handle: FileHandle) {
+    init(
+        connection: NWConnection,
+        handle: FileHandle,
+        onProgress: (@Sendable (Int64) -> Void)?,
+        onFinished: @escaping @Sendable () -> Void
+    ) {
         self.connection = connection
         self.handle = handle
+        self.onProgress = onProgress
+        self.onFinished = onFinished
     }
 
-    func send(next: Data, readingFileAfter: Bool) {
+    func send(next: Data, readingFileAfter: Bool, countsAsFile: Bool) {
+        if selfRetain == nil { selfRetain = self }
         if next.isEmpty {
-            try? handle.close()
-            connection.cancel()
+            finish()
             return
         }
         connection.send(content: next, completion: .contentProcessed { [weak self] error in
             guard let self else { return }
-            if error != nil {
+            if let error {
+                MacCacheProbe.log("tx-fail", error.localizedDescription)
                 try? self.handle.close()
                 self.connection.cancel()
+                self.selfRetain = nil
                 return
             }
+            if countsAsFile {
+                self.fileBytes += Int64(next.count)
+                self.onProgress?(self.fileBytes)
+            }
             guard readingFileAfter else {
-                try? self.handle.close()
-                self.connection.cancel()
+                self.finish()
                 return
             }
             let nextChunk = (try? self.handle.read(upToCount: self.chunkSize)) ?? Data()
-            self.send(next: nextChunk, readingFileAfter: !nextChunk.isEmpty)
+            if countsAsFile == false {
+                MacCacheProbe.log("tx-body", "first=\(nextChunk.count)")
+            }
+            self.send(next: nextChunk, readingFileAfter: !nextChunk.isEmpty, countsAsFile: true)
+        })
+    }
+
+    /// FIN after the bytes are queued. `cancel()` alone sends a reset and the phone waits forever.
+    private func finish() {
+        guard !finished else { return }
+        finished = true
+        try? handle.close()
+        MacCacheProbe.log("tx-done", "bytes=\(fileBytes)")
+        connection.send(content: nil, isComplete: true, completion: .contentProcessed { [weak self] _ in
+            guard let self else { return }
+            self.onFinished()
+            self.connection.cancel()
+            self.selfRetain = nil
         })
     }
 }
@@ -1006,7 +1236,12 @@ struct MacCacheTransferSession {
         return decoded.tracks
     }
 
-    func download(videoId: String, kind: String, to destination: URL) async throws {
+    func download(
+        videoId: String,
+        kind: String,
+        to destination: URL,
+        onProgress: (@Sendable (Int64, Int64) -> Void)? = nil
+    ) async throws {
         let request = MacCacheHTTP.requestData(
             method: "GET",
             path: "/v1/tracks/\(videoId)/\(kind)",
@@ -1016,7 +1251,8 @@ struct MacCacheTransferSession {
         let (status, _) = try await MacCacheHTTP.exchange(
             endpoint: endpoint,
             requestData: request,
-            fileDestination: destination
+            fileDestination: destination,
+            onProgress: onProgress
         )
         guard status == 200 else {
             throw status == 401 ? MacCacheTransferError.unauthorized : MacCacheTransferError.failed
