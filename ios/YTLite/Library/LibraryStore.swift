@@ -1315,15 +1315,29 @@ final class LibraryStore {
     }
 
     /// Imported files plus YouTube tracks that already have a finished offline copy.
+    /// Newest added to this list first. Imported rows and cached rows share one timeline.
     func offlinePlaylistTracks() -> [LibraryTrack] {
-        let imported = importedTracks()
-        var seen = Set(imported.map(\.trackId))
-        var result = imported
+        var byId: [String: (track: LibraryTrack, addedAt: Date)] = [:]
         for entry in importedPlaylist()?.entries ?? [] {
-            guard let track = entry.track, seen.insert(track.trackId).inserted else { continue }
-            result.append(track)
+            guard let track = entry.track else { continue }
+            let added = entry.createdAt
+            if let existing = byId[track.trackId] {
+                if added > existing.addedAt {
+                    byId[track.trackId] = (track, added)
+                }
+            } else {
+                byId[track.trackId] = (track, added)
+            }
         }
-        return result
+        for track in importedTracks() where byId[track.trackId] == nil {
+            byId[track.trackId] = (track, track.updatedAt)
+        }
+        return byId.values
+            .sorted { lhs, rhs in
+                if lhs.addedAt != rhs.addedAt { return lhs.addedAt > rhs.addedAt }
+                return lhs.track.title.localizedCaseInsensitiveCompare(rhs.track.title) == .orderedAscending
+            }
+            .map(\.track)
     }
 
     func offlineCachedByteCount(trackId: String) -> Int64? {

@@ -4,7 +4,6 @@ import UIKit
 /// Bottom mini player — aligned with Android `MiniPlayerBar`.
 struct MiniPlayerBar: View {
     @EnvironmentObject private var playback: PlaybackController
-    @EnvironmentObject private var progressClock: PlaybackProgressModel
     @EnvironmentObject private var playerPresentation: PlayerPresentation
     @EnvironmentObject private var appModel: AppModel
     @Environment(\.displayScale) private var displayScale
