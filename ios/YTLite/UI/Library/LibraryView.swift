@@ -70,6 +70,7 @@ struct LibraryView: View {
     @EnvironmentObject private var playlistActions: PlaylistActionPresenter
 
     @State private var playlists: [LibraryPlaylist] = []
+    @State private var libraryPath = NavigationPath()
     @State private var history: [VideoItem] = []
     @EnvironmentObject private var playerPresentation: PlayerPresentation
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
@@ -126,7 +127,7 @@ struct LibraryView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $libraryPath) {
             ZStack(alignment: .bottomTrailing) {
                 if isReorderMode {
                     // Own scrolling List (not nested in ScrollView) so last rows aren't clipped.
@@ -260,6 +261,7 @@ struct LibraryView: View {
             }
             .onAppear {
                 reload()
+                consumeOfflinePlaylistRequest()
                 Task { await store?.refreshOfflinePlaylistFromCache() }
                 if appModel.isLibrarySyncing {
                     handleLibrarySyncingChange(true)
@@ -274,6 +276,9 @@ struct LibraryView: View {
             .onChange(of: trackActions.listEpoch) { _, _ in reload() }
             .onChange(of: playlistActions.listEpoch) { _, _ in reload() }
             .onChange(of: appModel.libraryRevision) { _, _ in reload() }
+            .onChange(of: appModel.pendingOfflinePlaylist) { _, pending in
+                if pending { consumeOfflinePlaylistRequest() }
+            }
             .onChange(of: playback.isChannelSubscribed) { _, _ in reload() }
             .onChange(of: appModel.isLibrarySyncing) { _, syncing in
                 handleLibrarySyncingChange(syncing)
@@ -1405,6 +1410,12 @@ struct LibraryView: View {
             appModel.endLibrarySync()
             deleteAccountError = auth.lastError ?? "Please try again."
         }
+    }
+
+    private func consumeOfflinePlaylistRequest() {
+        guard appModel.pendingOfflinePlaylist else { return }
+        appModel.pendingOfflinePlaylist = false
+        libraryPath.append(LibraryRoute.imported)
     }
 
     private func reload() {

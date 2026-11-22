@@ -334,6 +334,7 @@ struct SettingsView: View {
         }
         .fullScreenCover(isPresented: $showVip) {
             VipView()
+                .environmentObject(appModel)
         }
     }
 

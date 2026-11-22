@@ -2,6 +2,7 @@ import AVFoundation
 import CoreImage.CIFilterBuiltins
 import Network
 import SwiftUI
+import UIKit
 
 struct WiFiImportSheet: View {
     var onImported: () -> Void
@@ -159,92 +160,37 @@ struct MacCacheSendSheet: View {
     @Environment(\.libraryStore) private var store
     @Environment(\.dismiss) private var dismiss
     @ObservedObject private var server = MacCacheTransferServer.shared
-    @State private var songCount = 0
+    @State private var tracks: [MacCacheTrackRecord] = []
+    @State private var audioById: [String: URL] = [:]
+    @State private var coverById: [String: URL] = [:]
+    @State private var selected: Set<String> = []
     @State private var loaded = false
+    @State private var offerStarted = false
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 20) {
                 if !loaded {
                     ProgressView()
-                } else if songCount == 0 {
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if tracks.isEmpty {
                     Text(L("import.mac.no_songs"))
                         .font(YTLiteType.body)
                         .foregroundStyle(YTLiteColor.onSurfaceVariant)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
-                    ScrollView {
-                        VStack(spacing: 16) {
-                            Text(L("import.mac.code_hint"))
-                                .font(YTLiteType.body)
-                                .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                                .multilineTextAlignment(.center)
-                            Text(server.pairingCode)
-                                .font(YTLiteType.pageTitle)
-                                .monospacedDigit()
-                                .foregroundStyle(YTLiteColor.onSurface)
-                            if let address = server.listenAddress {
-                                Text(L("import.mac.address_hint"))
-                                    .font(YTLiteType.body)
-                                    .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                                    .multilineTextAlignment(.center)
-                                Text(address)
-                                    .font(YTLiteType.sectionTitle)
-                                    .monospacedDigit()
-                                    .foregroundStyle(YTLiteColor.onSurface)
-                                Text(L("import.mac.qr_hint"))
-                                    .font(YTLiteType.body)
-                                    .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                                    .multilineTextAlignment(.center)
-                                if let qr = mixtubeQRImage(for: MacCacheLink.payload(host: address, code: server.pairingCode)) {
-                                    Image(uiImage: qr)
-                                        .interpolation(.none)
-                                        .resizable()
-                                        .scaledToFit()
-                                        .frame(width: 200, height: 200)
-                                        .padding()
-                                        .background(Color.white, in: RoundedRectangle(cornerRadius: 12))
-                                }
-                            }
-                            Text(L("import.mac.waiting"))
-                                .font(YTLiteType.meta)
-                                .foregroundStyle(YTLiteColor.accent)
-                            Text(Lf("import.mac.cached_count", songCount))
-                                .font(YTLiteType.meta)
-                                .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                            if let progress = server.sendProgress, progress.totalBytes > 0 {
-                                Text(progress.title)
-                                    .font(YTLiteType.rowTitle)
-                                    .foregroundStyle(YTLiteColor.onSurface)
-                                    .lineLimit(1)
-                                ProgressView(
-                                    value: Double(progress.sentBytes),
-                                    total: Double(progress.totalBytes)
-                                )
-                                .tint(YTLiteColor.accent)
-                                Text("\(min(100, Int((Double(progress.sentBytes) / Double(progress.totalBytes) * 100).rounded())))%")
-                                    .font(YTLiteType.meta)
-                                    .monospacedDigit()
-                                    .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                            }
-                            if server.servedCount > 0 {
-                                Text(Lf("import.mac.sent_count", server.servedCount))
-                                    .font(YTLiteType.meta)
-                                    .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                            }
-                            if let lastError = server.lastError {
-                                Text(lastError)
-                                    .font(YTLiteType.meta)
-                                    .foregroundStyle(.red)
-                                    .multilineTextAlignment(.center)
-                            }
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.horizontal, YTLiteLayout.screenPadding)
+                    HStack(alignment: .top, spacing: 0) {
+                        pairingColumn
+                            .frame(minWidth: 320, idealWidth: 380, maxWidth: 440)
+                            .frame(maxHeight: .infinity)
+                        Divider()
+                        offerColumn
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-                Spacer(minLength: 0)
                 YTLiteSheetPrimaryButton(title: L("common.close")) {
                     server.stop()
                     dismiss()
@@ -258,6 +204,170 @@ struct MacCacheSendSheet: View {
             .interactiveDismissDisabled(true)
             .task { await reload() }
             .onDisappear { server.stop() }
+        }
+    }
+
+    private var pairingColumn: some View {
+        ScrollView {
+            VStack(spacing: 16) {
+                Text(L("import.mac.code_hint"))
+                    .font(YTLiteType.body)
+                    .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                    .multilineTextAlignment(.center)
+                Text(server.pairingCode)
+                    .font(YTLiteType.pageTitle)
+                    .monospacedDigit()
+                    .foregroundStyle(YTLiteColor.onSurface)
+                if let address = server.listenAddress {
+                    Text(L("import.mac.address_hint"))
+                        .font(YTLiteType.body)
+                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                        .multilineTextAlignment(.center)
+                    Text(address)
+                        .font(YTLiteType.sectionTitle)
+                        .monospacedDigit()
+                        .foregroundStyle(YTLiteColor.onSurface)
+                    Text(L("import.mac.qr_hint"))
+                        .font(YTLiteType.body)
+                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                        .multilineTextAlignment(.center)
+                    if let qr = mixtubeQRImage(for: MacCacheLink.payload(host: address, code: server.pairingCode)) {
+                        Image(uiImage: qr)
+                            .interpolation(.none)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 200, height: 200)
+                            .padding()
+                            .background(Color.white, in: RoundedRectangle(cornerRadius: 12))
+                    }
+                }
+                Text(connectionStatus)
+                    .font(YTLiteType.meta)
+                    .foregroundStyle(YTLiteColor.accent)
+                if server.servedCount > 0 {
+                    Text(Lf("import.mac.sent_count", server.servedCount))
+                        .font(YTLiteType.meta)
+                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                }
+                if let lastError = server.lastError {
+                    Text(lastError)
+                        .font(YTLiteType.meta)
+                        .foregroundStyle(.red)
+                        .multilineTextAlignment(.center)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, YTLiteLayout.screenPadding)
+        }
+    }
+
+    private var connectionStatus: String {
+        switch server.connectedCount {
+        case 0:
+            return L("import.mac.waiting")
+        case 1:
+            return L("import.mac.connected_one")
+        default:
+            return Lf("import.mac.connected", Int64(server.connectedCount))
+        }
+    }
+
+    private var offerColumn: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 16) {
+                Text(Lf("import.mac.cached_count", Int64(selected.count)))
+                    .font(YTLiteType.sectionTitle)
+                    .foregroundStyle(YTLiteColor.onSurface)
+                Spacer(minLength: 8)
+                Button(L("common.select_all")) {
+                    let next = Set(tracks.map(\.videoId))
+                    selected = next
+                    publishOffer(next, restart: false)
+                }
+                .buttonStyle(.plain)
+                .font(YTLiteType.labelEmphasized)
+                .foregroundStyle(YTLiteColor.accent)
+                .disabled(selected.count == tracks.count)
+                Button(L("common.deselect_all")) {
+                    selected = []
+                    publishOffer([], restart: false)
+                }
+                .buttonStyle(.plain)
+                .font(YTLiteType.labelEmphasized)
+                .foregroundStyle(YTLiteColor.accent)
+                .disabled(selected.isEmpty)
+            }
+            .padding(.horizontal, YTLiteLayout.screenPadding)
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 0) {
+                    ForEach(tracks) { track in
+                        Button {
+                            var next = selected
+                            if next.contains(track.videoId) {
+                                next.remove(track.videoId)
+                            } else {
+                                next.insert(track.videoId)
+                            }
+                            selected = next
+                            publishOffer(next, restart: false)
+                        } label: {
+                            HStack(alignment: .top, spacing: 12) {
+                                Image(systemName: selected.contains(track.videoId) ? "checkmark.circle.fill" : "circle")
+                                    .foregroundStyle(YTLiteColor.accent)
+                                    .padding(.top, 2)
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text(track.title)
+                                        .font(YTLiteType.rowTitle)
+                                        .foregroundStyle(YTLiteColor.onSurface)
+                                        .lineLimit(1)
+                                    HStack(spacing: 8) {
+                                        if !track.artist.isEmpty {
+                                            Text(track.artist)
+                                                .lineLimit(1)
+                                        }
+                                        if let duration = DurationFormat.text(seconds: track.durationSeconds) {
+                                            Text(duration)
+                                        }
+                                    }
+                                    .font(YTLiteType.meta)
+                                    .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                                    transferStatus(videoId: track.videoId)
+                                }
+                                Spacer(minLength: 0)
+                            }
+                            .padding(.vertical, 8)
+                            .padding(.horizontal, YTLiteLayout.screenPadding)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+        }
+        .padding(.top, 4)
+    }
+
+    @ViewBuilder
+    private func transferStatus(videoId: String) -> some View {
+        let sends = server.activeSends.filter { $0.videoId == videoId }
+        if sends.count == 2 {
+            Text(L("import.mac.concurrent_two"))
+                .font(YTLiteType.meta)
+                .foregroundStyle(YTLiteColor.accent)
+        } else if sends.count > 2 {
+            Text(Lf("import.mac.concurrent", Int64(sends.count)))
+                .font(YTLiteType.meta)
+                .foregroundStyle(YTLiteColor.accent)
+        } else if let send = sends.first, send.totalBytes > 0 {
+            ProgressView(
+                value: min(Double(send.sentBytes), Double(send.totalBytes)),
+                total: Double(send.totalBytes)
+            )
+            .tint(YTLiteColor.accent)
+            Text("\(min(100, Int((Double(send.sentBytes) / Double(send.totalBytes) * 100).rounded())))%")
+                .font(YTLiteType.meta)
+                .monospacedDigit()
+                .foregroundStyle(YTLiteColor.onSurfaceVariant)
         }
     }
 
@@ -315,12 +425,31 @@ struct MacCacheSendSheet: View {
             audio[track.trackId] = file
             if hasCover { covers[track.trackId] = cover }
         }
-        songCount = records.count
+        tracks = records
+        audioById = audio
+        coverById = covers
+        selected = Set(records.map(\.videoId))
         loaded = true
-        if records.isEmpty {
+        publishOffer(selected, restart: true)
+    }
+
+    /// Publishes the checked songs. Restarting rebinds the port, so a checkbox change only replaces the offer.
+    private func publishOffer(_ ids: Set<String>, restart: Bool) {
+        let offered = tracks.filter { ids.contains($0.videoId) }
+        var audio: [String: URL] = [:]
+        var covers: [String: URL] = [:]
+        for track in offered {
+            if let file = audioById[track.videoId] { audio[track.videoId] = file }
+            if let file = coverById[track.videoId] { covers[track.videoId] = file }
+        }
+        if tracks.isEmpty {
+            offerStarted = false
             server.stop()
+        } else if restart || !offerStarted {
+            offerStarted = true
+            server.start(tracks: offered, audio: audio, covers: covers)
         } else {
-            server.start(tracks: records, audio: audio, covers: covers)
+            server.replaceOffer(tracks: offered, audio: audio, covers: covers)
         }
     }
 }
@@ -332,23 +461,50 @@ struct MacCacheReceiveSheet: View {
 
     @Environment(\.libraryStore) private var store
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.selectAppTab) private var selectAppTab
+    @EnvironmentObject private var appModel: AppModel
     @StateObject private var browser = MacCacheTransferBrowser()
     @State private var selectedDeviceID: String?
-    @State private var address = ""
+    @State private var address = Self.storedAddress()
     @State private var code = ""
+    @FocusState private var focusedField: MacField?
     @State private var session: MacCacheTransferSession?
     @State private var tracks: [MacCacheTrackRecord] = []
+    @State private var importedIDs: Set<String> = []
     @State private var selected: Set<String> = []
     @State private var message: String?
+    @State private var toastMessage: String?
+    @State private var showImportSummary = false
+    @State private var importSummaryCount = 0
     @State private var isBusy = false
     @State private var progressText: String?
     @StateObject private var transfer = MacCacheImportProgress()
     @State private var importTask: Task<Void, Never>?
+    @State private var presenceTask: Task<Void, Never>?
     @State private var showScanner = false
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
+                HStack {
+                    Spacer(minLength: 0)
+                    Button {
+                        focusedField = nil
+                        close()
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                            .frame(width: 28, height: 28)
+                            .background(YTLiteColor.surfaceVariant, in: Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(isBusy)
+                    .opacity(isBusy ? 0.4 : 1)
+                    .accessibilityLabel(L("common.close"))
+                }
+                .padding(.top, 12)
+                .padding(.trailing, YTLiteLayout.screenPadding)
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
                         if session == nil {
@@ -361,41 +517,87 @@ struct MacCacheReceiveSheet: View {
                                 .font(YTLiteType.meta)
                                 .foregroundStyle(.red)
                         }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, YTLiteLayout.screenPadding)
+                    .padding(.top, 8)
+                    .padding(.bottom, 16)
+                }
+                .scrollDismissesKeyboard(.immediately)
+                .refreshable { await refreshCurrent() }
+                if isBusy, !transfer.title.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(transfer.title)
+                            .font(YTLiteType.rowTitle)
+                            .foregroundStyle(YTLiteColor.onSurface)
+                            .lineLimit(1)
+                        ProgressView(value: transfer.fraction)
+                            .tint(YTLiteColor.accent)
+                        Text("\(transfer.percent)%")
+                            .font(YTLiteType.meta)
+                            .monospacedDigit()
+                            .foregroundStyle(YTLiteColor.onSurfaceVariant)
                         if let progressText {
                             Text(progressText)
                                 .font(YTLiteType.meta)
                                 .foregroundStyle(YTLiteColor.onSurfaceVariant)
                         }
-                        if isBusy, !transfer.title.isEmpty {
-                            Text(transfer.title)
-                                .font(YTLiteType.rowTitle)
-                                .foregroundStyle(YTLiteColor.onSurface)
-                                .lineLimit(1)
-                            ProgressView(value: transfer.fraction)
-                                .tint(YTLiteColor.accent)
-                            Text("\(transfer.percent)%")
-                                .font(YTLiteType.meta)
-                                .monospacedDigit()
-                                .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                        }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, YTLiteLayout.screenPadding)
-                    .padding(.top, 24)
-                    .padding(.bottom, 16)
+                    .padding(.top, 8)
                 }
-                YTLiteSheetPrimaryButton(title: L("common.close")) {
-                    close()
+                if session == nil {
+                    HStack {
+                        Spacer(minLength: 0)
+                        YTLiteChip(title: L("import.mac.scan"), selected: true) {
+                            focusedField = nil
+                            Task { await openScanner() }
+                        }
+                        .disabled(isBusy)
+                        .opacity(isBusy ? 0.4 : 1)
+                        Spacer(minLength: 0)
+                    }
+                    .padding(.top, 8)
+                    .padding(.bottom, 12)
+                } else if !tracks.isEmpty {
+                    HStack {
+                        Spacer(minLength: 0)
+                        YTLiteChip(title: L("import.mac.import_songs"), selected: true) {
+                            focusedField = nil
+                            importTask?.cancel()
+                            importTask = Task { await importSelected() }
+                        }
+                        .disabled(isBusy || selected.isEmpty)
+                        .opacity(isBusy || selected.isEmpty ? 0.4 : 1)
+                        Spacer(minLength: 0)
+                    }
+                    .padding(.top, 8)
+                    .padding(.bottom, 12)
                 }
-                .padding(.top, 12)
-                .padding(.bottom, 28)
             }
+            .padding(.bottom, 16)
+            .background(MacKeyboardDismissInstaller { focusedField = nil })
             .ytLiteAppBackground()
+            .ytLiteToast($toastMessage, bottomPadding: 96)
+            .alert(
+                Lf("import.mac.imported_summary", Int64(importSummaryCount)),
+                isPresented: $showImportSummary
+            ) {
+                Button(L("import.mac.view")) {
+                    openOfflinePlaylist()
+                }
+                Button(L("common.close"), role: .cancel) {}
+            }
             .navigationBarHidden(true)
             .interactiveDismissDisabled(isBusy)
             .onAppear { browser.start() }
+            .onChange(of: address) { _, value in
+                Self.storeAddress(value)
+            }
             .onDisappear {
                 importTask?.cancel()
+                stopPresence(notify: true)
                 browser.stop()
             }
             .sheet(isPresented: $showScanner) {
@@ -408,11 +610,20 @@ struct MacCacheReceiveSheet: View {
                     return true
                 }
                 .ignoresSafeArea()
-                .overlay(alignment: .bottom) {
-                    YTLiteSheetPrimaryButton(title: L("common.close")) {
+                .overlay(alignment: .topTrailing) {
+                    Button {
                         showScanner = false
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundStyle(Color.white)
+                            .frame(width: 28, height: 28)
+                            .background(Color.black.opacity(0.45), in: Circle())
                     }
-                    .padding(.bottom, 28)
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(L("common.close"))
+                    .padding(.top, 16)
+                    .padding(.trailing, YTLiteLayout.screenPadding)
                 }
             }
         }
@@ -423,6 +634,12 @@ struct MacCacheReceiveSheet: View {
             Text(L("import.source.mac_receive.hint"))
                 .font(YTLiteType.body)
                 .foregroundStyle(YTLiteColor.onSurfaceVariant)
+            HStack(spacing: 12) {
+                Text(L("import.mac.nearby"))
+                    .font(YTLiteType.sectionTitle)
+                    .foregroundStyle(YTLiteColor.onSurface)
+                Spacer(minLength: 8)
+            }
             if browser.devices.isEmpty {
                 Text(L("import.mac.no_devices"))
                     .font(YTLiteType.meta)
@@ -430,6 +647,7 @@ struct MacCacheReceiveSheet: View {
             } else {
                 ForEach(browser.devices) { device in
                     Button {
+                        focusedField = nil
                         selectedDeviceID = device.id
                     } label: {
                         HStack {
@@ -443,35 +661,63 @@ struct MacCacheReceiveSheet: View {
                             }
                         }
                         .padding(.vertical, 8)
+                        .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                 }
             }
-            TextField(L("import.mac.enter_address"), text: $address)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-                .keyboardType(.numbersAndPunctuation)
-                .textFieldStyle(.roundedBorder)
-            TextField(L("import.mac.enter_code"), text: $code)
-                .keyboardType(.numberPad)
-                .textFieldStyle(.roundedBorder)
-            Button(L("import.mac.pair")) {
-                Task { await pair() }
+            if let lastError = browser.lastError, !lastError.isEmpty {
+                Text(lastError)
+                    .font(YTLiteType.meta)
+                    .foregroundStyle(.red)
             }
-            .font(YTLiteType.labelEmphasized)
-            .foregroundStyle(YTLiteColor.accent)
-            .disabled(isBusy || pairEndpoint == nil || code.trimmingCharacters(in: .whitespaces).count < 4)
-            Button(L("import.mac.scan")) {
-                Task { await openScanner() }
+            macField(
+                L("import.mac.enter_address"),
+                text: $address,
+                keyboard: .numbersAndPunctuation,
+                focus: .address
+            )
+            macField(
+                L("import.mac.enter_code"),
+                text: $code,
+                keyboard: .numberPad,
+                monospaced: true,
+                focus: .code
+            )
+            HStack(spacing: 8) {
+                YTLiteChip(title: L("import.mac.pair"), selected: canPair) {
+                    focusedField = nil
+                    Task { await pair() }
+                }
+                .disabled(!canPair)
+                .opacity(canPair ? 1 : 0.4)
             }
-            .font(YTLiteType.labelEmphasized)
-            .foregroundStyle(YTLiteColor.accent)
-            .disabled(isBusy)
         }
     }
 
     private var trackBody: some View {
         VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 12) {
+                Text(Lf("import.mac.selected_count", selected.count, tracks.count))
+                    .font(YTLiteType.sectionTitle)
+                    .foregroundStyle(YTLiteColor.onSurface)
+                    .lineLimit(1)
+                Spacer(minLength: 8)
+                HStack(spacing: 16) {
+                    Button(L("common.select_all")) {
+                        selected = Set(tracks.map(\.videoId))
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(tracks.isEmpty || selected.count == tracks.count)
+                    Button(L("common.deselect_all")) {
+                        selected = []
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(selected.isEmpty)
+                }
+                .font(YTLiteType.labelEmphasized)
+                .foregroundStyle(YTLiteColor.accent)
+            }
             if tracks.isEmpty {
                 Text(L("import.mac.no_songs"))
                     .font(YTLiteType.body)
@@ -485,7 +731,7 @@ struct MacCacheReceiveSheet: View {
                             selected.insert(track.videoId)
                         }
                     } label: {
-                        HStack {
+                        HStack(spacing: 12) {
                             Image(systemName: selected.contains(track.videoId) ? "checkmark.circle.fill" : "circle")
                                 .foregroundStyle(YTLiteColor.accent)
                             VStack(alignment: .leading, spacing: 2) {
@@ -493,29 +739,80 @@ struct MacCacheReceiveSheet: View {
                                     .font(YTLiteType.rowTitle)
                                     .foregroundStyle(YTLiteColor.onSurface)
                                     .lineLimit(1)
-                                if !track.artist.isEmpty {
-                                    Text(track.artist)
-                                        .font(YTLiteType.meta)
-                                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                                        .lineLimit(1)
+                                HStack(spacing: 6) {
+                                    if !track.artist.isEmpty {
+                                        Text(track.artist)
+                                            .lineLimit(1)
+                                    }
+                                    if let duration = DurationFormat.text(seconds: track.durationSeconds) {
+                                        Text(duration)
+                                    }
+                                    if importedIDs.contains(track.videoId) {
+                                        Image(systemName: "checkmark")
+                                            .font(.system(size: 11, weight: .bold))
+                                            .foregroundStyle(Color.green)
+                                            .accessibilityLabel(L("toast.already_imported"))
+                                    }
                                 }
+                                .font(YTLiteType.meta)
+                                .foregroundStyle(YTLiteColor.onSurfaceVariant)
                             }
-                            Spacer()
+                            Spacer(minLength: 0)
                         }
                         .padding(.vertical, 6)
+                        .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .disabled(isBusy)
                 }
-                Button(L("import.mac.import_songs")) {
-                    importTask?.cancel()
-                    importTask = Task { await importSelected() }
-                }
-                .font(YTLiteType.labelEmphasized)
-                .foregroundStyle(YTLiteColor.accent)
-                .disabled(isBusy || selected.isEmpty)
             }
         }
+    }
+
+    private enum MacField: Hashable {
+        case address
+        case code
+    }
+
+    private static let addressKey = "ytlite.mac-cache.last-address"
+
+    private static func storedAddress() -> String {
+        let raw = UserDefaults.standard.string(forKey: addressKey)?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return isIPv4(raw) ? raw : ""
+    }
+
+    private static func storeAddress(_ raw: String) {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard isIPv4(trimmed) else { return }
+        UserDefaults.standard.set(trimmed, forKey: addressKey)
+    }
+
+    private func macField(
+        _ placeholder: String,
+        text: Binding<String>,
+        keyboard: UIKeyboardType,
+        monospaced: Bool = false,
+        focus: MacField
+    ) -> some View {
+        TextField(
+            "",
+            text: text,
+            prompt: Text(placeholder).foregroundStyle(YTLiteColor.onSurfaceVariant)
+        )
+        .focused($focusedField, equals: focus)
+        .font(monospaced ? YTLiteType.body.monospacedDigit() : YTLiteType.body)
+        .foregroundStyle(YTLiteColor.onSurface)
+        .keyboardType(keyboard)
+        .textInputAutocapitalization(.never)
+        .autocorrectionDisabled()
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .background(YTLiteColor.surfaceVariant, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+    }
+
+    private var canPair: Bool {
+        !isBusy && pairEndpoint != nil && code.trimmingCharacters(in: .whitespaces).count >= 4
     }
 
     private var selectedDevice: MacCacheTransferBrowser.Device? {
@@ -540,6 +837,41 @@ struct MacCacheReceiveSheet: View {
         }
     }
 
+    private func refreshCurrent() async {
+        guard !isBusy else { return }
+        if session == nil {
+            browser.start()
+            try? await Task.sleep(nanoseconds: 700_000_000)
+            return
+        }
+        guard let session else { return }
+        // Pull-to-refresh is cancelled when this view updates. Fetch on a separate task so the new list still lands.
+        let worker = Task { @MainActor in
+            await self.loadOffer(session)
+        }
+        await worker.value
+    }
+
+    /// Reloads the Mac's current offer. Songs the user already unchecked stay unchecked.
+    private func loadOffer(_ session: MacCacheTransferSession) async {
+        do {
+            let listed = try await session.tracks()
+            let previousIDs = Set(tracks.map(\.videoId))
+            let listedIDs = Set(listed.map(\.videoId))
+            let added = listedIDs.subtracting(previousIDs)
+            self.selected = self.selected.intersection(listedIDs).union(added)
+            self.tracks = listed
+            self.message = nil
+            refreshImportedMarks()
+        } catch is CancellationError {
+            return
+        } catch MacCacheTransferError.unauthorized {
+            message = L("import.mac.pair_failed")
+        } catch {
+            message = error.localizedDescription
+        }
+    }
+
     private func pair() async {
         guard let endpoint = pairEndpoint else { return }
         isBusy = true
@@ -554,6 +886,9 @@ struct MacCacheReceiveSheet: View {
             session = paired
             tracks = listed
             selected = Set(listed.map(\.videoId))
+            refreshImportedMarks()
+            browser.stop()
+            startPresence(paired)
         } catch is CancellationError {
             return
         } catch MacCacheTransferError.unauthorized {
@@ -567,18 +902,25 @@ struct MacCacheReceiveSheet: View {
         guard let session, let store else { return }
         let chosen = tracks.filter { selected.contains($0.videoId) }
         guard !chosen.isEmpty else { return }
+        let pending = chosen.filter { track in
+            store.importedTrack(remoteURI: "mac-cache:\(track.videoId)") == nil
+        }
+        guard !pending.isEmpty else {
+            toastMessage = L("toast.already_imported")
+            return
+        }
         isBusy = true
         message = nil
         defer { isBusy = false }
         var done = 0
         var failed = 0
-        for track in chosen {
+        var importedCount = 0
+        for track in pending {
             if Task.isCancelled { break }
             done += 1
-            progressText = Lf("import.mac.progress", Int64(done), Int64(chosen.count))
+            progressText = Lf("import.mac.progress", Int64(done), Int64(pending.count))
             transfer.begin(title: track.title)
             let uri = "mac-cache:\(track.videoId)"
-            if store.importedTrack(remoteURI: uri) != nil { continue }
             let ext = track.fileExtension.filter { $0.isLetter || $0.isNumber }
             let safeExt = ext.isEmpty ? "m4a" : ext.lowercased()
             let audioURL = FileManager.default.temporaryDirectory
@@ -621,6 +963,7 @@ struct MacCacheReceiveSheet: View {
                     try? FileManager.default.removeItem(at: coverURL)
                 }
                 try? FileManager.default.removeItem(at: audioURL)
+                importedCount += 1
             } catch is CancellationError {
                 try? FileManager.default.removeItem(at: audioURL)
                 break
@@ -640,12 +983,53 @@ struct MacCacheReceiveSheet: View {
             message = Lf("import.wifi.failed_count", failed)
         }
         onImported()
+        refreshImportedMarks()
+        if importedCount > 0 {
+            importSummaryCount = importedCount
+            showImportSummary = true
+        }
+    }
+
+    /// Songs already stored on this phone, matched by the Mac cache URI.
+    private func refreshImportedMarks() {
+        guard let store else {
+            importedIDs = []
+            return
+        }
+        importedIDs = Set(tracks.compactMap { track in
+            store.importedTrack(remoteURI: "mac-cache:\(track.videoId)") == nil ? nil : track.videoId
+        })
+    }
+
+    private func openOfflinePlaylist() {
+        appModel.pendingOfflinePlaylist = true
+        selectAppTab?(.library)
+        close()
     }
 
     private func close() {
         importTask?.cancel()
+        stopPresence(notify: true)
         browser.stop()
         dismiss()
+    }
+
+    /// While the receive sheet stays open, tell the Mac this phone is still here.
+    private func startPresence(_ session: MacCacheTransferSession) {
+        presenceTask?.cancel()
+        presenceTask = Task {
+            while !Task.isCancelled {
+                await session.ping()
+                try? await Task.sleep(nanoseconds: 2_000_000_000)
+            }
+        }
+    }
+
+    private func stopPresence(notify: Bool) {
+        presenceTask?.cancel()
+        presenceTask = nil
+        guard notify, let session else { return }
+        Task { await session.leave() }
     }
 
     private func openScanner() async {
@@ -654,6 +1038,91 @@ struct MacCacheReceiveSheet: View {
             showScanner = true
         } else {
             message = L("import.mac.camera_denied")
+        }
+    }
+}
+
+/// Taps outside a text field dismiss the keyboard without taking the tap away from buttons.
+private struct MacKeyboardDismissInstaller: UIViewRepresentable {
+    var onDismiss: () -> Void
+
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView(frame: .zero)
+        view.isUserInteractionEnabled = false
+        view.backgroundColor = .clear
+        return view
+    }
+
+    func updateUIView(_ uiView: UIView, context: Context) {
+        context.coordinator.onDismiss = onDismiss
+        DispatchQueue.main.async {
+            context.coordinator.install(on: uiView)
+        }
+    }
+
+    static func dismantleUIView(_ uiView: UIView, coordinator: Coordinator) {
+        coordinator.remove()
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    final class Coordinator: NSObject, UIGestureRecognizerDelegate {
+        var onDismiss: () -> Void = {}
+        private weak var host: UIView?
+        private var tap: UITapGestureRecognizer?
+
+        func install(on marker: UIView) {
+            let host = sheetHost(from: marker)
+            guard self.host !== host else { return }
+            remove()
+            let tap = UITapGestureRecognizer(target: self, action: #selector(dismiss))
+            tap.name = "mixtube.dismiss-keyboard"
+            tap.cancelsTouchesInView = false
+            tap.delegate = self
+            host.addGestureRecognizer(tap)
+            self.host = host
+            self.tap = tap
+        }
+
+        /// The sheet controller's view sits above both the fields and the empty area, so one recognizer sees every tap.
+        private func sheetHost(from marker: UIView) -> UIView {
+            var responder: UIResponder? = marker
+            while let current = responder {
+                if let controller = current as? UIViewController {
+                    return controller.view
+                }
+                responder = current.next
+            }
+            return marker.superview ?? marker
+        }
+
+        func remove() {
+            if let tap, let host {
+                host.removeGestureRecognizer(tap)
+            }
+            tap = nil
+            host = nil
+        }
+
+        @objc private func dismiss() {
+            onDismiss()
+            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+        }
+
+        func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+            var view = touch.view
+            while let current = view {
+                if current is UITextField || current is UITextView { return false }
+                view = current.superview
+            }
+            return true
+        }
+
+        func gestureRecognizer(
+            _ gestureRecognizer: UIGestureRecognizer,
+            shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
+        ) -> Bool {
+            true
         }
     }
 }

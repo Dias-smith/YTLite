@@ -49,6 +49,8 @@ final class AppModel: ObservableObject {
         didSet { LaunchSheetGate.featureIntro = showFeatureIntroSheet }
     }
     @Published var isAuthenticated: Bool = false
+    /// One-shot request: Library opens the Offline playlist, then clears this.
+    @Published var pendingOfflinePlaylist = false
     /// Bumped after library sync / account-switch adopt so Subs & Library reload.
     @Published private(set) var libraryRevision: Int = 0
     /// True after login / logout / account switch until library bucket sync finishes.

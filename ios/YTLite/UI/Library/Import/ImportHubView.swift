@@ -121,6 +121,7 @@ struct ImportHubView: View {
 
     @EnvironmentObject private var trackActions: TrackActionPresenter
     @EnvironmentObject private var playback: PlaybackController
+    @EnvironmentObject private var appModel: AppModel
     @Environment(\.libraryStore) private var store
 
     @State private var importedCount: Int = 0
@@ -259,6 +260,7 @@ struct ImportHubView: View {
                 reloadCount()
                 trackActions.notifyListsChanged()
             }
+            .environmentObject(appModel)
         }
         #endif
     }

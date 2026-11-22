@@ -827,11 +827,11 @@ private final class ResumeOnce: @unchecked Sendable {
     }
 }
 
-struct MacCacheSendProgress: Equatable {
-    var title: String
+struct MacCacheActiveSend: Identifiable, Equatable {
+    let id: UUID
+    let videoId: String
     var sentBytes: Int64
     var totalBytes: Int64
-    var completed: Int
 }
 
 #if targetEnvironment(macCatalyst)
@@ -842,10 +842,11 @@ final class MacCacheTransferServer: ObservableObject {
 
     @Published private(set) var pairingCode = ""
     @Published private(set) var listenAddress: String?
-    @Published private(set) var sendProgress: MacCacheSendProgress?
+    @Published private(set) var activeSends: [MacCacheActiveSend] = []
     @Published private(set) var isRunning = false
     @Published private(set) var lastError: String?
     @Published private(set) var servedCount = 0
+    @Published private(set) var connectedCount = 0
 
     private var listener: NWListener?
     /// Bonjour is optional. A failed advertisement must not take down the TCP listener.
@@ -854,6 +855,12 @@ final class MacCacheTransferServer: ObservableObject {
     private var tracks: [MacCacheTrackRecord] = []
     private var audioFiles: [String: URL] = [:]
     private var coverFiles: [String: URL] = [:]
+    /// Host → last time that iPhone checked in. Each transfer is its own short connection, so presence is a heartbeat.
+    private var connectedHosts: [String: Date] = [:]
+    /// Hosts with a file send still in progress stay counted even if a heartbeat is late.
+    private var transferHosts: [String: Int] = [:]
+    private var presenceTimer: Timer?
+    private let presenceTimeout: TimeInterval = 5
     private let bonjourType = "_mixtube-cache._tcp."
 
     private init() {}
@@ -900,20 +907,33 @@ final class MacCacheTransferServer: ObservableObject {
             }
             listener.start(queue: DispatchQueue(label: "ytlite.mac-cache.listen", qos: .userInitiated))
             self.listener = listener
+            startPresenceTimer()
         } catch {
             lastError = error.localizedDescription
             isRunning = false
         }
     }
 
+    /// Updates the songs a paired phone can list and download. Does not rebind the port or change the pairing code.
+    func replaceOffer(tracks: [MacCacheTrackRecord], audio: [String: URL], covers: [String: URL]) {
+        self.tracks = tracks
+        audioFiles = audio
+        coverFiles = covers
+    }
+
     func stop() {
+        presenceTimer?.invalidate()
+        presenceTimer = nil
         publisher?.stop()
         publisher = nil
         listener?.cancel()
         listener = nil
         isRunning = false
         listenAddress = nil
-        sendProgress = nil
+        activeSends = []
+        connectedHosts = [:]
+        transferHosts = [:]
+        connectedCount = 0
         token = ""
         tracks = []
         audioFiles = [:]
@@ -978,12 +998,23 @@ final class MacCacheTransferServer: ObservableObject {
                 Self.respond(connection, status: 401, body: Data("{}".utf8))
                 return
             }
+            noteConnected(connection)
             Self.respond(connection, status: 200, type: "application/json", body: body)
             return
         }
 
         guard bearer(request.headers) == token, !token.isEmpty else {
             Self.respond(connection, status: 401, body: Data("{}".utf8))
+            return
+        }
+        if request.method == "POST", parts == ["v1", "leave"] {
+            noteLeft(connection)
+            Self.respond(connection, status: 200, body: Data("{}".utf8))
+            return
+        }
+        noteConnected(connection)
+        if request.method == "POST", parts == ["v1", "ping"] {
+            Self.respond(connection, status: 200, body: Data("{}".utf8))
             return
         }
         if request.method == "GET", parts == ["v1", "tracks"],
@@ -996,36 +1027,44 @@ final class MacCacheTransferServer: ObservableObject {
             let videoId = parts[2]
             if parts[3] == "audio", let url = audioFiles[videoId] {
                 let record = tracks.first { $0.videoId == videoId }
-                let title = record?.title ?? videoId
-                let total = record?.byteCount ?? 0
-                Self.respondFile(
+                let fileSize = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize).map(Int64.init)
+                    ?? record?.byteCount
+                    ?? 0
+                let sendID = UUID()
+                let host = Self.remoteHost(connection)
+                activeSends.append(
+                    MacCacheActiveSend(id: sendID, videoId: videoId, sentBytes: 0, totalBytes: fileSize)
+                )
+                let started = Self.respondFile(
                     connection,
                     url: url,
                     type: Self.audioType(for: url),
                     onProgress: { sent in
                         Task { @MainActor [weak self] in
-                            guard let self else { return }
-                            self.sendProgress = MacCacheSendProgress(
-                                title: title,
-                                sentBytes: sent,
-                                totalBytes: total,
-                                completed: self.servedCount
-                            )
+                            guard let self, let index = self.activeSends.firstIndex(where: { $0.id == sendID }) else { return }
+                            self.activeSends[index].sentBytes = sent
                         }
                     },
                     onFinished: { [weak self] in
                         Task { @MainActor in
                             guard let self else { return }
+                            self.noteTransferEnded(host)
+                            self.activeSends.removeAll { $0.id == sendID }
                             self.servedCount += 1
-                            self.sendProgress = MacCacheSendProgress(
-                                title: title,
-                                sentBytes: total,
-                                totalBytes: total,
-                                completed: self.servedCount
-                            )
+                        }
+                    },
+                    onFailure: { [weak self] in
+                        Task { @MainActor in
+                            self?.noteTransferEnded(host)
+                            self?.activeSends.removeAll { $0.id == sendID }
                         }
                     }
                 )
+                if started {
+                    noteTransferBegan(host)
+                } else {
+                    activeSends.removeAll { $0.id == sendID }
+                }
                 return
             }
             if parts[3] == "cover", let url = coverFiles[videoId] {
@@ -1034,6 +1073,70 @@ final class MacCacheTransferServer: ObservableObject {
             }
         }
         Self.respond(connection, status: 404, body: Data())
+    }
+
+    private func startPresenceTimer() {
+        presenceTimer?.invalidate()
+        let timer = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                self?.prunePresence()
+            }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        presenceTimer = timer
+    }
+
+    /// Drops phones that closed, crashed, or left the network without a final leave message.
+    private func prunePresence() {
+        let cutoff = Date().addingTimeInterval(-presenceTimeout)
+        let kept = connectedHosts.filter { host, seen in
+            transferHosts[host] != nil || seen > cutoff
+        }
+        guard kept.count != connectedHosts.count else { return }
+        connectedHosts = kept
+        connectedCount = connectedHosts.count
+    }
+
+    private func noteConnected(_ connection: NWConnection) {
+        guard let host = Self.remoteHost(connection) else { return }
+        let inserted = connectedHosts[host] == nil
+        connectedHosts[host] = Date()
+        if inserted { connectedCount = connectedHosts.count }
+    }
+
+    private func noteLeft(_ connection: NWConnection) {
+        guard let host = Self.remoteHost(connection) else { return }
+        transferHosts.removeValue(forKey: host)
+        guard connectedHosts.removeValue(forKey: host) != nil else { return }
+        connectedCount = connectedHosts.count
+    }
+
+    private func noteTransferBegan(_ host: String?) {
+        guard let host else { return }
+        transferHosts[host, default: 0] += 1
+        if connectedHosts[host] == nil {
+            connectedHosts[host] = Date()
+            connectedCount = connectedHosts.count
+        } else {
+            connectedHosts[host] = Date()
+        }
+    }
+
+    private func noteTransferEnded(_ host: String?) {
+        guard let host else { return }
+        let next = (transferHosts[host] ?? 0) - 1
+        if next > 0 {
+            transferHosts[host] = next
+        } else {
+            transferHosts.removeValue(forKey: host)
+        }
+    }
+
+    private nonisolated static func remoteHost(_ connection: NWConnection) -> String? {
+        let endpoint = connection.currentPath?.remoteEndpoint ?? connection.endpoint
+        guard case let .hostPort(host, _) = endpoint else { return nil }
+        let text = "\(host)"
+        return text.isEmpty ? nil : text
     }
 
     private func bearer(_ headers: String) -> String? {
@@ -1070,23 +1173,32 @@ final class MacCacheTransferServer: ObservableObject {
         })
     }
 
+    @discardableResult
     private nonisolated static func respondFile(
         _ connection: NWConnection,
         url: URL,
         type: String,
         onProgress: (@Sendable (Int64) -> Void)? = nil,
-        onFinished: @escaping @Sendable () -> Void
-    ) {
+        onFinished: @escaping @Sendable () -> Void,
+        onFailure: @escaping @Sendable () -> Void = {}
+    ) -> Bool {
         guard let handle = try? FileHandle(forReadingFrom: url) else {
             respond(connection, status: 404, body: Data())
-            return
+            return false
         }
         let size = (try? handle.seekToEnd()) ?? 0
         try? handle.seek(toOffset: 0)
         let header = Data("HTTP/1.1 200 OK\r\nContent-Type: \(type)\r\nContent-Length: \(size)\r\nConnection: close\r\n\r\n".utf8)
-        let sender = FileSender(connection: connection, handle: handle, onProgress: onProgress, onFinished: onFinished)
+        let sender = FileSender(
+            connection: connection,
+            handle: handle,
+            onProgress: onProgress,
+            onFinished: onFinished,
+            onFailure: onFailure
+        )
         MacCacheProbe.log("tx-header", "bytes=\(size) type=\(type)")
         sender.send(next: header, readingFileAfter: true, countsAsFile: false)
+        return true
     }
 }
 
@@ -1095,6 +1207,7 @@ private final class FileSender: @unchecked Sendable {
     private let handle: FileHandle
     private let onProgress: (@Sendable (Int64) -> Void)?
     private let onFinished: @Sendable () -> Void
+    private let onFailure: @Sendable () -> Void
     private let chunkSize = 64 * 1024
     private var fileBytes: Int64 = 0
     private var finished = false
@@ -1105,12 +1218,14 @@ private final class FileSender: @unchecked Sendable {
         connection: NWConnection,
         handle: FileHandle,
         onProgress: (@Sendable (Int64) -> Void)?,
-        onFinished: @escaping @Sendable () -> Void
+        onFinished: @escaping @Sendable () -> Void,
+        onFailure: @escaping @Sendable () -> Void
     ) {
         self.connection = connection
         self.handle = handle
         self.onProgress = onProgress
         self.onFinished = onFinished
+        self.onFailure = onFailure
     }
 
     func send(next: Data, readingFileAfter: Bool, countsAsFile: Bool) {
@@ -1125,6 +1240,7 @@ private final class FileSender: @unchecked Sendable {
                 MacCacheProbe.log("tx-fail", error.localizedDescription)
                 try? self.handle.close()
                 self.connection.cancel()
+                self.onFailure()
                 self.selfRetain = nil
                 return
             }
@@ -1234,6 +1350,18 @@ struct MacCacheTransferSession {
             throw status == 401 ? MacCacheTransferError.unauthorized : MacCacheTransferError.failed
         }
         return decoded.tracks
+    }
+
+    /// Keeps the Mac's connected-device count while this sheet is open.
+    func ping() async {
+        let request = MacCacheHTTP.requestData(method: "POST", path: "/v1/ping", token: token, body: Data())
+        _ = try? await MacCacheHTTP.exchange(endpoint: endpoint, requestData: request, fileDestination: nil)
+    }
+
+    /// Tells the Mac this phone has left so the count drops immediately.
+    func leave() async {
+        let request = MacCacheHTTP.requestData(method: "POST", path: "/v1/leave", token: token, body: Data())
+        _ = try? await MacCacheHTTP.exchange(endpoint: endpoint, requestData: request, fileDestination: nil)
     }
 
     func download(

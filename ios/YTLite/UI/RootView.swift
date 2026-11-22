@@ -271,6 +271,7 @@ struct RootView: View {
                 ColdStartVipOffer.shared.paywallDidFinishDismissing()
             }) {
                 VipView()
+                    .environmentObject(appModel)
             }
         }
         // Must wrap TrackActionHost so AppChrome itself (not only its children) receives it.

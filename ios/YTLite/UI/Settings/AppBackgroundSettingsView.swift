@@ -4,6 +4,7 @@ import SwiftUI
 struct AppBackgroundSettingsView: View {
     @ObservedObject private var store = AppBackgroundStore.shared
     @ObservedObject private var vip = VipStore.shared
+    @EnvironmentObject private var appModel: AppModel
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var photoItem: PhotosPickerItem?
     @State private var showPhotoPicker = false
@@ -127,6 +128,7 @@ struct AppBackgroundSettingsView: View {
         }
         .fullScreenCover(isPresented: $showVip) {
             VipView()
+                .environmentObject(appModel)
         }
     }
 
