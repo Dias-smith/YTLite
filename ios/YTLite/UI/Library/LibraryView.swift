@@ -37,6 +37,20 @@ private enum LibrarySortMode: String, CaseIterable, Identifiable {
         case .custom: return L("library.sort.custom")
         }
     }
+
+    private static let storageKey = "ytlite.library.sortMode"
+
+    /// Newest added first until the user picks another rule.
+    static var restored: LibrarySortMode {
+        guard let raw = UserDefaults.standard.string(forKey: storageKey),
+              let mode = LibrarySortMode(rawValue: raw)
+        else { return .recentlySaved }
+        return mode
+    }
+
+    func persist() {
+        UserDefaults.standard.set(rawValue, forKey: Self.storageKey)
+    }
 }
 
 private enum LibraryViewMode {
@@ -72,7 +86,7 @@ struct LibraryView: View {
     @State private var filter: LibraryFilter = .playlists
     @State private var channelPendingUnsubscribe: UserSubscribedChannel?
 
-    @State private var sortMode: LibrarySortMode = .recentActivity
+    @State private var sortMode: LibrarySortMode = .restored
     @State private var viewMode: LibraryViewMode = .list
     @State private var showSortMenu = false
 
@@ -275,9 +289,6 @@ struct LibraryView: View {
             .onChange(of: filter) { _, newFilter in
                 exitSelectionMode()
                 if newFilter != .playlists { exitReorderMode(save: false) }
-                if !sortOptions(for: newFilter).contains(sortMode), sortMode != .custom {
-                    sortMode = .recentActivity
-                }
                 reload()
             }
             .alert(
@@ -313,10 +324,11 @@ struct LibraryView: View {
             .sheet(isPresented: $showSortMenu) {
                 LibrarySortSheet(
                     options: sortOptions(for: filter),
-                    current: sortMode,
+                    current: activeSort,
                     showsReorderPlaylists: filter == .playlists,
                     onSelect: { selected in
                         sortMode = selected
+                        selected.persist()
                         exitReorderMode(save: false)
                         showSortMenu = false
                         reload()
@@ -746,8 +758,15 @@ struct LibraryView: View {
 
     private var displayedSongs: [VideoItem] { songs }
 
+    /// Saved rule when this tab supports it. Otherwise newest-added.
+    private var activeSort: LibrarySortMode {
+        if sortOptions(for: filter).contains(sortMode) { return sortMode }
+        if filter == .playlists, sortMode == .custom { return .custom }
+        return .recentlySaved
+    }
+
     private var displayedChannels: [UserSubscribedChannel] {
-        switch sortMode {
+        switch activeSort {
         case .title:
             return channels.sorted {
                 $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending
@@ -767,7 +786,7 @@ struct LibraryView: View {
     }
 
     private var songSort: LibraryStore.LibrarySongSort {
-        switch sortMode {
+        switch activeSort {
         case .recentActivity, .custom: return .recentActivity
         case .recentlySaved: return .recentlySaved
         case .title: return .title
@@ -1303,6 +1322,7 @@ struct LibraryView: View {
             let ids = reorderItems.map(\.id)
             UserDefaults.standard.set(ids, forKey: playlistManualOrderKey)
             sortMode = .custom
+            LibrarySortMode.custom.persist()
         }
         isReorderMode = false
         reorderItems = []
@@ -1424,7 +1444,7 @@ struct LibraryView: View {
         let historyItem = PlaylistDisplayItem.history(songCount: history.count)
         let all = mapped + [importedItem, historyItem]
 
-        switch sortMode {
+        switch activeSort {
         case .custom:
             let order = UserDefaults.standard.stringArray(forKey: playlistManualOrderKey) ?? []
             if order.isEmpty {
@@ -1442,7 +1462,7 @@ struct LibraryView: View {
             // System block first; custom newest-saved activity near the end of customs via updatedAt.
             let system = defaultSystemBlock(all)
             let custom = all.filter { $0.systemType == nil }
-                .sorted { ($0.playlist?.sortCreatedAt ?? .distantPast) < ($1.playlist?.sortCreatedAt ?? .distantPast) }
+                .sorted { ($0.playlist?.sortCreatedAt ?? .distantPast) > ($1.playlist?.sortCreatedAt ?? .distantPast) }
             return system + custom
         case .title:
             let system = defaultSystemBlock(all)

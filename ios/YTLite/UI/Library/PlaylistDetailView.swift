@@ -13,7 +13,7 @@ struct PlaylistDetailView: View {
     @Environment(\.libraryStore) private var store
     @Environment(\.dismiss) private var dismiss
 
-    @State private var sort: PlaylistTrackSort = .manual
+    @State private var sort: PlaylistTrackSort
     @State private var showSortSheet = false
     @State private var showPhotoPicker = false
     @State private var photoItem: PhotosPickerItem?
@@ -28,6 +28,12 @@ struct PlaylistDetailView: View {
     @State private var cachedPlaylistId = ""
     @State private var cachedName = ""
     @State private var cachedSystemType: String?
+
+    init(playlist: LibraryPlaylist, onChange: @escaping () -> Void) {
+        self.playlist = playlist
+        self.onChange = onChange
+        _sort = State(initialValue: PlaylistTrackSort.stored(for: playlist.playlistId))
+    }
 
     private var canEdit: Bool { cachedSystemType == nil }
     private var canReorder: Bool { sort == .manual }
@@ -115,6 +121,7 @@ struct PlaylistDetailView: View {
         .sheet(isPresented: $showSortSheet) {
             PlaylistSortSheet(current: sort, onSelect: { selected in
                 sort = selected
+                selected.persist(for: playlist.playlistId)
                 showSortSheet = false
             })
             .presentationDetents([.height(320)])
@@ -478,10 +485,26 @@ private enum PlaylistTrackSort: String, CaseIterable, Identifiable {
 
     var label: String {
         switch self {
-        case .manual: return "Manual"
-        case .recentlyAdded: return "Recently added"
-        case .title: return "Title"
+        case .manual: return L("library.sort.custom")
+        case .recentlyAdded: return L("library.sort.recently_saved")
+        case .title: return L("library.sort.title_asc")
         }
+    }
+
+    private static func storageKey(_ playlistId: String) -> String {
+        "library.playlistTrackSort.\(playlistId)"
+    }
+
+    /// Newest added first until this playlist has its own saved rule.
+    static func stored(for playlistId: String) -> PlaylistTrackSort {
+        guard let raw = UserDefaults.standard.string(forKey: storageKey(playlistId)),
+              let sort = PlaylistTrackSort(rawValue: raw)
+        else { return .recentlyAdded }
+        return sort
+    }
+
+    func persist(for playlistId: String) {
+        UserDefaults.standard.set(rawValue, forKey: Self.storageKey(playlistId))
     }
 }
 

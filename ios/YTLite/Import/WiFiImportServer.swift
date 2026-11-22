@@ -143,7 +143,7 @@ final class WiFiImportServer: ObservableObject {
         let body: Data
     }
 
-    private nonisolated static func tryParseHTTPRequest(_ raw: Data) -> HTTPRequest? {
+    nonisolated static func tryParseHTTPRequest(_ raw: Data) -> HTTPRequest? {
         guard let headerEnd = raw.range(of: Data("\r\n\r\n".utf8)) else { return nil }
         let headerData = raw.subdata(in: raw.startIndex..<headerEnd.lowerBound)
         guard let headerText = String(data: headerData, encoding: .utf8) else { return nil }
@@ -508,3 +508,519 @@ final class WiFiImportServer: ObservableObject {
         return candidates.sorted { $0.priority < $1.priority }.first?.ip
     }
 }
+
+/// One finished Mac cache file offered to Mixtube on iPhone. Not used by the system share sheet.
+struct MacCacheTrackRecord: Codable, Identifiable, Equatable, Sendable {
+    var id: String { videoId }
+    let videoId: String
+    let title: String
+    let artist: String
+    let durationSeconds: Int
+    let byteCount: Int64
+    let fileExtension: String
+    let hasCover: Bool
+}
+
+private struct MacCacheTrackListBody: Codable {
+    let tracks: [MacCacheTrackRecord]
+}
+
+private struct MacCachePairRequest: Codable {
+    let code: String
+}
+
+private struct MacCachePairResponse: Codable {
+    let token: String
+}
+
+enum MacCacheTransferError: Error {
+    case unauthorized
+    case failed
+}
+
+enum MacCacheHTTP {
+    static func peerParameters() -> NWParameters {
+        let params = NWParameters.tcp
+        params.includePeerToPeer = true
+        params.allowLocalEndpointReuse = true
+        return params
+    }
+
+    static func exchange(
+        endpoint: NWEndpoint,
+        requestData: Data,
+        fileDestination: URL?
+    ) async throws -> (status: Int, data: Data) {
+        let connection = NWConnection(to: endpoint, using: peerParameters())
+        let queue = DispatchQueue(label: "ytlite.mac-cache.client")
+        try await waitUntilReady(connection, queue: queue)
+        defer { connection.cancel() }
+        try await send(connection, data: requestData)
+        return try await readResponse(connection, fileDestination: fileDestination)
+    }
+
+    static func requestData(method: String, path: String, token: String?, body: Data?) -> Data {
+        var lines = [
+            "\(method) \(path) HTTP/1.1",
+            "Host: mixtube.local",
+            "Connection: close",
+        ]
+        if let token {
+            lines.append("Authorization: Bearer \(token)")
+        }
+        if let body {
+            lines.append("Content-Type: application/json")
+            lines.append("Content-Length: \(body.count)")
+        }
+        var data = Data(lines.joined(separator: "\r\n").utf8)
+        data.append(Data("\r\n\r\n".utf8))
+        if let body { data.append(body) }
+        return data
+    }
+
+    private static func waitUntilReady(_ connection: NWConnection, queue: DispatchQueue) async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            let gate = ResumeOnce()
+            connection.stateUpdateHandler = { state in
+                switch state {
+                case .ready:
+                    gate.run { continuation.resume() }
+                case .failed(let error):
+                    gate.run { continuation.resume(throwing: error) }
+                case .cancelled:
+                    gate.run { continuation.resume(throwing: CancellationError()) }
+                default:
+                    break
+                }
+            }
+            connection.start(queue: queue)
+        }
+    }
+
+    private static func send(_ connection: NWConnection, data: Data) async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            connection.send(content: data, completion: .contentProcessed { error in
+                if let error {
+                    continuation.resume(throwing: error)
+                } else {
+                    continuation.resume()
+                }
+            })
+        }
+    }
+
+    private static func receive(_ connection: NWConnection) async throws -> (Data?, Bool) {
+        try await withCheckedThrowingContinuation { continuation in
+            connection.receive(minimumIncompleteLength: 1, maximumLength: 64 * 1024) { data, _, isComplete, error in
+                if let error {
+                    continuation.resume(throwing: error)
+                } else {
+                    continuation.resume(returning: (data, isComplete))
+                }
+            }
+        }
+    }
+
+    private static func readResponse(
+        _ connection: NWConnection,
+        fileDestination: URL?
+    ) async throws -> (status: Int, data: Data) {
+        let marker = Data("\r\n\r\n".utf8)
+        var buffer = Data()
+        var status = 0
+        var contentLength = 0
+        var headerParsed = false
+        var body = Data()
+        var receivedBody = 0
+        var file: FileHandle?
+        if let fileDestination {
+            FileManager.default.createFile(atPath: fileDestination.path, contents: nil)
+            file = try FileHandle(forWritingTo: fileDestination)
+        }
+        defer { try? file?.close() }
+
+        while true {
+            try Task.checkCancellation()
+            let (chunk, isComplete) = try await receive(connection)
+            if let chunk, !chunk.isEmpty { buffer.append(chunk) }
+            if !headerParsed, let headerEnd = buffer.range(of: marker) {
+                let headerText = String(data: buffer.subdata(in: buffer.startIndex..<headerEnd.lowerBound), encoding: .utf8) ?? ""
+                status = statusCode(from: headerText)
+                contentLength = lengthValue(from: headerText)
+                guard contentLength <= 512 * 1024 * 1024 else { throw MacCacheTransferError.failed }
+                headerParsed = true
+                let prefix = buffer.subdata(in: headerEnd.upperBound..<buffer.endIndex)
+                buffer.removeAll(keepingCapacity: false)
+                receivedBody += try appendBody(prefix, file: file, memory: &body)
+            } else if headerParsed, !buffer.isEmpty {
+                receivedBody += try appendBody(buffer, file: file, memory: &body)
+                buffer.removeAll(keepingCapacity: false)
+            }
+            if headerParsed, receivedBody >= contentLength { break }
+            if isComplete { break }
+        }
+        return (status, body)
+    }
+
+    private static func appendBody(_ data: Data, file: FileHandle?, memory: inout Data) throws -> Int {
+        guard !data.isEmpty else { return 0 }
+        if let file {
+            try file.write(contentsOf: data)
+        } else {
+            memory.append(data)
+        }
+        return data.count
+    }
+
+    private static func statusCode(from header: String) -> Int {
+        let line = header.split(separator: "\r\n", maxSplits: 1).first ?? ""
+        let parts = line.split(separator: " ")
+        guard parts.count >= 2 else { return 0 }
+        return Int(parts[1]) ?? 0
+    }
+
+    private static func lengthValue(from header: String) -> Int {
+        for line in header.split(separator: "\r\n") where line.lowercased().hasPrefix("content-length:") {
+            let raw = line.dropFirst("content-length:".count).trimmingCharacters(in: .whitespaces)
+            return Int(raw) ?? 0
+        }
+        return 0
+    }
+}
+
+private final class ResumeOnce: @unchecked Sendable {
+    private var done = false
+    func run(_ body: () -> Void) {
+        guard !done else { return }
+        done = true
+        body()
+    }
+}
+
+#if targetEnvironment(macCatalyst)
+/// Mac listens only while “Send to iPhone” is open. A pairing code is required before any file is sent.
+@MainActor
+final class MacCacheTransferServer: ObservableObject {
+    static let shared = MacCacheTransferServer()
+
+    @Published private(set) var pairingCode = ""
+    @Published private(set) var isRunning = false
+    @Published private(set) var lastError: String?
+    @Published private(set) var servedCount = 0
+
+    private var listener: NWListener?
+    private var token = ""
+    private var tracks: [MacCacheTrackRecord] = []
+    private var audioFiles: [String: URL] = [:]
+    private var coverFiles: [String: URL] = [:]
+    private let port: UInt16 = 8788
+    private let bonjourType = "_mixtube-cache._tcp"
+
+    private init() {}
+
+    func start(tracks: [MacCacheTrackRecord], audio: [String: URL], covers: [String: URL]) {
+        stop()
+        self.tracks = tracks
+        audioFiles = audio
+        coverFiles = covers
+        pairingCode = String(format: "%06d", Int.random(in: 0...999_999))
+        token = UUID().uuidString
+        servedCount = 0
+        lastError = nil
+        do {
+            let listener = try NWListener(using: MacCacheHTTP.peerParameters(), on: NWEndpoint.Port(rawValue: port)!)
+            listener.service = NWListener.Service(name: "Mixtube Mac", type: bonjourType)
+            listener.newConnectionHandler = { [weak self] connection in
+                Self.accept(connection) { request in
+                    await self?.handle(request, connection: connection)
+                }
+            }
+            listener.stateUpdateHandler = { [weak self] state in
+                Task { @MainActor in
+                    guard let self else { return }
+                    switch state {
+                    case .ready:
+                        self.isRunning = true
+                    case .failed(let error):
+                        self.lastError = error.localizedDescription
+                        self.isRunning = false
+                    case .cancelled:
+                        self.isRunning = false
+                    default:
+                        break
+                    }
+                }
+            }
+            listener.start(queue: DispatchQueue(label: "ytlite.mac-cache.listen", qos: .userInitiated))
+            self.listener = listener
+        } catch {
+            lastError = error.localizedDescription
+            isRunning = false
+        }
+    }
+
+    func stop() {
+        listener?.cancel()
+        listener = nil
+        isRunning = false
+        token = ""
+        tracks = []
+        audioFiles = [:]
+        coverFiles = [:]
+    }
+
+    private nonisolated static func accept(
+        _ connection: NWConnection,
+        onRequest: @escaping @Sendable (WiFiImportServer.HTTPRequest) async -> Void
+    ) {
+        connection.start(queue: DispatchQueue(label: "ytlite.mac-cache.conn", qos: .userInitiated))
+        readHTTP(connection: connection, buffer: Data(), onRequest: onRequest)
+    }
+
+    private nonisolated static func readHTTP(
+        connection: NWConnection,
+        buffer: Data,
+        onRequest: @escaping @Sendable (WiFiImportServer.HTTPRequest) async -> Void
+    ) {
+        connection.receive(minimumIncompleteLength: 1, maximumLength: 256 * 1024) { data, _, isComplete, error in
+            if error != nil {
+                connection.cancel()
+                return
+            }
+            var next = buffer
+            if let data, !data.isEmpty { next.append(data) }
+            if let request = WiFiImportServer.tryParseHTTPRequest(next) {
+                Task { await onRequest(request) }
+                return
+            }
+            if isComplete || next.count > 2 * 1024 * 1024 {
+                connection.cancel()
+                return
+            }
+            readHTTP(connection: connection, buffer: next, onRequest: onRequest)
+        }
+    }
+
+    private func handle(_ request: WiFiImportServer.HTTPRequest, connection: NWConnection) {
+        let path = request.path.split(separator: "?").first.map(String.init) ?? request.path
+        let parts = path.split(separator: "/").map { String($0).removingPercentEncoding ?? String($0) }
+        if request.method == "POST", parts == ["v1", "pair"] {
+            let code = (try? JSONDecoder().decode(MacCachePairRequest.self, from: request.body))?.code
+                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            guard code == pairingCode, !token.isEmpty,
+                  let body = try? JSONEncoder().encode(MacCachePairResponse(token: token))
+            else {
+                Self.respond(connection, status: 401, body: Data("{}".utf8))
+                return
+            }
+            Self.respond(connection, status: 200, type: "application/json", body: body)
+            return
+        }
+
+        guard bearer(request.headers) == token, !token.isEmpty else {
+            Self.respond(connection, status: 401, body: Data("{}".utf8))
+            return
+        }
+        if request.method == "GET", parts == ["v1", "tracks"],
+           let body = try? JSONEncoder().encode(MacCacheTrackListBody(tracks: tracks)) {
+            Self.respond(connection, status: 200, type: "application/json", body: body)
+            return
+        }
+        if request.method == "GET", parts.count == 4, parts[0] == "v1", parts[1] == "tracks",
+           Self.isSafeVideoID(parts[2]) {
+            let videoId = parts[2]
+            if parts[3] == "audio", let url = audioFiles[videoId] {
+                servedCount += 1
+                Self.respondFile(connection, url: url, type: Self.audioType(for: url))
+                return
+            }
+            if parts[3] == "cover", let url = coverFiles[videoId] {
+                Self.respondFile(connection, url: url, type: "image/jpeg")
+                return
+            }
+        }
+        Self.respond(connection, status: 404, body: Data())
+    }
+
+    private func bearer(_ headers: String) -> String? {
+        for line in headers.split(separator: "\r\n") {
+            let lower = line.lowercased()
+            guard lower.hasPrefix("authorization:") else { continue }
+            let value = line.dropFirst("authorization:".count).trimmingCharacters(in: .whitespaces)
+            guard value.lowercased().hasPrefix("bearer ") else { return nil }
+            return String(value.dropFirst("bearer ".count)).trimmingCharacters(in: .whitespaces)
+        }
+        return nil
+    }
+
+    private static func isSafeVideoID(_ id: String) -> Bool {
+        guard (6...64).contains(id.count) else { return false }
+        return id.allSatisfy { ch in
+            ch.isASCII && (ch.isLetter || ch.isNumber || ch == "-" || ch == "_")
+        }
+    }
+
+    private static func audioType(for url: URL) -> String {
+        switch url.pathExtension.lowercased() {
+        case "mp3": return "audio/mpeg"
+        case "m4a", "mp4", "aac": return "audio/mp4"
+        default: return "application/octet-stream"
+        }
+    }
+
+    private nonisolated static func respond(
+        _ connection: NWConnection,
+        status: Int,
+        type: String = "application/json",
+        body: Data
+    ) {
+        let reason = status == 200 ? "OK" : (status == 401 ? "Unauthorized" : "Not Found")
+        let header = "HTTP/1.1 \(status) \(reason)\r\nContent-Type: \(type)\r\nContent-Length: \(body.count)\r\nConnection: close\r\n\r\n"
+        var payload = Data(header.utf8)
+        payload.append(body)
+        connection.send(content: payload, completion: .contentProcessed { _ in
+            connection.cancel()
+        })
+    }
+
+    private nonisolated static func respondFile(_ connection: NWConnection, url: URL, type: String) {
+        guard let handle = try? FileHandle(forReadingFrom: url) else {
+            respond(connection, status: 404, body: Data())
+            return
+        }
+        let size = (try? handle.seekToEnd()) ?? 0
+        try? handle.seek(toOffset: 0)
+        let header = Data("HTTP/1.1 200 OK\r\nContent-Type: \(type)\r\nContent-Length: \(size)\r\nConnection: close\r\n\r\n".utf8)
+        FileSender(connection: connection, handle: handle).send(next: header, readingFileAfter: true)
+    }
+}
+
+private final class FileSender: @unchecked Sendable {
+    private let connection: NWConnection
+    private let handle: FileHandle
+    private let chunkSize = 64 * 1024
+
+    init(connection: NWConnection, handle: FileHandle) {
+        self.connection = connection
+        self.handle = handle
+    }
+
+    func send(next: Data, readingFileAfter: Bool) {
+        if next.isEmpty {
+            try? handle.close()
+            connection.cancel()
+            return
+        }
+        connection.send(content: next, completion: .contentProcessed { [weak self] error in
+            guard let self else { return }
+            if error != nil {
+                try? self.handle.close()
+                self.connection.cancel()
+                return
+            }
+            guard readingFileAfter else {
+                try? self.handle.close()
+                self.connection.cancel()
+                return
+            }
+            let nextChunk = (try? self.handle.read(upToCount: self.chunkSize)) ?? Data()
+            self.send(next: nextChunk, readingFileAfter: !nextChunk.isEmpty)
+        })
+    }
+}
+#endif
+
+#if !targetEnvironment(macCatalyst)
+@MainActor
+final class MacCacheTransferBrowser: ObservableObject {
+    struct Device: Identifiable {
+        let id: String
+        let name: String
+        let endpoint: NWEndpoint
+    }
+
+    @Published private(set) var devices: [Device] = []
+    @Published private(set) var lastError: String?
+    private var browser: NWBrowser?
+
+    func start() {
+        stop()
+        let browser = NWBrowser(
+            for: .bonjour(type: "_mixtube-cache._tcp", domain: nil),
+            using: MacCacheHTTP.peerParameters()
+        )
+        browser.browseResultsChangedHandler = { [weak self] results, _ in
+            let found: [Device] = results.compactMap { result in
+                guard case let .service(name, _, _, _) = result.endpoint else { return nil }
+                return Device(id: name, name: name, endpoint: result.endpoint)
+            }
+            Task { @MainActor in
+                self?.devices = found
+            }
+        }
+        browser.stateUpdateHandler = { [weak self] state in
+            if case let .failed(error) = state {
+                Task { @MainActor in
+                    self?.lastError = error.localizedDescription
+                }
+            }
+        }
+        browser.start(queue: DispatchQueue(label: "ytlite.mac-cache.browse"))
+        self.browser = browser
+    }
+
+    func stop() {
+        browser?.cancel()
+        browser = nil
+    }
+}
+
+struct MacCacheTransferSession {
+    let endpoint: NWEndpoint
+    let token: String
+
+    static func pair(endpoint: NWEndpoint, code: String) async throws -> MacCacheTransferSession {
+        let body = try JSONEncoder().encode(MacCachePairRequest(code: code))
+        let request = MacCacheHTTP.requestData(method: "POST", path: "/v1/pair", token: nil, body: body)
+        let (status, data) = try await MacCacheHTTP.exchange(
+            endpoint: endpoint,
+            requestData: request,
+            fileDestination: nil
+        )
+        guard status == 200, let decoded = try? JSONDecoder().decode(MacCachePairResponse.self, from: data) else {
+            throw MacCacheTransferError.unauthorized
+        }
+        return MacCacheTransferSession(endpoint: endpoint, token: decoded.token)
+    }
+
+    func tracks() async throws -> [MacCacheTrackRecord] {
+        let request = MacCacheHTTP.requestData(method: "GET", path: "/v1/tracks", token: token, body: nil)
+        let (status, data) = try await MacCacheHTTP.exchange(
+            endpoint: endpoint,
+            requestData: request,
+            fileDestination: nil
+        )
+        guard status == 200, let decoded = try? JSONDecoder().decode(MacCacheTrackListBody.self, from: data) else {
+            throw status == 401 ? MacCacheTransferError.unauthorized : MacCacheTransferError.failed
+        }
+        return decoded.tracks
+    }
+
+    func download(videoId: String, kind: String, to destination: URL) async throws {
+        let request = MacCacheHTTP.requestData(
+            method: "GET",
+            path: "/v1/tracks/\(videoId)/\(kind)",
+            token: token,
+            body: nil
+        )
+        let (status, _) = try await MacCacheHTTP.exchange(
+            endpoint: endpoint,
+            requestData: request,
+            fileDestination: destination
+        )
+        guard status == 200 else {
+            throw status == 401 ? MacCacheTransferError.unauthorized : MacCacheTransferError.failed
+        }
+    }
+}
+#endif

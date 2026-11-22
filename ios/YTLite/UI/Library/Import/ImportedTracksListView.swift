@@ -20,6 +20,7 @@ private enum ImportedListFilter: Hashable {
         .source(.webdav),
         .source(.icloud),
         .source(.gdrive),
+        .source(.mac),
     ]
 }
 

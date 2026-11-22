@@ -20,6 +20,7 @@ enum ImportSourceKind: String, Codable, CaseIterable, Sendable {
     case icloud
     case gdrive
     case baidu
+    case mac
 
     var isImported: Bool { self != .youtube }
 
@@ -32,6 +33,7 @@ enum ImportSourceKind: String, Codable, CaseIterable, Sendable {
         case .icloud: return "import.source.icloud"
         case .gdrive: return "import.source.gdrive"
         case .baidu: return "import.source.baidu"
+        case .mac: return "import.source.mac"
         }
     }
 }

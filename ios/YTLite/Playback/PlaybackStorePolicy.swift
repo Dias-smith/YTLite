@@ -36,20 +36,38 @@ enum PlaybackStorePolicy {
         return "bin"
     }
 
-    /// Debug builds can store a finished stream from Settings. Release never does.
+    /// iPhone Release never stores streams. iPhone Debug follows the debug switch.
+    /// Mac stores streams when its own switch is on.
     static var isMediaCachePolicyEnabled: Bool {
-        #if DEBUG
+        #if targetEnvironment(macCatalyst)
+        return MacPlaybackCacheStore.isEnabled
+        #elseif DEBUG
         return DebugPlaybackCacheStore.forceEnableMediaCache
         #else
         return false
         #endif
     }
 
-    /// Release always resolves a fresh stream. DEBUG may play an already stored file.
+    /// iPhone Release always resolves a fresh stream. Mac and iPhone Debug may play a stored file.
     static var allowsDirectKickoffPlayback: Bool {
         isMediaCachePolicyEnabled && !NetworkVpnStatus.isActive
     }
 }
+
+#if targetEnvironment(macCatalyst)
+/// Mac playback-file switch. On until the user turns it off.
+enum MacPlaybackCacheStore {
+    private static let enabledKey = "mac.playback_media_cache.v1"
+
+    static var isEnabled: Bool {
+        get {
+            if UserDefaults.standard.object(forKey: enabledKey) == nil { return true }
+            return UserDefaults.standard.bool(forKey: enabledKey)
+        }
+        set { UserDefaults.standard.set(newValue, forKey: enabledKey) }
+    }
+}
+#endif
 
 #if DEBUG
 /// DEBUG-only override so local media caching can be exercised without Remote Config.

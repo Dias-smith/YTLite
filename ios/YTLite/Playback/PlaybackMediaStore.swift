@@ -65,7 +65,7 @@ actor PlaybackMediaStore {
         return index.values.map { ($0.videoId, $0.fileSize) }
     }
 
-    #if DEBUG
+    #if DEBUG || targetEnvironment(macCatalyst)
     func localFileURL(videoId: String) -> URL? {
         loadIndexIfNeeded()
         guard let entry = index[videoId] else { return nil }
@@ -91,7 +91,7 @@ actor PlaybackMediaStore {
         PlaybackCachedCover.resolveURL(videoId: videoId)
     }
 
-    #if DEBUG
+    #if DEBUG || targetEnvironment(macCatalyst)
     func schedulePersist(
         videoId: String,
         sourceURL: URL,
@@ -216,7 +216,7 @@ actor PlaybackMediaStore {
         if changed { persistIndex() }
     }
 
-    #if DEBUG
+    #if DEBUG || targetEnvironment(macCatalyst)
     private func destinationRelativePath(videoId: String, itag: Int, mimeType: String) -> String {
         let ext = PlaybackStorePolicy.fileExtension(for: mimeType)
         return "\(videoId)/\(itag).\(ext)"

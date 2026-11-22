@@ -61,6 +61,28 @@ struct SettingsView: View {
                 }
                 .tint(YTLiteColor.accent)
 
+                #if targetEnvironment(macCatalyst)
+                Toggle(
+                    isOn: Binding(
+                        get: { MacPlaybackCacheStore.isEnabled },
+                        set: { enabled in
+                            MacPlaybackCacheStore.isEnabled = enabled
+                            if !enabled {
+                                Task { await PlaybackMediaStore.shared.clearAll() }
+                            }
+                        }
+                    )
+                ) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(L("settings.mac_media_cache"))
+                        Text(L("settings.mac_media_cache.hint"))
+                            .font(YTLiteType.meta)
+                            .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                    }
+                }
+                .tint(YTLiteColor.accent)
+                #endif
+
                 Picker(
                     selection: Binding(
                         get: { ImportCachePolicy.budgetBytes },
@@ -250,7 +272,7 @@ struct SettingsView: View {
                 LabeledContent(L("settings.about"), value: appVersionLabel)
             }
 
-            #if DEBUG
+            #if DEBUG && !targetEnvironment(macCatalyst)
             Section {
                 Toggle(
                     "Force VIP (debug)",
@@ -282,6 +304,18 @@ struct SettingsView: View {
                 Text("Debug")
             } footer: {
                 Text("Debug-only. Media cache writes a local file after playback passes 10%.")
+            }
+            #elseif DEBUG
+            Section {
+                Toggle(
+                    "Force VIP (debug)",
+                    isOn: Binding(
+                        get: { vip.debugForceVip },
+                        set: { vip.debugForceVip = $0 }
+                    )
+                )
+            } header: {
+                Text("Debug")
             }
             #endif
         }

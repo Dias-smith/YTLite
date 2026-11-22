@@ -69,6 +69,17 @@ final class ImportIngestService {
         )
     }
 
+    /// Stores a JPEG cover for an imported track when the audio file had none.
+    func attachCover(trackId: String, jpeg: Data, store: LibraryStore) throws {
+        guard !jpeg.isEmpty, store.track(id: trackId) != nil else { return }
+        if ImportCoverStorage.existingURL(trackId: trackId) != nil { return }
+        let token = try writeArtwork(jpeg, trackId: trackId)
+        guard let track = store.track(id: trackId) else { return }
+        track.thumbnailHigh = token
+        track.updatedAt = .now
+        store.saveLocalOnly()
+    }
+
     /// Re-cache into an existing imported track (same trackId), e.g. WebDAV auto-cache refresh.
     func replaceAudio(
         trackId: String,

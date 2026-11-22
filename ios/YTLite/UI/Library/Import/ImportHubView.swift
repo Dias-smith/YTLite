@@ -10,6 +10,11 @@ private enum ImportHubSource: Identifiable {
     case icloud
     case gdrive
     case baidu
+    #if targetEnvironment(macCatalyst)
+    case macSend
+    #else
+    case macReceive
+    #endif
 
     var id: String {
         switch self {
@@ -20,6 +25,11 @@ private enum ImportHubSource: Identifiable {
         case .icloud: return "icloud"
         case .gdrive: return "gdrive"
         case .baidu: return "baidu"
+        #if targetEnvironment(macCatalyst)
+        case .macSend: return "macSend"
+        #else
+        case .macReceive: return "macReceive"
+        #endif
         }
     }
 
@@ -32,6 +42,11 @@ private enum ImportHubSource: Identifiable {
         case .icloud: return L("import.source.icloud")
         case .gdrive: return L("import.source.gdrive")
         case .baidu: return L("import.source.baidu")
+        #if targetEnvironment(macCatalyst)
+        case .macSend: return L("import.source.mac_send")
+        #else
+        case .macReceive: return L("import.source.mac_receive")
+        #endif
         }
     }
 
@@ -44,6 +59,11 @@ private enum ImportHubSource: Identifiable {
         case .icloud: return L("import.source.icloud.hint")
         case .gdrive: return L("import.source.gdrive.hint")
         case .baidu: return L("import.source.baidu.hint")
+        #if targetEnvironment(macCatalyst)
+        case .macSend: return L("import.source.mac_send.hint")
+        #else
+        case .macReceive: return L("import.source.mac_receive.hint")
+        #endif
         }
     }
 
@@ -56,6 +76,11 @@ private enum ImportHubSource: Identifiable {
         case .icloud: return "icloud"
         case .gdrive: return "globe"
         case .baidu: return "cloud"
+        #if targetEnvironment(macCatalyst)
+        case .macSend: return "iphone"
+        #else
+        case .macReceive: return "laptopcomputer"
+        #endif
         }
     }
 
@@ -80,11 +105,14 @@ private enum ImportHubSource: Identifiable {
         }
     }
 
-    static let all: [ImportHubSource] = [
-        // Baidu and Google Drive temporarily hidden — keep their cases / sheets for easy restore.
-        // Drive stays off until the Drive read permission clears review.
-        .local, .photos, .wifi, .webdav, .icloud,
-    ]
+    /// Baidu and Google Drive stay out of this list until their entries are turned back on.
+    static var all: [ImportHubSource] {
+        #if targetEnvironment(macCatalyst)
+        [.local, .photos, .wifi, .webdav, .icloud, .macSend]
+        #else
+        [.local, .photos, .wifi, .webdav, .icloud, .macReceive]
+        #endif
+    }
 }
 
 struct ImportHubView: View {
@@ -105,6 +133,11 @@ struct ImportHubView: View {
     @State private var showWebDAV = false
     @State private var showGoogleDrive = false
     @State private var showBaidu = false
+    #if targetEnvironment(macCatalyst)
+    @State private var showMacSend = false
+    #else
+    @State private var showMacReceive = false
+    #endif
     @State private var preferICloudPicker = false
     /// Photos/Files steal AVAudioSession; restore after dismiss/import if we were playing.
     @State private var resumePlaybackAfterPicker = false
@@ -216,6 +249,18 @@ struct ImportHubView: View {
                 trackActions.notifyListsChanged()
             }
         }
+        #if targetEnvironment(macCatalyst)
+        .fullScreenCover(isPresented: $showMacSend) {
+            MacCacheSendSheet()
+        }
+        #else
+        .fullScreenCover(isPresented: $showMacReceive) {
+            MacCacheReceiveSheet {
+                reloadCount()
+                trackActions.notifyListsChanged()
+            }
+        }
+        #endif
     }
 
     // MARK: - Library-style chrome
@@ -341,6 +386,13 @@ struct ImportHubView: View {
             showGoogleDrive = true
         case .baidu:
             showBaidu = true
+        #if targetEnvironment(macCatalyst)
+        case .macSend:
+            showMacSend = true
+        #else
+        case .macReceive:
+            showMacReceive = true
+        #endif
         }
     }
 

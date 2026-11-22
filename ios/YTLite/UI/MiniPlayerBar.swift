@@ -9,11 +9,8 @@ struct MiniPlayerBar: View {
     @EnvironmentObject private var appModel: AppModel
     @Environment(\.displayScale) private var displayScale
     @State private var swipeOffset: CGFloat = 0
-
-    private var progress: CGFloat {
-        guard progressClock.durationSeconds > 0 else { return 0 }
-        return CGFloat(progressClock.positionSeconds / progressClock.durationSeconds).clamped(to: 0...1)
-    }
+    @State private var swipeWidth: CGFloat = 0
+    @State private var settleTask: Task<Void, Never>?
 
     var body: some View {
         if let item = playback.nowPlaying {
@@ -21,35 +18,18 @@ struct MiniPlayerBar: View {
                 Rectangle()
                     .fill(YTLiteColor.chromeDivider)
                     .frame(height: YTLiteLayout.hairlineHeight(displayScale: displayScale))
-                progressBar
+                MiniPlayerProgressBar()
                 contentRow(item: item)
             }
             .background(YTLiteColor.miniPlayer)
-            .onChange(of: item.videoId) { _, _ in
-                swipeOffset = 0
-            }
         }
-    }
-
-    private var progressBar: some View {
-        GeometryReader { geo in
-            ZStack(alignment: .leading) {
-                Rectangle()
-                    .fill(YTLiteColor.miniProgressTrack)
-                Rectangle()
-                    .fill(YTLiteColor.accent)
-                    .frame(width: geo.size.width * progress)
-            }
-        }
-        .frame(height: YTLiteLayout.miniProgressHeight)
-        .allowsHitTesting(false)
     }
 
     private func contentRow(item: NowPlayingItem) -> some View {
         HStack(spacing: 0) {
             // Thumbnail + title: tap opens player; horizontal swipe skips tracks.
             HStack(spacing: 0) {
-                mediaSlot(item: item)
+                mediaSlot(item: item, showsLiveVideo: abs(swipeOffset) < 0.5)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(item.title)
                         .font(YTLiteType.body)
@@ -66,6 +46,15 @@ struct MiniPlayerBar: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .contentShape(Rectangle())
+            .background {
+                GeometryReader { proxy in
+                    Color.clear
+                        .onAppear { swipeWidth = proxy.size.width }
+                        .onChange(of: proxy.size.width) { _, width in
+                            swipeWidth = width
+                        }
+                }
+            }
             .offset(x: swipeOffset)
             .gesture(trackSwipeGesture)
             .simultaneousGesture(
@@ -118,48 +107,71 @@ struct MiniPlayerBar: View {
     private var trackSwipeGesture: some Gesture {
         DragGesture(minimumDistance: 16, coordinateSpace: .local)
             .onChanged { value in
+                settleTask?.cancel()
+                settleTask = nil
                 let dx = value.translation.width
                 let dy = value.translation.height
-                guard abs(dx) > abs(dy) * 1.1 else {
-                    if abs(swipeOffset) > 0 {
-                        swipeOffset = 0
-                    }
-                    return
-                }
-                var x = dx
-                // Soft rubber-band when there is no neighbor track.
-                if dx > 0 && !playback.hasPreviousInQueue {
+                let x: CGFloat
+                if abs(dx) <= abs(dy) * 1.1 {
+                    x = 0
+                } else if dx > 0 && !playback.hasPreviousInQueue {
                     x = dx * 0.22
                 } else if dx < 0 && !playback.hasNextInQueue {
                     x = dx * 0.22
                 } else {
-                    x = max(-120, min(120, dx))
+                    x = max(-swipeTravel, min(swipeTravel, dx))
                 }
-                swipeOffset = x
+                var transaction = Transaction()
+                transaction.disablesAnimations = true
+                withTransaction(transaction) {
+                    swipeOffset = x
+                }
             }
             .onEnded { value in
                 let dx = value.translation.width
                 let dy = value.translation.height
                 let predicted = value.predictedEndTranslation.width
                 let primary = abs(predicted) > abs(dx) ? predicted : dx
-                let shouldSkip = abs(dx) > abs(dy) * 1.1 && abs(primary) > 52
-
-                withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
-                    swipeOffset = 0
-                }
-
-                // Any clear horizontal swipe dismisses the coach mark (user discovered the gesture).
-                if abs(dx) > abs(dy) * 1.1, abs(primary) > 28 {
+                let horizontal = abs(dx) > abs(dy) * 1.1
+                if horizontal, abs(primary) > 28 {
                     dismissSwipeGuide()
                 }
-
-                guard shouldSkip else { return }
-                if primary < 0, playback.hasNextInQueue {
-                    playback.playNext()
-                } else if primary > 0, playback.hasPreviousInQueue {
-                    playback.playPrevious()
+                let skipNext = horizontal && primary < -52 && playback.hasNextInQueue
+                let skipPrevious = horizontal && primary > 52 && playback.hasPreviousInQueue
+                guard skipNext || skipPrevious else {
+                    withAnimation(.spring(response: 0.28, dampingFraction: 0.9)) {
+                        swipeOffset = 0
+                    }
+                    return
+                }
+                let travel = swipeTravel
+                let outgoing: CGFloat = skipNext ? -travel : travel
+                withAnimation(.easeOut(duration: 0.16)) {
+                    swipeOffset = outgoing
+                }
+                settleTask?.cancel()
+                settleTask = Task { @MainActor in
+                    try? await Task.sleep(nanoseconds: 150_000_000)
+                    guard !Task.isCancelled else { return }
+                    var transaction = Transaction()
+                    transaction.disablesAnimations = true
+                    withTransaction(transaction) {
+                        swipeOffset = -outgoing
+                    }
+                    if skipNext {
+                        playback.playNext(reason: "mini_swipe")
+                    } else {
+                        playback.playPrevious()
+                    }
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        swipeOffset = 0
+                    }
                 }
             }
+    }
+
+    private var swipeTravel: CGFloat {
+        swipeWidth > 1 ? swipeWidth : 160
     }
 
     private func dismissSwipeGuide() {
@@ -167,12 +179,11 @@ struct MiniPlayerBar: View {
     }
 
     @ViewBuilder
-    private func mediaSlot(item: NowPlayingItem) -> some View {
+    private func mediaSlot(item: NowPlayingItem, showsLiveVideo: Bool) -> some View {
         ZStack {
             Color.black
-            // Prefer live surface when stream exists and detail is not covering
-            // (AVPlayerLayer can only attach to one view at a time).
-            if !playerPresentation.isPresented, let player = playback.player {
+            // The live layer stays put while the finger is down. Moving AVPlayerLayer each frame stutters the swipe.
+            if showsLiveVideo, !playerPresentation.isPresented, let player = playback.player {
                 PipPlayerView(
                     player: player,
                     videoGravity: .resizeAspectFill,
@@ -186,6 +197,30 @@ struct MiniPlayerBar: View {
         .frame(height: YTLiteLayout.miniBarHeight)
         .aspectRatio(YTLiteLayout.miniMediaAspect, contentMode: .fit)
         .clipped()
+    }
+}
+
+/// Progress ticks stay in this view so they do not redraw the swiping row.
+private struct MiniPlayerProgressBar: View {
+    @EnvironmentObject private var progressClock: PlaybackProgressModel
+
+    private var progress: CGFloat {
+        guard progressClock.durationSeconds > 0 else { return 0 }
+        return CGFloat(progressClock.positionSeconds / progressClock.durationSeconds).clamped(to: 0...1)
+    }
+
+    var body: some View {
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                Rectangle()
+                    .fill(YTLiteColor.miniProgressTrack)
+                Rectangle()
+                    .fill(YTLiteColor.accent)
+                    .frame(width: geo.size.width * progress)
+            }
+        }
+        .frame(height: YTLiteLayout.miniProgressHeight)
+        .allowsHitTesting(false)
     }
 }
 

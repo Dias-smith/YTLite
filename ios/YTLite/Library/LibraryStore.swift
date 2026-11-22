@@ -543,7 +543,7 @@ final class LibraryStore {
         case duration
     }
 
-    func librarySongs(sort: LibrarySongSort = .recentActivity) -> [VideoItem] {
+    func librarySongs(sort: LibrarySongSort = .recentlySaved) -> [VideoItem] {
         struct Acc {
             var item: VideoItem
             var activity: Date
@@ -1408,6 +1408,16 @@ final class LibraryStore {
         return all
             .filter { $0.isImportedLocally }
             .sorted { $0.updatedAt > $1.updatedAt }
+    }
+
+    func importedTrack(remoteURI: String) -> LibraryTrack? {
+        guard !remoteURI.isEmpty else { return nil }
+        let uri = remoteURI
+        var descriptor = FetchDescriptor<LibraryTrack>(
+            predicate: #Predicate { $0.remoteURI == uri }
+        )
+        descriptor.fetchLimit = 1
+        return try? modelContext.fetch(descriptor).first
     }
 
     func importedTrack(contentHash: String) -> LibraryTrack? {

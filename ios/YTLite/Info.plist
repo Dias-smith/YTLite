@@ -70,9 +70,10 @@
 	<key>NSBonjourServices</key>
 	<array>
 		<string>_ytlite-import._tcp</string>
+		<string>_mixtube-cache._tcp</string>
 	</array>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>Mixtube uses the local network so you can import music from a computer on the same Wi‑Fi.</string>
+	<string>Mixtube uses the local network to transfer saved songs between Mixtube on your Mac and Mixtube on your iPhone, and to import music from a computer on the same Wi-Fi.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Mixtube needs photo library access to import videos and audio from your album.</string>
 	<key>NSUserTrackingUsageDescription</key>

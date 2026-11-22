@@ -162,7 +162,7 @@ final class PlaybackController: ObservableObject {
     /// Throttle History progress writes (Android ticks every 1s; SwiftData is coarser).
     private var lastHistoryProgressPersistAt: Date = .distantPast
     private var lastHistoryProgressVideoId: String?
-    #if DEBUG
+    #if DEBUG || targetEnvironment(macCatalyst)
     /// Progressive stream eligible for local persistence after the watch threshold.
     private struct PlaybackStoreContext {
         let videoId: String
@@ -858,7 +858,7 @@ final class PlaybackController: ObservableObject {
         AppAnalytics.playRequest(videoId: item.videoId, source: analyticsPlaySource)
         analyticsResolveStartedAt = PlayProbe.now()
         clearHLSQualityState()
-        #if DEBUG
+        #if DEBUG || targetEnvironment(macCatalyst)
         playbackStoreContext = nil
         playbackStoreThresholdMet = false
         #endif
@@ -941,7 +941,7 @@ final class PlaybackController: ObservableObject {
                     }
                     lastError = nil
                     playingFromPrepare = false
-                    #if DEBUG
+                    #if DEBUG || targetEnvironment(macCatalyst)
                     playbackStoreContext = nil
                     playbackStoreThresholdMet = true
                     #endif
@@ -966,7 +966,7 @@ final class PlaybackController: ObservableObject {
                     PlayProbe.log("play.ok", videoId: expectedVideoId, "source=import")
                     return
                 }
-                #if DEBUG
+                #if DEBUG || targetEnvironment(macCatalyst)
                 if !preferLiveHLS,
                    PlaybackStorePolicy.allowsDirectKickoffPlayback,
                    let localFileURL = await PlaybackMediaStore.shared.localFileURL(videoId: expectedVideoId)
@@ -1074,8 +1074,8 @@ final class PlaybackController: ObservableObject {
                 captionTracks = playback.captionTracks
                 refreshSubscribeState()
 
-                #if DEBUG
-                // A stored file is only a playback source in DEBUG. Release uses the URL just resolved.
+                #if DEBUG || targetEnvironment(macCatalyst)
+                // A stored file is a playback source on Mac and in iPhone Debug. iPhone Release uses the URL just resolved.
                 if !preferLiveHLS,
                    PlaybackStorePolicy.allowsDirectKickoffPlayback,
                    let localFileURL = await PlaybackMediaStore.shared.localFileURL(videoId: expectedVideoId)
@@ -1128,7 +1128,7 @@ final class PlaybackController: ObservableObject {
                     videoId: expectedVideoId,
                     "\(playback.preferredStreamDescription()) \(PlayProbe.streamSummary(url: url)) prepare=\(usedPrepare) prime=\(primedPlayerItem != nil)"
                 )
-                #if DEBUG
+                #if DEBUG || targetEnvironment(macCatalyst)
                 if let fmt = PlaybackFormatSelector.select(formats: playback.formats, preferVideo: true),
                    url == fmt.url
                 {
@@ -1659,7 +1659,7 @@ final class PlaybackController: ObservableObject {
         }
     }
 
-    #if DEBUG
+    #if DEBUG || targetEnvironment(macCatalyst)
     /// ***
     private func checkPlaybackStoreThreshold(position: Double, duration: Double?) {
         guard PlaybackStorePolicy.allowsDirectKickoffPlayback,
@@ -2471,7 +2471,7 @@ final class PlaybackController: ObservableObject {
                     let position = time.seconds.isFinite ? time.seconds : 0
                     self.progress.setPosition(position)
                     self.checkNextPrepareNearEnd(position: position, duration: duration)
-                    #if DEBUG
+                    #if DEBUG || targetEnvironment(macCatalyst)
                     self.checkPlaybackStoreThreshold(position: position, duration: duration)
                     #endif
                     self.persistHistoryProgressIfNeeded(force: false)
