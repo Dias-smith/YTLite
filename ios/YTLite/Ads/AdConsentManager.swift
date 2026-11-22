@@ -37,6 +37,10 @@ enum AdConsentManager {
     /// Call once at launch, before UMP / AdMob. Skips (and defers) when not foreground-active.
     static func requestTrackingAuthorizationAtLaunch() async {
         guard AdMobConfig.adsEnabled else { return }
+        if VipStore.shared.hasResolvedEntitlement, VipStore.shared.isVipActive {
+            AdProbe.log("att.skip", "reason=vip")
+            return
+        }
         guard !hasRequestedATTThisSession else { return }
         guard AppPermissionPromptGate.canPresent else {
             pendingATT = true

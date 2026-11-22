@@ -220,6 +220,10 @@ final class VipStore: ObservableObject {
         }
         hasResolvedEntitlement = true
         AdEligibility.refreshInventoryIfEligible()
+        // VIP → free: start ads SDK if it was skipped at launch.
+        if !isVipActive {
+            Task { await AdBootstrap.startIfNeeded() }
+        }
         ColdStartVipOffer.shared.consider()
     }
 

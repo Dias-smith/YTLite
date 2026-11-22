@@ -17,8 +17,15 @@ enum AdBootstrap {
     }
 
     /// Call once after first interactive frame: UMP → Mobile Ads → preload.
+    /// Skips entirely while VIP is active (no UMP / AdMob startup cost).
     static func startIfNeeded() async {
         guard AdMobConfig.adsEnabled else { return }
+        if VipStore.shared.hasResolvedEntitlement, VipStore.shared.isVipActive {
+            AdProbe.log("bootstrap.skip", "reason=vip")
+            return
+        }
+        // VIP→free (or launch skip) may never have requested ATT — do it before UMP.
+        await AdConsentManager.requestTrackingAuthorizationAtLaunch()
         enforceMutedAds()
         AdProbe.log("bootstrap.start")
         let allowed = await AdConsentManager.gatherConsentIfNeeded()

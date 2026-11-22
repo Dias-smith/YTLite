@@ -58,19 +58,24 @@ struct YTLiteApp: App {
                     PhoneWidgetCommandBridge.shared.start(playback: playback)
                     playback.publishPhoneWidgetSnapshot(force: true)
 
-                    // ATT / UMP only while foreground-active (deferred if launched into background).
-                    await AdConsentManager.requestTrackingAuthorizationAtLaunch()
-
-                    await RemoteConfigStore.fetchAndActivate()
+                    // Resolve VIP before ads/ATT so VIP users skip UMP + AdMob entirely.
+                    // Remote Config runs in parallel (offline flags, etc.).
+                    async let remoteConfig = RemoteConfigStore.fetchAndActivate()
                     await VipStore.shared.refresh()
+                    _ = await remoteConfig
+
+                    // ATT / UMP only for non-VIP, and only while foreground-active.
+                    if !VipStore.shared.isVipActive {
+                        await AdConsentManager.requestTrackingAuthorizationAtLaunch()
+                        await AdBootstrap.startIfNeeded()
+                    } else {
+                        AdProbe.log("launch.ads_skipped", "reason=vip")
+                    }
+
                     appModel.syncAuth(authService)
                     ReviewPromptCoordinator.shared.recordActiveDay()
-                    // Start after the first cooperative yield so early taps do not pay WKWebView startup.
-                    Task(priority: .utility) {
-                        await Task.yield()
-                        _ = try? await StreamResolver.shared.ensureReady()
-                    }
-                    await AdBootstrap.startIfNeeded()
+                    // StreamResolver WKWebView warms on first resolve that needs the bridge
+                    // (avoid ~2s WebContent/GPU cost on every cold launch).
                     ColdStartVipOffer.shared.noteLaunchFlowReady()
                 }
                 .adSceneLifecycle()
