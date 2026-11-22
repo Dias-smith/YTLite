@@ -570,6 +570,7 @@ enum MacCacheProbe {
 enum MacCacheTransferError: Error {
     case unauthorized
     case failed
+    case unreachable
 }
 
 enum MacCacheLink {
@@ -663,22 +664,38 @@ enum MacCacheHTTP {
         return data
     }
 
+    private static let connectTimeout: TimeInterval = 4
+
     private static func waitUntilReady(_ connection: NWConnection, queue: DispatchQueue) async throws {
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            let gate = ResumeOnce()
-            connection.stateUpdateHandler = { state in
-                switch state {
-                case .ready:
-                    gate.run { continuation.resume() }
-                case .failed(let error):
-                    gate.run { continuation.resume(throwing: error) }
-                case .cancelled:
-                    gate.run { continuation.resume(throwing: CancellationError()) }
-                default:
-                    break
+        try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+                let gate = ResumeOnce()
+                let timer = DispatchSource.makeTimerSource(queue: queue)
+                timer.schedule(deadline: .now() + connectTimeout)
+                timer.setEventHandler {
+                    connection.cancel()
+                    gate.run { continuation.resume(throwing: MacCacheTransferError.unreachable) }
                 }
+                connection.stateUpdateHandler = { state in
+                    switch state {
+                    case .ready:
+                        timer.cancel()
+                        gate.run { continuation.resume() }
+                    case .failed(let error):
+                        timer.cancel()
+                        gate.run { continuation.resume(throwing: error) }
+                    case .cancelled:
+                        timer.cancel()
+                        gate.run { continuation.resume(throwing: CancellationError()) }
+                    default:
+                        break
+                    }
+                }
+                timer.resume()
+                connection.start(queue: queue)
             }
-            connection.start(queue: queue)
+        } onCancel: {
+            connection.cancel()
         }
     }
 

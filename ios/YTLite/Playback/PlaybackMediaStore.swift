@@ -298,6 +298,13 @@ actor PlaybackMediaStore {
     }
 
     /// Download remote artwork into `{videoId}/cover.jpg` once media is cached.
+    func ensureCover(videoId: String, thumbnailURL: URL?) async -> URL? {
+        await persistCoverIfNeeded(videoId: videoId, thumbnailURL: thumbnailURL)
+        let url = PlaybackCachedCover.fileURL(videoId: videoId)
+        guard fileManager.fileExists(atPath: url.path) else { return nil }
+        return url
+    }
+
     private func persistCoverIfNeeded(videoId: String, thumbnailURL: URL?) async {
         let dest = PlaybackCachedCover.fileURL(videoId: videoId)
         if fileManager.fileExists(atPath: dest.path) { return }

@@ -381,8 +381,8 @@ struct MacCacheSendSheet: View {
             let row = store?.track(id: snapshot.videoId)
             let title = row?.title.trimmingCharacters(in: .whitespacesAndNewlines)
             let ext = file.pathExtension.isEmpty ? "m4a" : file.pathExtension.lowercased()
-            let cover = PlaybackCachedCover.fileURL(videoId: snapshot.videoId)
-            let hasCover = FileManager.default.fileExists(atPath: cover.path)
+            let cover = await offerCover(videoId: snapshot.videoId, storedThumbnail: row?.thumbnailURLString)
+            let hasCover = cover != nil
             records.append(
                 MacCacheTrackRecord(
                     videoId: snapshot.videoId,
@@ -395,7 +395,7 @@ struct MacCacheSendSheet: View {
                 )
             )
             audio[snapshot.videoId] = file
-            if hasCover { covers[snapshot.videoId] = cover }
+            if let cover { covers[snapshot.videoId] = cover }
         }
         var seen = Set(records.map(\.videoId))
         for track in store?.importedTracks() ?? [] {
@@ -408,8 +408,8 @@ struct MacCacheSendSheet: View {
             let size = (try? file.resourceValues(forKeys: [.fileSizeKey]).fileSize).map(Int64.init) ?? 0
             guard size > 0 else { continue }
             let ext = file.pathExtension.isEmpty ? "m4a" : file.pathExtension.lowercased()
-            let cover = ImportCoverStorage.fileURL(trackId: track.trackId)
-            let hasCover = FileManager.default.fileExists(atPath: cover.path)
+            let cover = await offerCover(videoId: track.trackId, storedThumbnail: track.thumbnailURLString)
+            let hasCover = cover != nil
             let title = track.title.trimmingCharacters(in: .whitespacesAndNewlines)
             records.append(
                 MacCacheTrackRecord(
@@ -423,7 +423,7 @@ struct MacCacheSendSheet: View {
                 )
             )
             audio[track.trackId] = file
-            if hasCover { covers[track.trackId] = cover }
+            if let cover { covers[track.trackId] = cover }
         }
         tracks = records
         audioById = audio
@@ -431,6 +431,29 @@ struct MacCacheSendSheet: View {
         selected = Set(records.map(\.videoId))
         loaded = true
         publishOffer(selected, restart: true)
+    }
+
+    /// Local `cover.jpg` when it exists. Otherwise save the artwork the library already shows, including a remote thumbnail.
+    private func offerCover(videoId: String, storedThumbnail: String?) async -> URL? {
+        let cached = PlaybackCachedCover.fileURL(videoId: videoId)
+        if FileManager.default.fileExists(atPath: cached.path) { return cached }
+        let imported = ImportCoverStorage.fileURL(trackId: videoId)
+        if FileManager.default.fileExists(atPath: imported.path) { return imported }
+        return await PlaybackMediaStore.shared.ensureCover(
+            videoId: videoId,
+            thumbnailURL: Self.coverSourceURL(videoId: videoId, stored: storedThumbnail)
+        )
+    }
+
+    private static func coverSourceURL(videoId: String, stored: String?) -> URL? {
+        if let resolved = ImportCoverStorage.resolveURL(trackId: videoId, stored: stored) {
+            if resolved.isFileURL {
+                return URL(fileURLWithPath: resolved.path)
+            }
+            return resolved
+        }
+        guard let stored, stored.hasPrefix("http"), let url = URL(string: stored) else { return nil }
+        return url
     }
 
     /// Publishes the checked songs. Restarting rebinds the port, so a checkbox change only replaces the offer.
@@ -894,7 +917,7 @@ struct MacCacheReceiveSheet: View {
         } catch MacCacheTransferError.unauthorized {
             message = L("import.mac.pair_failed")
         } catch {
-            message = error.localizedDescription
+            message = L("import.mac.same_wifi")
         }
     }
 
@@ -904,6 +927,12 @@ struct MacCacheReceiveSheet: View {
         guard !chosen.isEmpty else { return }
         let pending = chosen.filter { track in
             store.importedTrack(remoteURI: "mac-cache:\(track.videoId)") == nil
+        }
+        let already = chosen.filter { track in
+            store.importedTrack(remoteURI: "mac-cache:\(track.videoId)") != nil
+        }
+        if !already.isEmpty {
+            await repairExistingCovers(already, session: session, store: store)
         }
         guard !pending.isEmpty else {
             toastMessage = L("toast.already_imported")
@@ -948,20 +977,12 @@ struct MacCacheReceiveSheet: View {
                     row.remoteURI = uri
                     store.saveLocalOnly()
                 }
-                if track.hasCover, ImportCoverStorage.existingURL(trackId: result.trackId) == nil {
-                    let coverURL = FileManager.default.temporaryDirectory
-                        .appendingPathComponent(UUID().uuidString)
-                        .appendingPathExtension("jpg")
-                    try? await session.download(videoId: track.videoId, kind: "cover", to: coverURL)
-                    if let data = try? Data(contentsOf: coverURL), !data.isEmpty {
-                        try? ImportIngestService.shared.attachCover(
-                            trackId: result.trackId,
-                            jpeg: data,
-                            store: store
-                        )
-                    }
-                    try? FileManager.default.removeItem(at: coverURL)
-                }
+                await attachTransferredCover(
+                    videoId: track.videoId,
+                    trackId: result.trackId,
+                    session: session,
+                    store: store
+                )
                 try? FileManager.default.removeItem(at: audioURL)
                 importedCount += 1
             } catch is CancellationError {
@@ -999,6 +1020,50 @@ struct MacCacheReceiveSheet: View {
         importedIDs = Set(tracks.compactMap { track in
             store.importedTrack(remoteURI: "mac-cache:\(track.videoId)") == nil ? nil : track.videoId
         })
+    }
+
+    /// Fills a cover for a song that is already on the phone but never received artwork.
+    private func repairExistingCovers(
+        _ tracks: [MacCacheTrackRecord],
+        session: MacCacheTransferSession,
+        store: LibraryStore
+    ) async {
+        for track in tracks {
+            if Task.isCancelled { return }
+            guard let row = store.importedTrack(remoteURI: "mac-cache:\(track.videoId)") else { continue }
+            await attachTransferredCover(
+                videoId: track.videoId,
+                trackId: row.trackId,
+                session: session,
+                store: store
+            )
+        }
+    }
+
+    private func attachTransferredCover(
+        videoId: String,
+        trackId: String,
+        session: MacCacheTransferSession,
+        store: LibraryStore
+    ) async {
+        guard ImportIngestService.shared.coverNeedsReplacement(trackId: trackId) else { return }
+        let coverURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathExtension("jpg")
+        defer { try? FileManager.default.removeItem(at: coverURL) }
+        if (try? await session.download(videoId: videoId, kind: "cover", to: coverURL)) != nil,
+           let data = try? Data(contentsOf: coverURL),
+           !data.isEmpty,
+           UIImage(data: data) != nil,
+           !ImportIngestService.jpegDataIsNearlyBlank(data) {
+            try? ImportIngestService.shared.attachCover(
+                trackId: trackId,
+                jpeg: data,
+                store: store,
+                overwrite: true
+            )
+        }
+        await ImportIngestService.shared.fillCoverIfBlank(trackId: trackId, store: store)
     }
 
     private func openOfflinePlaylist() {

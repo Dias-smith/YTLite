@@ -11252,6 +11252,59 @@
         }
       }
     },
+    "import.mac.same_wifi" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تعذر الاتصال. يجب أن يكون جهاز Mac والهاتف على شبكة Wi-Fi نفسها."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't connect. The Mac and iPhone must be on the same Wi-Fi."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudo conectar. El Mac y el iPhone deben estar en la misma red Wi-Fi."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connexion impossible. Le Mac et l'iPhone doivent être sur le même Wi-Fi."
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "कनेक्ट नहीं हो सका। Mac और फ़ोन एक ही Wi-Fi पर होने चाहिए।"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Não foi possível conectar. O Mac e o iPhone precisam estar no mesmo Wi-Fi."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "连接失败。Mac 和手机必须处于同一个 Wi-Fi 环境下"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "連線失敗。Mac 和手機必須處於同一個 Wi-Fi 環境下"
+          }
+        }
+      }
+    },
     "import.mac.scan" : {
       "extractionState" : "manual",
       "localizations" : {

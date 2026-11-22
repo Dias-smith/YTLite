@@ -1,6 +1,7 @@
 import AVFoundation
 import Foundation
 import ImageIO
+import UIKit
 import UniformTypeIdentifiers
 
 @MainActor
@@ -70,14 +71,42 @@ final class ImportIngestService {
     }
 
     /// Stores a JPEG cover for an imported track when the audio file had none.
-    func attachCover(trackId: String, jpeg: Data, store: LibraryStore) throws {
+    /// A blank frame already on disk can be replaced.
+    func attachCover(trackId: String, jpeg: Data, store: LibraryStore, overwrite: Bool = false) throws {
         guard !jpeg.isEmpty, store.track(id: trackId) != nil else { return }
-        if ImportCoverStorage.existingURL(trackId: trackId) != nil { return }
+        let file = ImportCoverStorage.fileURL(trackId: trackId)
+        if FileManager.default.fileExists(atPath: file.path) {
+            guard overwrite else { return }
+            try? FileManager.default.removeItem(at: file)
+        }
         let token = try writeArtwork(jpeg, trackId: trackId)
         guard let track = store.track(id: trackId) else { return }
         track.thumbnailHigh = token
         track.updatedAt = .now
         store.saveLocalOnly()
+    }
+
+    /// True when this track has no cover, or the saved cover is a near-black frame.
+    func coverNeedsReplacement(trackId: String) -> Bool {
+        let file = ImportCoverStorage.fileURL(trackId: trackId)
+        guard FileManager.default.fileExists(atPath: file.path) else { return true }
+        return Self.jpegFileIsNearlyBlank(file)
+    }
+
+    /// Grabs a later, non-black video frame when the track still has no usable cover.
+    func fillCoverIfBlank(trackId: String, store: LibraryStore) async {
+        guard coverNeedsReplacement(trackId: trackId),
+              let track = store.track(id: trackId),
+              let audioURL = LocalMediaStore.shared.audioURL(
+                trackId: trackId,
+                relativePath: track.localRelativePath
+              )
+        else { return }
+        let asset = AVURLAsset(url: audioURL)
+        let duration = (try? await asset.load(.duration)).map { CMTimeGetSeconds($0) } ?? 0
+        let seconds = duration.isFinite && duration > 0 ? Int(duration.rounded()) : track.durationSeconds
+        guard let jpeg = await extractVideoPoster(asset: asset, durationSeconds: seconds) else { return }
+        try? attachCover(trackId: trackId, jpeg: jpeg, store: store, overwrite: true)
     }
 
     /// Re-cache into an existing imported track (same trackId), e.g. WebDAV auto-cache refresh.
@@ -132,7 +161,7 @@ final class ImportIngestService {
         var duration = 0
         var artworkToken: String?
         if let sourceURL {
-            let meta = await probeMetadata(url: sourceURL)
+            let meta = await probeMetadata(url: sourceURL, allowVideoPoster: sourceKind != .mac)
             duration = meta.durationSeconds
             if let art = meta.artworkData {
                 artworkToken = try? writeArtwork(art, trackId: trackId)
@@ -186,7 +215,7 @@ final class ImportIngestService {
         var artworkData: Data?
     }
 
-    private func probeMetadata(url: URL) async -> Probed {
+    private func probeMetadata(url: URL, allowVideoPoster: Bool) async -> Probed {
         let asset = AVURLAsset(url: url)
         var durationSeconds = 0
         if let duration = try? await asset.load(.duration) {
@@ -200,21 +229,23 @@ final class ImportIngestService {
             for item in meta {
                 guard let common = item.commonKey else { continue }
                 if common == .commonKeyArtwork,
-                   let data = try? await item.load(.dataValue)
+                   let data = try? await item.load(.dataValue),
+                   !data.isEmpty,
+                   !Self.jpegDataIsNearlyBlank(data)
                 {
                     artwork = data
                     break
                 }
             }
         }
-        // Videos often have no embedded album art — grab a frame as cover.
-        if artwork == nil {
+        // Mac imports prefer the transferred thumbnail. A generated frame is only a fallback.
+        if artwork == nil, allowVideoPoster {
             artwork = await extractVideoPoster(asset: asset, durationSeconds: durationSeconds)
         }
         return Probed(durationSeconds: durationSeconds, artworkData: artwork)
     }
 
-    /// First usable video frame (≈1s or 10% of duration) as JPEG cover.
+    /// A frame from later in the video. The generator's default tolerance snaps to the opening keyframe, which is often black.
     private func extractVideoPoster(asset: AVURLAsset, durationSeconds: Int) async -> Data? {
         guard let tracks = try? await asset.loadTracks(withMediaType: .video), !tracks.isEmpty else {
             return nil
@@ -222,19 +253,77 @@ final class ImportIngestService {
         let generator = AVAssetImageGenerator(asset: asset)
         generator.appliesPreferredTrackTransform = true
         generator.maximumSize = CGSize(width: 720, height: 720)
-        let candidates: [Double] = {
-            if durationSeconds <= 0 { return [0.5, 0] }
-            let mid = min(1.0, max(0.1, Double(durationSeconds) * 0.1))
-            return [mid, 0.5, 0]
-        }()
-        for seconds in candidates {
+        let tolerance = CMTime(seconds: 0.35, preferredTimescale: 600)
+        generator.requestedTimeToleranceBefore = tolerance
+        generator.requestedTimeToleranceAfter = tolerance
+        for seconds in posterTimes(durationSeconds: durationSeconds) {
             let time = CMTime(seconds: seconds, preferredTimescale: 600)
             guard let cgImage = try? await generator.image(at: time).image,
+                  !Self.isNearlyBlank(cgImage),
                   let jpeg = jpegData(from: cgImage, quality: 0.85)
             else { continue }
             return jpeg
         }
         return nil
+    }
+
+    /// Sample past the usual black lead-in. Never asks for time zero.
+    private func posterTimes(durationSeconds: Int) -> [Double] {
+        let duration = Double(durationSeconds)
+        guard duration > 1 else { return [0.4] }
+        let end = max(1, duration - 0.3)
+        let raw = [
+            min(end, max(8, duration * 0.12)),
+            min(end, duration * 0.30),
+            min(end, duration * 0.50),
+            min(end, 15),
+            min(end, 5),
+        ]
+        var times: [Double] = []
+        for time in raw where time >= 1 || duration < 4 {
+            if times.allSatisfy({ abs($0 - time) >= 0.5 }) {
+                times.append(time)
+            }
+        }
+        return times.isEmpty ? [min(end, 1)] : times
+    }
+
+    static func jpegDataIsNearlyBlank(_ data: Data) -> Bool {
+        guard let image = UIImage(data: data)?.cgImage else { return false }
+        return isNearlyBlank(image)
+    }
+
+    private static func jpegFileIsNearlyBlank(_ url: URL) -> Bool {
+        guard let data = try? Data(contentsOf: url) else { return false }
+        return jpegDataIsNearlyBlank(data)
+    }
+
+    /// A fade-from-black or empty opening frame, not a merely dark scene.
+    private static func isNearlyBlank(_ image: CGImage) -> Bool {
+        let width = 16
+        let height = 16
+        var pixels = [UInt8](repeating: 0, count: width * height * 4)
+        guard let context = CGContext(
+            data: &pixels,
+            width: width,
+            height: height,
+            bitsPerComponent: 8,
+            bytesPerRow: width * 4,
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else { return false }
+        context.interpolationQuality = .low
+        context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
+        var sum = 0
+        var peak = 0
+        let count = width * height
+        for index in stride(from: 0, to: pixels.count, by: 4) {
+            let luma = (Int(pixels[index]) * 3 + Int(pixels[index + 1]) * 6 + Int(pixels[index + 2])) / 10
+            sum += luma
+            peak = max(peak, luma)
+        }
+        let average = sum / count
+        return average < 16 && peak < 36
     }
 
     /// Fill missing covers for already-imported video files (embedded art / prior ingest).

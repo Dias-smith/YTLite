@@ -110,7 +110,7 @@ private enum ImportHubSource: Identifiable {
         #if targetEnvironment(macCatalyst)
         [.local, .photos, .wifi, .webdav, .icloud, .macSend]
         #else
-        [.local, .photos, .wifi, .webdav, .icloud, .macReceive]
+        [.macReceive, .local, .photos, .wifi, .webdav, .icloud]
         #endif
     }
 }
