@@ -37,6 +37,39 @@ final class GoogleDriveImportClient: NSObject, ObservableObject {
         AppConfig.fromBundle().googleClientID.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    /// Web application clients need this for `authorization_code` exchange (iOS clients use PKCE only).
+    private var googleClientSecret: String {
+        let raw = (Bundle.main.object(forInfoDictionaryKey: "GOOGLE_CLIENT_SECRET") as? String)?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if raw.isEmpty || raw.hasPrefix("$(") { return "" }
+        return raw
+    }
+
+    private static func formBody(_ fields: [String: String]) -> Data? {
+        var allowed = CharacterSet.urlQueryAllowed
+        allowed.remove(charactersIn: ":/?&=+$#")
+        return fields
+            .map { key, value in
+                let k = key.addingPercentEncoding(withAllowedCharacters: allowed) ?? key
+                let v = value.addingPercentEncoding(withAllowedCharacters: allowed) ?? value
+                return "\(k)=\(v)"
+            }
+            .joined(separator: "&")
+            .data(using: .utf8)
+    }
+
+    private static func googleOAuthErrorMessage(data: Data, status: Int) -> String {
+        if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+            let err = (json["error"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
+            let desc = (json["error_description"] as? String)?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            if let err, let desc, !desc.isEmpty { return "\(err): \(desc)" }
+            if let err, !err.isEmpty { return err }
+            if let desc, !desc.isEmpty { return desc }
+        }
+        return "HTTP \(status)"
+    }
+
     /// Opens Google OAuth with `trigger_onepick`, exchanges the code, then loads metadata for picked IDs.
     func pickFiles() async -> [DriveFile] {
         lastError = nil
@@ -204,29 +237,43 @@ final class GoogleDriveImportClient: NSObject, ObservableObject {
 
     private func exchangeCode(_ code: String, verifier: String) async throws {
         let clientId = googleClientID
+        let secret = googleClientSecret
+        guard !secret.isEmpty else {
+            throw NSError(
+                domain: "YTLite.GoogleDrive",
+                code: 1,
+                userInfo: [
+                    NSLocalizedDescriptionKey:
+                        "Missing GOOGLE_CLIENT_SECRET. Open Google Cloud → Credentials → Mixtube Web Backend → copy Client secret into ios/Config/Secrets.xcconfig.local",
+                ]
+            )
+        }
         guard let url = URL(string: "https://oauth2.googleapis.com/token") else {
             throw URLError(.badURL)
         }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
-        let body: [String: String] = [
+        var fields: [String: String] = [
             "client_id": clientId,
+            "client_secret": secret,
             "code": code,
             "code_verifier": verifier,
             "grant_type": "authorization_code",
             "redirect_uri": redirectURI,
         ]
-        request.httpBody = body
-            .map { key, value in
-                "\(key)=\(value.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? value)"
-            }
-            .joined(separator: "&")
-            .data(using: .utf8)
+        request.httpBody = Self.formBody(fields)
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        // Avoid URLSession turning HTTP 401 + WWW-Authenticate into NSURLError -1013.
+        let (data, response) = try await OAuthHTTP.post(request)
         let status = (response as? HTTPURLResponse)?.statusCode ?? -1
-        guard (200...299).contains(status) else { throw URLError(.badServerResponse) }
+        guard (200...299).contains(status) else {
+            throw NSError(
+                domain: "YTLite.GoogleDrive",
+                code: status,
+                userInfo: [NSLocalizedDescriptionKey: Self.googleOAuthErrorMessage(data: data, status: status)]
+            )
+        }
         struct Token: Decodable {
             let access_token: String
             let refresh_token: String?
@@ -244,25 +291,24 @@ final class GoogleDriveImportClient: NSObject, ObservableObject {
 
     private func refreshAccessToken(using refreshToken: String) async -> String? {
         let clientId = googleClientID
+        let secret = googleClientSecret
         guard !clientId.isEmpty, let url = URL(string: "https://oauth2.googleapis.com/token") else {
             return nil
         }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
-        let body: [String: String] = [
+        var fields: [String: String] = [
             "client_id": clientId,
             "refresh_token": refreshToken,
             "grant_type": "refresh_token",
         ]
-        request.httpBody = body
-            .map { key, value in
-                "\(key)=\(value.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? value)"
-            }
-            .joined(separator: "&")
-            .data(using: .utf8)
+        if !secret.isEmpty {
+            fields["client_secret"] = secret
+        }
+        request.httpBody = Self.formBody(fields)
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (data, response) = try await OAuthHTTP.post(request)
             guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode),
                   let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                   let access = json["access_token"] as? String,
@@ -296,6 +342,12 @@ final class GoogleDriveImportClient: NSObject, ObservableObject {
         {
             return true
         }
+        if ns.domain == NSURLErrorDomain {
+            // -999 cancelled, -1013 userCancelledAuthentication (sheet closed / auth challenge).
+            if ns.code == NSURLErrorCancelled || ns.code == NSURLErrorUserCancelledAuthentication {
+                return true
+            }
+        }
         return false
     }
 
@@ -325,6 +377,33 @@ extension GoogleDriveImportClient: ASWebAuthenticationPresentationContextProvidi
             .compactMap { $0 as? UIWindowScene }
             .flatMap(\.windows)
             .first { $0.isKeyWindow } ?? ASPresentationAnchor()
+    }
+}
+
+/// Token endpoint helper: reject HTTP auth challenges so 401 bodies are returned (not -1013).
+private final class OAuthHTTP: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
+    static func post(_ request: URLRequest) async throws -> (Data, URLResponse) {
+        let delegate = OAuthHTTP()
+        let session = URLSession(
+            configuration: .ephemeral,
+            delegate: delegate,
+            delegateQueue: nil
+        )
+        defer { session.finishTasksAndInvalidate() }
+        return try await session.data(for: request)
+    }
+
+    func urlSession(
+        _ session: URLSession,
+        task: URLSessionTask,
+        didReceive challenge: URLAuthenticationChallenge,
+        completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void
+    ) {
+        if challenge.protectionSpace.authenticationMethod == NSURLAuthenticationMethodServerTrust {
+            completionHandler(.performDefaultHandling, nil)
+        } else {
+            completionHandler(.rejectProtectionSpace, nil)
+        }
     }
 }
 
