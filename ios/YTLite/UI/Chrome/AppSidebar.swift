@@ -4,13 +4,22 @@ struct AppSidebar: View {
     @Binding var selected: AppTab
     var isAuthenticated: Bool
 
+    private var youTabTitle: String {
+        #if targetEnvironment(macCatalyst)
+        // Mac DMG build is account/sign-in oriented — never label this tab "Subs".
+        L("tab.account")
+        #else
+        isAuthenticated ? L("tab.account") : L("tab.subs")
+        #endif
+    }
+
     private var items: [(AppTab, String, String)] {
         [
             (.home, L("tab.home"), "house.fill"),
             (.search, L("tab.search"), "magnifyingglass"),
             (.library, L("tab.library"), "rectangle.stack.fill"),
             (.importMusic, L("tab.import"), "square.and.arrow.down"),
-            (.you, isAuthenticated ? L("tab.account") : L("tab.subs"), "play.square.fill"),
+            (.you, youTabTitle, "play.square.fill"),
         ]
     }
 

@@ -248,6 +248,9 @@ struct PlayerDetailView: View {
                 }
             }
             .frame(width: geo.size.width, height: geo.size.height)
+            .overlay(alignment: .topLeading) {
+                macDismissControl
+            }
             .offset(y: max(0, dismissDragOffset))
             .scaleEffect(dismissScale, anchor: .top)
             .opacity(dismissOpacity)
@@ -455,6 +458,8 @@ struct PlayerDetailView: View {
             }
 
             // Always keep a dismiss control — buffering / auto-hide hide the full overlay.
+            // Mac: dismiss sits at the window top-leading corner (see macDismissControl).
+            #if !targetEnvironment(macCatalyst)
             VStack {
                 HStack {
                     overlayIconButton(systemName: "chevron.down") {
@@ -468,6 +473,7 @@ struct PlayerDetailView: View {
             }
             .zIndex(3)
             .allowsHitTesting(true)
+            #endif
 
             // Tap catcher under overlay so control buttons keep priority.
             Color.clear
@@ -772,6 +778,21 @@ struct PlayerDetailView: View {
                 .foregroundStyle(YTLiteColor.onMedia)
                 .frame(minWidth: 36, alignment: .trailing)
         }
+    }
+
+    /// Mac only: pin dismiss to the window top-leading corner (below traffic lights).
+    @ViewBuilder
+    private var macDismissControl: some View {
+        #if targetEnvironment(macCatalyst)
+        overlayIconButton(systemName: "chevron.down") {
+            dismiss()
+        }
+        .padding(.leading, YTLiteLayout.stackLoose)
+        .padding(.top, YTLiteLayout.stackTight)
+        .accessibilityLabel(L("common.close"))
+        #else
+        EmptyView()
+        #endif
     }
 
     private func overlayIconButton(systemName: String, action: @escaping () -> Void) -> some View {

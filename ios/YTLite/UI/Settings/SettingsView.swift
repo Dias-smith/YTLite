@@ -17,6 +17,7 @@ struct SettingsView: View {
         let _ = appBackground.revision
         let _ = appModel.languageCode
         Form {
+            #if !targetEnvironment(macCatalyst)
             Section {
                 Button {
                     showVip = true
@@ -49,6 +50,7 @@ struct SettingsView: View {
             } header: {
                 Text(L("vip.section"))
             }
+            #endif
 
             Section {
                 Toggle(

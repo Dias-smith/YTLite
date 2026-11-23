@@ -4,6 +4,15 @@ struct EqualizerSheet: View {
     @EnvironmentObject private var playback: PlaybackController
     @EnvironmentObject private var equalizerStore: PlaybackEqualizerStore
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+
+    private var isWideCanvas: Bool {
+        #if targetEnvironment(macCatalyst)
+        true
+        #else
+        YTLiteAdaptive.isRegularWidth(horizontalSizeClass)
+        #endif
+    }
 
     var body: some View {
         NavigationStack {
@@ -20,6 +29,7 @@ struct EqualizerSheet: View {
                         presets: PlaybackEqualizerCatalog.presets,
                         selectedPresetID: equalizerStore.selectedPresetID,
                         disabled: playback.isPlayingHLS,
+                        wraps: isWideCanvas,
                         onSelect: { presetID in
                             equalizerStore.selectPreset(presetID)
                             playback.refreshEqualizer()
@@ -30,22 +40,15 @@ struct EqualizerSheet: View {
                 }
 
                 Section {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(alignment: .bottom, spacing: 6) {
-                            ForEach(0..<PlaybackEqualizerCatalog.bandCount, id: \.self) { index in
-                                EqualizerBandSlider(
-                                    frequencyHz: PlaybackEqualizerCatalog.bandFrequenciesHz[index],
-                                    gainDb: binding(for: index)
-                                )
-                                .disabled(playback.isPlayingHLS || !equalizerStore.isEnabled)
-                            }
-                        }
-                        .padding(.horizontal, 4)
-                    }
+                    EqualizerBandBoard(
+                        isWide: isWideCanvas,
+                        disabled: playback.isPlayingHLS || !equalizerStore.isEnabled,
+                        gainBinding: binding(for:)
+                    )
                     .id(equalizerStore.selectedPresetID)
-                    .frame(height: 360)
+                    .frame(height: isWideCanvas ? 340 : 360)
                     .listRowBackground(YTLiteColor.surfaceElevated)
-                    .listRowInsets(EdgeInsets(top: 8, leading: 8, bottom: 8, trailing: 8))
+                    .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16))
 
                     Button(L("equalizer.reset_custom")) {
                         equalizerStore.resetCustomBands()
@@ -86,6 +89,7 @@ struct EqualizerSheet: View {
             }
             .scrollContentBackground(.hidden)
             .background(YTLiteColor.surfaceElevated)
+            .ytLiteContentWidth(760, enabled: isWideCanvas)
             .navigationTitle(L("equalizer.title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -93,13 +97,24 @@ struct EqualizerSheet: View {
                     Button(L("common.close")) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Toggle("", isOn: $equalizerStore.isEnabled)
+                    if isWideCanvas {
+                        Toggle(isOn: $equalizerStore.isEnabled) {
+                            Text(L("equalizer.title"))
+                        }
                         .toggleStyle(.switch)
                         .labelsHidden()
                         .tint(YTLiteColor.accent)
                         .disabled(playback.isPlayingHLS)
-                        .fixedSize()
-                        .padding(.trailing, 6)
+                        .accessibilityLabel(L("equalizer.title"))
+                    } else {
+                        Toggle("", isOn: $equalizerStore.isEnabled)
+                            .toggleStyle(.switch)
+                            .labelsHidden()
+                            .tint(YTLiteColor.accent)
+                            .disabled(playback.isPlayingHLS)
+                            .fixedSize()
+                            .padding(.trailing, 6)
+                    }
                 }
             }
             .toolbarBackground(YTLiteColor.surfaceElevated, for: .navigationBar)
@@ -107,6 +122,9 @@ struct EqualizerSheet: View {
             .onChange(of: equalizerStore.isEnabled) { _, _ in
                 playback.refreshEqualizer()
             }
+            #if targetEnvironment(macCatalyst)
+            .frame(minWidth: 640, idealWidth: 720, minHeight: 560, idealHeight: 640)
+            #endif
         }
     }
 
@@ -121,16 +139,66 @@ struct EqualizerSheet: View {
     }
 }
 
+private struct EqualizerBandBoard: View {
+    let isWide: Bool
+    let disabled: Bool
+    let gainBinding: (Int) -> Binding<Float>
+
+    var body: some View {
+        GeometryReader { geo in
+            let count = CGFloat(PlaybackEqualizerCatalog.bandCount)
+            let spacing: CGFloat = isWide ? 14 : 6
+            let usable = max(geo.size.width - spacing * (count - 1), count * 28)
+            let bandWidth = usable / count
+            let trackHeight: CGFloat = isWide ? 260 : 320
+
+            Group {
+                if isWide {
+                    bandRow(bandWidth: bandWidth, trackHeight: trackHeight, spacing: spacing)
+                } else {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        bandRow(bandWidth: max(bandWidth, 28), trackHeight: trackHeight, spacing: spacing)
+                            .padding(.horizontal, 4)
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .disabled(disabled)
+        .opacity(disabled ? 0.45 : 1)
+    }
+
+    private func bandRow(bandWidth: CGFloat, trackHeight: CGFloat, spacing: CGFloat) -> some View {
+        HStack(alignment: .bottom, spacing: spacing) {
+            ForEach(0..<PlaybackEqualizerCatalog.bandCount, id: \.self) { index in
+                EqualizerBandSlider(
+                    frequencyHz: PlaybackEqualizerCatalog.bandFrequenciesHz[index],
+                    gainDb: gainBinding(index),
+                    bandWidth: bandWidth,
+                    trackHeight: trackHeight,
+                    compact: !isWide
+                )
+            }
+        }
+        .frame(maxWidth: .infinity)
+    }
+}
+
 private struct EqualizerPresetChipRow: View {
     let presets: [PlaybackEqualizerPreset]
     let selectedPresetID: String
     let disabled: Bool
+    var wraps: Bool = false
     let onSelect: (String) -> Void
 
+    private var gridColumns: [GridItem] {
+        [GridItem(.adaptive(minimum: 96), spacing: 8, alignment: .leading)]
+    }
+
     var body: some View {
-        ScrollViewReader { proxy in
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
+        Group {
+            if wraps {
+                LazyVGrid(columns: gridColumns, alignment: .leading, spacing: 8) {
                     ForEach(presets) { preset in
                         EqualizerPresetChip(
                             title: L(preset.nameKey),
@@ -139,15 +207,31 @@ private struct EqualizerPresetChipRow: View {
                         ) {
                             onSelect(preset.id)
                         }
-                        .id(preset.id)
                     }
                 }
-            }
-            .onAppear {
-                scrollToSelectedPreset(using: proxy, animated: false)
-            }
-            .onChange(of: selectedPresetID) { _, _ in
-                scrollToSelectedPreset(using: proxy, animated: true)
+            } else {
+                ScrollViewReader { proxy in
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(presets) { preset in
+                                EqualizerPresetChip(
+                                    title: L(preset.nameKey),
+                                    selected: selectedPresetID == preset.id,
+                                    disabled: disabled
+                                ) {
+                                    onSelect(preset.id)
+                                }
+                                .id(preset.id)
+                            }
+                        }
+                    }
+                    .onAppear {
+                        scrollToSelectedPreset(using: proxy, animated: false)
+                    }
+                    .onChange(of: selectedPresetID) { _, _ in
+                        scrollToSelectedPreset(using: proxy, animated: true)
+                    }
+                }
             }
         }
     }
@@ -264,10 +348,14 @@ private struct EqualizerVolumeSlider: View {
 private struct EqualizerBandSlider: View {
     let frequencyHz: Int
     @Binding var gainDb: Float
+    var bandWidth: CGFloat = 28
+    var trackHeight: CGFloat = 320
+    var compact: Bool = true
 
-    private let trackHeight: CGFloat = 320
-    private let thumbSize: CGFloat = 14
-    private let trackWidth: CGFloat = 3
+    private var trackWidth: CGFloat { compact ? 3 : 4 }
+    private var thumbSize: CGFloat { compact ? 14 : 16 }
+    private var valueFont: CGFloat { compact ? 10 : 12 }
+    private var labelFont: CGFloat { compact ? 10 : 12 }
 
     private var label: String {
         if frequencyHz >= 1000 {
@@ -277,11 +365,11 @@ private struct EqualizerBandSlider: View {
     }
 
     var body: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: compact ? 4 : 8) {
             Text(String(format: "%+.0f", gainDb))
-                .font(.system(size: 10, weight: .medium, design: .monospaced))
+                .font(.system(size: valueFont, weight: .medium, design: .monospaced))
                 .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                .frame(height: 12)
+                .frame(height: compact ? 12 : 16)
 
             GeometryReader { geo in
                 let height = geo.size.height
@@ -312,13 +400,14 @@ private struct EqualizerBandSlider: View {
                         }
                 )
             }
-            .frame(width: 28, height: trackHeight)
+            .frame(maxWidth: .infinity)
+            .frame(height: trackHeight)
 
             Text(label)
-                .font(.system(size: 10, weight: .regular))
+                .font(.system(size: labelFont, weight: .regular))
                 .foregroundStyle(YTLiteColor.onSurfaceVariant)
         }
-        .frame(width: 28)
+        .frame(width: max(bandWidth, compact ? 28 : 36))
     }
 
     private func thumbCenterY(in height: CGFloat) -> CGFloat {

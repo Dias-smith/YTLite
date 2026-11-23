@@ -9,14 +9,22 @@ struct MainTabBar: View {
     var separatorAlignment: Alignment = .top
     @Environment(\.displayScale) private var displayScale
 
+    private var youTabTitle: String {
+        #if targetEnvironment(macCatalyst)
+        L("tab.account")
+        #else
+        // Android: guest "Subs" → authenticated "catalog"
+        isAuthenticated ? L("tab.account") : L("tab.subs")
+        #endif
+    }
+
     private var items: [(AppTab, String, String)] {
         [
             (.home, L("tab.home"), "house.fill"),
             (.search, L("tab.search"), "magnifyingglass"),
             (.library, L("tab.library"), "rectangle.stack.fill"),
             (.importMusic, L("tab.import"), "square.and.arrow.down"),
-            // Android: guest "Subs" → authenticated "catalog"
-            (.you, isAuthenticated ? L("tab.account") : L("tab.subs"), "play.square.fill"),
+            (.you, youTabTitle, "play.square.fill"),
         ]
     }
 

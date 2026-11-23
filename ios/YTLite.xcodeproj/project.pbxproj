@@ -1882,6 +1882,7 @@
 				CODE_SIGN_ENTITLEMENTS = YTLiteMac/YTLiteMac.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 0;
 				DERIVE_MACCATALYST_PRODUCT_BUNDLE_IDENTIFIER = NO;
 				DEVELOPMENT_LANGUAGE = en;
 				DEVELOPMENT_TEAM = 8S748AQ4H7;
@@ -1893,6 +1894,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				MARKETING_VERSION = 1.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.ytlite.player.mac;
 				PRODUCT_MODULE_NAME = YTLiteMac;
 				PRODUCT_NAME = Mixtube;
@@ -2055,6 +2057,7 @@
 				CODE_SIGN_ENTITLEMENTS = YTLiteMac/YTLiteMac.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 0;
 				DERIVE_MACCATALYST_PRODUCT_BUNDLE_IDENTIFIER = NO;
 				DEVELOPMENT_LANGUAGE = en;
 				DEVELOPMENT_TEAM = 8S748AQ4H7;
@@ -2066,6 +2069,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				MARKETING_VERSION = 1.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.ytlite.player.mac;
 				PRODUCT_MODULE_NAME = YTLiteMac;
 				PRODUCT_NAME = Mixtube;

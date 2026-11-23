@@ -2,7 +2,14 @@ import Foundation
 
 /// AdMob IDs and pacing. Values are injected by Debug / Release xcconfig through Info.plist.
 nonisolated enum AdMobConfig {
-    static let adsEnabled = true
+    /// Mac Catalyst (website DMG): no ads — never request, load, or present.
+    static let adsEnabled: Bool = {
+        #if targetEnvironment(macCatalyst)
+        false
+        #else
+        true
+        #endif
+    }()
 
     static let appID = infoValue("GADApplicationIdentifier")
     static let appOpenAdUnitID = infoValue("YTLiteAdMobAppOpenAdUnitID")

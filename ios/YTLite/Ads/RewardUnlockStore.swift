@@ -32,8 +32,15 @@ final class VipStore: ObservableObject {
 
     private init() {
         VipProbe.log("init")
+        #if targetEnvironment(macCatalyst)
+        // Website DMG Mac build: all VIP features unlocked; no StoreKit / ads.
+        isVipActive = true
+        hasResolvedEntitlement = true
+        VipProbe.log("init.mac", "vip_forced=1 ads=off")
+        #else
         transactionListener = Task { await listenForTransactions() }
         Task { await refresh() }
+        #endif
     }
 
     deinit {
@@ -52,6 +59,10 @@ final class VipStore: ObservableObject {
     #endif
 
     func loadProducts() async {
+        #if targetEnvironment(macCatalyst)
+        products = []
+        return
+        #endif
         isLoadingProducts = true
         defer { isLoadingProducts = false }
         VipProbe.log("products.load.start", "ids=\(VipProductID.all.joined(separator: ","))")
@@ -107,6 +118,9 @@ final class VipStore: ObservableObject {
     }
 
     func purchase(_ product: Product) async {
+        #if targetEnvironment(macCatalyst)
+        return
+        #endif
         isPurchasing = true
         defer { isPurchasing = false }
         VipProbe.log("purchase.start", "product=\(product.id)")
@@ -143,6 +157,11 @@ final class VipStore: ObservableObject {
     }
 
     func restorePurchases() async {
+        #if targetEnvironment(macCatalyst)
+        isVipActive = true
+        hasResolvedEntitlement = true
+        return
+        #endif
         isPurchasing = true
         defer { isPurchasing = false }
         VipProbe.log("restore.start")
@@ -163,6 +182,15 @@ final class VipStore: ObservableObject {
     }
 
     func refresh() async {
+        #if targetEnvironment(macCatalyst)
+        isVipActive = true
+        hasResolvedEntitlement = true
+        activeProductID = nil
+        expirationDate = nil
+        revision += 1
+        VipProbe.log("entitlement.refresh.ok", "mac_forced_vip=1")
+        return
+        #endif
         VipProbe.log("entitlement.refresh.start")
         var activeID: String?
         var expiry: Date?

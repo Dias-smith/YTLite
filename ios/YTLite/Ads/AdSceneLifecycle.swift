@@ -391,6 +391,10 @@ final class ColdStartVipOffer: ObservableObject {
         guard !isConsidering else { return }
         isConsidering = true
         defer { isConsidering = false }
+        #if targetEnvironment(macCatalyst)
+        finishWithoutPaywall()
+        return
+        #endif
         guard coldLaunchOpen, !didDecide else { return }
         guard libraryReady, sessionResolved, !awaitingInitialSync else { return }
         guard launchFlowReady, VipStore.shared.hasResolvedEntitlement else { return }
