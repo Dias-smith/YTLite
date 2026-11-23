@@ -105,8 +105,8 @@
           identifiers) is a consumer media app. Its purpose is to let people discover and play
           online video and music, keep a personal library (playlists, likes, history), optionally
           sync that library when signed in, and optionally <strong>import their own audio files</strong>
-          from sources they choose — including Files, Wi‑Fi transfer, and
-          <strong>Google Drive (read-only)</strong>.
+          from sources they choose — including Files, Wi‑Fi transfer, iCloud, and
+          Google Drive via Google’s official file picker (<code>drive.file</code> only).
         </p>
         <p class="lead">
           This homepage is public. You do not need to create an account or sign in to read about
@@ -133,12 +133,11 @@
           <li>
             <h3>Optional Google Drive import</h3>
             <p>
-              When you choose <strong>Import → Google Drive</strong>, Mixtube may request
-              <code>drive.readonly</code> solely so you can browse audio/video files in
-              <em>your</em> Drive and download selected files to this device for offline playback
-              in your local Imported library. We do not upload Drive files to our servers, do not
-              change or share Drive content, and do not use Drive data for advertising or AI model
-              training.
+              When you choose <strong>Import → Google Drive</strong>, Mixtube requests only
+              <code>drive.file</code> and opens Google’s official file picker so you can select
+              specific audio/video files. Access is limited to files you pick — not your entire
+              Drive. Selected files are copied to this device’s Imported library only — we do not
+              upload them to our servers or use them for advertising or AI model training.
             </p>
           </li>
         </ul>

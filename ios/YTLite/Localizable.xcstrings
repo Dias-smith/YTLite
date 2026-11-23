@@ -9403,49 +9403,102 @@
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "لم يتم العثور على ملفات صوتية"
+            "value" : "اختر ملفات صوتية من Google Drive. يتم منح الوصول للملفات التي تختارها فقط."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No audio files found"
+            "value" : "Choose audio from Google Drive. Access is granted only for the files you pick."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No se encontraron archivos de audio"
+            "value" : "Elige audio de Google Drive. Solo se autorizan los archivos que selecciones."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Aucun fichier audio"
+            "value" : "Choisissez des fichiers audio dans Google Drive. L’accès ne porte que sur les fichiers sélectionnés."
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "कोई ऑडियो फ़ाइल नहीं मिली"
+            "value" : "Google Drive से ऑडियो चुनें। केवल चुनी गई फ़ाइलों की अनुमति मिलती है।"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Nenhum arquivo de áudio encontrado"
+            "value" : "Escolha áudio no Google Drive. O acesso vale só para os arquivos que você selecionar."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "未找到音频文件"
+            "value" : "从 Google Drive 选择音频。仅授权你选中的文件。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "未找到音频文件"
+            "value" : "從 Google Drive 選擇音訊。僅授權你選取的檔案。"
+          }
+        }
+      }
+    },
+    "import.gdrive.pick" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "اختيار ملفات"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose files"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elegir archivos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choisir des fichiers"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "फ़ाइलें चुनें"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escolher arquivos"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择文件"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "選擇檔案"
           }
         }
       }
@@ -9456,49 +9509,49 @@
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "تسجيل الدخول باستخدام Google"
+            "value" : "اختيار من Google Drive"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sign in with Google"
+            "value" : "Choose from Google Drive"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Iniciar sesión con Google"
+            "value" : "Elegir de Google Drive"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Se connecter avec Google"
+            "value" : "Choisir dans Google Drive"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Google से साइन इन करें"
+            "value" : "Google Drive से चुनें"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Entrar com o Google"
+            "value" : "Escolher no Google Drive"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "使用 Google 登录"
+            "value" : "从 Google Drive 选择"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "使用 Google 登入"
+            "value" : "從 Google Drive 選擇"
           }
         }
       }
@@ -9552,6 +9605,165 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "退出登入"
+          }
+        }
+      }
+    },
+    "import.gdrive.files_guide.message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "سيفتح منتقي الملفات. اختر «استعراض» ثم Google Drive. إذا لم يظهر، ثبّت تطبيق Google Drive وفعّله من تعديل المواقع."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Files will open next. Tap Browse, then Google Drive. If it’s missing, install the Google Drive app and enable it under Browse → Edit."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A continuación se abrirá Archivos. Pulsa Explorar y luego Google Drive. Si no aparece, instala la app Google Drive y actívala en Explorar → Editar."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fichiers s’ouvrira ensuite. Touchez Parcourir, puis Google Drive. S’il manque, installez l’app Google Drive et activez-la via Parcourir → Modifier."
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "अगले में Files खुलेगा। Browse टैप करें, फिर Google Drive। न दिखे तो Google Drive ऐप इंस्टॉल करें और Browse → Edit में चालू करें।"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O app Arquivos abrirá em seguida. Toque em Explorar e depois em Google Drive. Se não aparecer, instale o app Google Drive e ative em Explorar → Editar."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "接下来会打开「文件」。请点「浏览」，再选 Google Drive。若没有该项：先安装 Google Drive App，再在「浏览 → 编辑」里打开。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "接下來會開啟「檔案」。請點「瀏覽」，再選 Google Drive。若沒有該項：先安裝 Google Drive App，再在「瀏覽 → 編輯」裡開啟。"
+          }
+        }
+      }
+    },
+    "import.gdrive.files_guide.open" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "فتح الملفات"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Files"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abrir Archivos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ouvrir Fichiers"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Files खोलें"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abrir Arquivos"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开文件"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "開啟檔案"
+          }
+        }
+      }
+    },
+    "import.gdrive.files_guide.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "الاستيراد من Google Drive"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Import from Google Drive"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Importar desde Google Drive"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Importer depuis Google Drive"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Google Drive से आयात करें"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Importar do Google Drive"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "从 Google Drive 导入"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "從 Google Drive 匯入"
           }
         }
       }
@@ -11894,49 +12106,49 @@
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "تنزيل من Google Drive"
+            "value" : "اختيار عبر Google ثم الاستيراد"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Download from Google Drive"
+            "value" : "Pick with Google, then import"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Descargar desde Google Drive"
+            "value" : "Elegir con Google e importar"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Télécharger depuis Google Drive"
+            "value" : "Choisir via Google, puis importer"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Google Drive से डाउनलोड करें"
+            "value" : "Google से चुनें, फिर आयात करें"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Baixar do Google Drive"
+            "value" : "Escolher com o Google e importar"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "从 Google Drive 下载"
+            "value" : "用 Google 选文件后导入"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "从 Google Drive 下载"
+            "value" : "用 Google 選檔後匯入"
           }
         }
       }

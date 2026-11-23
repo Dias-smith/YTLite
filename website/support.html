@@ -75,10 +75,12 @@
         <details>
           <summary>How does Google Drive import work?</summary>
           <p>
-            In <strong>Mixtube</strong>, open Import → Google Drive and grant the optional
-            <code>drive.readonly</code> permission. You can browse audio/video files in your Drive
-            and download selected items to this device’s Imported library. File contents stay on
-            your device; you can revoke access anytime in your Google Account permissions. See the
+            In <strong>Mixtube</strong>, open Import → Google Drive. The app opens Google’s
+            official file picker (OAuth scope <code>drive.file</code> only) so you can choose
+            specific audio/video files. Selected files are downloaded into this device’s Imported
+            library only. This is separate from Google Sign-In used for YouTube library display,
+            and Mixtube does <strong>not</strong> request broad Drive access such as
+            <code>drive.readonly</code>. See the
             <a href="privacy.html">Privacy Policy</a> for details.
           </p>
         </details>

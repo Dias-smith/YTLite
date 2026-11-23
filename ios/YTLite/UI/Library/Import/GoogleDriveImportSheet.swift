@@ -3,7 +3,6 @@ import SwiftUI
 struct GoogleDriveImportSheet: View {
     var onImported: () -> Void
 
-    @EnvironmentObject private var auth: AuthService
     @Environment(\.libraryStore) private var store
     @Environment(\.dismiss) private var dismiss
     @ObservedObject private var client = GoogleDriveImportClient.shared
@@ -27,10 +26,10 @@ struct GoogleDriveImportSheet: View {
     var body: some View {
         NavigationStack {
             Group {
-                if client.isAuthorized {
-                    fileList
+                if files.isEmpty {
+                    emptyBody
                 } else {
-                    signInBody
+                    fileList
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -53,20 +52,13 @@ struct GoogleDriveImportSheet: View {
                 bottomInset
             }
             .onAppear { refreshImportedRemoteURIs() }
-            .task {
-                client.attach(auth: auth)
-                await migrateLegacyDriveAuthIfNeeded()
-                if client.isAuthorized {
-                    await reload()
-                }
-            }
         }
     }
 
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
         ToolbarItem(placement: .cancellationAction) {
-            if client.isAuthorized, isSelectionMode {
+            if isSelectionMode {
                 toolbarIconButton("xmark", label: L("common.cancel")) {
                     exitSelectionMode()
                 }
@@ -76,19 +68,23 @@ struct GoogleDriveImportSheet: View {
                 }
             }
         }
-        if client.isAuthorized {
-            ToolbarItemGroup(placement: .primaryAction) {
-                if isSelectionMode {
-                    toolbarIconButton("checklist", label: Lf("common.n_selected", importableFiles.count)) {
-                        selectedIds = Set(importableFiles.map(\.id))
+        ToolbarItemGroup(placement: .primaryAction) {
+            if isSelectionMode {
+                toolbarIconButton("checklist", label: Lf("common.n_selected", importableFiles.count)) {
+                    selectedIds = Set(importableFiles.map(\.id))
+                }
+                .disabled(importableFiles.isEmpty)
+            } else {
+                toolbarIconButton("plus", label: L("import.gdrive.pick")) {
+                    Task { await pickAndMerge() }
+                }
+                .disabled(isBusy || !rowProgress.isEmpty)
+                if !importableFiles.isEmpty {
+                    toolbarIconButton("checkmark.circle", label: L("tab.import")) {
+                        enterSelectionMode()
                     }
-                    .disabled(importableFiles.isEmpty)
-                } else {
-                    if !importableFiles.isEmpty {
-                        toolbarIconButton("checkmark.circle", label: L("tab.import")) {
-                            enterSelectionMode()
-                        }
-                    }
+                }
+                if client.isAuthorized {
                     toolbarIconButton(
                         "rectangle.portrait.and.arrow.right",
                         label: L("import.gdrive.sign_out")
@@ -115,7 +111,7 @@ struct GoogleDriveImportSheet: View {
 
     @ViewBuilder
     private var bottomInset: some View {
-        if client.isAuthorized, isSelectionMode, !selectedIds.isEmpty {
+        if isSelectionMode, !selectedIds.isEmpty {
             Button {
                 Task { await importSelected() }
             } label: {
@@ -151,13 +147,18 @@ struct GoogleDriveImportSheet: View {
         }
     }
 
-    private var signInBody: some View {
-        ZStack {
-            Color.clear
+    private var emptyBody: some View {
+        VStack(spacing: YTLiteLayout.stackLoose) {
+            Text(L("import.gdrive.empty"))
+                .font(YTLiteType.body)
+                .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, YTLiteLayout.screenPadding)
+
             Button {
-                Task { await signInAndReload() }
+                Task { await pickAndMerge() }
             } label: {
-                Text(L("import.gdrive.sign_in"))
+                Text(L("import.gdrive.pick"))
                     .font(YTLiteType.labelEmphasized)
                     .foregroundStyle(YTLiteColor.onAccent)
                     .padding(.horizontal, 24)
@@ -181,17 +182,8 @@ struct GoogleDriveImportSheet: View {
                         .padding(.top, 8)
                         .padding(.bottom, 4)
                 }
-                if files.isEmpty, !isBusy, errorText == nil {
-                    Text(L("import.gdrive.empty"))
-                        .font(YTLiteType.body)
-                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 48)
-                        .padding(.horizontal, YTLiteLayout.screenPadding)
-                } else {
-                    ForEach(files) { file in
-                        fileRow(file)
-                    }
+                ForEach(files) { file in
+                    fileRow(file)
                 }
             }
             .padding(.bottom, 88)
@@ -352,72 +344,29 @@ struct GoogleDriveImportSheet: View {
     }
 
     private func signOut() {
-        client.signOut(auth: auth)
+        client.signOut()
         files = []
         exitSelectionMode()
         clearTransientMessages()
     }
 
-    /// Legacy Keychain Drive token without Supabase Google session → one OAuth so Subs is signed in.
-    private func migrateLegacyDriveAuthIfNeeded() async {
-        client.syncAuthorizedFlag(auth: auth)
-        let hasLegacy = ImportSourceStore.shared.token(provider: "gdrive") != nil
-        let hasGoogleSession = auth.authProvider == .google && auth.googleAccessToken != nil
-        guard hasLegacy, !hasGoogleSession else { return }
-        _ = await auth.ensureGoogleDriveAccess(source: "import_gdrive_migrate")
-        if let token = await auth.ensureFreshGoogleAccessToken() ?? auth.googleAccessToken {
-            ImportSourceStore.shared.setToken(
-                provider: "gdrive",
-                accessToken: token,
-                refreshToken: nil,
-                expiry: Date().addingTimeInterval(3500)
-            )
-        }
-        client.attach(auth: auth)
-    }
-
-    private func signInAndReload() async {
+    private func pickAndMerge() async {
         isBusy = true
         clearTransientMessages()
         defer { isBusy = false }
-        await client.signIn(auth: auth)
-        if client.isAuthorized {
-            await reload()
-        } else if let err = client.lastError {
+        let picked = await client.pickFiles()
+        if let err = client.lastError {
             showError(err)
+            return
         }
-    }
-
-    private func reload() async {
-        isBusy = true
-        clearTransientMessages()
-        defer { isBusy = false }
-        do {
-            var collected: [GoogleDriveImportClient.DriveFile] = []
-            var seen = Set<String>()
-            var pageToken: String?
-            var pages = 0
-            repeat {
-                let result = try await client.listAudioFiles(pageToken: pageToken)
-                for file in result.files where seen.insert(file.id).inserted {
-                    collected.append(file)
-                }
-                pageToken = result.nextPage
-                pages += 1
-            } while pageToken != nil && pages < 20
-            files = collected
-            selectedIds = selectedIds.intersection(Set(files.map(\.id)))
-            if !files.isEmpty || client.isAuthorized {
-                auth.markGoogleDriveGranted()
-            }
-            refreshImportedRemoteURIs()
-        } catch {
-            showError(error.localizedDescription)
-            files = []
-            if (error as? URLError)?.code == .userAuthenticationRequired {
-                client.syncAuthorizedFlag(auth: auth)
-            }
+        guard !picked.isEmpty else { return }
+        var seen = Set(files.map(\.id))
+        var merged = files
+        for file in picked where seen.insert(file.id).inserted {
+            merged.append(file)
         }
+        files = merged
+        refreshImportedRemoteURIs()
     }
 
     private func open(_ file: GoogleDriveImportClient.DriveFile) async {
@@ -472,7 +421,6 @@ struct GoogleDriveImportSheet: View {
                 rowProgress[fileId] = nil
                 lastError = error.localizedDescription
                 if (error as? URLError)?.code == .userAuthenticationRequired {
-                    client.syncAuthorizedFlag(auth: auth)
                     break
                 }
             }

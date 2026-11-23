@@ -105,12 +105,13 @@ private enum ImportHubSource: Identifiable {
         }
     }
 
-    /// Baidu and Google Drive stay out of this list until their entries are turned back on.
+    /// Baidu stays out until its entry is turned back on.
+    /// Google Drive uses `drive.file` + official Google file picker (onepick).
     static var all: [ImportHubSource] {
         #if targetEnvironment(macCatalyst)
-        [.local, .photos, .wifi, .webdav, .icloud, .macSend]
+        [.local, .photos, .wifi, .webdav, .icloud, .gdrive, .macSend]
         #else
-        [.macReceive, .local, .photos, .wifi, .webdav, .icloud]
+        [.macReceive, .local, .photos, .wifi, .webdav, .icloud, .gdrive]
         #endif
     }
 }
@@ -132,7 +133,7 @@ struct ImportHubView: View {
     @State private var statusMessage: String?
     @State private var showWiFi = false
     @State private var showWebDAV = false
-    @State private var showGoogleDrive = false
+    @State private var showGDrive = false
     @State private var showBaidu = false
     #if targetEnvironment(macCatalyst)
     @State private var showMacSend = false
@@ -238,7 +239,7 @@ struct ImportHubView: View {
                 trackActions.notifyListsChanged()
             }
         }
-        .fullScreenCover(isPresented: $showGoogleDrive) {
+        .sheet(isPresented: $showGDrive) {
             GoogleDriveImportSheet {
                 reloadCount()
                 trackActions.notifyListsChanged()
@@ -385,7 +386,7 @@ struct ImportHubView: View {
             resumePlaybackAfterPicker = playback.isPlaying
             showFileImporter = true
         case .gdrive:
-            showGoogleDrive = true
+            showGDrive = true
         case .baidu:
             showBaidu = true
         #if targetEnvironment(macCatalyst)
@@ -434,8 +435,10 @@ struct ImportHubView: View {
                 let accessed = url.startAccessingSecurityScopedResource()
                 defer { if accessed { url.stopAccessingSecurityScopedResource() } }
                 guard ImportIngestService.isSupportedAudioURL(url) else { continue }
-                let kind: ImportSourceKind =
-                    preferICloudPicker || url.path.contains("Mobile Documents") ? .icloud : .local
+                let kind: ImportSourceKind = {
+                    if preferICloudPicker || url.path.contains("Mobile Documents") { return .icloud }
+                    return .local
+                }()
                 _ = try await ImportIngestService.shared.ingestFileURL(
                     url,
                     sourceKind: kind,

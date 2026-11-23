@@ -6,20 +6,20 @@
     <title>Privacy Policy — Mixtube</title>
     <meta
       name="description"
-      content="Privacy Policy for Mixtube: how we access, use, store, and share personal data and Google user data (including optional youtube.readonly and drive.readonly)."
+      content="Privacy Policy for Mixtube: how we access, use, store, and share personal data and Google user data (including youtube.readonly)."
     />
     <link rel="canonical" href="https://www.ytlite.cc/privacy.html" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Mixtube" />
     <meta property="og:locale" content="en_US" />
     <meta property="og:title" content="Privacy Policy — Mixtube" />
-    <meta property="og:description" content="Privacy Policy for Mixtube: how we access, use, store, and share personal data and Google user data (including optional youtube.readonly and drive.readonly)." />
+    <meta property="og:description" content="Privacy Policy for Mixtube: how we access, use, store, and share personal data and Google user data (including youtube.readonly)." />
     <meta property="og:url" content="https://www.ytlite.cc/privacy.html" />
     <meta property="og:image" content="https://www.ytlite.cc/assets/icon.png" />
     <meta property="og:image:alt" content="Mixtube app icon" />
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:title" content="Privacy Policy — Mixtube" />
-    <meta name="twitter:description" content="Privacy Policy for Mixtube: how we access, use, store, and share personal data and Google user data (including optional youtube.readonly and drive.readonly)." />
+    <meta name="twitter:description" content="Privacy Policy for Mixtube: how we access, use, store, and share personal data and Google user data (including youtube.readonly)." />
     <meta name="twitter:image" content="https://www.ytlite.cc/assets/icon.png" />
     <link rel="icon" href="/favicon.ico" sizes="32x32" />
     <link rel="apple-touch-icon" href="assets/apple-touch-icon.png" />
@@ -69,8 +69,8 @@
       <p>
         Mixtube is a music-first online video player. You can browse and play
         online video, manage a personal library, optionally sync when signed in,
-        and optionally import your own audio files (including from Google Drive)
-        for playback on your device.
+        and optionally import your own audio files (including Google Drive via
+        Google’s official file picker) for playback on your device.
       </p>
       <p>
         Privacy contact:
@@ -97,9 +97,10 @@
         </li>
         <li>
           <strong>Local media you import.</strong> Audio/video files you import
-          (from Files, photos, Wi‑Fi transfer, NAS/WebDAV, or Google Drive) are
-          copied to <strong>on-device storage</strong> for offline playback. File
-          bytes from Google Drive are not uploaded to our servers.
+          (from Files, Photos, Wi‑Fi transfer, NAS/WebDAV, or Google Drive via
+          Google’s file picker) are copied to
+          <strong>on-device storage</strong> for offline playback. Those file
+          bytes are not uploaded to our servers.
         </li>
         <li>
           <strong>Google user data — Sign-In / YouTube (optional).</strong> When
@@ -118,28 +119,30 @@
           </ul>
         </li>
         <li>
-          <strong>Google user data — Google Drive (optional).</strong> Only when
-          you open <strong>Import → Google Drive</strong> and grant access, we
-          may additionally request:
-          <ul>
-            <li>
-              <code>https://www.googleapis.com/auth/drive.readonly</code> —
-              to list and download files from <em>your</em> Google Drive that you
-              select (typically audio / video) so they can be imported into your
-              on-device Mixtube library.
-            </li>
-          </ul>
-          Drive access is incremental and optional. Signing in for account sync
-          alone does not require Drive. You can revoke Drive (or all Google)
-          access at any time in your
-          <a href="https://myaccount.google.com/permissions">Google Account permissions</a>.
+          <strong>Google Drive import (optional, separate from YouTube sign-in).</strong>
+          When you choose <strong>Import → Google Drive</strong>, Mixtube requests
+          only
+          <code>https://www.googleapis.com/auth/drive.file</code>
+          and opens Google’s official file picker so you can select specific
+          audio/video files. Access is limited to files you pick with the app
+          (not your entire Drive). Selected files are downloaded and copied into
+          the on-device Imported library only; we do not upload those bytes to our
+          servers, and we do <strong>not</strong> request
+          <code>drive.readonly</code> or other broad Drive scopes. This Drive
+          consent is separate from Google Sign-In used for YouTube library display.
+        </li>
+        <li>
+          <strong>Other local / cloud file import.</strong>
+          You may also import via the system Files picker (for example iCloud Drive),
+          Photos, Wi‑Fi transfer, or NAS/WebDAV. Those paths do not use Google Drive
+          API scopes. Files are copied into the on-device Imported library only.
         </li>
         <li>
           <strong>Advertising (iOS).</strong> We use Google AdMob for ads
           (app-open, interstitial, and user-initiated rewarded ads). AdMob may
           process device advertising identifiers and related signals under your
           consent and platform settings (UMP / ATT where required). AdMob is
-          separate from YouTube/Drive OAuth library data.
+          separate from YouTube OAuth library data.
         </li>
         <li>
           <strong>Analytics &amp; diagnostics.</strong> Firebase Analytics
@@ -162,15 +165,15 @@
           (<code>youtube.readonly</code>);
         </li>
         <li>
-          Let you browse and download your own Drive files you choose to import
-          (<code>drive.readonly</code>), storing copies only on your device;
+          Let you import audio/video you pick via the system Files app and other
+          local import paths, storing copies only on your device;
         </li>
         <li>Show ads where enabled, measure product usage, and fix bugs;</li>
         <li>Respond to support or legal requests when required.</li>
       </ul>
       <p>
         We do <strong>not</strong> sell personal information or Google user data.
-        We do <strong>not</strong> use Google user data (YouTube or Drive) for
+        We do <strong>not</strong> use Google user data (YouTube) for
         advertising, credit decisions, or to train / improve generalized
         machine-learning or AI models. We do <strong>not</strong> use Google APIs
         to create or distribute AI-generated non-consensual intimate imagery
@@ -274,9 +277,11 @@
       <ul>
         <li><strong>Encryption in transit:</strong> HTTPS / TLS to Supabase, Google, and Firebase.</li>
         <li>
-          <strong>Least privilege:</strong> read-only scopes only
-          (<code>youtube.readonly</code>, optional <code>drive.readonly</code>);
-          no Drive write/delete scopes.
+          <strong>Least privilege:</strong> Google Sign-In uses read-only
+          <code>youtube.readonly</code> (plus standard OpenID profile/email as
+          needed for sign-in). Optional Google Drive import uses only
+          <code>drive.file</code> with Google’s file picker — not
+          <code>drive.readonly</code>.
         </li>
         <li>
           <strong>On-device tokens:</strong> Google API tokens are not synced to
@@ -291,7 +296,7 @@
       <h2>6. Third parties</h2>
       <p>
         Mixtube relies on Apple (Sign in with Apple / App Store), Google (Sign-In,
-        YouTube Data API, Drive API, Firebase, AdMob), and Supabase (backend).
+        YouTube Data API, Firebase, AdMob), and Supabase (backend).
         Their policies apply to data they process. Streamed online media remains
         subject to upstream services’ terms.
       </p>
@@ -325,9 +330,10 @@
         <p>
           <strong>Mixtube</strong> 是面向 iOS / Android 的音乐向在线视频播放器。我们可能处理
           Apple / Google 登录产生的账号信息、本地与云端同步的媒体库，以及你主动导入的本地音视频。
-          可选 Google 授权包括：<code>youtube.readonly</code>（只读展示订阅/播放列表/喜欢）与
-          <code>drive.readonly</code>（仅在「导入 → Google Drive」时，列出并下载你选择的文件到本机「已导入」库）。
-          Drive 文件内容与 OAuth 令牌<strong>不上传</strong>到我们的服务器。我们不会出售 Google
+          可选 Google 授权包括：<code>youtube.readonly</code>（只读展示订阅/播放列表/喜欢），
+          以及独立的 Google Drive 导入 scope <code>drive.file</code>（通过 Google
+          官方选文件，仅访问你选中的文件，不请求 <code>drive.readonly</code>）。
+          导入文件仅保存在本机，不上传到我们的服务器。我们不会出售 Google
           用户数据，不会将其用于广告定向或训练通用 AI 模型，也不会使用 Google API 生成或分发
           AI NCII。你可在 Google 账号权限中撤销授权。详情以英文正文为准；隐私联系
           diasjayanthasumith@gmail.com。
