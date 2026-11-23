@@ -4,7 +4,14 @@ import SwiftUI
 struct SignInOptionsView: View {
     @ObservedObject var auth: AuthService
     /// When false, only Google is offered (e.g. playback needs catalog OAuth).
-    var showsAppleSignIn: Bool = true
+    /// Mac Catalyst Developer ID (website DMG) cannot include Sign in with Apple entitlement.
+    var showsAppleSignIn: Bool = {
+        #if targetEnvironment(macCatalyst)
+        false
+        #else
+        true
+        #endif
+    }()
     /// Analytics `source` for sign_in_* events.
     var analyticsSource: String = "unknown"
     var onSignedIn: (() async -> Void)?
