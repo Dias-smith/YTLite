@@ -150,20 +150,22 @@ enum MacPlaybackCacheStore {
         set { UserDefaults.standard.set(newValue, forKey: enabledKey) }
     }
 
-    /// Playback progress, 1...100, before an automatic download starts.
+    /// Playback progress, 5...100 in steps of 5, before an automatic download starts.
     static var startPercent: Int {
-        get { clamped(UserDefaults.standard.object(forKey: percentKey) == nil ? 10 : UserDefaults.standard.integer(forKey: percentKey), 1, 100) }
-        set { UserDefaults.standard.set(clamped(newValue, 1, 100), forKey: percentKey) }
+        get { stepped(UserDefaults.standard.object(forKey: percentKey) == nil ? 10 : UserDefaults.standard.integer(forKey: percentKey), 5, 100, 5) }
+        set { UserDefaults.standard.set(stepped(newValue, 5, 100, 5), forKey: percentKey) }
     }
 
-    /// Videos longer than this are not downloaded automatically.
+    /// Videos longer than this are not downloaded automatically. 5...240 in steps of 5.
     static var maxMinutes: Int {
-        get { clamped(UserDefaults.standard.object(forKey: minutesKey) == nil ? 30 : UserDefaults.standard.integer(forKey: minutesKey), 1, 240) }
-        set { UserDefaults.standard.set(clamped(newValue, 1, 240), forKey: minutesKey) }
+        get { stepped(UserDefaults.standard.object(forKey: minutesKey) == nil ? 30 : UserDefaults.standard.integer(forKey: minutesKey), 5, 240, 5) }
+        set { UserDefaults.standard.set(stepped(newValue, 5, 240, 5), forKey: minutesKey) }
     }
 
-    private static func clamped(_ value: Int, _ lower: Int, _ upper: Int) -> Int {
-        min(upper, max(lower, value))
+    private static func stepped(_ value: Int, _ lower: Int, _ upper: Int, _ step: Int) -> Int {
+        let clamped = min(upper, max(lower, value))
+        let snapped = lower + ((clamped - lower + step / 2) / step) * step
+        return min(upper, max(lower, snapped))
     }
 }
 #endif

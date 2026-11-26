@@ -19969,6 +19969,19 @@
         }
       }
     },
+    "settings.download" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "التنزيل" } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Download" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Descarga" } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Téléchargement" } },
+        "hi" : { "stringUnit" : { "state" : "translated", "value" : "डाउनलोड" } },
+        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Download" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "下载" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "下載" } }
+      }
+    },
     "settings.help_support" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -20158,7 +20171,7 @@
       "extractionState" : "manual",
       "localizations" : {
         "ar" : { "stringUnit" : { "state" : "translated", "value" : "بدء التنزيل التلقائي عند %d%%" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Start download at %d%%" } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Start auto download at %d%%" } },
         "es" : { "stringUnit" : { "state" : "translated", "value" : "Empezar la descarga al %d%%" } },
         "fr" : { "stringUnit" : { "state" : "translated", "value" : "Télécharger à partir de %d %%" } },
         "hi" : { "stringUnit" : { "state" : "translated", "value" : "%d%% पर अपने आप डाउनलोड शुरू करें" } },

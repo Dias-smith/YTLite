@@ -84,20 +84,6 @@ struct SettingsView: View {
                         Task { await PlaybackMediaStore.shared.clearAll() }
                     }
                 }
-                if macCacheEnabled {
-                    Stepper(value: $macCachePercent, in: 1...100) {
-                        Text(Lf("settings.mac_media_cache.percent", macCachePercent))
-                    }
-                    .onChange(of: macCachePercent) { _, value in
-                        MacPlaybackCacheStore.startPercent = value
-                    }
-                    Stepper(value: $macCacheMinutes, in: 1...240) {
-                        Text(Lf("settings.mac_media_cache.max_minutes", macCacheMinutes))
-                    }
-                    .onChange(of: macCacheMinutes) { _, value in
-                        MacPlaybackCacheStore.maxMinutes = value
-                    }
-                }
                 #endif
 
                 Picker(
@@ -127,6 +113,45 @@ struct SettingsView: View {
             } footer: {
                 Text(L("import.settings.footer"))
             }
+
+            #if targetEnvironment(macCatalyst)
+            if macCacheEnabled {
+                Section {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(Lf("settings.mac_media_cache.percent", macCachePercent))
+                        Slider(
+                            value: Binding(
+                                get: { Double(macCachePercent) },
+                                set: { macCachePercent = Int($0.rounded()) }
+                            ),
+                            in: 5...100,
+                            step: 5
+                        )
+                        .tint(YTLiteColor.accent)
+                    }
+                    .onChange(of: macCachePercent) { _, value in
+                        MacPlaybackCacheStore.startPercent = value
+                    }
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(Lf("settings.mac_media_cache.max_minutes", macCacheMinutes))
+                        Slider(
+                            value: Binding(
+                                get: { Double(macCacheMinutes) },
+                                set: { macCacheMinutes = Int($0.rounded()) }
+                            ),
+                            in: 5...240,
+                            step: 5
+                        )
+                        .tint(YTLiteColor.accent)
+                    }
+                    .onChange(of: macCacheMinutes) { _, value in
+                        MacPlaybackCacheStore.maxMinutes = value
+                    }
+                } header: {
+                    Text(L("settings.download"))
+                }
+            }
+            #endif
 
             Section {
                 NavigationLink {
