@@ -332,8 +332,12 @@ targets:
     supportedDestinations: [macCatalyst]
     sources:
       - path: YTLite
+        excludes:
+          # iPhone Firebase app. Mac uses YTLiteMac/GoogleService-Info.plist.
+          - GoogleService-Info.plist
       - path: YTLiteWatchConnectivity
       - path: YTLiteWidgetShared
+      - path: YTLiteMac/GoogleService-Info.plist
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.ytlite.player.mac
