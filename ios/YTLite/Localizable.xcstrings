@@ -20131,54 +20131,40 @@
     "settings.mac_media_cache.hint" : {
       "extractionState" : "manual",
       "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "يبدأ الحفظ بعد 10٪ من التشغيل. يمكن إرسال هذه الملفات فقط إلى Mixtube على iPhone."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Saving starts after 10% of playback. These files can only be sent to Mixtube on iPhone."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "El guardado empieza tras el 10 % de la reproducción. Estos archivos solo se pueden enviar a Mixtube en el iPhone."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "L’enregistrement commence après 10 % de la lecture. Ces fichiers ne peuvent être envoyés qu’à Mixtube sur iPhone."
-          }
-        },
-        "hi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "प्लेबैक के 10% के बाद सहेजना शुरू होता है। ये फ़ाइलें केवल iPhone पर Mixtube को भेजी जा सकती हैं।"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "A gravação começa após 10% da reprodução. Estes arquivos só podem ser enviados ao Mixtube no iPhone."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "播放超过 10% 后开始保存。这些文件只能发送到 Mixtube 手机版。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "播放超過 10% 後開始儲存。這些檔案只能傳送到 Mixtube 手機版。"
-          }
-        }
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "يمكن إرسال هذه الملفات فقط إلى Mixtube على iPhone." } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "These files can only be sent to Mixtube on iPhone." } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Estos archivos solo se pueden enviar a Mixtube en el iPhone." } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Ces fichiers ne peuvent être envoyés qu’à Mixtube sur iPhone." } },
+        "hi" : { "stringUnit" : { "state" : "translated", "value" : "ये फ़ाइलें केवल iPhone पर Mixtube को भेजी जा सकती हैं।" } },
+        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Estes arquivos só podem ser enviados ao Mixtube no iPhone." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "这些文件只能发送到 Mixtube 手机版。" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "這些檔案只能傳送到 Mixtube 手機版。" } }
+      }
+    },
+    "settings.mac_media_cache.max_minutes" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "عدم التنزيل التلقائي إذا تجاوز %d دقيقة" } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Skip videos longer than %d min" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "No descargar automáticamente si dura más de %d min" } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Ne pas télécharger au-delà de %d min" } },
+        "hi" : { "stringUnit" : { "state" : "translated", "value" : "%d मिनट से लंबे वीडियो अपने आप डाउनलोड न करें" } },
+        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Não baixar automaticamente acima de %d min" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "超过 %d 分钟不自动下载" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "超過 %d 分鐘不自動下載" } }
+      }
+    },
+    "settings.mac_media_cache.percent" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "بدء التنزيل التلقائي عند %d%%" } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Start download at %d%%" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Empezar la descarga al %d%%" } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Télécharger à partir de %d %%" } },
+        "hi" : { "stringUnit" : { "state" : "translated", "value" : "%d%% पर अपने आप डाउनलोड शुरू करें" } },
+        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Começar o download em %d%%" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "播放到 %d%% 开始自动下载" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "播放到 %d%% 開始自動下載" } }
       }
     },
     "settings.missing_secrets" : {

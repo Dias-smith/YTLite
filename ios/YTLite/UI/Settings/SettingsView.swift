@@ -10,6 +10,11 @@ struct SettingsView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var rateUnavailableAlert = false
     @State private var showVip = false
+    #if targetEnvironment(macCatalyst)
+    @State private var macCacheEnabled = MacPlaybackCacheStore.isEnabled
+    @State private var macCachePercent = MacPlaybackCacheStore.startPercent
+    @State private var macCacheMinutes = MacPlaybackCacheStore.maxMinutes
+    #endif
 
     var body: some View {
         let _ = adConsentStatus.revision
@@ -64,17 +69,7 @@ struct SettingsView: View {
                 .tint(YTLiteColor.accent)
 
                 #if targetEnvironment(macCatalyst)
-                Toggle(
-                    isOn: Binding(
-                        get: { MacPlaybackCacheStore.isEnabled },
-                        set: { enabled in
-                            MacPlaybackCacheStore.isEnabled = enabled
-                            if !enabled {
-                                Task { await PlaybackMediaStore.shared.clearAll() }
-                            }
-                        }
-                    )
-                ) {
+                Toggle(isOn: $macCacheEnabled) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(L("settings.mac_media_cache"))
                         Text(L("settings.mac_media_cache.hint"))
@@ -83,6 +78,26 @@ struct SettingsView: View {
                     }
                 }
                 .tint(YTLiteColor.accent)
+                .onChange(of: macCacheEnabled) { _, isOn in
+                    MacPlaybackCacheStore.isEnabled = isOn
+                    if !isOn {
+                        Task { await PlaybackMediaStore.shared.clearAll() }
+                    }
+                }
+                if macCacheEnabled {
+                    Stepper(value: $macCachePercent, in: 1...100) {
+                        Text(Lf("settings.mac_media_cache.percent", macCachePercent))
+                    }
+                    .onChange(of: macCachePercent) { _, value in
+                        MacPlaybackCacheStore.startPercent = value
+                    }
+                    Stepper(value: $macCacheMinutes, in: 1...240) {
+                        Text(Lf("settings.mac_media_cache.max_minutes", macCacheMinutes))
+                    }
+                    .onChange(of: macCacheMinutes) { _, value in
+                        MacPlaybackCacheStore.maxMinutes = value
+                    }
+                }
                 #endif
 
                 Picker(

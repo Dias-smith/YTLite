@@ -14,7 +14,12 @@ enum PlaybackStorePolicy {
 
     static func isStorableDuration(seconds: Double?) -> Bool {
         guard let seconds, seconds.isFinite, seconds > 0 else { return true }
-        return seconds <= Double(maxStorableDurationSeconds)
+        #if targetEnvironment(macCatalyst)
+        let limit = Double(MacPlaybackCacheStore.maxMinutes * 60)
+        #else
+        let limit = Double(maxStorableDurationSeconds)
+        #endif
+        return seconds <= limit
     }
 
     static func storeKey(videoId: String, itag: Int?) -> String {
@@ -50,7 +55,7 @@ enum PlaybackStorePolicy {
 
     /// iPhone Release always resolves a fresh stream. Mac and iPhone Debug may play a stored file.
     static var allowsDirectKickoffPlayback: Bool {
-        isMediaCachePolicyEnabled && !NetworkVpnStatus.isActive
+        isMediaCachePolicyEnabled
     }
 }
 
@@ -134,6 +139,8 @@ enum MacSongCacheDownloads {
 /// Mac playback-file switch. On until the user turns it off.
 enum MacPlaybackCacheStore {
     private static let enabledKey = "mac.playback_media_cache.v1"
+    private static let percentKey = "mac.playback_media_cache.percent.v1"
+    private static let minutesKey = "mac.playback_media_cache.max_minutes.v1"
 
     static var isEnabled: Bool {
         get {
@@ -141,6 +148,22 @@ enum MacPlaybackCacheStore {
             return UserDefaults.standard.bool(forKey: enabledKey)
         }
         set { UserDefaults.standard.set(newValue, forKey: enabledKey) }
+    }
+
+    /// Playback progress, 1...100, before an automatic download starts.
+    static var startPercent: Int {
+        get { clamped(UserDefaults.standard.object(forKey: percentKey) == nil ? 10 : UserDefaults.standard.integer(forKey: percentKey), 1, 100) }
+        set { UserDefaults.standard.set(clamped(newValue, 1, 100), forKey: percentKey) }
+    }
+
+    /// Videos longer than this are not downloaded automatically.
+    static var maxMinutes: Int {
+        get { clamped(UserDefaults.standard.object(forKey: minutesKey) == nil ? 30 : UserDefaults.standard.integer(forKey: minutesKey), 1, 240) }
+        set { UserDefaults.standard.set(clamped(newValue, 1, 240), forKey: minutesKey) }
+    }
+
+    private static func clamped(_ value: Int, _ lower: Int, _ upper: Int) -> Int {
+        min(upper, max(lower, value))
     }
 }
 #endif
@@ -156,22 +179,3 @@ enum DebugPlaybackCacheStore {
     }
 }
 #endif
-
-/// Best-effort VPN detection via system proxy scoped interfaces.
-/// Prefer exact / prefix matches — bare `contains("tun")` false-positives on system `utun*`.
-enum NetworkVpnStatus {
-    static var isActive: Bool {
-        guard let settings = CFNetworkCopySystemProxySettings()?.takeRetainedValue() as? [String: Any],
-              let scoped = settings["__SCOPED__"] as? [String: Any]
-        else { return false }
-        return scoped.keys.contains { key in
-            let lower = key.lowercased()
-            if lower.hasPrefix("utun") { return false }
-            return lower.hasPrefix("tap")
-                || lower.hasPrefix("tun")
-                || lower.hasPrefix("ppp")
-                || lower.hasPrefix("ipsec")
-                || lower.contains("ipsec")
-        }
-    }
-}

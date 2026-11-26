@@ -1751,9 +1751,14 @@ final class PlaybackController: ObservableObject {
         publishPhoneWidgetSnapshot(force: true)
     }
 
-    /// Debug cache starts once playback has passed 10% of the track.
+    /// Automatic save starts once playback passes the user's progress threshold.
     private static func hasMetKickoffCacheGate(position: Double, duration: Double) -> Bool {
-        position / duration >= 0.1
+        #if targetEnvironment(macCatalyst)
+        let fraction = Double(MacPlaybackCacheStore.startPercent) / 100
+        #else
+        let fraction = 0.1
+        #endif
+        return position / duration >= fraction
     }
     #endif
 
