@@ -212,8 +212,18 @@ struct MacCacheSendSheet: View {
     }
 
     private var pairingColumn: some View {
-        ScrollView {
-            VStack(spacing: 16) {
+        VStack(spacing: 0) {
+            ScrollView {
+                pairingDetails
+            }
+            sendGuideCard
+                .padding(.horizontal, YTLiteLayout.screenPadding)
+                .padding(.bottom, YTLiteLayout.screenPadding)
+        }
+    }
+
+    private var pairingDetails: some View {
+        VStack(spacing: 16) {
                 Text(L("import.mac.code_hint"))
                     .font(YTLiteType.body)
                     .foregroundStyle(YTLiteColor.onSurfaceVariant)
@@ -262,7 +272,39 @@ struct MacCacheSendSheet: View {
             }
             .frame(maxWidth: .infinity)
             .padding(.horizontal, YTLiteLayout.screenPadding)
+            .padding(.bottom, 12)
+    }
+
+    private var sendGuideCard: some View {
+        Button {
+            AppLinks.open(AppLinks.macToIPhone)
+        } label: {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 8) {
+                    Image(systemName: "book.closed")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(YTLiteColor.accent)
+                    Text(L("import.mac.guide_title"))
+                        .font(YTLiteType.rowTitle)
+                        .foregroundStyle(YTLiteColor.onSurface)
+                        .lineLimit(1)
+                    Spacer(minLength: 8)
+                    Image(systemName: "arrow.up.right")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                }
+                Text(L("import.mac.guide_body"))
+                    .font(YTLiteType.meta)
+                    .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                    .multilineTextAlignment(.leading)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(YTLiteColor.surfaceElevated, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
+        .buttonStyle(.plain)
+        .accessibilityLabel(L("import.mac.guide_title"))
     }
 
     private var connectionStatus: String {
@@ -376,6 +418,9 @@ struct MacCacheSendSheet: View {
     }
 
     private func reload() async {
+        _ = store?.repairPlaceholderTitlesLocally()
+        _ = await store?.repairPlaceholderTitlesFromNetwork()
+        let hints = localSongHints()
         let snapshots = await PlaybackMediaStore.shared.cachedSnapshots()
         var records: [MacCacheTrackRecord] = []
         var audio: [String: URL] = [:]
@@ -383,16 +428,22 @@ struct MacCacheSendSheet: View {
         for snapshot in snapshots {
             guard let file = await PlaybackMediaStore.shared.localFileURL(videoId: snapshot.videoId) else { continue }
             let row = store?.track(id: snapshot.videoId)
-            let title = row?.title.trimmingCharacters(in: .whitespacesAndNewlines)
+            let fields = songFields(
+                videoId: snapshot.videoId,
+                libraryTitle: row?.title ?? "",
+                libraryArtist: row?.primaryArtistName,
+                libraryDuration: row?.durationSeconds ?? 0,
+                hints: hints
+            )
             let ext = file.pathExtension.isEmpty ? "m4a" : file.pathExtension.lowercased()
             let cover = await offerCover(videoId: snapshot.videoId, storedThumbnail: row?.thumbnailURLString)
             let hasCover = cover != nil
             records.append(
                 MacCacheTrackRecord(
                     videoId: snapshot.videoId,
-                    title: (title?.isEmpty == false ? title! : snapshot.videoId),
-                    artist: row?.primaryArtistName ?? "",
-                    durationSeconds: row?.durationSeconds ?? 0,
+                    title: fields.title,
+                    artist: fields.artist,
+                    durationSeconds: fields.duration,
                     byteCount: snapshot.fileSize,
                     fileExtension: ext,
                     hasCover: hasCover
@@ -411,16 +462,22 @@ struct MacCacheSendSheet: View {
             ) else { continue }
             let size = (try? file.resourceValues(forKeys: [.fileSizeKey]).fileSize).map(Int64.init) ?? 0
             guard size > 0 else { continue }
+            let fields = songFields(
+                videoId: track.trackId,
+                libraryTitle: track.title,
+                libraryArtist: track.primaryArtistName,
+                libraryDuration: track.durationSeconds,
+                hints: hints
+            )
             let ext = file.pathExtension.isEmpty ? "m4a" : file.pathExtension.lowercased()
             let cover = await offerCover(videoId: track.trackId, storedThumbnail: track.thumbnailURLString)
             let hasCover = cover != nil
-            let title = track.title.trimmingCharacters(in: .whitespacesAndNewlines)
             records.append(
                 MacCacheTrackRecord(
                     videoId: track.trackId,
-                    title: title.isEmpty ? track.trackId : title,
-                    artist: track.primaryArtistName ?? "",
-                    durationSeconds: track.durationSeconds,
+                    title: fields.title,
+                    artist: fields.artist,
+                    durationSeconds: fields.duration,
                     byteCount: size,
                     fileExtension: ext,
                     hasCover: hasCover
@@ -429,12 +486,77 @@ struct MacCacheSendSheet: View {
             audio[track.trackId] = file
             if let cover { covers[track.trackId] = cover }
         }
+        records = await filledPlaceholders(records)
         tracks = records
         audioById = audio
         coverById = covers
         selected = Set(records.map(\.videoId))
         loaded = true
         publishOffer(selected, restart: true)
+    }
+
+    /// Library rows sometimes stored the video id as the title. Prefer a real title from playback or the home feed.
+    private func localSongHints() -> [String: (title: String, artist: String, duration: Int)] {
+        var hints: [String: (title: String, artist: String, duration: Int)] = [:]
+        func consider(id: String, title: String, artist: String, durationText: String?) {
+            guard !id.isEmpty, !TrackTitle.isPlaceholder(title, videoId: id) else { return }
+            if hints[id] != nil { return }
+            hints[id] = (title, artist, DurationFormat.seconds(from: durationText))
+        }
+        if let session = PlaybackSessionStore.load() {
+            for item in (session.originalOrder ?? []) + session.items {
+                consider(
+                    id: item.videoId,
+                    title: item.title,
+                    artist: item.channelName,
+                    durationText: item.durationText
+                )
+            }
+        }
+        for (id, hint) in HomeFeedStore.titleHintsByVideoId() {
+            consider(id: id, title: hint.title, artist: hint.channelName, durationText: nil)
+        }
+        return hints
+    }
+
+    private func songFields(
+        videoId: String,
+        libraryTitle: String,
+        libraryArtist: String?,
+        libraryDuration: Int,
+        hints: [String: (title: String, artist: String, duration: Int)]
+    ) -> (title: String, artist: String, duration: Int) {
+        let hint = hints[videoId]
+        let title = TrackTitle.preferred(libraryTitle, hint?.title ?? "", videoId: videoId)
+        let storedArtist = libraryArtist?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let artist = storedArtist.isEmpty ? (hint?.artist ?? "") : storedArtist
+        let duration = libraryDuration > 0 ? libraryDuration : (hint?.duration ?? 0)
+        return (title, artist, duration)
+    }
+
+    /// Look up songs whose only stored name is the video id, then never show that id.
+    private func filledPlaceholders(_ records: [MacCacheTrackRecord]) async -> [MacCacheTrackRecord] {
+        let missing = records
+            .filter { TrackTitle.isPlaceholder($0.title, videoId: $0.videoId) }
+            .map(\.videoId)
+        let fetched = await InnerTubeClient.fetchVideoSnippets(ids: missing)
+        let byId = Dictionary(uniqueKeysWithValues: fetched.map { ($0.videoId, $0) })
+        return records.map { record in
+            guard TrackTitle.isPlaceholder(record.title, videoId: record.videoId) else { return record }
+            let item = byId[record.videoId]
+            let duration = record.durationSeconds > 0
+                ? record.durationSeconds
+                : DurationFormat.seconds(from: item?.durationText)
+            return MacCacheTrackRecord(
+                videoId: record.videoId,
+                title: item?.title ?? L("import.mac.unknown_song"),
+                artist: record.artist.isEmpty ? (item?.channelName ?? "") : record.artist,
+                durationSeconds: duration,
+                byteCount: record.byteCount,
+                fileExtension: record.fileExtension,
+                hasCover: record.hasCover
+            )
+        }
     }
 
     /// Local `cover.jpg` when it exists. Otherwise save the artwork the library already shows, including a remote thumbnail.

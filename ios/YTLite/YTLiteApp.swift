@@ -52,6 +52,9 @@ struct YTLiteApp: App {
                 .preferredColorScheme(appModel.themeColorScheme)
                 .modifier(MacReleaseNoticeModifier())
                 .task {
+                    #if targetEnvironment(macCatalyst)
+                    MacShortcutStore.shared.attach(playback)
+                    #endif
                     await Task.yield()
                     WatchConnectivityBridge.shared.activate()
                     WatchPlaybackHost.shared.start(playback: playback)

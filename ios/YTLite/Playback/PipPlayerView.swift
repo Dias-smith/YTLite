@@ -12,12 +12,16 @@ extension Notification.Name {
 enum PictureInPictureSettings {
     static let defaultsKey = "picture_in_picture_enabled"
 
-    /// Default OFF when the user has never toggled the setting.
+    /// Default OFF when the user has never toggled the setting. Mac has no system PiP.
     static var isEnabled: Bool {
+        #if targetEnvironment(macCatalyst)
+        return false
+        #else
         if UserDefaults.standard.object(forKey: defaultsKey) != nil {
             return UserDefaults.standard.bool(forKey: defaultsKey)
         }
         return false
+        #endif
     }
 }
 

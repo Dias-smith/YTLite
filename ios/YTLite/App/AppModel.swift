@@ -93,9 +93,11 @@ final class AppModel: ObservableObject {
         if storedRegion == nil {
             UserDefaults.standard.set(contentRegionCode, forKey: AppContentLocale.contentRegionKey)
         }
+        #if !targetEnvironment(macCatalyst)
         if UserDefaults.standard.object(forKey: Self.pictureInPictureKey) != nil {
             pictureInPictureEnabled = UserDefaults.standard.bool(forKey: Self.pictureInPictureKey)
         }
+        #endif
         isHydratingStoredPreferences = false
         _ = AppContentLocale.syncCatalogFromAppLanguage(appLanguage, regionCode: contentRegionCode)
 

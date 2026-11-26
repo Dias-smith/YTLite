@@ -197,6 +197,7 @@ struct SettingsView: View {
                     LabeledContent(L("settings.remaining"), value: SleepTimerOptions.formatRemaining(remaining))
                 }
 
+                #if !targetEnvironment(macCatalyst)
                 Toggle(isOn: $appModel.pictureInPictureEnabled) {
                     HStack(spacing: 12) {
                         SettingsLeadingIcon(systemName: "pip.enter")
@@ -212,6 +213,7 @@ struct SettingsView: View {
                     }
                 }
                 .tint(YTLiteColor.accent)
+                #endif
 
                 Toggle(isOn: $playback.autoSkipOnFailure) {
                     HStack(spacing: 12) {
@@ -237,6 +239,10 @@ struct SettingsView: View {
                     Text(L("settings.sleep_footer_idle"))
                 }
             }
+
+            #if targetEnvironment(macCatalyst)
+            MacShortcutSettingsSection()
+            #endif
 
             Section(L("settings.support_section")) {
                 Button(L("settings.support_us")) {
@@ -939,3 +945,294 @@ struct FeatureIntroSheet: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
+
+#if targetEnvironment(macCatalyst)
+private struct MacKeyCombo: Codable, Equatable {
+    var keyCode: UInt16
+    var modifiers: UInt
+}
+
+private enum MacShortcutAction: String, CaseIterable, Identifiable {
+    case playPause
+    case previous
+    case next
+    case download
+
+    var id: String { rawValue }
+
+    var titleKey: String {
+        switch self {
+        case .playPause: return "settings.shortcuts.play_pause"
+        case .previous: return "settings.shortcuts.previous"
+        case .next: return "settings.shortcuts.next"
+        case .download: return "settings.shortcuts.download"
+        }
+    }
+
+    static let command: UInt = 1 << 20
+    static let shift: UInt = 1 << 17
+
+    /// Spotify and QQ Music use Space, Command-Left, and Command-Right. Download is Command-Shift-D.
+    static let defaults: [MacShortcutAction: MacKeyCombo] = [
+        .playPause: MacKeyCombo(keyCode: 49, modifiers: 0),
+        .previous: MacKeyCombo(keyCode: 123, modifiers: command),
+        .next: MacKeyCombo(keyCode: 124, modifiers: command),
+        .download: MacKeyCombo(keyCode: 2, modifiers: command | shift),
+    ]
+}
+
+@MainActor
+final class MacShortcutStore: ObservableObject {
+    static let shared = MacShortcutStore()
+
+    @Published private var bindings: [MacShortcutAction: MacKeyCombo]
+    @Published fileprivate var recording: MacShortcutAction?
+
+    private weak var playback: PlaybackController?
+    private var monitor: AnyObject?
+    private let storageKey = "ytlite.mac.shortcuts"
+
+    private init() {
+        bindings = Self.load() ?? MacShortcutAction.defaults
+    }
+
+    func attach(_ playback: PlaybackController) {
+        self.playback = playback
+        installMonitor()
+    }
+
+    fileprivate func beginRecording(_ action: MacShortcutAction) {
+        recording = recording == action ? nil : action
+    }
+
+    func reset() {
+        recording = nil
+        bindings = MacShortcutAction.defaults
+        save()
+    }
+
+    fileprivate func display(for action: MacShortcutAction) -> String {
+        guard let combo = bindings[action] else { return L("settings.shortcuts.unset") }
+        return Self.describe(combo)
+    }
+
+    private func installMonitor() {
+        guard monitor == nil,
+              let eventClass = NSClassFromString("NSEvent"),
+              let method = class_getClassMethod(eventClass, NSSelectorFromString("addLocalMonitorForEventsMatchingMask:handler:"))
+        else { return }
+        let selector = NSSelectorFromString("addLocalMonitorForEventsMatchingMask:handler:")
+        let mask: UInt = 1 << 10 // keyDown
+        let handler: @convention(block) (AnyObject) -> AnyObject? = { event in
+            let handled = MainActor.assumeIsolated {
+                MacShortcutStore.shared.handle(event)
+            }
+            return handled ? nil : event
+        }
+        typealias AddMonitorIMP = @convention(c) (
+            AnyClass, Selector, UInt, @convention(block) (AnyObject) -> AnyObject?
+        ) -> AnyObject?
+        let function = unsafeBitCast(method_getImplementation(method), to: AddMonitorIMP.self)
+        monitor = function(eventClass, selector, mask, handler)
+    }
+
+    private func handle(_ event: AnyObject) -> Bool {
+        guard let keyCode = Self.keyCode(of: event) else { return false }
+        let modifiers = Self.modifiers(of: event)
+        if Self.isRepeat(event) {
+            return bindings.contains { $0.value.keyCode == keyCode && $0.value.modifiers == modifiers }
+        }
+        if let recording {
+            if keyCode == 53, modifiers == 0 {
+                self.recording = nil
+                return true
+            }
+            if keyCode == 51, modifiers == 0 {
+                bindings[recording] = nil
+                self.recording = nil
+                save()
+                return true
+            }
+            if Self.isModifierOnly(keyCode) { return false }
+            for action in bindings.keys where action != recording && bindings[action] == MacKeyCombo(keyCode: keyCode, modifiers: modifiers) {
+                bindings[action] = nil
+            }
+            bindings[recording] = MacKeyCombo(keyCode: keyCode, modifiers: modifiers)
+            self.recording = nil
+            save()
+            return true
+        }
+        if Self.isTyping() { return false }
+        guard let action = bindings.first(where: { $0.value.keyCode == keyCode && $0.value.modifiers == modifiers })?.key else {
+            return false
+        }
+        perform(action)
+        return true
+    }
+
+    private func perform(_ action: MacShortcutAction) {
+        guard let playback else { return }
+        switch action {
+        case .playPause:
+            playback.togglePlayPause()
+        case .previous:
+            playback.playPrevious()
+        case .next:
+            playback.playNext()
+        case .download:
+            downloadCurrent(playback)
+        }
+    }
+
+    private func downloadCurrent(_ playback: PlaybackController) {
+        guard let item = playback.nowPlaying else { return }
+        if LocalTrackID.isLocal(item.videoId) { return }
+        if playback.libraryStore?.track(id: item.videoId)?.isImportedLocally == true { return }
+        if playback.queue.indices.contains(playback.queueIndex) {
+            let current = playback.queue[playback.queueIndex]
+            if current.videoId == item.videoId, current.isLive { return }
+        }
+        MacSongCacheDownloads.start(
+            videoId: item.videoId,
+            thumbnailURL: item.thumbnailURL,
+            libraryStore: playback.libraryStore
+        )
+    }
+
+    private func save() {
+        let stored = Dictionary(uniqueKeysWithValues: bindings.map {
+            ($0.key.rawValue, SavedCombo(keyCode: $0.value.keyCode, modifiers: $0.value.modifiers))
+        })
+        guard let data = try? JSONEncoder().encode(stored) else { return }
+        UserDefaults.standard.set(data, forKey: storageKey)
+    }
+
+    private static func load() -> [MacShortcutAction: MacKeyCombo]? {
+        guard let data = UserDefaults.standard.data(forKey: "ytlite.mac.shortcuts"),
+              let stored = try? JSONDecoder().decode([String: SavedCombo].self, from: data)
+        else { return nil }
+        var bindings: [MacShortcutAction: MacKeyCombo] = [:]
+        for action in MacShortcutAction.allCases {
+            if let saved = stored[action.rawValue] {
+                bindings[action] = MacKeyCombo(keyCode: saved.keyCode, modifiers: saved.modifiers)
+            }
+        }
+        return bindings
+    }
+
+    private static func describe(_ combo: MacKeyCombo) -> String {
+        var parts = ""
+        if combo.modifiers & (1 << 18) != 0 { parts += "⌃" }
+        if combo.modifiers & (1 << 19) != 0 { parts += "⌥" }
+        if combo.modifiers & (1 << 17) != 0 { parts += "⇧" }
+        if combo.modifiers & (1 << 20) != 0 { parts += "⌘" }
+        parts += keyName(combo.keyCode)
+        return parts
+    }
+
+    private static func keyName(_ keyCode: UInt16) -> String {
+        switch keyCode {
+        case 49: return L("settings.shortcuts.space")
+        case 36: return "↩"
+        case 48: return "⇥"
+        case 51: return "⌫"
+        case 53: return "⎋"
+        case 123: return "←"
+        case 124: return "→"
+        case 125: return "↓"
+        case 126: return "↑"
+        default:
+            let letters: [UInt16: String] = [
+                0: "A", 1: "S", 2: "D", 3: "F", 4: "H", 5: "G", 6: "Z", 7: "X",
+                8: "C", 9: "V", 11: "B", 12: "Q", 13: "W", 14: "E", 15: "R",
+                16: "Y", 17: "T", 18: "1", 19: "2", 20: "3", 21: "4", 22: "6", 23: "5",
+                25: "9", 26: "7", 27: "-", 28: "8", 29: "0", 31: "O", 32: "U",
+                34: "I", 35: "P", 37: "L", 38: "J", 40: "K", 45: "N", 46: "M",
+            ]
+            return letters[keyCode] ?? "?"
+        }
+    }
+
+    private static func isModifierOnly(_ keyCode: UInt16) -> Bool {
+        [54, 55, 56, 57, 58, 59, 60, 61, 62, 63].contains(keyCode)
+    }
+
+    private static func isRepeat(_ event: AnyObject) -> Bool {
+        (event as? NSObject)?.value(forKey: "isARepeat") as? Bool ?? false
+    }
+
+    private static func keyCode(of event: AnyObject) -> UInt16? {
+        guard let object = event as? NSObject else { return nil }
+        let selector = NSSelectorFromString("keyCode")
+        guard object.responds(to: selector) else { return nil }
+        typealias KeyIMP = @convention(c) (AnyObject, Selector) -> UInt16
+        let function = unsafeBitCast(object.method(for: selector), to: KeyIMP.self)
+        return function(object, selector)
+    }
+
+    private static func modifiers(of event: AnyObject) -> UInt {
+        guard let object = event as? NSObject else { return 0 }
+        let selector = NSSelectorFromString("modifierFlags")
+        guard object.responds(to: selector) else { return 0 }
+        typealias FlagIMP = @convention(c) (AnyObject, Selector) -> UInt
+        let function = unsafeBitCast(object.method(for: selector), to: FlagIMP.self)
+        let raw = function(object, selector)
+        return raw & ((1 << 17) | (1 << 18) | (1 << 19) | (1 << 20))
+    }
+
+    private static func isTyping() -> Bool {
+        guard let appClass = NSClassFromString("NSApplication") as? NSObject.Type,
+              let app = appClass.perform(NSSelectorFromString("sharedApplication"))?.takeUnretainedValue() as? NSObject,
+              let window = app.value(forKey: "keyWindow") as? NSObject,
+              let responder = window.value(forKey: "firstResponder") as? NSObject
+        else { return false }
+        let name = NSStringFromClass(type(of: responder))
+        return name.contains("Text") || name.contains("FieldEditor")
+    }
+
+    private struct SavedCombo: Codable {
+        var keyCode: UInt16
+        var modifiers: UInt
+    }
+}
+
+private struct MacShortcutSettingsSection: View {
+    @ObservedObject private var store = MacShortcutStore.shared
+
+    var body: some View {
+        Section {
+            ForEach(MacShortcutAction.allCases) { action in
+                HStack {
+                    Text(L(action.titleKey))
+                        .font(YTLiteType.rowTitle)
+                        .foregroundStyle(YTLiteColor.onSurface)
+                    Spacer(minLength: 12)
+                    Button {
+                        store.beginRecording(action)
+                    } label: {
+                        Text(store.recording == action ? "…" : store.display(for: action))
+                            .font(.system(.body, design: .rounded))
+                            .foregroundStyle(YTLiteColor.onSurface)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 4)
+                            .background(
+                                store.recording == action
+                                    ? YTLiteColor.accent.opacity(0.22)
+                                    : YTLiteColor.surfaceChip,
+                                in: Capsule()
+                            )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            Button(L("settings.shortcuts.reset")) {
+                store.reset()
+            }
+        } header: {
+            Text(L("settings.shortcuts"))
+        } footer: {
+            Text(store.recording == nil ? L("settings.shortcuts.footer") : L("settings.shortcuts.recording"))
+        }
+    }
+}
+#endif

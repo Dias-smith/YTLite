@@ -11754,6 +11754,45 @@
         }
       }
     },
+    "import.mac.guide_body" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "صل الجهازين بشبكة Wi-Fi نفسها واترك هذه الصفحة مفتوحة. على iPhone افتح الاستيراد واختر الاستلام من Mac، ثم امسح رمز QR أو أدخل العنوان والرمز." } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Use the same Wi-Fi and keep this page open. On iPhone, open Import, choose From Mac, then scan the QR code or enter the address and code." } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Usa la misma Wi-Fi y deja esta página abierta. En el iPhone, abre Importar, elige Recibir del Mac y escanea el QR o escribe la dirección y el código." } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Utilisez le même Wi-Fi et laissez cette page ouverte. Sur l’iPhone, ouvrez Importer, choisissez Recevoir du Mac, puis scannez le QR code ou saisissez l’adresse et le code." } },
+        "hi" : { "stringUnit" : { "state" : "translated", "value" : "दोनों डिवाइस एक ही Wi-Fi पर रखें और यह पेज खुला रहने दें। iPhone पर इंपोर्ट खोलें, Mac से प्राप्त करें चुनें, फिर QR स्कैन करें या पता और कोड भरें।" } },
+        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Use o mesmo Wi-Fi e deixe esta página aberta. No iPhone, abra Importar, escolha Receber do Mac e escaneie o QR ou digite o endereço e o código." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "两台设备连同一个 Wi-Fi，并保持这一页打开。在 iPhone 上打开导入，选择从 Mac 接收，然后扫描二维码，或填写地址和配对码。" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "兩台裝置連同一個 Wi-Fi，並保持這一頁打開。在 iPhone 上打開匯入，選擇從 Mac 接收，然後掃描 QR code，或填寫位址和配對碼。" } }
+      }
+    },
+    "import.mac.guide_title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "كيفية الإرسال إلى iPhone" } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "How to send to iPhone" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Cómo enviar al iPhone" } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Comment envoyer vers l’iPhone" } },
+        "hi" : { "stringUnit" : { "state" : "translated", "value" : "iPhone पर कैसे भेजें" } },
+        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Como enviar ao iPhone" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "如何发送到 iPhone" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "如何傳送到 iPhone" } }
+      }
+    },
+    "import.mac.unknown_song" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "أغنية غير معروفة" } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Unknown song" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Canción desconocida" } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Morceau inconnu" } },
+        "hi" : { "stringUnit" : { "state" : "translated", "value" : "अज्ञात गाना" } },
+        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Música desconhecida" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "未知歌曲" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "未知歌曲" } }
+      }
+    },
     "import.mac.waiting" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -20235,6 +20274,136 @@
             "value" : "瀏覽時懸浮播放影片"
           }
         }
+      }
+    },
+    "settings.shortcuts" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "الاختصارات" } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Shortcuts" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Atajos" } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Raccourcis" } },
+        "hi" : { "stringUnit" : { "state" : "translated", "value" : "शॉर्टकट" } },
+        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Atalhos" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "快捷键" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "快捷鍵" } }
+      }
+    },
+    "settings.shortcuts.download" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "تنزيل" } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Download" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Descargar" } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Télécharger" } },
+        "hi" : { "stringUnit" : { "state" : "translated", "value" : "डाउनलोड" } },
+        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Baixar" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "下载" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "下載" } }
+      }
+    },
+    "settings.shortcuts.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "يعمل عندما يكون Mixtube في المقدمة وأنت لا تكتب. الافتراضي مثل Spotify وQQ Music: المسافة للتشغيل أو الإيقاف، ⌘← للسابق، ⌘→ للتالي، و⌘⇧D للتنزيل." } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Works while Mixtube is in front and you are not typing. Defaults match Spotify and QQ Music: Space plays or pauses, Command–Left is previous, Command–Right is next, and Command–Shift–D downloads." } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Funciona cuando Mixtube está al frente y no estás escribiendo. Por defecto, como Spotify y QQ Music: Espacio reproduce o pausa, Comando–Izquierda es la anterior, Comando–Derecha es la siguiente y Comando–Mayús–D descarga." } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Actif quand Mixtube est au premier plan et que vous ne saisissez pas de texte. Par défaut, comme Spotify et QQ Music : Espace lit ou met en pause, Commande–Gauche est le titre précédent, Commande–Droite le suivant, Commande–Maj–D télécharge." } },
+        "hi" : { "stringUnit" : { "state" : "translated", "value" : "तब काम करता है जब Mixtube सामने हो और आप टाइप न कर रहे हों। डिफ़ॉल्ट Spotify और QQ Music जैसा है: स्पेस चलाता या रोकता है, ⌘← पिछला, ⌘→ अगला, और ⌘⇧D डाउनलोड।" } },
+        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Funciona com o Mixtube na frente e quando você não está digitando. O padrão segue o Spotify e o QQ Music: Espaço reproduz ou pausa, ⌘← é a anterior, ⌘→ é a próxima e ⌘⇧D baixa." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "仅在 Mixtube 位于前台、且没有在输入文字时生效。默认和 Spotify、QQ 音乐一致：空格播放或暂停，⌘← 上一首，⌘→ 下一首，⌘⇧D 下载。" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "僅在 Mixtube 位於前景、且沒有在輸入文字時生效。預設與 Spotify、QQ 音樂相同：空白鍵播放或暫停，⌘← 上一首，⌘→ 下一首，⌘⇧D 下載。" } }
+      }
+    },
+    "settings.shortcuts.next" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "التالي" } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Next" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Siguiente" } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Suivant" } },
+        "hi" : { "stringUnit" : { "state" : "translated", "value" : "अगला" } },
+        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Próxima" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "下一首" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "下一首" } }
+      }
+    },
+    "settings.shortcuts.play_pause" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "تشغيل/إيقاف مؤقت" } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Play/Pause" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Reproducir/Pausar" } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Lecture/Pause" } },
+        "hi" : { "stringUnit" : { "state" : "translated", "value" : "चलाएँ/रोकें" } },
+        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Reproduzir/Pausar" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "播放/暂停" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "播放/暫停" } }
+      }
+    },
+    "settings.shortcuts.previous" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "السابق" } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Previous" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Anterior" } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Précédent" } },
+        "hi" : { "stringUnit" : { "state" : "translated", "value" : "पिछला" } },
+        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Anterior" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "上一首" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "上一首" } }
+      }
+    },
+    "settings.shortcuts.recording" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "اضغط الاختصار الجديد. Esc يلغي، وDelete يمسحه." } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Press the new shortcut. Esc cancels, Delete clears it." } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Pulsa el nuevo atajo. Esc cancela, Suprimir lo borra." } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Appuyez sur le nouveau raccourci. Échap annule, Suppression l’efface." } },
+        "hi" : { "stringUnit" : { "state" : "translated", "value" : "नया शॉर्टकट दबाएँ। Esc रद्द करता है, Delete हटाता है।" } },
+        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Pressione o novo atalho. Esc cancela, Delete limpa." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "按下新的快捷键。Esc 取消，Delete 清除。" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "按下新的快捷鍵。Esc 取消，Delete 清除。" } }
+      }
+    },
+    "settings.shortcuts.reset" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "استعادة الافتراضي" } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Reset to defaults" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Restaurar valores" } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Réinitialiser" } },
+        "hi" : { "stringUnit" : { "state" : "translated", "value" : "डिफ़ॉल्ट पर रीसेट करें" } },
+        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Restaurar padrão" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "恢复默认" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "還原預設" } }
+      }
+    },
+    "settings.shortcuts.space" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "مسافة" } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Space" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Espacio" } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Espace" } },
+        "hi" : { "stringUnit" : { "state" : "translated", "value" : "स्पेस" } },
+        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Espaço" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "空格" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "空白鍵" } }
+      }
+    },
+    "settings.shortcuts.unset" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "بلا" } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "None" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Ninguno" } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Aucun" } },
+        "hi" : { "stringUnit" : { "state" : "translated", "value" : "कोई नहीं" } },
+        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Nenhum" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "未设置" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "未設定" } }
       }
     },
     "settings.playback" : {

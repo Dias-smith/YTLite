@@ -681,12 +681,14 @@ struct PlayerDetailView: View {
                     .frame(width: 36, height: 36)
                     .accessibilityLabel(L("player.airplay"))
 
+                #if !targetEnvironment(macCatalyst)
                 if appModel.pictureInPictureEnabled {
                     overlayPlainIcon("pip.enter") {
                         pipRequestID += 1
                         bumpOverlayAutoHide()
                     }
                 }
+                #endif
                 overlayPlainIcon("arrow.up.left.and.arrow.down.right") {
                     fullscreenRequestID += 1
                     bumpOverlayAutoHide()
