@@ -56,7 +56,15 @@
       <p class="page-meta">Move songs already saved on Mac into Mixtube on iPhone. No sign-in required.</p>
 
       <p>
-        Install Mixtube on both the Mac and the iPhone, and connect both to the same Wi-Fi. Only
+        Install Mixtube on both
+        <a
+          class="js-mac-download"
+          href="https://drive.google.com/file/d/1uuMvdrUF6UNxDROD5EEFyjSUREaiGbAo/view?usp=sharing"
+          >the Mac</a
+        >
+        and
+        <a href="https://apps.apple.com/app/id6739496571" target="_blank" rel="noopener">the iPhone</a>,
+        and connect both to the same Wi-Fi. Only
         songs saved on that Mac can be sent. A song you have only streamed, without saving it on the
         Mac, does not appear in the list.
       </p>
@@ -206,6 +214,34 @@
       </ul>
     </article>
 
+    <dialog class="mac-guide" id="mac-guide">
+      <form method="dialog" class="mac-guide-card">
+        <p class="section-label">Mac download</p>
+        <h2>Click the download button at the top left.</h2>
+        <p class="lead">
+          The zip opens as a preview. Use the circled download button, then open
+          <strong>Mixtube.app</strong>.
+        </p>
+        <div class="cta-row mac-guide-actions">
+          <a
+            class="btn btn-primary"
+            id="mac-guide-continue"
+            href="https://drive.google.com/file/d/1uuMvdrUF6UNxDROD5EEFyjSUREaiGbAo/view?usp=sharing"
+            target="_blank"
+            rel="noopener"
+            >Continue download</a
+          >
+          <button class="btn btn-ghost" type="submit" value="cancel">Close</button>
+        </div>
+        <img
+          src="assets/mac-download-guide.jpg"
+          width="1024"
+          height="611"
+          alt="Mixtube.zip preview. A red arrow points to the download button at the top left."
+        />
+      </form>
+    </dialog>
+
     <footer class="site-footer">
       <p>© <span id="y"></span> Mixtube</p>
       <nav aria-label="Legal">
@@ -216,6 +252,19 @@
     </footer>
     <script>
       document.getElementById("y").textContent = new Date().getFullYear();
+      (function () {
+        var guide = document.getElementById("mac-guide");
+        if (!guide || !guide.showModal) return;
+        document.querySelectorAll(".js-mac-download").forEach(function (link) {
+          link.addEventListener("click", function (event) {
+            event.preventDefault();
+            guide.showModal();
+          });
+        });
+        document.getElementById("mac-guide-continue").addEventListener("click", function () {
+          guide.close();
+        });
+      })();
     </script>
   </body>
 </html>
