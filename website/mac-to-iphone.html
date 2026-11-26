@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Send songs from Mac to iPhone — Mixtube</title>
+    <meta
+      name="description"
+      content="Send songs already saved in Mixtube on Mac to Mixtube on iPhone. Both devices need to be on the same Wi-Fi."
+    />
+    <link rel="canonical" href="https://www.ytlite.cc/mac-to-iphone.html" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="Mixtube" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:title" content="Send songs from Mac to iPhone — Mixtube" />
+    <meta
+      property="og:description"
+      content="Send songs already saved in Mixtube on Mac to Mixtube on iPhone. Both devices need to be on the same Wi-Fi."
+    />
+    <meta property="og:url" content="https://www.ytlite.cc/mac-to-iphone.html" />
+    <meta property="og:image" content="https://www.ytlite.cc/assets/icon.png" />
+    <meta property="og:image:alt" content="Mixtube app icon" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Send songs from Mac to iPhone — Mixtube" />
+    <meta
+      name="twitter:description"
+      content="Send songs already saved in Mixtube on Mac to Mixtube on iPhone. Both devices need to be on the same Wi-Fi."
+    />
+    <meta name="twitter:image" content="https://www.ytlite.cc/assets/icon.png" />
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png" />
+    <link rel="icon" href="assets/icon.png" type="image/png" sizes="1024x1024" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,600&family=Syne:wght@700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body>
+    <header class="site-header" style="position: relative">
+      <a class="brand-mark" href="/">
+        <img src="assets/logo.png" width="32" height="32" alt="Mixtube" />
+        Mixtube
+      </a>
+      <nav class="nav-links" aria-label="Site">
+        <a href="/">Home</a>
+        <a href="support.html">Support</a>
+        <a href="privacy.html">Privacy</a>
+      </nav>
+    </header>
+
+    <article class="page-shell">
+      <h1>Send songs from Mac to iPhone</h1>
+      <p class="page-meta">Move songs already saved on Mac into Mixtube on iPhone. No sign-in required.</p>
+
+      <p>
+        Install Mixtube on both the Mac and the iPhone, and connect both to the same Wi-Fi. Only
+        songs saved on that Mac can be sent. A song you have only streamed, without saving it on the
+        Mac, does not appear in the list.
+      </p>
+
+      <h2>1. Start sending on the Mac</h2>
+      <ol>
+        <li>Open Mixtube on the Mac.</li>
+        <li>Open <strong>Settings</strong>, then under Music import choose <strong>Import music</strong>.</li>
+        <li>Choose <strong>Send to iPhone</strong>.</li>
+      </ol>
+      <p>
+        The left side shows a pairing code, this Mac’s address, and a QR code. Every song starts
+        selected. Tap a circle to leave a song out. If the page says “No saved songs,” save the songs
+        on the Mac first, then open this page again.
+      </p>
+      <p>Leave this page open. Closing it disconnects the iPhone.</p>
+
+      <h2>2. Receive on the iPhone</h2>
+      <ol>
+        <li>Open Mixtube on the iPhone.</li>
+        <li>Open <strong>Settings</strong> → <strong>Music import</strong> → <strong>Import music</strong>.</li>
+        <li>Choose <strong>From Mac</strong>, the first item.</li>
+        <li>
+          Tap <strong>Scan QR Code</strong> at the bottom and scan the code on the Mac. Or type the
+          Mac address and pairing code, then tap <strong>Connect</strong>.
+        </li>
+      </ol>
+      <p>
+        After the devices connect, the iPhone lists the songs the Mac is offering. Select the ones
+        you want and tap <strong>Import</strong>. A song already on this iPhone has a green check at
+        the end of its subtitle.
+      </p>
+
+      <h2>3. After the transfer</h2>
+      <p>
+        When new songs finish, Mixtube says how many were imported and offers <strong>View</strong>.
+        View opens <strong>Offline(Imported)</strong> in Library. Close stays on the current page.
+      </p>
+      <p>
+        If every selected song is already on the iPhone, Mixtube says “Already imported” and does not
+        download them again.
+      </p>
+
+      <h2>If it does not connect</h2>
+      <ul>
+        <li>
+          The Mac and the iPhone must be on the same Wi-Fi. Cellular data on the phone, or a Mac that
+          is only on Ethernet, will not connect.
+        </li>
+        <li>
+          A wrong code is reported as an incorrect pairing code. Use the code on the Mac screen now,
+          not one from an earlier attempt.
+        </li>
+        <li>
+          Scanning needs camera access. If iOS blocked it, allow the camera for Mixtube in Settings,
+          or type the address and code instead.
+        </li>
+        <li>
+          If the Mac send page was closed or the Mac went to sleep, open <strong>Send to iPhone</strong>
+          again, then try from the iPhone.
+        </li>
+      </ul>
+    </article>
+
+    <footer class="site-footer">
+      <p>© <span id="y"></span> Mixtube</p>
+      <nav aria-label="Legal">
+        <a href="privacy.html">Privacy</a>
+        <a href="terms.html">Terms</a>
+        <a href="support.html">Support</a>
+      </nav>
+    </footer>
+    <script>
+      document.getElementById("y").textContent = new Date().getFullYear();
+    </script>
+  </body>
+</html>
