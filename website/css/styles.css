@@ -9,7 +9,7 @@
   --accent-deep: #e11d6a;
   --accent-hot: #ff8a33;
   --line: rgba(244, 241, 236, 0.12);
-  --font-display: "Syne", "Avenir Next", "Segoe UI", sans-serif;
+  --font-display: "DM Sans", "Helvetica Neue", sans-serif;
   --font-body: "DM Sans", "Helvetica Neue", sans-serif;
   --pad: clamp(1.25rem, 4vw, 2.5rem);
   --max: 68rem;
@@ -166,8 +166,8 @@ a:hover {
   font-family: var(--font-display);
   font-weight: 800;
   font-size: clamp(3.4rem, 12vw, 7.5rem);
-  line-height: 0.92;
-  letter-spacing: -0.045em;
+  line-height: 1;
+  letter-spacing: -0.03em;
   animation: rise-in 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
@@ -248,8 +248,8 @@ a:hover {
   font-family: var(--font-display);
   font-weight: 700;
   font-size: clamp(1.75rem, 4vw, 2.35rem);
-  letter-spacing: -0.03em;
-  line-height: 1.15;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
 }
 
 .section p.lead {
@@ -339,8 +339,8 @@ a:hover {
   font-family: var(--font-display);
   font-weight: 700;
   font-size: clamp(1.75rem, 4vw, 2.35rem);
-  letter-spacing: -0.03em;
-  line-height: 1.15;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
 }
 
 .shots-intro .lead {
@@ -445,9 +445,10 @@ a:hover {
 .page-shell h1 {
   margin: 0 0 0.5rem;
   font-family: var(--font-display);
-  font-weight: 800;
+  font-weight: 700;
   font-size: clamp(2rem, 5vw, 2.75rem);
-  letter-spacing: -0.035em;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
 }
 
 .page-meta {
