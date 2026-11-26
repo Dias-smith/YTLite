@@ -98,37 +98,117 @@ final class MacCachedMediaIndex: ObservableObject {
     }
 }
 
+/// Progressive URL the player is using for the song that is on now.
+struct MacPlaybackStreamSource: Sendable {
+    let videoId: String
+    let streamURL: URL
+    let itag: Int
+    let mimeType: String
+    let title: String
+    let channelName: String
+    let thumbnailURL: URL?
+    let durationSeconds: Int
+}
+
 /// Starts a manual playback-file download for one song and refreshes the card indicator.
 @MainActor
 enum MacSongCacheDownloads {
-    static func start(videoId: String, thumbnailURL: URL?, libraryStore: LibraryStore?) {
+    static func start(
+        items: [VideoItem],
+        libraryStore: LibraryStore?,
+        playback: PlaybackController
+    ) {
+        for item in items {
+            guard !item.isLive else { continue }
+            let isCurrent = playback.nowPlaying?.videoId == item.videoId
+            start(
+                videoId: item.videoId,
+                thumbnailURL: item.thumbnailURL,
+                libraryStore: libraryStore,
+                playingSource: isCurrent ? playback.macPlaybackStreamSource() : nil,
+                requirePlayingSource: isCurrent
+            )
+        }
+    }
+
+    static func start(
+        videoId: String,
+        thumbnailURL: URL?,
+        libraryStore: LibraryStore?,
+        playingSource: MacPlaybackStreamSource? = nil,
+        requirePlayingSource: Bool = false
+    ) {
         guard !videoId.isEmpty, !LocalTrackID.isLocal(videoId) else { return }
+        let current = playingSource?.videoId == videoId ? playingSource : nil
+        if requirePlayingSource, current == nil { return }
         let index = MacCachedMediaIndex.shared
         guard !index.videoIds.contains(videoId), index.fractions[videoId] == nil else { return }
         index.setFraction(videoId: videoId, 0)
         Task {
             var saved = false
+            var resolved: VideoPlayback?
             do {
-                let playback = try await StreamResolver.shared.resolvePlayback(videoId: videoId)
-                guard let format = PlaybackFormatSelector.select(formats: playback.formats, preferVideo: true) else {
-                    throw URLError(.unsupportedURL)
+                if let current {
+                    saved = await PlaybackMediaStore.shared.schedulePersist(
+                        videoId: videoId,
+                        sourceURL: current.streamURL,
+                        itag: current.itag,
+                        mimeType: current.mimeType,
+                        thumbnailURL: thumbnailURL ?? current.thumbnailURL
+                    )
+                } else {
+                    let playback = try await StreamResolver.shared.resolvePlayback(videoId: videoId)
+                    resolved = playback
+                    guard let format = PlaybackFormatSelector.select(formats: playback.formats, preferVideo: true) else {
+                        throw URLError(.unsupportedURL)
+                    }
+                    saved = await PlaybackMediaStore.shared.schedulePersist(
+                        videoId: videoId,
+                        sourceURL: format.url,
+                        itag: format.itag,
+                        mimeType: format.mimeType,
+                        thumbnailURL: thumbnailURL ?? playback.thumbnailURL
+                    )
                 }
-                saved = await PlaybackMediaStore.shared.schedulePersist(
-                    videoId: videoId,
-                    sourceURL: format.url,
-                    itag: format.itag,
-                    mimeType: format.mimeType,
-                    thumbnailURL: thumbnailURL ?? playback.thumbnailURL
-                )
             } catch {
                 saved = false
             }
             let cached = await PlaybackMediaStore.shared.cachedSnapshots()
             let ids = Set(cached.map(\.videoId))
+            let playback = resolved
             await MainActor.run {
                 MacCachedMediaIndex.shared.replace(ids)
                 if !saved {
                     MacCachedMediaIndex.shared.clearFraction(videoId: videoId)
+                }
+                if saved, let current, let libraryStore {
+                    _ = libraryStore.upsertTrack(
+                        from: VideoItem(
+                            videoId: videoId,
+                            title: current.title,
+                            channelName: current.channelName,
+                            thumbnailURL: PlaybackCachedCover.resolveURL(videoId: videoId)
+                                ?? thumbnailURL
+                                ?? current.thumbnailURL,
+                            durationText: DurationFormat.text(seconds: current.durationSeconds)
+                        ),
+                        durationSeconds: current.durationSeconds
+                    )
+                    libraryStore.saveLocalOnly()
+                } else if saved, let playback, let libraryStore {
+                    _ = libraryStore.upsertTrack(
+                        from: VideoItem(
+                            videoId: videoId,
+                            title: playback.title,
+                            channelName: playback.channelName,
+                            thumbnailURL: PlaybackCachedCover.resolveURL(videoId: videoId)
+                                ?? thumbnailURL
+                                ?? playback.thumbnailURL,
+                            durationText: DurationFormat.text(seconds: playback.durationSeconds)
+                        ),
+                        durationSeconds: playback.durationSeconds
+                    )
+                    libraryStore.saveLocalOnly()
                 }
                 libraryStore?.syncOfflinePlaylist(cached: cached)
             }

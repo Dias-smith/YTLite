@@ -847,23 +847,18 @@ struct PlayerDetailView: View {
                 .foregroundStyle(YTLiteColor.onSurface)
                 .lineLimit(1)
             Spacer(minLength: YTLiteLayout.stackDefault)
-            MacSongCacheSlot(
-                videoId: playback.nowPlaying?.videoId ?? "",
-                thumbnailURL: playback.nowPlaying?.thumbnailURL
-            ) {
-                Button {
-                    if let item = playback.nowPlaying {
-                        openTrackMenu(from: item)
-                    }
-                } label: {
-                    Image(systemName: "ellipsis")
-                        .font(.system(size: 17, weight: .semibold))
-                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                        .frame(width: 36, height: 36)
-                        .contentShape(Rectangle())
+            Button {
+                if let item = playback.nowPlaying {
+                    openTrackMenu(from: item)
                 }
-                .buttonStyle(.plain)
+            } label: {
+                Image(systemName: "ellipsis")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                    .frame(width: 36, height: 36)
+                    .contentShape(Rectangle())
             }
+            .buttonStyle(.plain)
         }
     }
 
@@ -962,6 +957,15 @@ struct PlayerDetailView: View {
         }
     }
 
+    #if targetEnvironment(macCatalyst)
+    private var nowPlayingIsLive: Bool {
+        guard let videoId = playback.nowPlaying?.videoId,
+              playback.queue.indices.contains(playback.queueIndex) else { return false }
+        let item = playback.queue[playback.queueIndex]
+        return item.videoId == videoId && item.isLive
+    }
+    #endif
+
     private var actionBar: some View {
         HStack(spacing: 0) {
             actionItem(
@@ -992,6 +996,14 @@ struct PlayerDetailView: View {
             actionItem(title: L("common.save"), icon: "bookmark") {
                 showAddPlaylist = true
             }
+            #if targetEnvironment(macCatalyst)
+            MacSongCacheButton(
+                videoId: playback.nowPlaying?.videoId ?? "",
+                thumbnailURL: playback.nowPlaying?.thumbnailURL,
+                isLive: nowPlayingIsLive,
+                labeled: true
+            )
+            #endif
         }
         .padding(.vertical, YTLiteLayout.stackLoose)
         .background(
@@ -1220,6 +1232,22 @@ struct PlayerDetailView: View {
             .buttonStyle(.plain)
             .disabled(selectedIds.isEmpty)
             .accessibilityLabel(L("player.add_to_playlist"))
+
+            #if targetEnvironment(macCatalyst)
+            Button {
+                let items = currentListItems.filter { selectedIds.contains($0.videoId) }
+                MacSongCacheDownloads.start(items: items, libraryStore: store, playback: playback)
+            } label: {
+                Image(systemName: "arrow.down.circle")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(selectedIds.isEmpty ? YTLiteColor.onSurface.opacity(0.35) : YTLiteColor.onSurface)
+                    .frame(width: 36, height: 36)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .disabled(selectedIds.isEmpty)
+            .accessibilityLabel(L("mac.cache.download"))
+            #endif
 
             if tab == .upNext {
                 Button {

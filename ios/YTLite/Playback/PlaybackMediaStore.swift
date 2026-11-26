@@ -486,55 +486,91 @@ actor PlaybackMediaStore {
         let dest = PlaybackCachedCover.fileURL(videoId: videoId)
         if fileManager.fileExists(atPath: dest.path) { return }
 
-        guard let thumbnailURL else { return }
-        // Already a durable local file (import / custom thumb) — copy if needed.
-        if thumbnailURL.isFileURL {
-            let sourcePath = thumbnailURL.path
-            guard fileManager.fileExists(atPath: sourcePath), sourcePath != dest.path else { return }
-            try? fileManager.createDirectory(
+        var candidates: [URL] = []
+        if let thumbnailURL {
+            let clean = Self.strippingFragment(thumbnailURL)
+            if clean.isFileURL {
+                if await copyLocalCover(from: clean, to: dest, videoId: videoId) { return }
+            } else {
+                candidates.append(clean)
+            }
+        }
+        if let poster = Self.youtubePosterURL(videoId: videoId),
+           !candidates.contains(where: { $0.absoluteString == poster.absoluteString }) {
+            candidates.append(poster)
+        }
+        for url in candidates {
+            if await downloadCover(from: url, to: dest, videoId: videoId) { return }
+        }
+    }
+
+    private func copyLocalCover(from source: URL, to dest: URL, videoId: String) async -> Bool {
+        let sourcePath = source.path
+        guard fileManager.fileExists(atPath: sourcePath), sourcePath != dest.path else { return false }
+        do {
+            try fileManager.createDirectory(
                 at: dest.deletingLastPathComponent(),
                 withIntermediateDirectories: true
             )
-            try? fileManager.copyItem(at: URL(fileURLWithPath: sourcePath), to: dest)
+            if fileManager.fileExists(atPath: dest.path) {
+                try fileManager.removeItem(at: dest)
+            }
+            try fileManager.copyItem(at: URL(fileURLWithPath: sourcePath), to: dest)
             await invalidateCoverImageCache(at: dest)
-            return
+            PlayProbe.log("play.cover_saved", videoId: videoId, "local")
+            return true
+        } catch {
+            return false
         }
+    }
 
+    private func downloadCover(from url: URL, to dest: URL, videoId: String) async -> Bool {
         do {
-            var request = URLRequest(url: thumbnailURL)
+            var request = URLRequest(url: url)
             request.setValue(
                 "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15",
                 forHTTPHeaderField: "User-Agent"
             )
-            if let host = thumbnailURL.host,
-               host.contains("ggpht.com") || host.contains("googleusercontent.com")
+            if let host = url.host,
+               host.contains("ggpht.com") || host.contains("googleusercontent.com") || host.contains("ytimg.com")
             {
                 request.setValue(SaltedLiteral.refererSlash, forHTTPHeaderField: "Referer")
             }
             let (data, response) = try await URLSession.shared.data(for: request)
             try Task.checkCancellation()
             let status = (response as? HTTPURLResponse)?.statusCode ?? 0
-            guard (200..<300).contains(status), !data.isEmpty else { return }
+            guard (200..<300).contains(status), !data.isEmpty else { return false }
+            guard let image = UIImage(data: data), let jpeg = image.jpegData(compressionQuality: 0.9), !jpeg.isEmpty else {
+                return false
+            }
 
             try fileManager.createDirectory(
                 at: dest.deletingLastPathComponent(),
                 withIntermediateDirectories: true
             )
-            // Normalize to JPEG so UIImage / RemoteImage always decode.
-            let jpeg: Data
-            if let image = UIImage(data: data), let encoded = image.jpegData(compressionQuality: 0.9) {
-                jpeg = encoded
-            } else {
-                jpeg = data
-            }
             try jpeg.write(to: dest, options: .atomic)
             await invalidateCoverImageCache(at: dest)
             PlayProbe.log("play.cover_saved", videoId: videoId)
+            return true
         } catch is CancellationError {
-            return
+            return false
         } catch {
             PlayProbe.log("play.cover_fail", videoId: videoId, error.localizedDescription)
+            return false
         }
+    }
+
+    private static func strippingFragment(_ url: URL) -> URL {
+        guard url.fragment != nil else { return url }
+        var parts = URLComponents(url: url, resolvingAgainstBaseURL: false)
+        parts?.fragment = nil
+        return parts?.url ?? url
+    }
+
+    /// Public poster used when the playback item has no usable artwork URL.
+    private static func youtubePosterURL(videoId: String) -> URL? {
+        guard !videoId.isEmpty, !LocalTrackID.isLocal(videoId) else { return nil }
+        return URL(string: "https://i.ytimg.com/vi/\(videoId)/hqdefault.jpg")
     }
 
     private func invalidateCoverImageCache(at dest: URL) async {

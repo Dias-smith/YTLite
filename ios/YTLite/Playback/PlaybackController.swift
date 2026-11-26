@@ -1153,9 +1153,9 @@ final class PlaybackController: ObservableObject {
                     "\(playback.preferredStreamDescription()) \(PlayProbe.streamSummary(url: url)) prepare=\(usedPrepare) prime=\(primedPlayerItem != nil)"
                 )
                 #if DEBUG || targetEnvironment(macCatalyst)
-                if let fmt = PlaybackFormatSelector.select(formats: playback.formats, preferVideo: true),
-                   url == fmt.url
-                {
+                let progressive = PlaybackFormatSelector.select(formats: playback.formats, preferVideo: true)
+                    ?? PlaybackFormatSelector.select(formats: playback.formats, preferVideo: false)
+                if let fmt = progressive, url == fmt.url {
                     playbackStoreContext = PlaybackStoreContext(
                         videoId: expectedVideoId,
                         streamURL: url,
@@ -1682,6 +1682,24 @@ final class PlaybackController: ObservableObject {
             }
         }
     }
+
+    #if targetEnvironment(macCatalyst)
+    /// The progressive URL currently open in the player, when this video is the one playing.
+    func macPlaybackStreamSource() -> MacPlaybackStreamSource? {
+        guard let ctx = playbackStoreContext, nowPlaying?.videoId == ctx.videoId else { return nil }
+        let item = nowPlaying
+        return MacPlaybackStreamSource(
+            videoId: ctx.videoId,
+            streamURL: ctx.streamURL,
+            itag: ctx.itag,
+            mimeType: ctx.mimeType,
+            title: item?.title ?? "",
+            channelName: item?.channelName ?? "",
+            thumbnailURL: item?.thumbnailURL,
+            durationSeconds: pendingResolvedDurationSeconds
+        )
+    }
+    #endif
 
     #if DEBUG || targetEnvironment(macCatalyst)
     /// ***

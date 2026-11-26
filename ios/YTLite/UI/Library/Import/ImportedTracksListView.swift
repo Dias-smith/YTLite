@@ -3,11 +3,13 @@ import SwiftUI
 private enum ImportedListFilter: Hashable {
     case all
     case source(ImportSourceKind)
+    case download
 
     var title: String {
         switch self {
         case .all: return L("import.list.filter.all")
         case .source(let kind): return L(kind.displayKey)
+        case .download: return L("import.list.filter.download")
         }
     }
 
@@ -49,12 +51,24 @@ struct ImportedTracksListView: View {
     @State private var showBatchPlaylistPicker = false
     @State private var showDeleteConfirm = false
 
+    private var chips: [ImportedListFilter] {
+        var items = ImportedListFilter.chipOrder
+        #if targetEnvironment(macCatalyst)
+        if scope == .offlineAll {
+            items.append(.download)
+        }
+        #endif
+        return items
+    }
+
     private var filteredEntries: [ImportedDisplayEntry] {
         switch filter {
         case .all:
             return entries
         case .source(let kind):
             return entries.filter { $0.sourceKind == kind }
+        case .download:
+            return entries.filter { $0.sourceKind == .youtube }
         }
     }
 
@@ -152,7 +166,7 @@ struct ImportedTracksListView: View {
     private var filterChips: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: YTLiteLayout.stackDefault) {
-                ForEach(ImportedListFilter.chipOrder, id: \.self) { item in
+                ForEach(chips, id: \.self) { item in
                     YTLiteChip(title: item.title, selected: filter == item) {
                         filter = item
                     }

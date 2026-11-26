@@ -240,8 +240,11 @@ struct MacSongCacheButton: View {
     var isLive: Bool = false
     var side: CGFloat = 28
     var iconPointSize: CGFloat = 16
+    /// Action-bar layout: icon above a caption, same width as Like / Save.
+    var labeled: Bool = false
     @ObservedObject private var cache = MacCachedMediaIndex.shared
     @Environment(\.libraryStore) private var libraryStore
+    @EnvironmentObject private var playback: PlaybackController
 
     /// Files already on this Mac: local imports and tracks brought in from another source.
     private var isImported: Bool {
@@ -250,9 +253,18 @@ struct MacSongCacheButton: View {
     }
 
     var body: some View {
+        if labeled {
+            labeledBody
+        } else {
+            compactBody
+        }
+    }
+
+    @ViewBuilder
+    private var compactBody: some View {
         if videoId.isEmpty {
             EmptyView()
-        } else if isImported || cache.videoIds.contains(videoId) {
+        } else if isSaved {
             Image(systemName: "checkmark")
                 .font(.system(size: max(13, iconPointSize * 0.8), weight: .bold))
                 .foregroundStyle(Color.green)
@@ -265,13 +277,7 @@ struct MacSongCacheButton: View {
                 .frame(width: side, height: side)
                 .accessibilityLabel(L("mac.cache.download"))
         } else {
-            Button {
-                MacSongCacheDownloads.start(
-                    videoId: videoId,
-                    thumbnailURL: thumbnailURL,
-                    libraryStore: libraryStore
-                )
-            } label: {
+            Button(action: startDownload) {
                 Image(systemName: "arrow.down.circle")
                     .font(.system(size: iconPointSize, weight: .semibold))
                     .foregroundStyle(YTLiteColor.onSurfaceVariant)
@@ -281,6 +287,58 @@ struct MacSongCacheButton: View {
             .buttonStyle(.borderless)
             .accessibilityLabel(L("mac.cache.download"))
         }
+    }
+
+    @ViewBuilder
+    private var labeledBody: some View {
+        if videoId.isEmpty || isLive {
+            EmptyView()
+        } else if isSaved {
+            labeledColumn(tint: .green) {
+                Image(systemName: "checkmark")
+                    .font(.body.weight(.bold))
+            }
+            .accessibilityLabel(L("mac.cache.download"))
+        } else if let fraction = cache.fractions[videoId] {
+            labeledColumn(tint: YTLiteColor.onSurface) {
+                MacCacheProgressRing(fraction: fraction, inset: 1)
+                    .frame(width: 22, height: 22)
+            }
+            .accessibilityLabel(L("mac.cache.download"))
+        } else {
+            Button(action: startDownload) {
+                labeledColumn(tint: YTLiteColor.onSurface) {
+                    Image(systemName: "arrow.down.circle")
+                }
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(L("mac.cache.download"))
+        }
+    }
+
+    private var isSaved: Bool {
+        isImported || cache.videoIds.contains(videoId)
+    }
+
+    private func labeledColumn<Icon: View>(tint: Color, @ViewBuilder icon: () -> Icon) -> some View {
+        VStack(spacing: 6) {
+            icon()
+            Text(L("mac.cache.download"))
+                .font(YTLiteType.iconCaption)
+        }
+        .foregroundStyle(tint)
+        .frame(maxWidth: .infinity)
+    }
+
+    private func startDownload() {
+        let isCurrent = playback.nowPlaying?.videoId == videoId
+        MacSongCacheDownloads.start(
+            videoId: videoId,
+            thumbnailURL: thumbnailURL,
+            libraryStore: libraryStore,
+            playingSource: isCurrent ? playback.macPlaybackStreamSource() : nil,
+            requirePlayingSource: isCurrent
+        )
     }
 }
 

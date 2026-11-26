@@ -1347,7 +1347,29 @@ final class LibraryStore {
     /// Pull the current playback cache into this playlist, and drop cache-only rows whose file is gone.
     func refreshOfflinePlaylistFromCache() async {
         let cached = await PlaybackMediaStore.shared.cachedSnapshots()
+        for snapshot in cached {
+            let cover = PlaybackCachedCover.fileURL(videoId: snapshot.videoId)
+            if FileManager.default.fileExists(atPath: cover.path) { continue }
+            let remote = httpThumbnailURL(for: snapshot.videoId)
+            _ = await PlaybackMediaStore.shared.ensureCover(videoId: snapshot.videoId, thumbnailURL: remote)
+        }
         syncOfflinePlaylist(cached: cached)
+    }
+
+    private func httpThumbnailURL(for videoId: String) -> URL? {
+        if let stored = track(id: videoId)?.thumbnailURLString,
+           stored.hasPrefix("http://") || stored.hasPrefix("https://"),
+           let url = URL(string: stored) {
+            return url
+        }
+        let session = PlaybackSessionStore.load()
+        let items = (session?.items ?? []) + (session?.originalOrder ?? [])
+        if let raw = items.first(where: { $0.videoId == videoId })?.thumbnailURL,
+           raw.hasPrefix("http://") || raw.hasPrefix("https://"),
+           let url = URL(string: raw) {
+            return url
+        }
+        return nil
     }
 
     func syncOfflinePlaylist(cached: [(videoId: String, fileSize: Int64)]) {
@@ -1359,8 +1381,18 @@ final class LibraryStore {
         let cachedIds = Set(newSizes.keys)
         var changed = false
 
+        let feedHints = HomeFeedStore.titleHintsByVideoId()
+        let session = PlaybackSessionStore.load()
+        let sessionItems = (session?.items ?? []) + (session?.originalOrder ?? [])
         for videoId in cachedIds {
-            guard let track = track(id: videoId) else { continue }
+            let track = track(id: videoId) ?? ensureCachedOfflineTrack(
+                videoId: videoId,
+                feedHints: feedHints,
+                sessionItems: sessionItems
+            )
+            if rememberCachedCover(on: track) {
+                changed = true
+            }
             if playlist.entries.contains(where: { $0.track?.trackId == videoId }) { continue }
             let entry = LibraryPlaylistEntry(position: playlist.entries.count, track: track, isSynced: true)
             playlist.entries.append(entry)
@@ -1391,6 +1423,51 @@ final class LibraryStore {
         if changed || sizesChanged {
             onOfflinePlaylistChanged?()
         }
+    }
+
+    /// Keep the Offline row pointed at the JPEG saved next to the downloaded file.
+    private func rememberCachedCover(on track: LibraryTrack) -> Bool {
+        let cover = PlaybackCachedCover.fileURL(videoId: track.trackId)
+        guard FileManager.default.fileExists(atPath: cover.path) else { return false }
+        let stored = cover.absoluteString
+        guard track.thumbnailHigh != stored else { return false }
+        track.thumbnailHigh = stored
+        track.updatedAt = .now
+        return true
+    }
+
+    /// A finished download with no catalogue row still belongs in Offline.
+    private func ensureCachedOfflineTrack(
+        videoId: String,
+        feedHints: [String: (title: String, channelName: String)],
+        sessionItems: [PersistedQueueItem]
+    ) -> LibraryTrack {
+        if let item = sessionItems.first(where: {
+            $0.videoId == videoId && !TrackTitle.isPlaceholder($0.title, videoId: videoId)
+        }) {
+            return upsertTrack(
+                from: item.toVideoItem(),
+                durationSeconds: DurationFormat.seconds(from: item.durationText)
+            )
+        }
+        if let hint = feedHints[videoId] {
+            return upsertTrack(
+                from: VideoItem(
+                    videoId: videoId,
+                    title: hint.title,
+                    channelName: hint.channelName,
+                    thumbnailURL: PlaybackCachedCover.resolveURL(videoId: videoId)
+                )
+            )
+        }
+        return upsertTrack(
+            from: VideoItem(
+                videoId: videoId,
+                title: L("import.mac.unknown_song"),
+                channelName: "",
+                thumbnailURL: PlaybackCachedCover.resolveURL(videoId: videoId)
+            )
+        )
     }
 
     /// Removes an offline-playlist row. Imported files are deleted; cached streams only lose the cache copy.

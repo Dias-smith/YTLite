@@ -1135,7 +1135,9 @@ final class MacShortcutStore: ObservableObject {
         MacSongCacheDownloads.start(
             videoId: item.videoId,
             thumbnailURL: item.thumbnailURL,
-            libraryStore: playback.libraryStore
+            libraryStore: playback.libraryStore,
+            playingSource: playback.macPlaybackStreamSource(),
+            requirePlayingSource: true
         )
     }
 
