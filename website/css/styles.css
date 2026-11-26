@@ -448,6 +448,35 @@ a:hover {
   max-width: 68rem;
 }
 
+.guide-step {
+  margin: 2.25rem 0 0;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--line);
+}
+
+.guide-step h2 {
+  margin-top: 0;
+}
+
+.guide-phone {
+  max-width: 18rem;
+  margin: 1.25rem 0 0;
+}
+
+.guide-phone img {
+  width: 100%;
+  height: auto;
+  border-radius: 0.75rem;
+  border: 1px solid var(--line);
+  background: #111;
+}
+
+.guide-phone figcaption {
+  margin-top: 0.45rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
 .guide-shot {
   margin: 1.25rem 0 0;
 }
