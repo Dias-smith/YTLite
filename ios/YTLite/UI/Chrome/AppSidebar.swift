@@ -14,13 +14,20 @@ struct AppSidebar: View {
     }
 
     private var items: [(AppTab, String, String)] {
-        [
+        var rows: [(AppTab, String, String)] = [
             (.home, L("tab.home"), "house.fill"),
             (.search, L("tab.search"), "magnifyingglass"),
             (.library, L("tab.library"), "rectangle.stack.fill"),
             (.importMusic, L("tab.import"), "square.and.arrow.down"),
-            (.you, youTabTitle, "play.square.fill"),
         ]
+        #if targetEnvironment(macCatalyst)
+        rows.append((.sendToIPhone, L("import.source.mac_send"), "iphone"))
+        #endif
+        rows.append((.you, youTabTitle, "play.square.fill"))
+        #if targetEnvironment(macCatalyst)
+        rows.append((.settings, L("settings.title"), "gearshape"))
+        #endif
+        return rows
     }
 
     var body: some View {

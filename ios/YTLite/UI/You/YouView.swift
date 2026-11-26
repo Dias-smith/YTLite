@@ -14,7 +14,9 @@ struct YouView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
+                #if !targetEnvironment(macCatalyst)
                 youSettingsBar
+                #endif
                 Group {
                     if !auth.isAuthenticated {
                         subsSignInEmpty
@@ -48,6 +50,7 @@ struct YouView: View {
         }
     }
 
+    #if !targetEnvironment(macCatalyst)
     /// Trailing settings control (parity with Library header gear).
     private var youSettingsBar: some View {
         HStack {
@@ -64,6 +67,7 @@ struct YouView: View {
         .padding(.horizontal, YTLiteLayout.screenPadding)
         .padding(.top, YTLiteLayout.rowVertical)
     }
+    #endif
 
     // MARK: - Guest
 

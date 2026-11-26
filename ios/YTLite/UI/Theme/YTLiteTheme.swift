@@ -238,6 +238,8 @@ struct MacSongCacheButton: View {
     let videoId: String
     var thumbnailURL: URL? = nil
     var isLive: Bool = false
+    var side: CGFloat = 28
+    var iconPointSize: CGFloat = 16
     @ObservedObject private var cache = MacCachedMediaIndex.shared
     @Environment(\.libraryStore) private var libraryStore
 
@@ -252,15 +254,15 @@ struct MacSongCacheButton: View {
             EmptyView()
         } else if isImported || cache.videoIds.contains(videoId) {
             Image(systemName: "checkmark")
-                .font(.system(size: 13, weight: .bold))
+                .font(.system(size: max(13, iconPointSize * 0.8), weight: .bold))
                 .foregroundStyle(Color.green)
-                .frame(width: 28, height: 28)
+                .frame(width: side, height: side)
                 .accessibilityHidden(true)
         } else if isLive {
-            EmptyView()
+            Color.clear.frame(width: side, height: side)
         } else if let fraction = cache.fractions[videoId] {
-            MacCacheProgressRing(fraction: fraction)
-                .frame(width: 28, height: 28)
+            MacCacheProgressRing(fraction: fraction, inset: max(0, (side - iconPointSize - 2) / 2))
+                .frame(width: side, height: side)
                 .accessibilityLabel(L("mac.cache.download"))
         } else {
             Button {
@@ -271,9 +273,9 @@ struct MacSongCacheButton: View {
                 )
             } label: {
                 Image(systemName: "arrow.down.circle")
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(.system(size: iconPointSize, weight: .semibold))
                     .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                    .frame(width: 28, height: 28)
+                    .frame(width: side, height: side)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.borderless)
@@ -284,6 +286,7 @@ struct MacSongCacheButton: View {
 
 private struct MacCacheProgressRing: View {
     let fraction: Double
+    var inset: CGFloat = 5
 
     var body: some View {
         ZStack {
@@ -294,7 +297,7 @@ private struct MacCacheProgressRing: View {
                 .stroke(Color.green, style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
                 .rotationEffect(.degrees(-90))
         }
-        .padding(5)
+        .padding(inset)
     }
 }
 #endif

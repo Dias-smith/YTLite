@@ -157,6 +157,8 @@ func mixtubeQRImage(for string: String) -> UIImage? {
 
 #if targetEnvironment(macCatalyst)
 struct MacCacheSendSheet: View {
+    /// Sidebar page has no cover to dismiss. The transfer still stops when the page disappears.
+    var showsCloseButton: Bool = true
     @Environment(\.libraryStore) private var store
     @Environment(\.dismiss) private var dismiss
     @ObservedObject private var server = MacCacheTransferServer.shared
@@ -191,13 +193,15 @@ struct MacCacheSendSheet: View {
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-                YTLiteSheetPrimaryButton(title: L("common.close")) {
-                    server.stop()
-                    dismiss()
+                if showsCloseButton {
+                    YTLiteSheetPrimaryButton(title: L("common.close")) {
+                        server.stop()
+                        dismiss()
+                    }
+                    .padding(.bottom, 28)
                 }
-                .padding(.bottom, 28)
             }
-            .padding(.top, 28)
+            .padding(.top, showsCloseButton ? 28 : YTLiteLayout.screenPadding)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .ytLiteAppBackground()
             .navigationBarHidden(true)

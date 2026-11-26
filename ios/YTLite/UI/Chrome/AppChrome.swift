@@ -76,7 +76,7 @@ struct AppChrome<Content: View>: View {
                 .background(YTLiteColor.background)
                 .environment(\.miniPlayerBottomInset, miniPlayerBottomInset)
                 .safeAreaInset(edge: .bottom, spacing: 0) {
-                    miniPlayerSlot(docked: true)
+                    miniPlayerSlot(docked: docksMiniPlayer)
                 }
                 .coordinateSpace(name: BubbleGuideStore.coordinateSpaceName)
                 .bubbleGuideLayer(
@@ -136,7 +136,16 @@ struct AppChrome<Content: View>: View {
         return YTLiteLayout.miniPlayerChromeHeight(displayScale: displayScale)
             + saveBanner
             + loginBanner
-            + (isRegular ? 8 : 0)
+            + (docksMiniPlayer ? 8 : 0)
+    }
+
+    /// iPad floats a short dock. Mac uses a full-width bar so list rows do not show beside it.
+    private var docksMiniPlayer: Bool {
+        #if targetEnvironment(macCatalyst)
+        false
+        #else
+        isRegular
+        #endif
     }
 }
 

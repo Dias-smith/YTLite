@@ -68,38 +68,70 @@ struct MiniPlayerBar: View {
             .accessibilityAddTraits(.isButton)
             .accessibilityLabel(item.title)
 
-            // Independent controls — do not open player.
-            Button {
-                dismissSwipeGuide()
-                playback.togglePlayPause()
-            } label: {
-                Image(systemName: playback.isPlaying ? "pause.fill" : "play.fill")
-                    .font(.system(size: 20, weight: .medium))
-                    .foregroundStyle(YTLiteColor.onSurface)
-                    .frame(width: YTLiteLayout.miniControlSize, height: YTLiteLayout.miniControlSize)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .disabled(playback.isBuffering)
-            .accessibilityLabel(playback.isPlaying ? L("common.pause") : L("common.play"))
-
-            Button {
-                dismissSwipeGuide()
-                playback.playNext()
-            } label: {
-                Image(systemName: "forward.fill")
-                    .font(.system(size: 20, weight: .medium))
-                    .foregroundStyle(YTLiteColor.onSurface)
-                    .frame(width: YTLiteLayout.miniControlSize, height: YTLiteLayout.miniControlSize)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .disabled(!playback.hasNextInQueue)
-            .accessibilityLabel(L("common.next"))
+            transportControls
         }
         .frame(height: YTLiteLayout.miniBarHeight)
         .padding(.trailing, 4)
         .contentShape(Rectangle())
+    }
+
+    @ViewBuilder
+    private var transportControls: some View {
+        #if targetEnvironment(macCatalyst)
+        if let item = playback.nowPlaying {
+            MacSongCacheButton(
+                videoId: item.videoId,
+                thumbnailURL: item.thumbnailURL,
+                isLive: currentItemIsLive,
+                side: YTLiteLayout.miniControlSize,
+                iconPointSize: 20
+            )
+        }
+        #endif
+        transportButton(
+            systemName: playback.isPlaying ? "pause.fill" : "play.fill",
+            label: playback.isPlaying ? L("common.pause") : L("common.play"),
+            disabled: playback.isBuffering
+        ) {
+            playback.togglePlayPause()
+        }
+        transportButton(
+            systemName: "forward.fill",
+            label: L("common.next"),
+            disabled: !playback.hasNextInQueue
+        ) {
+            playback.playNext()
+        }
+    }
+
+    #if targetEnvironment(macCatalyst)
+    private var currentItemIsLive: Bool {
+        guard let videoId = playback.nowPlaying?.videoId,
+              playback.queue.indices.contains(playback.queueIndex) else { return false }
+        let item = playback.queue[playback.queueIndex]
+        return item.videoId == videoId && item.isLive
+    }
+    #endif
+
+    private func transportButton(
+        systemName: String,
+        label: String,
+        disabled: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button {
+            dismissSwipeGuide()
+            action()
+        } label: {
+            Image(systemName: systemName)
+                .font(.system(size: 20, weight: .medium))
+                .foregroundStyle(YTLiteColor.onSurface)
+                .frame(width: YTLiteLayout.miniControlSize, height: YTLiteLayout.miniControlSize)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(disabled)
+        .accessibilityLabel(label)
     }
 
     /// Left → next, right → previous. Vertical pans ignored so parent scroll still works.
@@ -193,9 +225,15 @@ struct MiniPlayerBar: View {
                 RemoteImage(url: item.thumbnailURL, contentMode: .fill)
             }
         }
+        #if targetEnvironment(macCatalyst)
+        .frame(width: 44, height: 44)
+        .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+        .padding(.leading, 16)
+        #else
         .frame(height: YTLiteLayout.miniBarHeight)
         .aspectRatio(YTLiteLayout.miniMediaAspect, contentMode: .fit)
         .clipped()
+        #endif
     }
 }
 
@@ -228,6 +266,135 @@ private extension Comparable {
         min(max(self, range.lowerBound), range.upperBound)
     }
 }
+
+#if targetEnvironment(macCatalyst)
+struct MacMiniPlayerHost<Content: View>: View {
+    @ObservedObject private var chrome = MacWindowChrome.shared
+    @EnvironmentObject private var playback: PlaybackController
+    @ViewBuilder var content: () -> Content
+
+    var body: some View {
+        Group {
+            if chrome.isMinimizedToPlayer {
+                MacShrunkMiniPlayer()
+                    .ignoresSafeArea()
+            } else {
+                content()
+            }
+        }
+        .onAppear {
+            chrome.hasNowPlaying = playback.nowPlaying != nil
+        }
+        .onChange(of: playback.nowPlaying?.videoId) { _, _ in
+            chrome.hasNowPlaying = playback.nowPlaying != nil
+        }
+    }
+}
+
+/// Window contents after the yellow button shrinks Mixtube to an on-screen player.
+private struct MacShrunkMiniPlayer: View {
+    @EnvironmentObject private var playback: PlaybackController
+
+    var body: some View {
+        VStack(spacing: 0) {
+            MiniPlayerProgressBar()
+            HStack(spacing: 8) {
+                if let item = playback.nowPlaying {
+                    HStack(spacing: 10) {
+                        RemoteImage(url: item.thumbnailURL, contentMode: .fill)
+                            .frame(width: 44, height: 44)
+                            .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(item.title)
+                                .font(YTLiteType.body)
+                                .foregroundStyle(YTLiteColor.onSurface)
+                                .lineLimit(1)
+                            Text(item.channelName)
+                                .font(YTLiteType.meta)
+                                .foregroundStyle(YTLiteColor.miniMeta)
+                                .lineLimit(1)
+                        }
+                        Spacer(minLength: 8)
+                    }
+                    shrunkTransport
+                } else {
+                    Text(L("common.no_videos"))
+                        .font(YTLiteType.meta)
+                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                    Spacer(minLength: 8)
+                }
+                Button {
+                    MacAppLifetime.restoreShrunkWindow()
+                } label: {
+                    Image(systemName: "arrow.up.left.and.arrow.down.right")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(YTLiteColor.onSurface)
+                        .frame(width: 36, height: 36)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(L("mac.mini_player.restore"))
+            }
+            .padding(.horizontal, 12)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(YTLiteColor.miniPlayer)
+        .contentShape(Rectangle())
+        .simultaneousGesture(windowDrag)
+    }
+
+    private var currentItemIsLive: Bool {
+        guard let videoId = playback.nowPlaying?.videoId,
+              playback.queue.indices.contains(playback.queueIndex) else { return false }
+        let item = playback.queue[playback.queueIndex]
+        return item.videoId == videoId && item.isLive
+    }
+
+    private var windowDrag: some Gesture {
+        DragGesture(minimumDistance: 2)
+            .onChanged { _ in
+                MacAppLifetime.beginMiniPlayerDrag()
+            }
+            .onEnded { _ in
+                MacAppLifetime.endMiniDrag()
+            }
+    }
+
+    @ViewBuilder
+    private var shrunkTransport: some View {
+        if let item = playback.nowPlaying {
+            MacSongCacheButton(
+                videoId: item.videoId,
+                thumbnailURL: item.thumbnailURL,
+                isLive: currentItemIsLive,
+                side: 32,
+                iconPointSize: 18
+            )
+        }
+
+        Button {
+            playback.togglePlayPause()
+        } label: {
+            Image(systemName: playback.isPlaying ? "pause.fill" : "play.fill")
+                .frame(width: 36, height: 36)
+        }
+        .buttonStyle(.plain)
+        .disabled(playback.isBuffering)
+        .accessibilityLabel(playback.isPlaying ? L("common.pause") : L("common.play"))
+
+        Button {
+            playback.playNext()
+        } label: {
+            Image(systemName: "forward.fill")
+                .frame(width: 32, height: 36)
+        }
+        .buttonStyle(.plain)
+        .disabled(!playback.hasNextInQueue)
+        .accessibilityLabel(L("common.next"))
+    }
+}
+#endif
 
 /// Slim offer above the mini player, and under the video when the full player is open.
 struct LibrarySavePromptBanner: View {

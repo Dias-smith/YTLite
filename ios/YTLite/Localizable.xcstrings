@@ -3355,6 +3355,19 @@
         }
       }
     },
+    "mac.mini_player.restore" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "إظهار النافذة" } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Show window" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Mostrar ventana" } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Afficher la fenêtre" } },
+        "hi" : { "stringUnit" : { "state" : "translated", "value" : "विंडो दिखाएँ" } },
+        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Mostrar janela" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "显示主窗口" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "顯示主視窗" } }
+      }
+    },
     "mac.release.title" : {
       "extractionState" : "manual",
       "localizations" : {

@@ -10,9 +10,7 @@ private enum ImportHubSource: Identifiable {
     case icloud
     case gdrive
     case baidu
-    #if targetEnvironment(macCatalyst)
-    case macSend
-    #else
+    #if !targetEnvironment(macCatalyst)
     case macReceive
     #endif
 
@@ -25,9 +23,7 @@ private enum ImportHubSource: Identifiable {
         case .icloud: return "icloud"
         case .gdrive: return "gdrive"
         case .baidu: return "baidu"
-        #if targetEnvironment(macCatalyst)
-        case .macSend: return "macSend"
-        #else
+        #if !targetEnvironment(macCatalyst)
         case .macReceive: return "macReceive"
         #endif
         }
@@ -42,9 +38,7 @@ private enum ImportHubSource: Identifiable {
         case .icloud: return L("import.source.icloud")
         case .gdrive: return L("import.source.gdrive")
         case .baidu: return L("import.source.baidu")
-        #if targetEnvironment(macCatalyst)
-        case .macSend: return L("import.source.mac_send")
-        #else
+        #if !targetEnvironment(macCatalyst)
         case .macReceive: return L("import.source.mac_receive")
         #endif
         }
@@ -59,9 +53,7 @@ private enum ImportHubSource: Identifiable {
         case .icloud: return L("import.source.icloud.hint")
         case .gdrive: return L("import.source.gdrive.hint")
         case .baidu: return L("import.source.baidu.hint")
-        #if targetEnvironment(macCatalyst)
-        case .macSend: return L("import.source.mac_send.hint")
-        #else
+        #if !targetEnvironment(macCatalyst)
         case .macReceive: return L("import.source.mac_receive.hint")
         #endif
         }
@@ -76,9 +68,7 @@ private enum ImportHubSource: Identifiable {
         case .icloud: return "icloud"
         case .gdrive: return "globe"
         case .baidu: return "cloud"
-        #if targetEnvironment(macCatalyst)
-        case .macSend: return "iphone"
-        #else
+        #if !targetEnvironment(macCatalyst)
         case .macReceive: return "laptopcomputer"
         #endif
         }
@@ -109,7 +99,7 @@ private enum ImportHubSource: Identifiable {
     /// Google Drive uses `drive.file` + official Google file picker (onepick).
     static var all: [ImportHubSource] {
         #if targetEnvironment(macCatalyst)
-        [.local, .photos, .wifi, .webdav, .icloud, .gdrive, .macSend]
+        [.local, .photos, .wifi, .webdav, .icloud, .gdrive]
         #else
         [.macReceive, .local, .photos, .wifi, .webdav, .icloud, .gdrive]
         #endif
@@ -135,9 +125,7 @@ struct ImportHubView: View {
     @State private var showWebDAV = false
     @State private var showGDrive = false
     @State private var showBaidu = false
-    #if targetEnvironment(macCatalyst)
-    @State private var showMacSend = false
-    #else
+    #if !targetEnvironment(macCatalyst)
     @State private var showMacReceive = false
     #endif
     @State private var preferICloudPicker = false
@@ -251,11 +239,7 @@ struct ImportHubView: View {
                 trackActions.notifyListsChanged()
             }
         }
-        #if targetEnvironment(macCatalyst)
-        .fullScreenCover(isPresented: $showMacSend) {
-            MacCacheSendSheet()
-        }
-        #else
+        #if !targetEnvironment(macCatalyst)
         .fullScreenCover(isPresented: $showMacReceive) {
             MacCacheReceiveSheet {
                 reloadCount()
@@ -389,10 +373,7 @@ struct ImportHubView: View {
             showGDrive = true
         case .baidu:
             showBaidu = true
-        #if targetEnvironment(macCatalyst)
-        case .macSend:
-            showMacSend = true
-        #else
+        #if !targetEnvironment(macCatalyst)
         case .macReceive:
             showMacReceive = true
         #endif

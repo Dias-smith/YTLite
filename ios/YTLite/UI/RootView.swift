@@ -16,6 +16,16 @@ struct RootView: View {
     @State private var isKeyboardVisible = false
 
     var body: some View {
+        #if targetEnvironment(macCatalyst)
+        MacMiniPlayerHost {
+            mainInterface
+        }
+        #else
+        mainInterface
+        #endif
+    }
+
+    private var mainInterface: some View {
         TrackActionHost(libraryStore: libraryStore) {
             AppChrome(
                 selectedTab: $selectedTab,
@@ -34,6 +44,20 @@ struct RootView: View {
                         LibraryView()
                     case .importMusic:
                         ImportTabView()
+                    case .sendToIPhone:
+                        #if targetEnvironment(macCatalyst)
+                        MacCacheSendSheet(showsCloseButton: false)
+                        #else
+                        ImportTabView()
+                        #endif
+                    case .settings:
+                        #if targetEnvironment(macCatalyst)
+                        NavigationStack {
+                            SettingsView()
+                        }
+                        #else
+                        YouView()
+                        #endif
                     }
                 }
             }
@@ -280,7 +304,7 @@ struct RootView: View {
 }
 
 enum AppTab: String, Hashable {
-    case home, search, you, library, importMusic
+    case home, search, you, library, importMusic, sendToIPhone, settings
 
     private static let storageKey = "selected_app_tab"
 
@@ -304,6 +328,8 @@ extension RootView {
         case .you: return "you"
         case .library: return "library"
         case .importMusic: return "import"
+        case .sendToIPhone: return "sendToIPhone"
+        case .settings: return "settings"
         }
     }
 }
