@@ -11780,6 +11780,123 @@
         "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "如何傳送到 iPhone" } }
       }
     },
+    "import.mac.sort.downloaded_newest" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "الأحدث تنزيلاً" } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Newest download" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Descarga más reciente" } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Téléchargement le plus récent" } },
+        "hi" : { "stringUnit" : { "state" : "translated", "value" : "सबसे नया डाउनलोड" } },
+        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Download mais recente" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "最近下载" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "最近下載" } }
+      }
+    },
+    "import.mac.sort.downloaded_oldest" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "الأقدم تنزيلاً" } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Oldest download" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Descarga más antigua" } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Téléchargement le plus ancien" } },
+        "hi" : { "stringUnit" : { "state" : "translated", "value" : "सबसे पुराना डाउनलोड" } },
+        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Download mais antigo" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "最早下载" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "最早下載" } }
+      }
+    },
+    "import.mac.sort.duration_longest" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "المدة من الأطول" } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Longest" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Duración más larga" } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Durée la plus longue" } },
+        "hi" : { "stringUnit" : { "state" : "translated", "value" : "सबसे लंबी अवधि" } },
+        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Duração mais longa" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "时长从长到短" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "時長從長到短" } }
+      }
+    },
+    "import.mac.sort.duration_shortest" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "المدة من الأقصر" } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Shortest" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Duración más corta" } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Durée la plus courte" } },
+        "hi" : { "stringUnit" : { "state" : "translated", "value" : "सबसे छोटी अवधि" } },
+        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Duração mais curta" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "时长从短到长" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "時長從短到長" } }
+      }
+    },
+    "import.mac.sort.size_largest" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "الحجم من الأكبر" } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Largest file" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Archivo más grande" } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Fichier le plus volumineux" } },
+        "hi" : { "stringUnit" : { "state" : "translated", "value" : "सबसे बड़ी फ़ाइल" } },
+        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Arquivo maior" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "文件从大到小" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "檔案從大到小" } }
+      }
+    },
+    "import.mac.sort.size_smallest" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "الحجم من الأصغر" } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Smallest file" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Archivo más pequeño" } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Fichier le plus petit" } },
+        "hi" : { "stringUnit" : { "state" : "translated", "value" : "सबसे छोटी फ़ाइल" } },
+        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Arquivo menor" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "文件从小到大" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "檔案從小到大" } }
+      }
+    },
+    "import.mac.sort.title_asc" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "العنوان أ–ي" } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Title A–Z" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Título A–Z" } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Titre A–Z" } },
+        "hi" : { "stringUnit" : { "state" : "translated", "value" : "शीर्षक A–Z" } },
+        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Título A–Z" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "字母 A–Z" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "字母 A–Z" } }
+      }
+    },
+    "import.mac.sort.title_desc" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "العنوان ي–أ" } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Title Z–A" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Título Z–A" } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Titre Z–A" } },
+        "hi" : { "stringUnit" : { "state" : "translated", "value" : "शीर्षक Z–A" } },
+        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Título Z–A" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "字母 Z–A" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "字母 Z–A" } }
+      }
+    },
+    "import.mac.port_in_use" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "المنفذ ما زال مستخدماً. أغلق أي نسخة أخرى من Mixtube بالكامل ثم أعد فتح هذه الصفحة." } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The port is still in use. Quit any other Mixtube completely, then open this page again." } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "El puerto sigue en uso. Cierra por completo cualquier otro Mixtube y vuelve a abrir esta página." } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Le port est encore utilisé. Quittez complètement tout autre Mixtube, puis rouvrez cette page." } },
+        "hi" : { "stringUnit" : { "state" : "translated", "value" : "पोर्ट अभी उपयोग में है। कोई दूसरा Mixtube पूरी तरह बंद करें, फिर यह पेज फिर खोलें।" } },
+        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "A porta ainda está em uso. Feche completamente qualquer outro Mixtube e abra esta página de novo." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "端口仍被占用。请完全退出其他 Mixtube 后，再重新打开这一页。" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "連接埠仍被占用。請完全結束其他 Mixtube 後，再重新打開這一頁。" } }
+      }
+    },
     "import.mac.unknown_song" : {
       "extractionState" : "manual",
       "localizations" : {

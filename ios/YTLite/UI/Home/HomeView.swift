@@ -1520,6 +1520,9 @@ struct AlbumTracksView: View {
 
     var body: some View {
         Group {
+            #if targetEnvironment(macCatalyst)
+            macAlbum
+            #else
             if isLoading {
                 ProgressView().tint(YTLiteColor.accent)
             } else {
@@ -1529,18 +1532,20 @@ struct AlbumTracksView: View {
                     emptyTitle: L("common.no_tracks"),
                     emptySystemImage: "music.note.list",
                     emptyDescription: errorMessage ?? "",
-                    onPlay: { index in
-                        playback.play(items: tracks, startAt: index, analyticsSource: "home")
-                        playerPresentation.present()
-                    },
+                    onPlay: { index in play(at: index) },
                     onMore: { trackActions.present(item: $0) }
                 )
                 .equatable()
             }
+            #endif
         }
         .ytLiteAppBackground()
         .ytLiteMiniPlayerScrollInset()
+        #if targetEnvironment(macCatalyst)
+        .navigationTitle("")
+        #else
         .navigationTitle(album.title)
+        #endif
         .navigationBarTitleDisplayMode(.inline)
         .task {
             isLoading = true
@@ -1570,4 +1575,150 @@ struct AlbumTracksView: View {
             }
         }
     }
+
+    private func play(at index: Int) {
+        guard tracks.indices.contains(index) else { return }
+        playback.play(items: tracks, startAt: index, analyticsSource: "home")
+        playerPresentation.present()
+    }
+
+    #if targetEnvironment(macCatalyst)
+    /// Cover stays a square beside the title so the track list is on screen.
+    private var macAlbum: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 4) {
+                macHeader
+                    .padding(.bottom, 16)
+                if isLoading {
+                    ProgressView()
+                        .tint(YTLiteColor.accent)
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, 48)
+                } else if tracks.isEmpty {
+                    ContentUnavailableView(
+                        L("common.no_tracks"),
+                        systemImage: "music.note.list",
+                        description: (errorMessage ?? "").isEmpty ? nil : Text(errorMessage ?? "")
+                    )
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 32)
+                } else {
+                    ForEach(Array(tracks.enumerated()), id: \.element.videoId) { index, item in
+                        macTrackRow(index: index, item: item)
+                    }
+                }
+            }
+            .padding(.horizontal, YTLiteLayout.screenPadding)
+            .padding(.top, 8)
+            .padding(.bottom, 24)
+            .frame(maxWidth: 880)
+            .frame(maxWidth: .infinity)
+        }
+    }
+
+    private var macHeader: some View {
+        HStack(alignment: .center, spacing: 28) {
+            VideoThumbnail(
+                url: album.thumbnailURL,
+                width: 200,
+                height: 200,
+                cornerRadius: 8,
+                badgePadding: 0
+            )
+            VStack(alignment: .leading, spacing: 8) {
+                if !album.releaseType.isEmpty {
+                    Text(album.releaseType)
+                        .font(YTLiteType.meta)
+                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                }
+                Text(album.title)
+                    .font(.title.bold())
+                    .foregroundStyle(YTLiteColor.onSurface)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+                if !album.artistName.isEmpty {
+                    Text(album.artistName)
+                        .font(YTLiteType.sectionTitle)
+                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                        .lineLimit(1)
+                }
+                if !isLoading {
+                    Text(Lf("common.n_songs", Int64(tracks.count)))
+                        .font(YTLiteType.meta)
+                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                }
+                Button {
+                    play(at: 0)
+                } label: {
+                    Label(L("common.play"), systemImage: "play.fill")
+                        .font(YTLiteType.labelEmphasized)
+                        .foregroundStyle(YTLiteColor.onAccent)
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 8)
+                        .background(YTLiteColor.accent, in: Capsule())
+                }
+                .buttonStyle(.plain)
+                .disabled(tracks.isEmpty)
+                .padding(.top, 4)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private func macTrackRow(index: Int, item: VideoItem) -> some View {
+        HStack(spacing: 12) {
+            Button {
+                play(at: index)
+            } label: {
+                HStack(spacing: 12) {
+                    Text("\(index + 1)")
+                        .font(YTLiteType.meta)
+                        .monospacedDigit()
+                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                        .frame(width: 28, alignment: .trailing)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(item.title)
+                            .font(YTLiteType.rowTitleMedium)
+                            .foregroundStyle(YTLiteColor.onSurface)
+                            .lineLimit(1)
+                        if !item.channelName.isEmpty {
+                            Text(item.channelName)
+                                .font(YTLiteType.meta)
+                                .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                                .lineLimit(1)
+                        }
+                    }
+                    Spacer(minLength: 8)
+                    if let duration = item.durationText, !duration.isEmpty {
+                        Text(duration)
+                            .font(YTLiteType.meta)
+                            .monospacedDigit()
+                            .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                    }
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            MacSongCacheSlot(
+                videoId: item.videoId,
+                thumbnailURL: item.thumbnailURL,
+                isLive: item.isLive
+            ) {
+                Button {
+                    trackActions.present(item: item)
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                        .frame(width: 32, height: 32)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.borderless)
+                .accessibilityLabel(L("common.more"))
+            }
+        }
+        .padding(.vertical, 8)
+    }
+    #endif
 }

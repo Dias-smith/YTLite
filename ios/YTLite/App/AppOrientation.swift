@@ -193,11 +193,22 @@ enum MacAppLifetime {
         DispatchQueue.main.async {
             wrapCurrentDelegate()
         }
-        for delay in [0.6, 1.2] {
+        maximizeDeadline = Date().addingTimeInterval(6)
+        // Window restoration can put the last frame back after the first attempt.
+        for delay in [0.4, 1.0, 1.8, 2.8, 4.0] {
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
                 MainActor.assumeIsolated {
                     maximizeAtLaunch()
                 }
+            }
+        }
+        NotificationCenter.default.addObserver(
+            forName: UIScene.didActivateNotification,
+            object: nil,
+            queue: .main
+        ) { _ in
+            MainActor.assumeIsolated {
+                maximizeAtLaunch()
             }
         }
     }
@@ -357,6 +368,11 @@ enum MacAppLifetime {
     private static var applyingChrome = false
     private static var savedWasFullScreen = false
     private static var didMaximizeAtLaunch = false
+    /// Min and max are locked to the screen only while the launch resize is in flight.
+    private static var maximizeDeadline: Date?
+    private static var maximizeLockArmed = false
+    private static var relaxedMinimum: CGSize?
+    private static var relaxedMaximum: CGSize?
     private static var fullscreenExitObserver: NSObjectProtocol?
     private static weak var shrunkWindow: NSObject?
 
@@ -367,7 +383,14 @@ enum MacAppLifetime {
         guard !MacWindowChrome.shared.isMinimizedToPlayer else { return }
         guard let window = mainWindow() else { return }
         if (window.value(forKey: "isVisible") as? Bool) == false { return }
-        didMaximizeAtLaunch = true
+        if let maximizeDeadline, Date() > maximizeDeadline {
+            if maximizeLockArmed {
+                relaxMaximizeLock(on: window)
+                maximizeLockArmed = false
+            }
+            didMaximizeAtLaunch = true
+            return
+        }
         if isFullScreen(window) {
             leaveFullScreen(window) {
                 applyMaximizedFrame(to: window)
@@ -377,16 +400,58 @@ enum MacAppLifetime {
         applyMaximizedFrame(to: window)
     }
 
+    /// Catalyst only resizes when the scene minimum and maximum are both the target size.
     private static func applyMaximizedFrame(to window: NSObject) {
         let current = rect(window.value(forKey: "frame"))
         guard let visible = screenVisibleFrame(containing: current) ?? visibleScreenFrames().first else { return }
-        if let restrictions = scene()?.sizeRestrictions {
-            var maxSize = restrictions.maximumSize
-            if maxSize.width < visible.width { maxSize.width = visible.width }
-            if maxSize.height < visible.height { maxSize.height = visible.height }
-            restrictions.maximumSize = maxSize
+        if let current, sizesMatch(current, visible) {
+            if maximizeLockArmed {
+                relaxMaximizeLock(on: window)
+                requestFrame(visible, of: window)
+                maximizeLockArmed = false
+                return
+            }
+            didMaximizeAtLaunch = true
+            return
         }
+        guard let restrictions = scene()?.sizeRestrictions else {
+            requestFrame(visible, of: window)
+            return
+        }
+        if !maximizeLockArmed {
+            window.setValue(false, forKey: "restorable")
+            relaxedMinimum = restrictions.minimumSize
+            relaxedMaximum = CGSize(
+                width: max(restrictions.maximumSize.width, visible.width, 16_000),
+                height: max(restrictions.maximumSize.height, visible.height, 16_000)
+            )
+            maximizeLockArmed = true
+        }
+        // Ceiling first, or the larger minimum is clamped back down.
+        restrictions.maximumSize = visible.size
+        restrictions.minimumSize = visible.size
+        setSize(visible.size, "setContentMaxSize:", of: window)
+        setSize(visible.size, "setMaxSize:", of: window)
+        setSize(visible.size, "setContentMinSize:", of: window)
+        setSize(visible.size, "setMinSize:", of: window)
         requestFrame(visible, of: window)
+    }
+
+    private static func relaxMaximizeLock(on window: NSObject) {
+        let minSize = relaxedMinimum ?? CGSize(width: 720, height: 480)
+        let maxSize = relaxedMaximum ?? CGSize(width: 16_000, height: 16_000)
+        if let restrictions = scene()?.sizeRestrictions {
+            restrictions.maximumSize = maxSize
+            restrictions.minimumSize = minSize
+        }
+        setSize(maxSize, "setContentMaxSize:", of: window)
+        setSize(maxSize, "setMaxSize:", of: window)
+        setSize(minSize, "setContentMinSize:", of: window)
+        setSize(minSize, "setMinSize:", of: window)
+    }
+
+    private static func sizesMatch(_ frame: CGRect, _ target: CGRect) -> Bool {
+        abs(frame.width - target.width) < 12 && abs(frame.height - target.height) < 12
     }
 
     /// Yellow button keeps a small player on screen instead of sending the window to the Dock.
@@ -405,6 +470,10 @@ enum MacAppLifetime {
             savedWasFullScreen = false
         }
         savedFrame = rect(window.value(forKey: "frame"))
+        if maximizeLockArmed {
+            relaxMaximizeLock(on: window)
+            maximizeLockArmed = false
+        }
         savedLevel = (window.value(forKey: "level") as? NSNumber)?.intValue
         savedBehavior = (window.value(forKey: "collectionBehavior") as? NSNumber)?.uintValue
         saveChrome(of: window)

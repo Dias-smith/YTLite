@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct AppSidebar: View {
     @Binding var selected: AppTab
@@ -34,7 +35,20 @@ struct AppSidebar: View {
         List {
             ForEach(items, id: \.0) { tab, title, icon in
                 Button {
+                    #if targetEnvironment(macCatalyst)
+                    let switching = selected != tab
                     selected = tab
+                    // The detail column keeps a pushed page until its navigation stack is popped.
+                    if switching {
+                        DispatchQueue.main.async {
+                            MacDetailNavigation.popToRoot(animated: false)
+                        }
+                    } else {
+                        MacDetailNavigation.popToRoot(animated: true)
+                    }
+                    #else
+                    selected = tab
+                    #endif
                 } label: {
                     Label(title, systemImage: icon)
                         .foregroundStyle(
@@ -54,3 +68,42 @@ struct AppSidebar: View {
         .navigationTitle("Mixtube")
     }
 }
+
+#if targetEnvironment(macCatalyst)
+/// Pops the detail column back to the section root. The sidebar column is left alone.
+enum MacDetailNavigation {
+    static func popToRoot(animated: Bool) {
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        for scene in scenes {
+            for window in scene.windows {
+                if !popSecondary(of: window.rootViewController, animated: animated) {
+                    popStacks(in: window.rootViewController, animated: animated)
+                }
+            }
+        }
+    }
+
+    /// Returns whether a split view's detail column was found.
+    private static func popSecondary(of vc: UIViewController?, animated: Bool) -> Bool {
+        guard let vc else { return false }
+        if let split = vc as? UISplitViewController {
+            popStacks(in: split.viewController(for: .secondary), animated: animated)
+            return true
+        }
+        for child in vc.children where popSecondary(of: child, animated: animated) {
+            return true
+        }
+        return false
+    }
+
+    /// Inner stacks first, so a page pushed inside the detail root is cleared.
+    private static func popStacks(in vc: UIViewController?, animated: Bool) {
+        guard let vc else { return }
+        for child in vc.children {
+            popStacks(in: child, animated: animated)
+        }
+        guard let nav = vc as? UINavigationController, nav.viewControllers.count > 1 else { return }
+        nav.popToRootViewController(animated: animated)
+    }
+}
+#endif

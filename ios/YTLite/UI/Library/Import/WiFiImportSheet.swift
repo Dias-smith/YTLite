@@ -168,6 +168,8 @@ struct MacCacheSendSheet: View {
     @State private var selected: Set<String> = []
     @State private var loaded = false
     @State private var offerStarted = false
+    @State private var sort = MacSendSort.downloadedNewest
+    @State private var finishedAt: [String: Date] = [:]
 
     var body: some View {
         NavigationStack {
@@ -325,6 +327,31 @@ struct MacCacheSendSheet: View {
                     .font(YTLiteType.sectionTitle)
                     .foregroundStyle(YTLiteColor.onSurface)
                 Spacer(minLength: 8)
+                Menu {
+                    ForEach(MacSendSort.allCases) { mode in
+                        Button {
+                            sort = mode
+                            publishOffer(selected, restart: false)
+                        } label: {
+                            if sort == mode {
+                                Label(mode.title, systemImage: "checkmark")
+                            } else {
+                                Text(mode.title)
+                            }
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "arrow.up.arrow.down")
+                        Text(sort.title)
+                    }
+                }
+                .menuStyle(.borderlessButton)
+                .menuIndicator(.hidden)
+                .fixedSize()
+                .font(YTLiteType.labelEmphasized)
+                .foregroundStyle(YTLiteColor.accent)
+                .accessibilityLabel(L("library.sort_by"))
                 Button(L("common.select_all")) {
                     let next = Set(tracks.map(\.videoId))
                     selected = next
@@ -346,7 +373,7 @@ struct MacCacheSendSheet: View {
             .padding(.horizontal, YTLiteLayout.screenPadding)
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 0) {
-                    ForEach(tracks) { track in
+                    ForEach(orderedTracks) { track in
                         Button {
                             var next = selected
                             if next.contains(track.videoId) {
@@ -421,10 +448,11 @@ struct MacCacheSendSheet: View {
         _ = store?.repairPlaceholderTitlesLocally()
         _ = await store?.repairPlaceholderTitlesFromNetwork()
         let hints = localSongHints()
-        let snapshots = await PlaybackMediaStore.shared.cachedSnapshots()
+        let snapshots = await PlaybackMediaStore.shared.cachedDetails()
         var records: [MacCacheTrackRecord] = []
         var audio: [String: URL] = [:]
         var covers: [String: URL] = [:]
+        var finished: [String: Date] = [:]
         for snapshot in snapshots {
             guard let file = await PlaybackMediaStore.shared.localFileURL(videoId: snapshot.videoId) else { continue }
             let row = store?.track(id: snapshot.videoId)
@@ -450,6 +478,7 @@ struct MacCacheSendSheet: View {
                 )
             )
             audio[snapshot.videoId] = file
+            finished[snapshot.videoId] = snapshot.storedAt
             if let cover { covers[snapshot.videoId] = cover }
         }
         var seen = Set(records.map(\.videoId))
@@ -460,7 +489,8 @@ struct MacCacheSendSheet: View {
                 trackId: track.trackId,
                 relativePath: track.localRelativePath
             ) else { continue }
-            let size = (try? file.resourceValues(forKeys: [.fileSizeKey]).fileSize).map(Int64.init) ?? 0
+            let values = try? file.resourceValues(forKeys: [.fileSizeKey, .creationDateKey])
+            let size = values?.fileSize.map(Int64.init) ?? 0
             guard size > 0 else { continue }
             let fields = songFields(
                 videoId: track.trackId,
@@ -484,15 +514,18 @@ struct MacCacheSendSheet: View {
                 )
             )
             audio[track.trackId] = file
+            finished[track.trackId] = values?.creationDate ?? track.updatedAt
             if let cover { covers[track.trackId] = cover }
         }
         records = await filledPlaceholders(records)
+        guard !Task.isCancelled else { return }
+        finishedAt = finished
         tracks = records
         audioById = audio
         coverById = covers
         selected = Set(records.map(\.videoId))
         loaded = true
-        publishOffer(selected, restart: true)
+        publishOffer(selected, restart: !server.isRunning)
     }
 
     /// Library rows sometimes stored the video id as the title. Prefer a real title from playback or the home feed.
@@ -582,9 +615,13 @@ struct MacCacheSendSheet: View {
         return url
     }
 
+    private var orderedTracks: [MacCacheTrackRecord] {
+        tracks.sorted { sort.comesBefore($0, $1, finishedAt: finishedAt) }
+    }
+
     /// Publishes the checked songs. Restarting rebinds the port, so a checkbox change only replaces the offer.
     private func publishOffer(_ ids: Set<String>, restart: Bool) {
-        let offered = tracks.filter { ids.contains($0.videoId) }
+        let offered = orderedTracks.filter { ids.contains($0.videoId) }
         var audio: [String: URL] = [:]
         var covers: [String: URL] = [:]
         for track in offered {
@@ -600,6 +637,68 @@ struct MacCacheSendSheet: View {
         } else {
             server.replaceOffer(tracks: offered, audio: audio, covers: covers)
         }
+    }
+}
+
+/// Send-list order. Newest download is the default.
+private enum MacSendSort: String, CaseIterable, Identifiable {
+    case downloadedNewest
+    case downloadedOldest
+    case sizeLargest
+    case sizeSmallest
+    case durationLongest
+    case durationShortest
+    case titleAscending
+    case titleDescending
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .downloadedNewest: return L("import.mac.sort.downloaded_newest")
+        case .downloadedOldest: return L("import.mac.sort.downloaded_oldest")
+        case .sizeLargest: return L("import.mac.sort.size_largest")
+        case .sizeSmallest: return L("import.mac.sort.size_smallest")
+        case .durationLongest: return L("import.mac.sort.duration_longest")
+        case .durationShortest: return L("import.mac.sort.duration_shortest")
+        case .titleAscending: return L("import.mac.sort.title_asc")
+        case .titleDescending: return L("import.mac.sort.title_desc")
+        }
+    }
+
+    func comesBefore(_ lhs: MacCacheTrackRecord, _ rhs: MacCacheTrackRecord, finishedAt: [String: Date]) -> Bool {
+        switch self {
+        case .downloadedNewest, .downloadedOldest:
+            let left = finishedAt[lhs.videoId] ?? .distantPast
+            let right = finishedAt[rhs.videoId] ?? .distantPast
+            if left != right { return self == .downloadedNewest ? left > right : left < right }
+        case .sizeLargest, .sizeSmallest:
+            if lhs.byteCount != rhs.byteCount {
+                return self == .sizeLargest ? lhs.byteCount > rhs.byteCount : lhs.byteCount < rhs.byteCount
+            }
+        case .durationLongest, .durationShortest:
+            if lhs.durationSeconds != rhs.durationSeconds {
+                return self == .durationLongest
+                    ? lhs.durationSeconds > rhs.durationSeconds
+                    : lhs.durationSeconds < rhs.durationSeconds
+            }
+        case .titleAscending, .titleDescending:
+            let order = Self.titleOrder(lhs.title, rhs.title)
+            if order != .orderedSame {
+                return self == .titleAscending ? order == .orderedAscending : order == .orderedDescending
+            }
+        }
+        let titleOrder = Self.titleOrder(lhs.title, rhs.title)
+        if titleOrder != .orderedSame { return titleOrder == .orderedAscending }
+        return lhs.videoId < rhs.videoId
+    }
+
+    private static func titleOrder(_ lhs: String, _ rhs: String) -> ComparisonResult {
+        lhs.compare(
+            rhs,
+            options: [.caseInsensitive, .diacriticInsensitive, .numeric],
+            locale: AppLocalization.locale
+        )
     }
 }
 #endif

@@ -866,6 +866,8 @@ final class MacCacheTransferServer: ObservableObject {
     @Published private(set) var connectedCount = 0
 
     private var listener: NWListener?
+    /// Bumped on every start and stop so a cancelled listener cannot publish a stale error.
+    private var startGeneration = 0
     /// Bonjour is optional. A failed advertisement must not take down the TCP listener.
     private var publisher: NetService?
     private var token = ""
@@ -883,7 +885,16 @@ final class MacCacheTransferServer: ObservableObject {
     private init() {}
 
     func start(tracks: [MacCacheTrackRecord], audio: [String: URL], covers: [String: URL]) {
-        stop()
+        startGeneration += 1
+        let generation = startGeneration
+        let retiring = listener
+        listener = nil
+        retiring?.stateUpdateHandler = nil
+        retiring?.cancel()
+        presenceTimer?.invalidate()
+        presenceTimer = nil
+        publisher?.stop()
+        publisher = nil
         self.tracks = tracks
         audioFiles = audio
         coverFiles = covers
@@ -892,6 +903,23 @@ final class MacCacheTransferServer: ObservableObject {
         servedCount = 0
         lastError = nil
         listenAddress = nil
+        isRunning = false
+        activeSends = []
+        connectedHosts = [:]
+        transferHosts = [:]
+        connectedCount = 0
+        // cancel() frees the port asynchronously. Binding again in the same turn raises EADDRINUSE.
+        let delay: UInt64 = retiring == nil ? 0 : 250_000_000
+        Task { @MainActor in
+            if delay > 0 {
+                try? await Task.sleep(nanoseconds: delay)
+            }
+            self.openListener(generation: generation, attempt: 0)
+        }
+    }
+
+    private func openListener(generation: Int, attempt: Int) {
+        guard generation == startGeneration else { return }
         do {
             // Do not set `listener.service`. On this Mac, Bonjour registration returns
             // kDNSServiceErr_NoAuth (-65555) and that failure closes the whole listener.
@@ -903,20 +931,23 @@ final class MacCacheTransferServer: ObservableObject {
             }
             listener.stateUpdateHandler = { [weak self] state in
                 Task { @MainActor in
-                    guard let self else { return }
+                    guard let self, generation == self.startGeneration else { return }
                     switch state {
                     case .ready:
                         self.isRunning = true
+                        self.lastError = nil
                         self.listenAddress = WiFiImportServer.primaryLANAddress()
                         if self.listenAddress == nil {
                             self.lastError = L("import.mac.no_address")
                         }
                         self.publishBonjour()
+                        self.startPresenceTimer()
                     case .failed(let error):
-                        self.lastError = error.localizedDescription
-                        self.isRunning = false
+                        self.handleListenerFailure(error, listener: listener, generation: generation, attempt: attempt)
                     case .cancelled:
-                        self.isRunning = false
+                        if self.listener === listener {
+                            self.isRunning = false
+                        }
                     default:
                         break
                     }
@@ -924,11 +955,36 @@ final class MacCacheTransferServer: ObservableObject {
             }
             listener.start(queue: DispatchQueue(label: "ytlite.mac-cache.listen", qos: .userInitiated))
             self.listener = listener
-            startPresenceTimer()
         } catch {
-            lastError = error.localizedDescription
-            isRunning = false
+            handleListenerFailure(error, listener: nil, generation: generation, attempt: attempt)
         }
+    }
+
+    private func handleListenerFailure(_ error: Error, listener failed: NWListener?, generation: Int, attempt: Int) {
+        guard generation == startGeneration else { return }
+        failed?.stateUpdateHandler = nil
+        failed?.cancel()
+        if listener === failed {
+            listener = nil
+        }
+        isRunning = false
+        guard Self.isAddressInUse(error), attempt < 6 else {
+            lastError = Self.isAddressInUse(error) ? L("import.mac.port_in_use") : error.localizedDescription
+            return
+        }
+        lastError = nil
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 300_000_000)
+            self.openListener(generation: generation, attempt: attempt + 1)
+        }
+    }
+
+    private static func isAddressInUse(_ error: Error) -> Bool {
+        if let nw = error as? NWError, case .posix(let code) = nw, code == .EADDRINUSE {
+            return true
+        }
+        let text = error.localizedDescription.lowercased()
+        return text.contains("address already in use") || text.contains("错误 48") || text.contains("error 48")
     }
 
     /// Updates the songs a paired phone can list and download. Does not rebind the port or change the pairing code.
@@ -939,10 +995,12 @@ final class MacCacheTransferServer: ObservableObject {
     }
 
     func stop() {
+        startGeneration += 1
         presenceTimer?.invalidate()
         presenceTimer = nil
         publisher?.stop()
         publisher = nil
+        listener?.stateUpdateHandler = nil
         listener?.cancel()
         listener = nil
         isRunning = false

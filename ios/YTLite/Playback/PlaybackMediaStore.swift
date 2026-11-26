@@ -176,6 +176,12 @@ actor PlaybackMediaStore {
         return index.values.map { ($0.videoId, $0.fileSize) }
     }
 
+    /// Same completed copies, including when each file finished downloading.
+    func cachedDetails() -> [(videoId: String, fileSize: Int64, storedAt: Date)] {
+        loadIndexIfNeeded()
+        return index.values.map { ($0.videoId, $0.fileSize, $0.storedAt) }
+    }
+
     #if DEBUG || targetEnvironment(macCatalyst)
     func localFileURL(videoId: String) -> URL? {
         loadIndexIfNeeded()
