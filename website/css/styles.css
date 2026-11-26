@@ -439,8 +439,46 @@ a:hover {
   color: rgba(244, 241, 236, 0.82);
 }
 
-.page-shell ul {
+.page-shell ul,
+.page-shell ol {
   padding-left: 1.2rem;
+}
+
+.page-shell.guide {
+  max-width: 68rem;
+}
+
+.guide-shot {
+  margin: 1.25rem 0 0;
+}
+
+.guide-shot img,
+.phone-shots img {
+  width: 100%;
+  height: auto;
+  border-radius: 0.75rem;
+  border: 1px solid var(--line);
+  background: #111;
+}
+
+.guide-shot figcaption,
+.phone-shots figcaption {
+  margin-top: 0.45rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.phone-shots {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin: 1.25rem 0 0;
+}
+
+@media (min-width: 800px) {
+  .phone-shots {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 .lang-block {

@@ -51,7 +51,7 @@
       </nav>
     </header>
 
-    <article class="page-shell">
+    <article class="page-shell guide">
       <h1>Send songs from Mac to iPhone</h1>
       <p class="page-meta">Move songs already saved on Mac into Mixtube on iPhone. No sign-in required.</p>
 
@@ -64,31 +64,116 @@
       <h2>1. Start sending on the Mac</h2>
       <ol>
         <li>Open Mixtube on the Mac.</li>
-        <li>Open <strong>Settings</strong>, then under Music import choose <strong>Import music</strong>.</li>
-        <li>Choose <strong>Send to iPhone</strong>.</li>
+        <li>In the sidebar, choose <strong>Send to iPhone</strong>.</li>
       </ol>
       <p>
-        The left side shows a pairing code, this Mac’s address, and a QR code. Every song starts
-        selected. Tap a circle to leave a song out. If the page says “No saved songs,” save the songs
-        on the Mac first, then open this page again.
+        The page shows a pairing code, this Mac’s address, and a QR code. Songs ready to send are
+        listed on the right and start selected. Click a circle to leave a song out. Keep this page
+        open. Closing it disconnects the iPhone.
       </p>
-      <p>Leave this page open. Closing it disconnects the iPhone.</p>
+      <figure class="guide-shot">
+        <img
+          src="assets/mac-send-waiting.png"
+          width="1024"
+          height="578"
+          alt="Mac Send to iPhone page waiting for an iPhone, with a pairing code, address, and QR code."
+        />
+        <figcaption>Waiting for iPhone. The code, address, and QR code are on the left.</figcaption>
+      </figure>
+      <figure class="guide-shot">
+        <img
+          src="assets/mac-send-connected.png"
+          width="1024"
+          height="642"
+          alt="Mac Send to iPhone page showing one device connected."
+        />
+        <figcaption>After the iPhone connects, the status changes to “1 device connected.”</figcaption>
+      </figure>
+      <figure class="guide-shot">
+        <img
+          src="assets/mac-send-progress.png"
+          width="1024"
+          height="642"
+          alt="Mac sending a song to iPhone, with a progress bar and a sent count."
+        />
+        <figcaption>Each song shows its own progress while it is sending.</figcaption>
+      </figure>
+      <figure class="guide-shot">
+        <img
+          src="assets/mac-send-done.png"
+          width="1024"
+          height="642"
+          alt="Mac Send to iPhone page after the transfer, showing Sent 31."
+        />
+        <figcaption>When the transfer finishes, the page shows how many songs were sent.</figcaption>
+      </figure>
 
       <h2>2. Receive on the iPhone</h2>
       <ol>
-        <li>Open Mixtube on the iPhone.</li>
-        <li>Open <strong>Settings</strong> → <strong>Music import</strong> → <strong>Import music</strong>.</li>
-        <li>Choose <strong>From Mac</strong>, the first item.</li>
+        <li>Open Mixtube on the iPhone and open the <strong>Import</strong> tab.</li>
+        <li>Choose <strong>From Mac</strong>.</li>
         <li>
-          Tap <strong>Scan QR Code</strong> at the bottom and scan the code on the Mac. Or type the
-          Mac address and pairing code, then tap <strong>Connect</strong>.
+          Tap <strong>Scan QR Code</strong> and scan the code on the Mac. Or type the Mac address and
+          pairing code, then tap <strong>Connect</strong>.
         </li>
+        <li>Select the songs and tap <strong>Import</strong>.</li>
       </ol>
-      <p>
-        After the devices connect, the iPhone lists the songs the Mac is offering. Select the ones
-        you want and tap <strong>Import</strong>. A song already on this iPhone has a green check at
-        the end of its subtitle.
-      </p>
+      <div class="phone-shots">
+        <figure>
+          <img
+            src="assets/iphone-import.png"
+            width="470"
+            height="1024"
+            alt="iPhone Import tab with From Mac as the first source."
+          />
+          <figcaption>Import → From Mac.</figcaption>
+        </figure>
+        <figure>
+          <img
+            src="assets/iphone-receive.png"
+            width="470"
+            height="1024"
+            alt="iPhone screen for the Mac address, pairing code, and Scan QR Code button."
+          />
+          <figcaption>Scan the QR code, or enter the address and code.</figcaption>
+        </figure>
+        <figure>
+          <img
+            src="assets/iphone-select.png"
+            width="470"
+            height="1024"
+            alt="iPhone list of songs from the Mac, all selected, with an Import button."
+          />
+          <figcaption>Choose the songs, then tap Import.</figcaption>
+        </figure>
+        <figure>
+          <img
+            src="assets/iphone-importing.png"
+            width="470"
+            height="1024"
+            alt="iPhone showing import progress for the current song."
+          />
+          <figcaption>The current song shows its progress.</figcaption>
+        </figure>
+        <figure>
+          <img
+            src="assets/iphone-done.png"
+            width="470"
+            height="1024"
+            alt="iPhone dialog saying Imported 32 songs, with View and Close."
+          />
+          <figcaption>Imported songs get a green check. Tap View to open them.</figcaption>
+        </figure>
+        <figure>
+          <img
+            src="assets/iphone-library.png"
+            width="470"
+            height="1024"
+            alt="iPhone Library list of songs received from Mac."
+          />
+          <figcaption>View opens the songs in Library. Each one is marked Mac.</figcaption>
+        </figure>
+      </div>
 
       <h2>3. After the transfer</h2>
       <p>
