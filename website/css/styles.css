@@ -258,6 +258,25 @@ a:hover {
   color: var(--muted);
 }
 
+.page-shell .feature-list {
+  padding-left: 0;
+  list-style: none;
+}
+
+.mac-page .mac-hero {
+  padding-top: 2.5rem;
+}
+
+.mac-page h1 {
+  margin: 0 0 1rem;
+  max-width: 16ch;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(2.4rem, 6vw, 4.2rem);
+  letter-spacing: -0.04em;
+  line-height: 1.02;
+}
+
 .feature-list {
   list-style: none;
   margin: 0;
