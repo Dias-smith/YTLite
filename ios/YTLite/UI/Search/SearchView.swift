@@ -751,15 +751,17 @@ private struct SearchVideoResultRow: View {
 
             Spacer(minLength: YTLiteLayout.stackTight)
 
-            Button {
-                onMore?()
-            } label: {
-                Image(systemName: "ellipsis")
-                    .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                    .frame(width: 28, height: 28)
-                    .contentShape(Rectangle())
+            MacSongCacheSlot(videoId: item.videoId, thumbnailURL: item.thumbnailURL, isLive: item.isLive) {
+                Button {
+                    onMore?()
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                        .frame(width: 28, height: 28)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.borderless)
             }
-            .buttonStyle(.borderless)
         }
         .padding(.horizontal, YTLiteLayout.screenPadding)
         .padding(.vertical, YTLiteLayout.rowVertical)

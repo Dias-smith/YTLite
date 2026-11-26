@@ -55,6 +55,82 @@ enum PlaybackStorePolicy {
 }
 
 #if targetEnvironment(macCatalyst)
+/// Finished playback files, plus in-flight download fractions for the song-card control.
+@MainActor
+final class MacCachedMediaIndex: ObservableObject {
+    static let shared = MacCachedMediaIndex()
+
+    @Published private(set) var videoIds: Set<String> = []
+    /// 0...0.99 while a file is downloading. Removed when the file is saved or the download stops.
+    @Published private(set) var fractions: [String: Double] = [:]
+
+    func replace(_ ids: Set<String>) {
+        let nextFractions = fractions.filter { !ids.contains($0.key) }
+        guard ids != videoIds || nextFractions.count != fractions.count else { return }
+        videoIds = ids
+        if nextFractions.count != fractions.count {
+            fractions = nextFractions
+        }
+    }
+
+    func removeAll() {
+        videoIds = []
+        if !fractions.isEmpty {
+            fractions = [:]
+        }
+    }
+
+    func setFraction(videoId: String, _ value: Double) {
+        guard !videoIds.contains(videoId) else { return }
+        let clamped = min(0.99, max(0, value))
+        if let current = fractions[videoId], abs(current - clamped) < 0.01 { return }
+        fractions[videoId] = clamped
+    }
+
+    func clearFraction(videoId: String) {
+        guard fractions[videoId] != nil else { return }
+        fractions.removeValue(forKey: videoId)
+    }
+}
+
+/// Starts a manual playback-file download for one song and refreshes the card indicator.
+@MainActor
+enum MacSongCacheDownloads {
+    static func start(videoId: String, thumbnailURL: URL?, libraryStore: LibraryStore?) {
+        guard !videoId.isEmpty, !LocalTrackID.isLocal(videoId) else { return }
+        let index = MacCachedMediaIndex.shared
+        guard !index.videoIds.contains(videoId), index.fractions[videoId] == nil else { return }
+        index.setFraction(videoId: videoId, 0)
+        Task {
+            var saved = false
+            do {
+                let playback = try await StreamResolver.shared.resolvePlayback(videoId: videoId)
+                guard let format = PlaybackFormatSelector.select(formats: playback.formats, preferVideo: true) else {
+                    throw URLError(.unsupportedURL)
+                }
+                saved = await PlaybackMediaStore.shared.schedulePersist(
+                    videoId: videoId,
+                    sourceURL: format.url,
+                    itag: format.itag,
+                    mimeType: format.mimeType,
+                    thumbnailURL: thumbnailURL ?? playback.thumbnailURL
+                )
+            } catch {
+                saved = false
+            }
+            let cached = await PlaybackMediaStore.shared.cachedSnapshots()
+            let ids = Set(cached.map(\.videoId))
+            await MainActor.run {
+                MacCachedMediaIndex.shared.replace(ids)
+                if !saved {
+                    MacCachedMediaIndex.shared.clearFraction(videoId: videoId)
+                }
+                libraryStore?.syncOfflinePlaylist(cached: cached)
+            }
+        }
+    }
+}
+
 /// Mac playback-file switch. On until the user turns it off.
 enum MacPlaybackCacheStore {
     private static let enabledKey = "mac.playback_media_cache.v1"

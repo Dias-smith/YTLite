@@ -845,18 +845,23 @@ struct PlayerDetailView: View {
                 .foregroundStyle(YTLiteColor.onSurface)
                 .lineLimit(1)
             Spacer(minLength: YTLiteLayout.stackDefault)
-            Button {
-                if let item = playback.nowPlaying {
-                    openTrackMenu(from: item)
+            MacSongCacheSlot(
+                videoId: playback.nowPlaying?.videoId ?? "",
+                thumbnailURL: playback.nowPlaying?.thumbnailURL
+            ) {
+                Button {
+                    if let item = playback.nowPlaying {
+                        openTrackMenu(from: item)
+                    }
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                        .frame(width: 36, height: 36)
+                        .contentShape(Rectangle())
                 }
-            } label: {
-                Image(systemName: "ellipsis")
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                    .frame(width: 36, height: 36)
-                    .contentShape(Rectangle())
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
         }
     }
 
@@ -1671,14 +1676,16 @@ private struct PlayerQueueRowView: View, Equatable {
             }
             .buttonStyle(.plain)
             if !isSelectionMode {
-                Button(action: onMore) {
-                    Image(systemName: "ellipsis")
-                        .font(.system(size: 17, weight: .semibold))
-                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                        .frame(width: 36, height: 56)
-                        .contentShape(Rectangle())
+                MacSongCacheSlot(videoId: item.videoId, thumbnailURL: item.thumbnailURL, isLive: item.isLive) {
+                    Button(action: onMore) {
+                        Image(systemName: "ellipsis")
+                            .font(.system(size: 17, weight: .semibold))
+                            .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                            .frame(width: 36, height: 56)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.borderless)
                 }
-                .buttonStyle(.borderless)
             }
         }
         .padding(.horizontal, YTLiteLayout.stackDefault)

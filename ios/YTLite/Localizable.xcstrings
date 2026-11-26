@@ -3355,6 +3355,111 @@
         }
       }
     },
+    "mac.release.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "الإصدار %@" } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Version %@" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Versión %@" } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Version %@" } },
+        "hi" : { "stringUnit" : { "state" : "translated", "value" : "संस्करण %@" } },
+        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Versão %@" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "新版本 %@" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "新版本 %@" } }
+      }
+    },
+    "mac.release.message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "يتوفر إصدار جديد." } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "A new version is available." } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Hay una versión nueva." } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Une nouvelle version est disponible." } },
+        "hi" : { "stringUnit" : { "state" : "translated", "value" : "एक नया संस्करण उपलब्ध है।" } },
+        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Há uma nova versão disponível." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "有新版本可以下载。" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "有新版本可以下載。" } }
+      }
+    },
+    "mac.release.download" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "تنزيل" } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Download" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Descargar" } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Télécharger" } },
+        "hi" : { "stringUnit" : { "state" : "translated", "value" : "डाउनलोड" } },
+        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Baixar" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "下载" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "下載" } }
+      }
+    },
+    "mac.release.later" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "لاحقًا" } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Later" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Más tarde" } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Plus tard" } },
+        "hi" : { "stringUnit" : { "state" : "translated", "value" : "बाद में" } },
+        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Depois" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "以后再说" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "以後再說" } }
+      }
+    },
+    "mac.cache.download" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تنزيل"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Download"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Descargar"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Télécharger"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "डाउनलोड"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Baixar"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下载"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下載"
+          }
+        }
+      }
+    },
     "common.more" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3671,6 +3776,19 @@
             "value" : "名稱"
           }
         }
+      }
+    },
+    "common.previous" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "السابق" } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Previous" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Anterior" } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Précédent" } },
+        "hi" : { "stringUnit" : { "state" : "translated", "value" : "पिछला" } },
+        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Anterior" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "上一首" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "上一首" } }
       }
     },
     "common.next" : {

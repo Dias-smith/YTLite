@@ -1873,10 +1873,20 @@ private struct LibrarySongsPane: View, Equatable {
                     .font(YTLiteType.rowTitleMedium)
                     .foregroundStyle(YTLiteColor.onSurface)
                     .lineLimit(2)
-                Text(item.channelName)
-                    .font(YTLiteType.meta)
-                    .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                    .lineLimit(1)
+                HStack(spacing: 4) {
+                    Text(item.channelName)
+                        .font(YTLiteType.meta)
+                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                        .lineLimit(1)
+                    #if targetEnvironment(macCatalyst)
+                    Spacer(minLength: 4)
+                    MacSongCacheButton(
+                        videoId: item.videoId,
+                        thumbnailURL: item.thumbnailURL,
+                        isLive: item.isLive
+                    )
+                    #endif
+                }
             }
             .contentShape(Rectangle())
         }
@@ -1914,15 +1924,17 @@ struct LibrarySongRow: View, Equatable {
                     .lineLimit(1)
             }
             Spacer(minLength: 0)
-            Button {
-                onMore?()
-            } label: {
-                Image(systemName: "ellipsis")
-                    .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                    .frame(width: 32, height: 32)
-                    .contentShape(Rectangle())
+            MacSongCacheSlot(videoId: item.videoId, thumbnailURL: item.thumbnailURL, isLive: item.isLive) {
+                Button {
+                    onMore?()
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                        .frame(width: 32, height: 32)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.borderless)
             }
-            .buttonStyle(.borderless)
         }
         .padding(.leading, compactLeading ? 0 : YTLiteLayout.screenPadding)
         .padding(.trailing, YTLiteLayout.screenPadding)
@@ -2623,15 +2635,21 @@ private struct HistorySongRow: View {
             }
             Spacer(minLength: 0)
             if showsMore {
-                Button {
-                    onMore?()
-                } label: {
-                    Image(systemName: "ellipsis")
-                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                        .frame(width: 32, height: 32)
-                        .contentShape(Rectangle())
+                MacSongCacheSlot(
+                    videoId: entry.item.videoId,
+                    thumbnailURL: entry.item.thumbnailURL,
+                    isLive: entry.item.isLive
+                ) {
+                    Button {
+                        onMore?()
+                    } label: {
+                        Image(systemName: "ellipsis")
+                            .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                            .frame(width: 32, height: 32)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.borderless)
                 }
-                .buttonStyle(.borderless)
             }
         }
         .padding(.leading, compactLeading ? 0 : YTLiteLayout.screenPadding)

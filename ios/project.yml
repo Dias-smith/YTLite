@@ -338,6 +338,8 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.ytlite.player.mac
         PRODUCT_NAME: Mixtube
+        # Mac ships at 1.0.0. Do not inherit the shared 1.3.0 marketing version.
+        MARKETING_VERSION: "1.0.0"
         PRODUCT_MODULE_NAME: YTLiteMac
         INFOPLIST_FILE: YTLite/Info.plist
         GENERATE_INFOPLIST_FILE: false

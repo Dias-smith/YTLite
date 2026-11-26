@@ -264,10 +264,12 @@ struct YouView: View {
                         HStack(spacing: 12) {
                             ForEach(Array(viewModel.liked.enumerated()), id: \.element.id) { index, item in
                                 YouVideoShelfCard(
+                                    videoId: item.videoId,
                                     title: item.title,
                                     subtitle: item.channelName,
                                     imageURL: item.thumbnailURL,
-                                    durationText: item.durationText
+                                    durationText: item.durationText,
+                                    isLive: item.isLive
                                 ) {
                                     playback.play(
                                         items: viewModel.liked,
@@ -590,10 +592,12 @@ private struct YouPlaylistCard: View {
 }
 
 private struct YouVideoShelfCard: View {
+    let videoId: String
     let title: String
     let subtitle: String
     let imageURL: URL?
     var durationText: String? = nil
+    var isLive: Bool = false
     let action: () -> Void
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
@@ -619,11 +623,18 @@ private struct YouVideoShelfCard: View {
                     .foregroundStyle(YTLiteColor.onSurface)
                     .lineLimit(2)
                     .frame(width: cardWidth, alignment: .leading)
-                Text(subtitle)
-                    .font(YTLiteType.iconCaption)
-                    .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                    .lineLimit(1)
-                    .frame(width: cardWidth, alignment: .leading)
+                HStack(spacing: 4) {
+                    Text(subtitle)
+                        .font(YTLiteType.iconCaption)
+                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                        .lineLimit(1)
+                    Spacer(minLength: 4)
+                    #if targetEnvironment(macCatalyst)
+                    MacSongCacheButton(videoId: videoId, thumbnailURL: imageURL, isLive: isLive)
+                    #endif
+                }
+                .frame(width: cardWidth, alignment: .leading)
+                .id(videoId)
             }
         }
         .buttonStyle(.plain)

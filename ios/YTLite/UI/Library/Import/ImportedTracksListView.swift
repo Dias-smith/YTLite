@@ -310,16 +310,22 @@ struct ImportedTracksListView: View {
             .buttonStyle(.plain)
 
             if !isSelectionMode {
-                Button {
-                    trackActions.present(item: entry.item, canDeleteFromLibrary: true)
-                } label: {
-                    Image(systemName: "ellipsis")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                        .frame(width: 44, height: 44)
-                        .contentShape(Rectangle())
+                MacSongCacheSlot(
+                    videoId: entry.id,
+                    thumbnailURL: entry.item.thumbnailURL,
+                    isLive: entry.item.isLive
+                ) {
+                    Button {
+                        trackActions.present(item: entry.item, canDeleteFromLibrary: true)
+                    } label: {
+                        Image(systemName: "ellipsis")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                            .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
                 .padding(.trailing, YTLiteLayout.screenPadding - 8)
             } else {
                 Color.clear

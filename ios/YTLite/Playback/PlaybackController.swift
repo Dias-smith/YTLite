@@ -145,6 +145,9 @@ final class PlaybackController: ObservableObject {
     private var externalPauseSyncTask: Task<Void, Never>?
     /// One resume attempt per pause streak, so an app switch does not loop setActive.
     private var didAttemptBackgroundResume = false
+    #if targetEnvironment(macCatalyst)
+    private var macTerminationDisabled = false
+    #endif
     /// Rechecks after backgrounding, once the other app has had time to start.
     private var otherAppYieldTask: Task<Void, Never>?
     /// Defers releasing the session until an interruption is clearly sustained.
@@ -300,14 +303,35 @@ final class PlaybackController: ObservableObject {
     /// Entered playback: claim the session, then push the playing state.
     private func syncPlayingState() {
         activatePlaybackAudioSession(allowMixWithOthers: isFullScreenAdAudioHold)
+        updateMacAutomaticTermination()
         pushPlaybackSurfaces()
     }
 
     /// Entered pause: push the paused state, then release the session.
     /// Now Playing is ignored once the session is inactive, so the push comes first.
     private func syncPausedState() {
+        updateMacAutomaticTermination()
         pushPlaybackSurfaces()
         deactivatePlaybackAudioSession()
+    }
+
+    /// While music is playing, macOS must not quit this windowless app on its own.
+    /// The Swift API is hidden from Catalyst, but the Mac process still implements it.
+    private func updateMacAutomaticTermination() {
+        #if targetEnvironment(macCatalyst)
+        let process = ProcessInfo.processInfo as NSObject
+        let disable = NSSelectorFromString("disableAutomaticTermination:")
+        let enable = NSSelectorFromString("enableAutomaticTermination:")
+        guard process.responds(to: disable), process.responds(to: enable) else { return }
+        let reason = "MixtubePlayback"
+        if isPlaying, !macTerminationDisabled {
+            process.perform(disable, with: reason)
+            macTerminationDisabled = true
+        } else if !isPlaying, macTerminationDisabled {
+            process.perform(enable, with: reason)
+            macTerminationDisabled = false
+        }
+        #endif
     }
 
     func play(items: [VideoItem], startAt index: Int = 0, sourcePlaylistId: String? = nil, analyticsSource: String = "unknown") {
@@ -1697,6 +1721,9 @@ final class PlaybackController: ObservableObject {
             let cached = await PlaybackMediaStore.shared.cachedSnapshots()
             await MainActor.run {
                 self.libraryStore?.syncOfflinePlaylist(cached: cached)
+                #if targetEnvironment(macCatalyst)
+                MacCachedMediaIndex.shared.replace(Set(cached.map(\.videoId)))
+                #endif
                 self.applyCachedCoverToNowPlayingIfNeeded(videoId: videoId)
             }
         }

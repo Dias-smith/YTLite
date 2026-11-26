@@ -215,6 +215,90 @@ struct SectionHeaderRow: View {
     }
 }
 
+/// Download control that sits immediately to the left of a song's rich-menu button.
+/// iPhone renders only the menu.
+struct MacSongCacheSlot<Menu: View>: View {
+    let videoId: String
+    var thumbnailURL: URL? = nil
+    var isLive: Bool = false
+    @ViewBuilder var menu: () -> Menu
+
+    var body: some View {
+        HStack(spacing: 2) {
+            #if targetEnvironment(macCatalyst)
+            MacSongCacheButton(videoId: videoId, thumbnailURL: thumbnailURL, isLive: isLive)
+            #endif
+            menu()
+        }
+    }
+}
+
+#if targetEnvironment(macCatalyst)
+struct MacSongCacheButton: View {
+    let videoId: String
+    var thumbnailURL: URL? = nil
+    var isLive: Bool = false
+    @ObservedObject private var cache = MacCachedMediaIndex.shared
+    @Environment(\.libraryStore) private var libraryStore
+
+    /// Files already on this Mac: local imports and tracks brought in from another source.
+    private var isImported: Bool {
+        if LocalTrackID.isLocal(videoId) { return true }
+        return libraryStore?.track(id: videoId)?.isImportedLocally == true
+    }
+
+    var body: some View {
+        if videoId.isEmpty {
+            EmptyView()
+        } else if isImported || cache.videoIds.contains(videoId) {
+            Image(systemName: "checkmark")
+                .font(.system(size: 13, weight: .bold))
+                .foregroundStyle(Color.green)
+                .frame(width: 28, height: 28)
+                .accessibilityHidden(true)
+        } else if isLive {
+            EmptyView()
+        } else if let fraction = cache.fractions[videoId] {
+            MacCacheProgressRing(fraction: fraction)
+                .frame(width: 28, height: 28)
+                .accessibilityLabel(L("mac.cache.download"))
+        } else {
+            Button {
+                MacSongCacheDownloads.start(
+                    videoId: videoId,
+                    thumbnailURL: thumbnailURL,
+                    libraryStore: libraryStore
+                )
+            } label: {
+                Image(systemName: "arrow.down.circle")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                    .frame(width: 28, height: 28)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.borderless)
+            .accessibilityLabel(L("mac.cache.download"))
+        }
+    }
+}
+
+private struct MacCacheProgressRing: View {
+    let fraction: Double
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .stroke(Color.green.opacity(0.22), lineWidth: 2.5)
+            Circle()
+                .trim(from: 0, to: max(0.04, min(1, fraction)))
+                .stroke(Color.green, style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+        }
+        .padding(5)
+    }
+}
+#endif
+
 struct FeedVideoCard: View {
     let item: VideoItem
     var onTap: (() -> Void)? = nil
@@ -274,6 +358,7 @@ struct FeedVideoCard: View {
                                 .font(YTLiteType.feedMeta)
                                 .foregroundStyle(YTLiteColor.feedMeta)
                                 .lineLimit(2)
+                                .multilineTextAlignment(.leading)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -282,18 +367,24 @@ struct FeedVideoCard: View {
                 }
                 .buttonStyle(.plain)
 
-                Button {
-                    onMore?()
-                } label: {
-                    Image(systemName: "ellipsis")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                        .rotationEffect(.degrees(90))
-                        .frame(width: 32, height: 32)
-                        .contentShape(Rectangle())
+                MacSongCacheSlot(
+                    videoId: item.videoId,
+                    thumbnailURL: item.thumbnailURL,
+                    isLive: item.isLive
+                ) {
+                    Button {
+                        onMore?()
+                    } label: {
+                        Image(systemName: "ellipsis")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                            .rotationEffect(.degrees(90))
+                            .frame(width: 32, height: 32)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.borderless)
+                    .accessibilityLabel(L("common.more"))
                 }
-                .buttonStyle(.borderless)
-                .accessibilityLabel(L("common.more"))
             }
             .padding(.horizontal, infoHorizontal)
             .padding(.top, YTLiteLayout.feedInfoTop)

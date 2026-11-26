@@ -445,14 +445,20 @@ private struct PlaylistDetailTrackRow: View, Equatable {
             }
             .buttonStyle(.plain)
 
-            Button(action: onMore) {
-                Image(systemName: "ellipsis")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                    .frame(width: 36, height: 36)
-                    .contentShape(Rectangle())
+            MacSongCacheSlot(
+                videoId: row.trackId,
+                thumbnailURL: row.item.thumbnailURL,
+                isLive: row.item.isLive
+            ) {
+                Button(action: onMore) {
+                    Image(systemName: "ellipsis")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                        .frame(width: 36, height: 36)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.borderless)
             }
-            .buttonStyle(.borderless)
         }
         .padding(.vertical, 2)
     }

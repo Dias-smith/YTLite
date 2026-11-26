@@ -49,6 +49,117 @@ enum PlaybackCachedCover {
     }
 }
 
+#if DEBUG || targetEnvironment(macCatalyst)
+/// Downloads a stream to disk and reports byte progress. The temp file must be moved
+/// before `didFinishDownloadingTo` returns.
+private final class PlaybackFileDownloader: NSObject, URLSessionDownloadDelegate, @unchecked Sendable {
+    struct Result: Sendable {
+        let fileURL: URL
+        let statusCode: Int
+    }
+
+    private let startByte: Int64
+    private let progressHandler: (@Sendable (Double) -> Void)?
+    private let scratchURL: URL
+    private let lock = NSLock()
+    private var session: URLSession?
+    private var task: URLSessionDownloadTask?
+    private var continuation: CheckedContinuation<Result, Error>?
+    private var movedURL: URL?
+    private var moveError: Error?
+    private var lastReported = -1.0
+    private let fileManager = FileManager.default
+
+    init(startByte: Int64, onProgress: (@Sendable (Double) -> Void)?) {
+        self.startByte = startByte
+        self.progressHandler = onProgress
+        self.scratchURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("ytlite-dl-\(UUID().uuidString)")
+        super.init()
+    }
+
+    func download(_ request: URLRequest) async throws -> Result {
+        let config = URLSessionConfiguration.ephemeral
+        config.timeoutIntervalForRequest = 30
+        config.timeoutIntervalForResource = 20 * 60
+        let session = URLSession(configuration: config, delegate: self, delegateQueue: nil)
+        self.session = session
+        return try await withCheckedThrowingContinuation { continuation in
+            lock.lock()
+            self.continuation = continuation
+            lock.unlock()
+            let task = session.downloadTask(with: request)
+            self.task = task
+            task.resume()
+        }
+    }
+
+    func cancel() {
+        task?.cancel()
+    }
+
+    func urlSession(
+        _ session: URLSession,
+        downloadTask: URLSessionDownloadTask,
+        didWriteData bytesWritten: Int64,
+        totalBytesWritten: Int64,
+        totalBytesExpectedToWrite: Int64
+    ) {
+        guard totalBytesExpectedToWrite > 0 else { return }
+        let status = (downloadTask.response as? HTTPURLResponse)?.statusCode ?? 0
+        let fraction: Double
+        if status == 206, startByte > 0 {
+            fraction = Double(startByte + totalBytesWritten) / Double(startByte + totalBytesExpectedToWrite)
+        } else {
+            fraction = Double(totalBytesWritten) / Double(totalBytesExpectedToWrite)
+        }
+        let clamped = min(0.99, max(0, fraction))
+        guard abs(clamped - lastReported) >= 0.01 else { return }
+        lastReported = clamped
+        progressHandler?(clamped)
+    }
+
+    func urlSession(
+        _ session: URLSession,
+        downloadTask: URLSessionDownloadTask,
+        didFinishDownloadingTo location: URL
+    ) {
+        do {
+            if fileManager.fileExists(atPath: scratchURL.path) {
+                try fileManager.removeItem(at: scratchURL)
+            }
+            try fileManager.moveItem(at: location, to: scratchURL)
+            movedURL = scratchURL
+        } catch {
+            moveError = error
+        }
+    }
+
+    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+        session.finishTasksAndInvalidate()
+        lock.lock()
+        let continuation = self.continuation
+        self.continuation = nil
+        lock.unlock()
+        guard let continuation else { return }
+        if let error {
+            try? fileManager.removeItem(at: scratchURL)
+            continuation.resume(throwing: error)
+            return
+        }
+        if let moveError {
+            continuation.resume(throwing: moveError)
+            return
+        }
+        guard let file = movedURL, let http = task.response as? HTTPURLResponse else {
+            continuation.resume(throwing: URLError(.badServerResponse))
+            return
+        }
+        continuation.resume(returning: Result(fileURL: file, statusCode: http.statusCode))
+    }
+}
+#endif
+
 /// ***
 actor PlaybackMediaStore {
     static let shared = PlaybackMediaStore()
@@ -56,7 +167,7 @@ actor PlaybackMediaStore {
     private let fileManager = FileManager.default
     private var index: [String: PlaybackStoreEntry] = [:]
     private var inflightVideoIds: Set<String> = []
-    private var persistTasks: [String: Task<Void, Never>] = [:]
+    private var persistTasks: [String: Task<Bool, Never>] = [:]
     private var loadedIndex = false
 
     /// Completed offline copies. Partial downloads are not included.
@@ -92,23 +203,28 @@ actor PlaybackMediaStore {
     }
 
     #if DEBUG || targetEnvironment(macCatalyst)
+    @discardableResult
     func schedulePersist(
         videoId: String,
         sourceURL: URL,
         itag: Int,
         mimeType: String,
         thumbnailURL: URL? = nil
-    ) async {
+    ) async -> Bool {
         loadIndexIfNeeded()
         if localFileURL(videoId: videoId) != nil {
             await persistCoverIfNeeded(videoId: videoId, thumbnailURL: thumbnailURL)
-            return
+            return true
         }
-        guard !inflightVideoIds.contains(videoId) else { return }
+        if inflightVideoIds.contains(videoId) {
+            await persistTasks[videoId]?.value
+            return localFileURL(videoId: videoId) != nil
+        }
 
         inflightVideoIds.insert(videoId)
         persistTasks[videoId]?.cancel()
-        let task = Task {
+        let task = Task { () -> Bool in
+            var saved = false
             defer {
                 Task { await self.clearInflight(videoId: videoId) }
             }
@@ -119,9 +235,12 @@ actor PlaybackMediaStore {
                     itag: itag,
                     mimeType: mimeType
                 )
+                saved = self.localFileURL(videoId: videoId) != nil
                 PlayProbe.log(SaltedLiteral.probeSaved, videoId: videoId, "itag=\(itag)")
                 await self.persistCoverIfNeeded(videoId: videoId, thumbnailURL: thumbnailURL)
             } catch is CancellationError {
+                PlayProbe.log(SaltedLiteral.probeCancelled, videoId: videoId)
+            } catch let error as URLError where error.code == .cancelled {
                 PlayProbe.log(SaltedLiteral.probeCancelled, videoId: videoId)
             } catch {
                 PlayProbe.log(
@@ -130,9 +249,18 @@ actor PlaybackMediaStore {
                     error.localizedDescription
                 )
             }
+            #if targetEnvironment(macCatalyst)
+            if !saved {
+                let id = videoId
+                Task { @MainActor in
+                    MacCachedMediaIndex.shared.clearFraction(videoId: id)
+                }
+            }
+            #endif
+            return saved
         }
         persistTasks[videoId] = task
-        await task.value
+        return await task.value
     }
     #endif
 
@@ -154,6 +282,9 @@ actor PlaybackMediaStore {
             try? fileManager.removeItem(at: rootDirectory)
         }
         loadedIndex = false
+        #if targetEnvironment(macCatalyst)
+        publishCachedIdsToUI(clearProgress: true)
+        #endif
     }
 
     /// ***
@@ -170,7 +301,23 @@ actor PlaybackMediaStore {
             try? fileManager.removeItem(at: videoDir)
         }
         persistIndex()
+        #if targetEnvironment(macCatalyst)
+        publishCachedIdsToUI()
+        #endif
     }
+
+    #if targetEnvironment(macCatalyst)
+    func publishCachedIdsToUI(clearProgress: Bool = false) {
+        let ids = Set(cachedSnapshots().map(\.videoId))
+        Task { @MainActor in
+            if clearProgress {
+                MacCachedMediaIndex.shared.removeAll()
+            } else {
+                MacCachedMediaIndex.shared.replace(ids)
+            }
+        }
+    }
+    #endif
 
     // MARK: - Private
 
@@ -251,12 +398,24 @@ actor PlaybackMediaStore {
             }
         }
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let downloader = PlaybackFileDownloader(startByte: startByte) { fraction in
+            #if targetEnvironment(macCatalyst)
+            let id = videoId
+            Task { @MainActor in
+                MacCachedMediaIndex.shared.setFraction(videoId: id, fraction)
+            }
+            #endif
+        }
+        let result = try await withTaskCancellationHandler {
+            try await downloader.download(request)
+        } onCancel: {
+            downloader.cancel()
+        }
         try Task.checkCancellation()
 
-        let http = response as? HTTPURLResponse
-        let status = http?.statusCode ?? 0
+        let status = result.statusCode
         guard (200...299).contains(status) || status == 206 else {
+            try? fileManager.removeItem(at: result.fileURL)
             throw URLError(.badServerResponse)
         }
 
@@ -267,15 +426,15 @@ actor PlaybackMediaStore {
             let handle = try FileHandle(forWritingTo: partial)
             defer { try? handle.close() }
             try handle.seekToEnd()
-            try handle.write(contentsOf: data)
+            let incoming = try FileHandle(forReadingFrom: result.fileURL)
+            defer { try? incoming.close() }
+            while let chunk = try incoming.read(upToCount: 256 * 1024), !chunk.isEmpty {
+                try handle.write(contentsOf: chunk)
+            }
+            try? fileManager.removeItem(at: result.fileURL)
         } else {
-            if fileManager.fileExists(atPath: partial.path) {
-                try fileManager.removeItem(at: partial)
-            }
-            if fileManager.fileExists(atPath: destination.path) {
-                try fileManager.removeItem(at: destination)
-            }
-            try data.write(to: destination, options: .atomic)
+            try? fileManager.removeItem(at: partial)
+            try moveReplacingItem(at: result.fileURL, to: destination)
             registerEntry(
                 videoId: videoId,
                 itag: itag,
@@ -288,13 +447,25 @@ actor PlaybackMediaStore {
         if fileManager.fileExists(atPath: destination.path) {
             try fileManager.removeItem(at: destination)
         }
-        try fileManager.moveItem(at: partial, to: destination)
+        try moveReplacingItem(at: partial, to: destination)
         registerEntry(
             videoId: videoId,
             itag: itag,
             relativePath: relativePath,
             fileURL: destination
         )
+    }
+
+    private func moveReplacingItem(at source: URL, to destination: URL) throws {
+        if fileManager.fileExists(atPath: destination.path) {
+            try fileManager.removeItem(at: destination)
+        }
+        do {
+            try fileManager.moveItem(at: source, to: destination)
+        } catch {
+            try fileManager.copyItem(at: source, to: destination)
+            try? fileManager.removeItem(at: source)
+        }
     }
 
     /// Download remote artwork into `{videoId}/cover.jpg` once media is cached.
