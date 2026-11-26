@@ -267,14 +267,24 @@ a:hover {
   padding-top: 2.5rem;
 }
 
+.mac-page h1,
+.mac-page .section h2,
+.mac-page .feature-list h3,
+.mac-page .mac-guide-card h2 {
+  font-family: var(--font-body);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
 .mac-page h1 {
   margin: 0 0 1rem;
-  max-width: 16ch;
-  font-family: var(--font-display);
-  font-weight: 800;
-  font-size: clamp(2.4rem, 6vw, 4.2rem);
-  letter-spacing: -0.04em;
-  line-height: 1.02;
+  max-width: 18em;
+  font-size: clamp(2rem, 4vw, 3.05rem);
+  line-height: 1.2;
+}
+
+.mac-page .section h2 {
+  line-height: 1.25;
 }
 
 .feature-list {
