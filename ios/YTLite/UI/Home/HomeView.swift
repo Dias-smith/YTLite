@@ -1647,18 +1647,33 @@ struct AlbumTracksView: View {
                         .font(YTLiteType.meta)
                         .foregroundStyle(YTLiteColor.onSurfaceVariant)
                 }
-                Button {
-                    play(at: 0)
-                } label: {
-                    Label(L("common.play"), systemImage: "play.fill")
-                        .font(YTLiteType.labelEmphasized)
-                        .foregroundStyle(YTLiteColor.onAccent)
-                        .padding(.horizontal, 18)
-                        .padding(.vertical, 8)
-                        .background(YTLiteColor.accent, in: Capsule())
+                HStack(spacing: 10) {
+                    Button {
+                        play(at: 0)
+                    } label: {
+                        Label(L("common.play"), systemImage: "play.fill")
+                            .font(YTLiteType.labelEmphasized)
+                            .foregroundStyle(YTLiteColor.onAccent)
+                            .padding(.horizontal, 18)
+                            .padding(.vertical, 8)
+                            .background(YTLiteColor.accent, in: Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(tracks.isEmpty)
+
+                    Button {
+                        saveAlbumToLibrary()
+                    } label: {
+                        Label(L("common.save"), systemImage: "bookmark")
+                            .font(YTLiteType.labelEmphasized)
+                            .foregroundStyle(YTLiteColor.onSurface)
+                            .padding(.horizontal, 18)
+                            .padding(.vertical, 8)
+                            .background(YTLiteColor.surfaceVariant, in: Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(tracks.isEmpty)
                 }
-                .buttonStyle(.plain)
-                .disabled(tracks.isEmpty)
                 .padding(.top, 4)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -1719,6 +1734,29 @@ struct AlbumTracksView: View {
             }
         }
         .padding(.vertical, 8)
+    }
+
+    /// Create a Library playlist named after this album, then download its tracks.
+    private func saveAlbumToLibrary() {
+        guard let libraryStore, !tracks.isEmpty else { return }
+        let name = album.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { return }
+        let existing = libraryStore.allPlaylists().first {
+            $0.systemType == nil
+                && $0.name.trimmingCharacters(in: .whitespacesAndNewlines)
+                    .caseInsensitiveCompare(name) == .orderedSame
+        }
+        let playlist = existing ?? libraryStore.createPlaylist(name: name)
+        if existing == nil, let cover = album.thumbnailURL?.absoluteString, !cover.isEmpty {
+            playlist.coverUrlOrPath = cover
+        }
+        for item in tracks {
+            libraryStore.add(item: item, to: playlist, persist: false)
+        }
+        libraryStore.save()
+        trackActions.notifyListsChanged()
+        MacSongCacheDownloads.start(items: tracks, libraryStore: libraryStore, playback: playback)
+        trackActions.showToast(Lf("toast.saved_to", name))
     }
     #endif
 }

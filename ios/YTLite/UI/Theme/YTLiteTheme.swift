@@ -273,9 +273,13 @@ struct MacSongCacheButton: View {
         } else if isLive {
             Color.clear.frame(width: side, height: side)
         } else if let fraction = cache.fractions[videoId] {
-            MacCacheProgressRing(fraction: fraction, inset: max(0, (side - iconPointSize - 2) / 2))
-                .frame(width: side, height: side)
-                .accessibilityLabel(L("mac.cache.download"))
+            MacCacheProgressControl(
+                videoId: videoId,
+                fraction: fraction,
+                diameter: side,
+                inset: max(0, (side - iconPointSize - 2) / 2),
+                onCancel: cancelDownload
+            )
         } else {
             Button(action: startDownload) {
                 Image(systemName: "arrow.down.circle")
@@ -301,10 +305,14 @@ struct MacSongCacheButton: View {
             .accessibilityLabel(L("mac.cache.download"))
         } else if let fraction = cache.fractions[videoId] {
             labeledColumn(tint: YTLiteColor.onSurface) {
-                MacCacheProgressRing(fraction: fraction, inset: 1)
-                    .frame(width: 22, height: 22)
+                MacCacheProgressControl(
+                    videoId: videoId,
+                    fraction: fraction,
+                    diameter: 22,
+                    inset: 1,
+                    onCancel: cancelDownload
+                )
             }
-            .accessibilityLabel(L("mac.cache.download"))
         } else {
             Button(action: startDownload) {
                 labeledColumn(tint: YTLiteColor.onSurface) {
@@ -330,6 +338,10 @@ struct MacSongCacheButton: View {
         .frame(maxWidth: .infinity)
     }
 
+    private func cancelDownload() {
+        MacSongCacheDownloads.cancel(videoId: videoId)
+    }
+
     private func startDownload() {
         let isCurrent = playback.nowPlaying?.videoId == videoId
         MacSongCacheDownloads.start(
@@ -339,6 +351,37 @@ struct MacSongCacheButton: View {
             playingSource: isCurrent ? playback.macPlaybackStreamSource() : nil,
             requirePlayingSource: isCurrent
         )
+    }
+}
+
+/// Progress ring. A tap cancels only after byte progress has stopped.
+private struct MacCacheProgressControl: View {
+    let videoId: String
+    let fraction: Double
+    var diameter: CGFloat
+    var inset: CGFloat = 5
+    let onCancel: () -> Void
+    @ObservedObject private var cache = MacCachedMediaIndex.shared
+    @State private var now = Date()
+
+    var body: some View {
+        Button {
+            if cache.isStalled(videoId: videoId, now: now) {
+                onCancel()
+            }
+        } label: {
+            MacCacheProgressRing(fraction: fraction, inset: inset)
+                .frame(width: diameter, height: diameter)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.borderless)
+        .accessibilityLabel(L("mac.cache.download"))
+        .task {
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                now = Date()
+            }
+        }
     }
 }
 

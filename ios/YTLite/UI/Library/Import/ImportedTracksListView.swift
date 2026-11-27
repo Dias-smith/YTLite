@@ -52,13 +52,22 @@ struct ImportedTracksListView: View {
     @State private var showDeleteConfirm = false
 
     private var chips: [ImportedListFilter] {
-        var items = ImportedListFilter.chipOrder
         #if targetEnvironment(macCatalyst)
+        var items: [ImportedListFilter] = [.all]
         if scope == .offlineAll {
             items.append(.download)
         }
-        #endif
+        items.append(contentsOf: [
+            .source(.local),
+            .source(.wifi),
+            .source(.webdav),
+            .source(.icloud),
+            .source(.gdrive),
+        ])
         return items
+        #else
+        return ImportedListFilter.chipOrder
+        #endif
     }
 
     private var filteredEntries: [ImportedDisplayEntry] {

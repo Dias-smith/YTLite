@@ -68,6 +68,37 @@ final class MacCachedMediaIndex: ObservableObject {
     @Published private(set) var videoIds: Set<String> = []
     /// 0...0.99 while a file is downloading. Removed when the file is saved or the download stops.
     @Published private(set) var fractions: [String: Double] = [:]
+    /// Bumped when a download starts or the user cancels, so a stale task cannot clear the next one.
+    private var downloadGeneration: [String: UInt] = [:]
+    private var activityAt: [String: Date] = [:]
+    /// No byte progress for this long means the ring can be tapped to cancel.
+    static let stallAfter: TimeInterval = 8
+
+    /// Starts a visible download and returns the generation later progress updates must match.
+    func beginDownload(videoId: String) -> UInt {
+        let next = (downloadGeneration[videoId] ?? 0) &+ 1
+        downloadGeneration[videoId] = next
+        activityAt[videoId] = Date()
+        guard !videoIds.contains(videoId) else { return next }
+        fractions[videoId] = 0
+        return next
+    }
+
+    func cancelDownload(videoId: String) {
+        downloadGeneration[videoId] = (downloadGeneration[videoId] ?? 0) &+ 1
+        activityAt.removeValue(forKey: videoId)
+        fractions.removeValue(forKey: videoId)
+    }
+
+    func isStalled(videoId: String, now: Date = Date()) -> Bool {
+        guard fractions[videoId] != nil, !videoIds.contains(videoId) else { return false }
+        guard let at = activityAt[videoId] else { return true }
+        return now.timeIntervalSince(at) >= Self.stallAfter
+    }
+
+    func owns(videoId: String, generation: UInt) -> Bool {
+        downloadGeneration[videoId] == generation
+    }
 
     func replace(_ ids: Set<String>) {
         let nextFractions = fractions.filter { !ids.contains($0.key) }
@@ -85,14 +116,18 @@ final class MacCachedMediaIndex: ObservableObject {
         }
     }
 
-    func setFraction(videoId: String, _ value: Double) {
+    func setFraction(videoId: String, _ value: Double, generation: UInt? = nil) {
+        if let generation, downloadGeneration[videoId] != generation { return }
         guard !videoIds.contains(videoId) else { return }
+        activityAt[videoId] = Date()
         let clamped = min(0.99, max(0, value))
         if let current = fractions[videoId], abs(current - clamped) < 0.01 { return }
         fractions[videoId] = clamped
     }
 
-    func clearFraction(videoId: String) {
+    func clearFraction(videoId: String, generation: UInt? = nil) {
+        if let generation, downloadGeneration[videoId] != generation { return }
+        activityAt.removeValue(forKey: videoId)
         guard fractions[videoId] != nil else { return }
         fractions.removeValue(forKey: videoId)
     }
@@ -143,23 +178,33 @@ enum MacSongCacheDownloads {
         if requirePlayingSource, current == nil { return }
         let index = MacCachedMediaIndex.shared
         guard !index.videoIds.contains(videoId), index.fractions[videoId] == nil else { return }
-        index.setFraction(videoId: videoId, 0)
+        let generation = index.beginDownload(videoId: videoId)
         Task {
+            await PlaybackMediaStore.shared.cancelPersist(videoId: videoId)
             var saved = false
             var resolved: VideoPlayback?
             do {
                 if let current {
+                    let stillCurrent = await MainActor.run { () -> Bool in
+                        MacCachedMediaIndex.shared.owns(videoId: videoId, generation: generation)
+                    }
+                    guard stillCurrent else { return }
                     saved = await PlaybackMediaStore.shared.schedulePersist(
                         videoId: videoId,
                         sourceURL: current.streamURL,
                         itag: current.itag,
                         mimeType: current.mimeType,
-                        thumbnailURL: thumbnailURL ?? current.thumbnailURL
+                        thumbnailURL: thumbnailURL ?? current.thumbnailURL,
+                        generation: generation
                     )
                 } else {
-                    let playback = try await StreamResolver.shared.resolvePlayback(videoId: videoId)
-                    resolved = playback
-                    guard let format = PlaybackFormatSelector.select(formats: playback.formats, preferVideo: true) else {
+                let playback = try await StreamResolver.shared.resolvePlayback(videoId: videoId)
+                resolved = playback
+                let stillCurrent = await MainActor.run { () -> Bool in
+                    MacCachedMediaIndex.shared.owns(videoId: videoId, generation: generation)
+                }
+                guard stillCurrent else { return }
+                guard let format = PlaybackFormatSelector.select(formats: playback.formats, preferVideo: true) else {
                         throw URLError(.unsupportedURL)
                     }
                     saved = await PlaybackMediaStore.shared.schedulePersist(
@@ -167,7 +212,8 @@ enum MacSongCacheDownloads {
                         sourceURL: format.url,
                         itag: format.itag,
                         mimeType: format.mimeType,
-                        thumbnailURL: thumbnailURL ?? playback.thumbnailURL
+                        thumbnailURL: thumbnailURL ?? playback.thumbnailURL,
+                        generation: generation
                     )
                 }
             } catch {
@@ -177,9 +223,10 @@ enum MacSongCacheDownloads {
             let ids = Set(cached.map(\.videoId))
             let playback = resolved
             await MainActor.run {
+                guard MacCachedMediaIndex.shared.owns(videoId: videoId, generation: generation) else { return }
                 MacCachedMediaIndex.shared.replace(ids)
                 if !saved {
-                    MacCachedMediaIndex.shared.clearFraction(videoId: videoId)
+                    MacCachedMediaIndex.shared.clearFraction(videoId: videoId, generation: generation)
                 }
                 if saved, let current, let libraryStore {
                     _ = libraryStore.upsertTrack(
@@ -213,6 +260,13 @@ enum MacSongCacheDownloads {
                 libraryStore?.syncOfflinePlaylist(cached: cached)
             }
         }
+    }
+
+    /// Stops the in-flight file so the row can show the download button again.
+    static func cancel(videoId: String) {
+        guard !videoId.isEmpty else { return }
+        MacCachedMediaIndex.shared.cancelDownload(videoId: videoId)
+        Task { await PlaybackMediaStore.shared.cancelPersist(videoId: videoId) }
     }
 }
 

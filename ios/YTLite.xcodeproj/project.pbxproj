@@ -481,7 +481,6 @@
 		855C3C286749985AA739263C /* WatchL10n.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchL10n.swift; sourceTree = "<group>"; };
 		87A61B259C52EE148229734E /* WatchQueueView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchQueueView.swift; sourceTree = "<group>"; };
 		88C861F7CCE788FEFD78C175 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
-		A7C3E91B4D2F6081B5E0C4A2 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		8AC0D6F14DF44963BB9A30B7 /* PlaybackEqualizerProcessor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackEqualizerProcessor.swift; sourceTree = "<group>"; };
 		8C518CFCCBFCC6A0E45AD132 /* RewardedInterstitialAdManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RewardedInterstitialAdManager.swift; sourceTree = "<group>"; };
 		8F5A721FF8CF72CE0C688B87 /* VideoPlayback.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoPlayback.swift; sourceTree = "<group>"; };
@@ -496,6 +495,7 @@
 		9B60EC580637B37FEF7FB4E0 /* WatchPlaylistDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchPlaylistDetailView.swift; sourceTree = "<group>"; };
 		A1E29FF55D17C97ACE61342E /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		A25C466BFB54DFC24CAEEAC0 /* CatalogDataApiClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CatalogDataApiClient.swift; sourceTree = "<group>"; };
+		A7C3E91B4D2F6081B5E0C4A2 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		A7F5E4FF1578B48FAE57CC11 /* PhoneWidgetShared.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneWidgetShared.swift; sourceTree = "<group>"; };
 		A9B8F693DCDB340FC381410A /* ResolverBundleStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResolverBundleStore.swift; sourceTree = "<group>"; };
 		AC4BC0290DBF96C47203AFD9 /* SearchHit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchHit.swift; sourceTree = "<group>"; };
@@ -906,14 +906,6 @@
 			path = App;
 			sourceTree = "<group>";
 		};
-		C9E50B3D6F4182A3D702E6C4 /* YTLiteMac */ = {
-			isa = PBXGroup;
-			children = (
-				A7C3E91B4D2F6081B5E0C4A2 /* GoogleService-Info.plist */,
-			);
-			path = YTLiteMac;
-			sourceTree = "<group>";
-		};
 		C846572293AF047A99DB187C /* AppDebugKit */ = {
 			isa = PBXGroup;
 			children = (
@@ -937,6 +929,14 @@
 				0988BAA40C3FA01A35722581 /* WiFiImportSheet.swift */,
 			);
 			path = Import;
+			sourceTree = "<group>";
+		};
+		C9E50B3D6F4182A3D702E6C4 /* YTLiteMac */ = {
+			isa = PBXGroup;
+			children = (
+				A7C3E91B4D2F6081B5E0C4A2 /* GoogleService-Info.plist */,
+			);
+			path = YTLiteMac;
 			sourceTree = "<group>";
 		};
 		CC4379482ACB6643E994EC8E /* Review */ = {
@@ -1892,7 +1892,7 @@
 				CODE_SIGN_ENTITLEMENTS = YTLiteMac/YTLiteMac.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 0;
+				CURRENT_PROJECT_VERSION = 3;
 				DERIVE_MACCATALYST_PRODUCT_BUNDLE_IDENTIFIER = NO;
 				DEVELOPMENT_LANGUAGE = en;
 				DEVELOPMENT_TEAM = 8S748AQ4H7;
@@ -1904,7 +1904,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.0;
+				MARKETING_VERSION = 1.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.ytlite.player.mac;
 				PRODUCT_MODULE_NAME = YTLiteMac;
 				PRODUCT_NAME = Mixtube;
@@ -2067,7 +2067,7 @@
 				CODE_SIGN_ENTITLEMENTS = YTLiteMac/YTLiteMac.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 0;
+				CURRENT_PROJECT_VERSION = 3;
 				DERIVE_MACCATALYST_PRODUCT_BUNDLE_IDENTIFIER = NO;
 				DEVELOPMENT_LANGUAGE = en;
 				DEVELOPMENT_TEAM = 8S748AQ4H7;
@@ -2079,7 +2079,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.0;
+				MARKETING_VERSION = 1.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.ytlite.player.mac;
 				PRODUCT_MODULE_NAME = YTLiteMac;
 				PRODUCT_NAME = Mixtube;

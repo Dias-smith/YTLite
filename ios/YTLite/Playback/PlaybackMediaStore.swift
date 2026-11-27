@@ -68,6 +68,7 @@ private final class PlaybackFileDownloader: NSObject, URLSessionDownloadDelegate
     private var movedURL: URL?
     private var moveError: Error?
     private var lastReported = -1.0
+    private var lastActivityReport = Date.distantPast
     private let fileManager = FileManager.default
 
     init(startByte: Int64, onProgress: (@Sendable (Double) -> Void)?) {
@@ -105,17 +106,24 @@ private final class PlaybackFileDownloader: NSObject, URLSessionDownloadDelegate
         totalBytesWritten: Int64,
         totalBytesExpectedToWrite: Int64
     ) {
-        guard totalBytesExpectedToWrite > 0 else { return }
-        let status = (downloadTask.response as? HTTPURLResponse)?.statusCode ?? 0
+        let now = Date()
         let fraction: Double
-        if status == 206, startByte > 0 {
-            fraction = Double(startByte + totalBytesWritten) / Double(startByte + totalBytesExpectedToWrite)
+        if totalBytesExpectedToWrite > 0 {
+            let status = (downloadTask.response as? HTTPURLResponse)?.statusCode ?? 0
+            if status == 206, startByte > 0 {
+                fraction = Double(startByte + totalBytesWritten) / Double(startByte + totalBytesExpectedToWrite)
+            } else {
+                fraction = Double(totalBytesWritten) / Double(totalBytesExpectedToWrite)
+            }
         } else {
-            fraction = Double(totalBytesWritten) / Double(totalBytesExpectedToWrite)
+            fraction = lastReported < 0 ? 0 : lastReported
         }
         let clamped = min(0.99, max(0, fraction))
-        guard abs(clamped - lastReported) >= 0.01 else { return }
-        lastReported = clamped
+        let changed = abs(clamped - lastReported) >= 0.01
+        let due = now.timeIntervalSince(lastActivityReport) >= 1
+        guard changed || due else { return }
+        if changed { lastReported = clamped }
+        lastActivityReport = now
         progressHandler?(clamped)
     }
 
@@ -167,7 +175,10 @@ actor PlaybackMediaStore {
     private let fileManager = FileManager.default
     private var index: [String: PlaybackStoreEntry] = [:]
     private var inflightVideoIds: Set<String> = []
+    private var inflightTokens: [String: InflightToken] = [:]
     private var persistTasks: [String: Task<Bool, Never>] = [:]
+
+    private final class InflightToken {}
     private var loadedIndex = false
 
     /// Completed offline copies. Partial downloads are not included.
@@ -215,7 +226,8 @@ actor PlaybackMediaStore {
         sourceURL: URL,
         itag: Int,
         mimeType: String,
-        thumbnailURL: URL? = nil
+        thumbnailURL: URL? = nil,
+        generation: UInt? = nil
     ) async -> Bool {
         loadIndexIfNeeded()
         if localFileURL(videoId: videoId) != nil {
@@ -227,19 +239,34 @@ actor PlaybackMediaStore {
             return localFileURL(videoId: videoId) != nil
         }
 
+        let boundGeneration: UInt?
+        #if targetEnvironment(macCatalyst)
+        if let generation {
+            boundGeneration = generation
+        } else {
+            boundGeneration = await MainActor.run {
+                MacCachedMediaIndex.shared.beginDownload(videoId: videoId)
+            }
+        }
+        #else
+        boundGeneration = nil
+        #endif
         inflightVideoIds.insert(videoId)
+        let token = InflightToken()
+        inflightTokens[videoId] = token
         persistTasks[videoId]?.cancel()
         let task = Task { () -> Bool in
             var saved = false
             defer {
-                Task { await self.clearInflight(videoId: videoId) }
+                Task { await self.clearInflight(videoId: videoId, token: token) }
             }
             do {
                 try await self.fetchRemoteBytes(
                     videoId: videoId,
                     sourceURL: sourceURL,
                     itag: itag,
-                    mimeType: mimeType
+                    mimeType: mimeType,
+                    generation: boundGeneration
                 )
                 saved = self.localFileURL(videoId: videoId) != nil
                 PlayProbe.log(SaltedLiteral.probeSaved, videoId: videoId, "itag=\(itag)")
@@ -258,8 +285,9 @@ actor PlaybackMediaStore {
             #if targetEnvironment(macCatalyst)
             if !saved {
                 let id = videoId
+                let gen = boundGeneration
                 Task { @MainActor in
-                    MacCachedMediaIndex.shared.clearFraction(videoId: id)
+                    MacCachedMediaIndex.shared.clearFraction(videoId: id, generation: gen)
                 }
             }
             #endif
@@ -274,6 +302,7 @@ actor PlaybackMediaStore {
         persistTasks[videoId]?.cancel()
         persistTasks.removeValue(forKey: videoId)
         inflightVideoIds.remove(videoId)
+        inflightTokens.removeValue(forKey: videoId)
     }
 
     /// ***
@@ -335,7 +364,9 @@ actor PlaybackMediaStore {
         rootDirectory.appendingPathComponent(SaltedLiteral.indexFileName)
     }
 
-    private func clearInflight(videoId: String) {
+    private func clearInflight(videoId: String, token: InflightToken) {
+        guard inflightTokens[videoId] === token else { return }
+        inflightTokens.removeValue(forKey: videoId)
         inflightVideoIds.remove(videoId)
         persistTasks.removeValue(forKey: videoId)
     }
@@ -379,7 +410,8 @@ actor PlaybackMediaStore {
         videoId: String,
         sourceURL: URL,
         itag: Int,
-        mimeType: String
+        mimeType: String,
+        generation: UInt? = nil
     ) async throws {
         let relativePath = destinationRelativePath(videoId: videoId, itag: itag, mimeType: mimeType)
         let destination = rootDirectory.appendingPathComponent(relativePath)
@@ -407,8 +439,9 @@ actor PlaybackMediaStore {
         let downloader = PlaybackFileDownloader(startByte: startByte) { fraction in
             #if targetEnvironment(macCatalyst)
             let id = videoId
+            let gen = generation
             Task { @MainActor in
-                MacCachedMediaIndex.shared.setFraction(videoId: id, fraction)
+                MacCachedMediaIndex.shared.setFraction(videoId: id, fraction, generation: gen)
             }
             #endif
         }

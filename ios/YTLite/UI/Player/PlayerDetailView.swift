@@ -1705,18 +1705,22 @@ private struct PlayerQueueRowView: View, Equatable {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            if !isSelectionMode {
-                MacSongCacheSlot(videoId: item.videoId, thumbnailURL: item.thumbnailURL, isLive: item.isLive) {
-                    Button(action: onMore) {
-                        Image(systemName: "ellipsis")
-                            .font(.system(size: 17, weight: .semibold))
-                            .foregroundStyle(YTLiteColor.onSurfaceVariant)
-                            .frame(width: 36, height: 56)
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.borderless)
-                }
+            #if targetEnvironment(macCatalyst)
+            if isSelectionMode {
+                MacSongCacheButton(
+                    videoId: item.videoId,
+                    thumbnailURL: item.thumbnailURL,
+                    isLive: item.isLive
+                )
+                .frame(width: 36, height: 56)
+            } else {
+                queueRowMenu
             }
+            #else
+            if !isSelectionMode {
+                queueRowMenu
+            }
+            #endif
         }
         .padding(.horizontal, YTLiteLayout.stackDefault)
         .padding(.vertical, YTLiteLayout.rowVertical)
@@ -1726,6 +1730,19 @@ private struct PlayerQueueRowView: View, Equatable {
                 : Color.clear,
             in: RoundedRectangle(cornerRadius: YTLiteLayout.thumbRadius)
         )
+    }
+
+    private var queueRowMenu: some View {
+        MacSongCacheSlot(videoId: item.videoId, thumbnailURL: item.thumbnailURL, isLive: item.isLive) {
+            Button(action: onMore) {
+                Image(systemName: "ellipsis")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(YTLiteColor.onSurfaceVariant)
+                    .frame(width: 36, height: 56)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.borderless)
+        }
     }
 }
 
