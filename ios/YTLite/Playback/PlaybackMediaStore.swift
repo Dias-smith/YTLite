@@ -519,6 +519,7 @@ actor PlaybackMediaStore {
         let dest = PlaybackCachedCover.fileURL(videoId: videoId)
         if fileManager.fileExists(atPath: dest.path) { return }
 
+        #if targetEnvironment(macCatalyst)
         var candidates: [URL] = []
         if let thumbnailURL {
             let clean = Self.strippingFragment(thumbnailURL)
@@ -535,8 +536,58 @@ actor PlaybackMediaStore {
         for url in candidates {
             if await downloadCover(from: url, to: dest, videoId: videoId) { return }
         }
+        #else
+        guard let thumbnailURL else { return }
+        if thumbnailURL.isFileURL {
+            let sourcePath = thumbnailURL.path
+            guard fileManager.fileExists(atPath: sourcePath), sourcePath != dest.path else { return }
+            try? fileManager.createDirectory(
+                at: dest.deletingLastPathComponent(),
+                withIntermediateDirectories: true
+            )
+            try? fileManager.copyItem(at: URL(fileURLWithPath: sourcePath), to: dest)
+            await invalidateCoverImageCache(at: dest)
+            return
+        }
+
+        do {
+            var request = URLRequest(url: thumbnailURL)
+            request.setValue(
+                "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15",
+                forHTTPHeaderField: "User-Agent"
+            )
+            if let host = thumbnailURL.host,
+               host.contains("ggpht.com") || host.contains("googleusercontent.com")
+            {
+                request.setValue(SaltedLiteral.refererSlash, forHTTPHeaderField: "Referer")
+            }
+            let (data, response) = try await URLSession.shared.data(for: request)
+            try Task.checkCancellation()
+            let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+            guard (200..<300).contains(status), !data.isEmpty else { return }
+
+            try fileManager.createDirectory(
+                at: dest.deletingLastPathComponent(),
+                withIntermediateDirectories: true
+            )
+            let jpeg: Data
+            if let image = UIImage(data: data), let encoded = image.jpegData(compressionQuality: 0.9) {
+                jpeg = encoded
+            } else {
+                jpeg = data
+            }
+            try jpeg.write(to: dest, options: .atomic)
+            await invalidateCoverImageCache(at: dest)
+            PlayProbe.log("play.cover_saved", videoId: videoId)
+        } catch is CancellationError {
+            return
+        } catch {
+            PlayProbe.log("play.cover_fail", videoId: videoId, error.localizedDescription)
+        }
+        #endif
     }
 
+    #if targetEnvironment(macCatalyst)
     private func copyLocalCover(from source: URL, to dest: URL, videoId: String) async -> Bool {
         let sourcePath = source.path
         guard fileManager.fileExists(atPath: sourcePath), sourcePath != dest.path else { return false }
@@ -605,6 +656,7 @@ actor PlaybackMediaStore {
         guard !videoId.isEmpty, !LocalTrackID.isLocal(videoId) else { return nil }
         return URL(string: "https://i.ytimg.com/vi/\(videoId)/hqdefault.jpg")
     }
+    #endif
 
     private func invalidateCoverImageCache(at dest: URL) async {
         await MainActor.run {

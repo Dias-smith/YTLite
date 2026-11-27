@@ -1153,8 +1153,12 @@ final class PlaybackController: ObservableObject {
                     "\(playback.preferredStreamDescription()) \(PlayProbe.streamSummary(url: url)) prepare=\(usedPrepare) prime=\(primedPlayerItem != nil)"
                 )
                 #if DEBUG || targetEnvironment(macCatalyst)
+                #if targetEnvironment(macCatalyst)
                 let progressive = PlaybackFormatSelector.select(formats: playback.formats, preferVideo: true)
                     ?? PlaybackFormatSelector.select(formats: playback.formats, preferVideo: false)
+                #else
+                let progressive = PlaybackFormatSelector.select(formats: playback.formats, preferVideo: true)
+                #endif
                 if let fmt = progressive, url == fmt.url {
                     playbackStoreContext = PlaybackStoreContext(
                         videoId: expectedVideoId,
